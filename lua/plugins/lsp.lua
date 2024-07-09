@@ -17,5 +17,7 @@ return {
     end,
   },
   -- lsp servers
+  { "williamboman/mason-lspconfig.nvim" },
   { "neovim/nvim-lspconfig", opts = {}, setup = {} },
+  { import = "plugins.extras.lang.python" },
 }
