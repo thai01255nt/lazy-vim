@@ -29,6 +29,12 @@ keymap.set("n", "sh", "<C-w>h")
 keymap.set("n", "sk", "<C-w>k")
 keymap.set("n", "sj", "<C-w>j")
 keymap.set("n", "sl", "<C-w>l")
+-- swap window
+keymap.set("n", "sw", "<C-w>r")
+-- rotate window from horizontal to vertical
+keymap.set("n", "srh", "<C-w>H")
+-- rotate window from vertical to horizontal
+keymap.set("n", "srj", "<C-w>J")
 
 -- Resize window
 keymap.set("n", "<C-w><C-left>", "10<C-W><")

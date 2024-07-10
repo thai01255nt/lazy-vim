@@ -38,3 +38,7 @@ vim.cmd([[let &t_Cs = "\e[4:3m"]])
 vim.cmd([[let &t_Ce = "\e[4:0m"]])
 -- Add asterisks in block comments
 vim.opt.formatoptions:append({ "r" })
+
+-- folding
+vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+vim.opt.foldmethod = "expr"

@@ -21,7 +21,7 @@ return {
     },
   },
   {
-    "telescope.nvim",
+    "nvim-telescope/telescope.nvim",
     dependencies = {
       {
         "nvim-telescope/telescope-fzf-native.nvim",
@@ -153,7 +153,7 @@ return {
           -- disables netrw and use telescope-file-browser in its place
           hijack_netrw = true,
           mappings = {
-            -- your custom insert mode mappings
+            -- your custom insert mode mappingsedit
             ["n"] = {
               -- your custom normal mode mappings
               ["N"] = fb_actions.create,
@@ -174,6 +174,13 @@ return {
               ["<PageUp>"] = actions.preview_scrolling_up,
               ["<PageDown>"] = actions.preview_scrolling_down,
             },
+          },
+        },
+      }
+      opts.live_grep_args = {
+        mappings = {
+          i = {
+            ["<C-space>"] = actions.to_fuzzy_refine,
           },
         },
       }

@@ -12,8 +12,11 @@ return {
   },
   {
     "neovim/nvim-lspconfig",
-    dependencies = {},
+    dependencies = { "mfussenegger/mason.nvim" },
     opts = {
+      ensure_installed = {
+        "pyright",
+      },
       servers = {
         pyright = {},
       },
@@ -29,7 +32,9 @@ return {
     "linux-cultist/venv-selector.nvim",
     branch = "regexp",
     dependencies = {
+      "mfussenegger/nvim-dap",
       "mfussenegger/nvim-dap-python",
+      "williamboman/mason.nvim",
     },
     cmd = "VenvSelect",
     opts = {
