@@ -30,12 +30,24 @@ return {
         "pyright",
       },
       servers = {
-        pyright = {},
+        pyright = {
+          enable = true,
+          autoImportCompletion = true,
+        },
+        ruff = {
+          enable = true,
+        },
       },
       ruff_lsp = {},
       setup = {
         pyright = function()
           require("lspconfig").pyright.setup({})
+        end,
+        ruff = function()
+          LazyVim.lsp.on_attach(function(client, _)
+            -- Disable hover in favor of Pyright
+            client.server_capabilities.hoverProvider = false
+          end, "ruff")
         end,
       },
     },

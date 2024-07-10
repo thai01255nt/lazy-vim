@@ -42,3 +42,7 @@ vim.opt.formatoptions:append({ "r" })
 -- folding
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldmethod = "expr"
+
+-- python lsp
+vim.g.lazyvim_python_lsp = "pyright"
+vim.g.lazyvim_python_ruff = "ruff_lsp"
