@@ -41,7 +41,19 @@ return {
       ruff_lsp = {},
       setup = {
         pyright = function()
-          require("lspconfig").pyright.setup({})
+          require("lspconfig").pyright.setup({
+            settings = {
+              pyright = { autoImportCompletion = true },
+              python = {
+                analysis = {
+                  autoSearchPaths = true,
+                  diagnosticMode = "openFilesOnly",
+                  useLibraryCodeForTypes = true,
+                  typeCheckingMode = "on",
+                },
+              },
+            },
+          })
         end,
         ruff = function()
           LazyVim.lsp.on_attach(function(client, _)
