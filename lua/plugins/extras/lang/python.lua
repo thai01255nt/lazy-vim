@@ -59,7 +59,7 @@ return {
         pattern = "*.py",
         callback = function()
           local file_name = vim.api.nvim_buf_get_name(0)
-          vim.cmd("!black " .. file_name)
+          vim.cmd("!python -m black " .. file_name)
         end,
       })
     end,
