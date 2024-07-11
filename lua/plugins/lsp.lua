@@ -44,5 +44,15 @@ return {
     opts = {},
     setup = {},
   },
+  {
+    "mfussenegger/nvim-lint",
+    opts = {},
+    setup = {},
+  },
+  {
+    "rshkarin/mason-nvim-lint",
+    opts = {},
+    setup = {},
+  },
   { import = "plugins.extras.lang.python" },
 }

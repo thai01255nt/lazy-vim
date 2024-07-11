@@ -4,9 +4,7 @@ return {
     opts = function(_, opts)
       -- vim.list_extend(opts.ensure_installed, { "pyright", "black", "ruff-lsp", "ruff" })
       vim.list_extend(opts.ensure_installed, {
-        "pyright",
         "black",
-        "ruff",
       })
     end,
   },
@@ -32,13 +30,8 @@ return {
       servers = {
         pyright = {
           enable = true,
-          autoImportCompletion = true,
-        },
-        ruff = {
-          enable = true,
         },
       },
-      ruff_lsp = {},
       setup = {
         pyright = function()
           require("lspconfig").pyright.setup({
@@ -55,14 +48,38 @@ return {
             },
           })
         end,
-        ruff = function()
-          LazyVim.lsp.on_attach(function(client, _)
-            -- Disable hover in favor of Pyright
-            client.server_capabilities.hoverProvider = false
-          end, "ruff")
-        end,
       },
     },
+  },
+  {
+    "psf/black",
+    ft = "python",
+    config = function()
+      vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+        pattern = "*.py",
+        callback = function()
+          local file_name = vim.api.nvim_buf_get_name(0)
+          vim.cmd("!black " .. file_name)
+        end,
+      })
+    end,
+  },
+  {
+    "mfussenegger/nvim-lint",
+    event = { "BufWritePost", "InsertLeave" },
+    config = function()
+      require("lint").linters_by_ft = {
+        python = {
+          "flake8",
+        },
+      }
+      vim.api.nvim_create_autocmd({ "InsertLeave", "BufWritePost" }, {
+        pattern = { "*.py" },
+        callback = function()
+          require("lint").try_lint()
+        end,
+      })
+    end,
   },
   {
     "linux-cultist/venv-selector.nvim",
