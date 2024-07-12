@@ -37,10 +37,10 @@ return {
             cwd = require("lazy.core.config").options.root,
           })
         end,
-        desc = "Find Plugin File",
+        desc = "[f]ind [P]lugins",
       },
       {
-        ";f",
+        "<leader>ff",
         function()
           local builtin = require("telescope.builtin")
           builtin.find_files({
@@ -48,17 +48,17 @@ return {
             hidden = true,
           })
         end,
-        desc = "Lists files in your current working directory, respects .gitignore",
+        desc = "[f]ind [f]ile in your current working directory, respects .gitignore",
       },
       {
-        ";r",
+        "<leader>fg",
         function()
           local builtin = require("telescope.builtin")
           builtin.live_grep({
             additional_args = { "--hidden" },
           })
         end,
-        desc = "Search for a string in your current working directory and get results live as you type, respects .gitignore",
+        desc = "[f]ind [g]rep in current wor",
       },
       {
         "\\\\",
@@ -69,12 +69,12 @@ return {
         desc = "Lists open buffers",
       },
       {
-        ";t",
+        "<leader>fh",
         function()
           local builtin = require("telescope.builtin")
           builtin.help_tags()
         end,
-        desc = "Lists available help tags and opens a new window with the relevant help info on <cr>",
+        desc = "[f]ind [h]hel tags",
       },
       -- {
       --   ";;",
@@ -85,23 +85,23 @@ return {
       --   desc = "Resume the previous telescope picker",
       -- },
       {
-        ";e",
+        "<leader>fd",
         function()
           local builtin = require("telescope.builtin")
           builtin.diagnostics()
         end,
-        desc = "Lists Diagnostics for all open buffers or a specific buffer",
+        desc = "[f]ind [d]iagnostics",
       },
       {
-        ";s",
+        "<leader>fT",
         function()
           local builtin = require("telescope.builtin")
           builtin.treesitter()
         end,
-        desc = "Lists Function names, variables, from Treesitter",
+        desc = "[f]ind [T]reesistter",
       },
       {
-        "sf",
+        "<leader>fB",
         function()
           local telescope = require("telescope")
 
@@ -120,7 +120,7 @@ return {
             layout_config = { height = 40 },
           })
         end,
-        desc = "Open File Browser with the path of the current buffer",
+        desc = "[f]ind [B]rowser",
       },
     },
     config = function(_, opts)

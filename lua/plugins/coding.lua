@@ -33,5 +33,16 @@ return {
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-path",
     },
+    opts = function()
+      local cmp = require("cmp")
+      cmp.setup({
+        sources = cmp.config.sources({
+          { name = "nvim_lsp" },
+          { name = "path" },
+        }, {
+          { name = "buffer" },
+        }),
+      })
+    end,
   },
 }
