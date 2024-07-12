@@ -15,7 +15,7 @@ return {
       local lspconfig = require("lspconfig")
       local cmp_nvim_lsp = require("cmp_nvim_lsp")
       local opts = { noremap = true, slient = true }
-      local on_attach = function(_, _) end
+      local on_attach = require("plugins/extras/lang/on_attach").on_attach
 
       local capabilities = cmp_nvim_lsp.default_capabilities()
       lspconfig["pyright"].setup({
