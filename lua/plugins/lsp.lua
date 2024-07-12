@@ -43,9 +43,6 @@ return {
     },
     opts = {},
     setup = {},
-    config = function()
-      local  
-    end
   },
   {
     "mfussenegger/nvim-lint",

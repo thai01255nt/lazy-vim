@@ -11,6 +11,7 @@ return {
   {
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
+    filetype = "python",
     config = function()
       local lspconfig = require("lspconfig")
       local cmp_nvim_lsp = require("cmp_nvim_lsp")
@@ -19,7 +20,7 @@ return {
 
       local capabilities = cmp_nvim_lsp.default_capabilities()
       lspconfig["pyright"].setup({
-        capabilities = capabilities,
+        -- capabilities = capabilities,
         on_attach = on_attach,
       })
     end,
@@ -42,6 +43,7 @@ return {
                   autoSearchPaths = true,
                   diagnosticMode = "openFilesOnly",
                   useLibraryCodeForTypes = true,
+                  useLibrarySourceForTypes = true,
                   typeCheckingMode = "on",
                 },
               },
