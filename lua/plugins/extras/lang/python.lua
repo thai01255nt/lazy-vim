@@ -5,6 +5,7 @@ return {
       -- vim.list_extend(opts.ensure_installed, { "pyright", "black", "ruff-lsp", "ruff" })
       vim.list_extend(opts.ensure_installed, {
         "black",
+        "debugpy",
       })
     end,
   },
@@ -84,6 +85,25 @@ return {
         end,
       })
     end,
+  },
+  {
+    "mfussenegger/nvim-dap-python",
+    ft = "python",
+    dependencies = {
+      "mfussenegger/nvim-dap",
+      "rcarriga/nvim-dap-ui",
+    },
+    config = function(_, opts)
+      require("dap-python").setup()
+    end,
+    keys = {
+      {
+        "<leader>dpr",
+        function()
+          require("dap-python").test_method()
+        end,
+      },
+    },
   },
   {
     "linux-cultist/venv-selector.nvim",
