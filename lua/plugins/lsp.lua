@@ -41,7 +41,15 @@ return {
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
     },
-    opts = {},
+    opts = {
+      -- capabilities = {
+      --   workspace = {
+      --     didChangeWatchedFiles = {
+      --       dynamicRegistration = true,
+      --     },
+      --   },
+      -- },
+    },
     setup = {},
   },
   {
