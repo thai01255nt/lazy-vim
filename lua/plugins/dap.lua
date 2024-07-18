@@ -3,6 +3,20 @@ return {
   {
     "mfussenegger/nvim-dap",
     dependencies = { "rcarriga/nvim-dap-ui" },
+    config = function()
+      local dap = require("dap")
+      local sign = vim.fn.sign_define
+      vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#993939", bg = "#31353f" })
+      vim.api.nvim_set_hl(0, "DapLogPoint", { fg = "#61afef", bg = "#31353f" })
+      vim.api.nvim_set_hl(0, "DapStopped", { bg = "#30471f" })
+      sign("DapBreakpoint", { text = "●", texthl = "DapBreakpoint", linehl = "", numhl = "DapBreakpoint" })
+      sign(
+        "DapBreakpointCondition",
+        { text = "●", texthl = "DapBreakpointCondition", linehl = "", numhl = "DapBreakpointCondition" }
+      )
+      sign("DapLogPoint", { text = "◆", texthl = "DapLogPoint", linehl = "", numhl = "DapLogPoint" })
+      sign("DapStopped", { text = "", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" })
+    end,
     keys = {
       { "<leader>d", "", desc = "+debug", mode = { "n", "v" } },
       {
@@ -99,9 +113,16 @@ return {
       {
         "<leader>dr",
         function()
+          require("dap").restart()
+        end,
+        desc = "[d]ebug [r]estart",
+      },
+      {
+        "<leader>dR",
+        function()
           require("dap").repl.toggle()
         end,
-        desc = "[d]ebug toggle [r]epl",
+        desc = "[d]ebug toggle [R]epl",
       },
       {
         "<leader>ds",

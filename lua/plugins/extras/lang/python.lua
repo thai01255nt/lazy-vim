@@ -94,16 +94,33 @@ return {
       "rcarriga/nvim-dap-ui",
     },
     config = function(_, opts)
-      require("dap-python").setup()
+      local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
+      require("dap-python").setup(path)
     end,
-    keys = {
-      {
-        "<leader>dpr",
-        function()
-          require("dap-python").test_method()
-        end,
-      },
-    },
+    -- keys = {
+    --   {
+    --     "<leader>dPt",
+    --     function()
+    --       require("dap-python").test_method()
+    --     end,
+    --     desc = "[d]ebug [P]ython run [T]est",
+    --   },
+    --   {
+    --     "<leader>dPs",
+    --     function()
+    --       require("dap-python").debug_selection()
+    --     end,
+    --     desc = "[d]ebug [P]ython run [S]election",
+    --     mode = { "v" },
+    --   },
+    --   {
+    --     "<leader>dPc",
+    --     function()
+    --       require("dap-python").continue()
+    --     end,
+    --     desc = "[d]ebug [P]ython [c]ontinue",
+    --   },
+    -- },
   },
   {
     "linux-cultist/venv-selector.nvim",
