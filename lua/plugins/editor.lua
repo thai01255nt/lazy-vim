@@ -68,7 +68,7 @@ return {
         comment_style = "line",
         doc_width = 120, -- width of the document
         box_width = 100, -- width of the boxes
-        -- line_width = 70, -- width of the lines
+        line_width = 120, -- width of the lines
         outer_blank_lines_above = false, -- insert a blank line above the box
         outer_blank_lines_below = false, -- insert a blank line below the box
         inner_blank_lines = false, -- insert a blank line above and below the text
