@@ -136,4 +136,53 @@ return {
     },
     keys = { { "<leader>pv", "<cmd>:VenvSelect<cr>", desc = "Select VirtualEnv" } },
   },
+  {
+    "Vigemus/iron.nvim",
+    event = "VeryLazy",
+    config = function()
+      local iron = require("iron.core")
+
+      iron.setup({
+        config = {
+          scratch_repl = true,
+          repl_definition = {
+            sh = {
+              -- Can be a table or a function that
+              -- returns a table (see below)
+              command = { "fish" },
+            },
+            python = {
+              command = { "ipython", "--no-autoindent" },
+              format = require("iron.fts.common").bracketed_paste_python,
+            },
+          },
+          repl_open_cmd = require("iron.view").split.vertical.botright(80),
+          highlight = {
+            italic = true,
+          },
+          ignore_blank_lines = true, -- ignore blank lines when sending visual select lines
+        },
+        keymaps = {
+          send_motion = "<space>rc",
+          visual_send = "<space>rc",
+          -- send_file = "<space>rf",
+          send_line = "<space>rl",
+          send_paragraph = "<space>rp",
+          send_until_cursor = "<space>ru",
+          -- send_mark = "<space>rsm",
+          -- mark_motion = "<space>rmc",
+          -- mark_visual = "<space>rmc",
+          -- remove_mark = "<space>rmd",
+          -- cr = "<space>rr",
+          interrupt = "<space>ri",
+          exit = "<space>rq",
+          -- clear = "<space>rc",
+        },
+      })
+      vim.keymap.set("n", "<space>rt", "<cmd>IronRepl<cr>", { desc = "[r]epl [t]oggle" })
+      vim.keymap.set("n", "<space>rr", "<cmd>IronRestart<cr>", { desc = "[r]epl [r]estart" })
+      vim.keymap.set("n", "<space>rf", "<cmd>IronFocus<cr>", { desc = "[r]epl [f]ocus" })
+      vim.keymap.set("n", "<space>rh", "<cmd>IronHide<cr>", { desc = "[r]epl [h]ide" })
+    end,
+  },
 }

@@ -21,6 +21,63 @@ return {
     },
   },
   {
+    "LudoPinelli/comment-box.nvim",
+    config = function()
+      local keymap = vim.keymap.set
+      local opts = { noremap = true, silent = true }
+
+      keymap(
+        { "n", "v" },
+        "<Leader>cb",
+        "<Cmd>CBccbox1<CR>",
+        vim.tbl_deep_extend("force", opts, { desc = "[c]omment [b]ox title" })
+      )
+      keymap(
+        { "n", "v" },
+        "<Leader>ct",
+        "<Cmd>CBllline6<CR>",
+        vim.tbl_deep_extend("force", opts, { desc = "[c]omment [t]itle line" })
+      )
+      keymap(
+        "n",
+        "<Leader>cl",
+        "<Cmd>CBline<CR>",
+        vim.tbl_deep_extend("force", opts, { desc = "[c]omment simple [l]ine" })
+      )
+      keymap(
+        { "n", "v" },
+        "<Leader>cm",
+        "<Cmd>CBllbox18<CR>",
+        vim.tbl_deep_extend("force", opts, { desc = "[c]omment [m]arked" })
+      )
+      keymap(
+        { "n", "v" },
+        "<Leader>cd",
+        "<Cmd>CBd<CR>",
+        vim.tbl_deep_extend("force", opts, { desc = "[c]omment [d]elete a box" })
+      )
+      keymap("n", "<leader>]b", "/\\S\\zs\\s*╭<CR>zt", { desc = "go to next [b]lock comment" })
+      keymap("n", "<leader>[b", "?\\S\\zs\\s*╭<CR>zt", { desc = "go to prev [b]lock comment" })
+      require("comment-box").setup({
+        -- type of comments:
+        --   - "line":  comment-box will always use line style comments
+        --   - "block": comment-box will always use block style comments
+        --   - "auto":  comment-box will use block line style comments if
+        --              multiple lines are selected, line style comments
+        --              otherwise
+        comment_style = "line",
+        doc_width = 120, -- width of the document
+        box_width = 100, -- width of the boxes
+        -- line_width = 70, -- width of the lines
+        outer_blank_lines_above = false, -- insert a blank line above the box
+        outer_blank_lines_below = false, -- insert a blank line below the box
+        inner_blank_lines = false, -- insert a blank line above and below the text
+        line_blank_line_above = false, -- insert a blank line above the line
+        line_blank_line_below = false, -- insert a blank line below the line
+      })
+    end,
+  },
+  {
     "nvim-telescope/telescope.nvim",
     dependencies = {
       {
