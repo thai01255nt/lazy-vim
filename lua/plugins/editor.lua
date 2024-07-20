@@ -70,10 +70,10 @@ return {
         box_width = 100, -- width of the boxes
         line_width = 120, -- width of the lines
         outer_blank_lines_above = false, -- insert a blank line above the box
-        outer_blank_lines_below = false, -- insert a blank line below the box
+        outer_blank_lines_below = true, -- insert a blank line below the box
         inner_blank_lines = false, -- insert a blank line above and below the text
         line_blank_line_above = false, -- insert a blank line above the line
-        line_blank_line_below = false, -- insert a blank line below the line
+        line_blank_line_below = true, -- insert a blank line below the line
       })
     end,
   },
