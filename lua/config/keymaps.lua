@@ -17,7 +17,7 @@ keymap.set("n", "<C-a>", "gg<S-v>G")
 -- Jumplist
 --keymap.set("n", "<C-m>", "<C-i>", opts)
 -- New edit in current folder
-keymap.set("n", "<leader>fe", ":edit %:h/", { desc = "new [f]ile [e]dit in current folder" })
+keymap.set("n", "<leader>ce", ":edit %:h/", { desc = "[c]ommand new [e]dit in current folder" })
 -- New tab
 keymap.set("n", "<leader>te", ":tabedit %:h/", { desc = "new [t]ab [e]dit in current folder" })
 keymap.set("n", "<tab>", ":tabnext<Return>", opts)
