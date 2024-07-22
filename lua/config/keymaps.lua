@@ -43,6 +43,13 @@ keymap.set("n", "<C-w><C-right>", "10<C-W>>")
 keymap.set("n", "<C-w><C-up>", "2<C-W>+")
 keymap.set("n", "<C-w><C-down>", "2<C-W>-")
 
+-- Format json
+vim.api.nvim_create_autocmd("BufWritePost", {
+  pattern = { "*.json" },
+  callback = function()
+    vim.cmd("%!jq < %")
+  end,
+})
 -- Diagnostics
 -- keymap.set("n", "<C-j>", function()
 --   vim.diagnostics.goto_next()
