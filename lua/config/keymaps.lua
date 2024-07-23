@@ -54,7 +54,9 @@ keymap.set("n", "<C-w><C-down>", "2<C-W>-")
 vim.api.nvim_create_autocmd("BufWritePost", {
   pattern = { "*.yaml", "*.yml", "*.json" },
   callback = function()
+    local v = vim.fn.winsaveview()
     vim.cmd("%!prettier --stdin-filepath % --write")
+    vim.fn.winrestview(v)
   end,
 })
 -- Diagnostics
