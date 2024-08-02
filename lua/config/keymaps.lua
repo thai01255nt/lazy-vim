@@ -59,6 +59,14 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     vim.fn.winrestview(v)
   end,
 })
+vim.api.nvim_create_autocmd("BufWritePost", {
+  pattern = { "*.sql" },
+  callback = function()
+    local v = vim.fn.winsaveview()
+    vim.cmd("%!prettier-sql %")
+    vim.fn.winrestview(v)
+  end,
+})
 -- Diagnostics
 -- keymap.set("n", "<C-j>", function()
 --   vim.diagnostics.goto_next()
