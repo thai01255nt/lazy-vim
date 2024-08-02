@@ -25,6 +25,18 @@ return {
       lspconfig["pyright"].setup({
         capabilities = capabilities,
         on_attach = on_attach,
+        settings = {
+          pyright = { autoImportCompletion = true },
+          python = {
+            analysis = {
+              autoSearchPaths = true,
+              diagnosticMode = "workspace",
+              useLibraryCodeForTypes = true,
+              useLibrarySourceForTypes = true,
+              typeCheckingMode = "on",
+            },
+          },
+        },
       })
     end,
     opts = {
@@ -35,24 +47,6 @@ return {
         pyright = {
           enable = true,
         },
-      },
-      setup = {
-        pyright = function()
-          require("lspconfig").pyright.setup({
-            settings = {
-              pyright = { autoImportCompletion = true },
-              python = {
-                analysis = {
-                  autoSearchPaths = true,
-                  diagnosticMode = "openFilesOnly",
-                  useLibraryCodeForTypes = true,
-                  useLibrarySourceForTypes = true,
-                  typeCheckingMode = "on",
-                },
-              },
-            },
-          })
-        end,
       },
     },
   },
