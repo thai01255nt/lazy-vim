@@ -11,8 +11,8 @@ return {
   },
   {
     "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
-    filetype = "python",
+    -- event = { "BufReadPre", "BufNewFile" },
+    -- filetype = "python",
     config = function()
       local lspconfig = require("lspconfig")
       local cmp_nvim_lsp = require("cmp_nvim_lsp")
@@ -26,14 +26,14 @@ return {
         capabilities = capabilities,
         on_attach = on_attach,
         settings = {
-          pyright = { autoImportCompletion = true },
           python = {
             analysis = {
+              autoImportCompletions = true,
               autoSearchPaths = true,
               diagnosticMode = "workspace",
               useLibraryCodeForTypes = true,
               useLibrarySourceForTypes = true,
-              typeCheckingMode = "on",
+              typeCheckingMode = "standard",
             },
           },
         },
