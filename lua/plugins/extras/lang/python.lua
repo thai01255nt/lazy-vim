@@ -88,8 +88,8 @@ return {
       "rcarriga/nvim-dap-ui",
     },
     config = function(_, opts)
-      local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
-      require("dap-python").setup(path)
+      -- local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
+      require("dap-python").setup("python")
     end,
     -- keys = {
     --   {
