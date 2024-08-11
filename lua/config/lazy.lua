@@ -22,6 +22,7 @@ require("lazy").setup({
       sv,
     } },
     -- import any extras modules here
+    { import = "lazyvim.plugins.extras.lang.markdown" },
     { import = "lazyvim.plugins.extras.lang.json" },
     -- { import = "lazyvim.plugins.extras.lang.typescript" },
     -- { import = "lazyvim.plugins.extras.linting.eslint" },
