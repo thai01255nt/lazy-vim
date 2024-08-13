@@ -192,7 +192,12 @@ return {
         sorting_strategy = "ascending",
         winblend = 0,
         mappings = {
-          n = {},
+          n = {
+            ["S"] = actions.select_horizontal,
+            ["V"] = actions.select_vertical,
+            ["T"] = actions.select_tab,
+            ["R"] = actions.select_default,
+          },
         },
       })
       opts.pickers = {
@@ -230,18 +235,7 @@ return {
               end,
               ["<PageUp>"] = actions.preview_scrolling_up,
               ["<PageDown>"] = actions.preview_scrolling_down,
-              ["S"] = actions.select_horizontal,
-              ["V"] = actions.select_vertical,
-              ["T"] = actions.select_tab,
-              ["R"] = actions.select_default,
             },
-          },
-        },
-      }
-      opts.live_grep_args = {
-        mappings = {
-          i = {
-            ["<C-space>"] = actions.to_fuzzy_refine,
           },
         },
       }
