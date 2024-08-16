@@ -11,44 +11,45 @@ return {
   },
   {
     "neovim/nvim-lspconfig",
-    -- event = { "BufReadPre", "BufNewFile" },
-    -- filetype = "python",
-    config = function()
-      local lspconfig = require("lspconfig")
-      local cmp_nvim_lsp = require("cmp_nvim_lsp")
-      local opts = { noremap = true, slient = true }
-      local on_attach = require("plugins/extras/lang/on_attach").on_attach
-
-      -- local capabilities = cmp_nvim_lsp.default_capabilities()
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
-      lspconfig["pyright"].setup({
-        capabilities = capabilities,
-        on_attach = on_attach,
-        settings = {
-          python = {
-            analysis = {
-              autoImportCompletions = true,
-              autoSearchPaths = true,
-              diagnosticMode = "workspace",
-              useLibraryCodeForTypes = true,
-              useLibrarySourceForTypes = true,
-              typeCheckingMode = "standard",
-            },
+    -- config = function()
+    --   local lspconfig = require("lspconfig")
+    --   local cmp_nvim_lsp = require("cmp_nvim_lsp")
+    --   local opts = { noremap = true, slient = true }
+    --   local on_attach = require("plugins/extras/lang/on_attach").on_attach
+    --
+    --   -- local capabilities = cmp_nvim_lsp.default_capabilities()
+    --   local capabilities = vim.lsp.protocol.make_client_capabilities()
+    --   capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
+    --   lspconfig["pyright"].setup({
+    --     capabilities = capabilities,
+    --     on_attach = on_attach,
+    --     settings = {
+    --       python = {
+    --         analysis = {
+    --           autoimportcompletions = true,
+    --           autosearchpaths = true,
+    --           diagnosticmode = "workspace",
+    --           uselibrarycodefortypes = true,
+    --           uselibrarysourcefortypes = true,
+    --           typecheckingmode = "standard",
+    --         },
+    --       },
+    --     },
+    --   })
+    -- end,
+    opts = function(_, opts)
+      local python_opts = {
+        ensure_installed = {
+          "pyright",
+        },
+        servers = {
+          pyright = {
+            enable = true,
           },
         },
-      })
+      }
+      vim.tbl_deep_extend("force", opts, python_opts)
     end,
-    opts = {
-      ensure_installed = {
-        "pyright",
-      },
-      servers = {
-        pyright = {
-          enable = true,
-        },
-      },
-    },
   },
   {
     "psf/black",

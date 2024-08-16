@@ -63,4 +63,5 @@ return {
     setup = {},
   },
   { import = "plugins.extras.lang.python" },
+  { import = "plugins.extras.lang.typescript" },
 }
