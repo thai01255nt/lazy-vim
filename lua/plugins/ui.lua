@@ -26,7 +26,7 @@ return {
             return not focused
           end,
         },
-        view = "notify_send",
+        -- view = "notify_send",
         opts = { stop = false },
       })
 
