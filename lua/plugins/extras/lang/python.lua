@@ -12,13 +12,14 @@ return {
   },
   {
     "neovim/nvim-lspconfig",
+    ft = "python",
     -- config = function()
       -- local lspconfig = require("lspconfig")
-      -- local cmp_nvim_lsp = require("cmp_nvim_lsp")
-      -- local opts = { noremap = true, slient = true }
+      -- -- local cmp_nvim_lsp = require("cmp_nvim_lsp")
+      -- -- local opts = { noremap = true, slient = true }
       -- local on_attach = require("plugins/extras/lang/on_attach").on_attach
       --
-      -- local capabilities = cmp_nvim_lsp.default_capabilities()
+      -- -- local capabilities = cmp_nvim_lsp.default_capabilities()
       -- local capabilities = vim.lsp.protocol.make_client_capabilities()
       -- capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
       -- lspconfig["pyright"].setup({
