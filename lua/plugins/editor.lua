@@ -111,9 +111,11 @@ return {
         "<leader>fg",
         function()
           local builtin = require("telescope.builtin")
-          builtin.live_grep({
-            additional_args = { "--hidden" },
-          })
+          -- builtin.live_grep({
+          --   additional_args = { "--hidden" },
+          --   { shorten_path = true, word_match = "-w", only_sort_text = true, search = "" },
+          -- })
+          builtin.grep_string({ shorten_path = true, word_match = "-w", only_sort_text = true, search = "" })
         end,
         desc = "[f]ind [g]rep in current work",
       },
