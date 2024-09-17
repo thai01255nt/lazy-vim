@@ -52,7 +52,7 @@ keymap.set("n", "<C-w><C-down>", "2<C-W>-")
 -- })
 -- Format yaml, json
 vim.api.nvim_create_autocmd("BufWritePost", {
-  pattern = { "*.yaml", "*.yml", "*.json" },
+  pattern = { "*.yaml", "*.yml", "*.json", "*.ts", "*.js"},
   callback = function()
     local v = vim.fn.winsaveview()
     vim.cmd("%!prettier --stdin-filepath % --write")
