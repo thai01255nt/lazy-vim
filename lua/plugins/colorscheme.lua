@@ -36,5 +36,10 @@ return {
         end,
       })
     end,
+  {
+    "nordtheme/vim",
+    lazy = false,
+    priority = 1000,
+  },
   },
 }
