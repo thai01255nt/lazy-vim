@@ -62,8 +62,22 @@ return {
     version = false, -- set this if you want to always pull the latest change
     opts = {
       -- add any opts here
-      -- provider = "copilot",
-      auto_suggestion_provider = "copilot",
+      provider = "claude",
+      auto_suggestion_provider = "claude",
+      hints = { enable = true },
+      behavior = {
+        auto_suggestions = true, -- Experimental stage
+        -- auto_set_highlight_group = true,
+        -- auto_set_keymaps = true,
+        -- auto_apply_diff_after_generation = false,
+        -- support_paste_from_clipboard = false,
+      },
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-3-haiku-20240307",
+        temperature = 0,
+        max_tokens = 4096,
+      },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
     build = "make",
@@ -75,7 +89,7 @@ return {
       "MunifTanjim/nui.nvim",
       --- The below dependencies are optional,
       "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
-      "zbirenbaum/copilot.lua", -- for providers='copilot'
+      -- "zbirenbaum/copilot.lua", -- for providers='copilot'
       {
         -- support for image pasting
         "HakonHarnes/img-clip.nvim",
@@ -95,8 +109,12 @@ return {
       },
       config = function()
         require("avante").setup({
-          provider = "copilot",
-          auto_suggestions_provider = "copilot",
+          provider = "claude",
+          auto_suggestions_provider = "claude",
+          hints = { enable = true },
+          behaviour = {
+            auto_suggestions = true,
+          },
         })
       end,
       {
