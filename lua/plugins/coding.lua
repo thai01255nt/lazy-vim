@@ -1,110 +1,112 @@
 return {
   -- Codeium.vim
-  {
-    "Exafunction/codeium.vim",
-    lazy = true,
-    init = function()
-      vim.g.codeium_filetypes = {
-        TelescopePrompt = false,
-        ["neo-tree-popup"] = false,
-        ["dap-repl"] = false,
-      }
-    end,
-    config = function()
-      -- Change '<C-g>' here to any keycode you like.
-      vim.keymap.set("i", "<C-g>", function()
-        return vim.fn["codeium#Accept"]()
-      end, { expr = true, silent = true })
-      vim.keymap.set("i", "<c-;>", function()
-        return vim.fn["codeium#CycleCompletions"](1)
-      end, { expr = true, silent = true })
-      vim.keymap.set("i", "<c-,>", function()
-        return vim.fn["codeium#CycleCompletions"](-1)
-      end, { expr = true, silent = true })
-      vim.keymap.set("i", "<c-z>", function()
-        return vim.fn["codeium#Clear"]()
-      end, { expr = true, silent = true })
-    end,
-  },
+  -- {
+  --   "Exafunction/codeium.vim",
+  --   lazy = true,
+  --   init = function()
+  --     vim.g.codeium_filetypes = {
+  --       TelescopePrompt = false,
+  --       ["neo-tree-popup"] = false,
+  --       ["dap-repl"] = false,
+  --     }
+  --   end,
+  --   config = function()
+  --     -- Change '<C-g>' here to any keycode you like.
+  --     vim.keymap.set("i", "<C-g>", function()
+  --       return vim.fn["codeium#Accept"]()
+  --     end, { expr = true, silent = true })
+  --     vim.keymap.set("i", "<c-;>", function()
+  --       return vim.fn["codeium#CycleCompletions"](1)
+  --     end, { expr = true, silent = true })
+  --     vim.keymap.set("i", "<c-,>", function()
+  --       return vim.fn["codeium#CycleCompletions"](-1)
+  --     end, { expr = true, silent = true })
+  --     vim.keymap.set("i", "<c-z>", function()
+  --       return vim.fn["codeium#Clear"]()
+  --     end, { expr = true, silent = true })
+  --   end,
+  -- },
+
   {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
     dependencies = {
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-path",
+      "hrsh7th/cmp-vsnip",
+      "hrsh7th/vim-vsnip",
     },
-    opts = function()
+    opts = function(_, opts)
       local cmp = require("cmp")
-      cmp.setup({
-        sources = cmp.config.sources({
-          { name = "nvim_lsp" },
-          { name = "path" },
-        }, {
-          { name = "buffer" },
-        }),
-        mapping = cmp.mapping.preset.insert({
-          ["<C-k>"] = cmp.mapping(cmp.mapping.select_prev_item(), { "i", "c" }), -- previous suggestion
-          ["<C-j>"] = cmp.mapping(cmp.mapping.select_next_item(), { "i", "c" }), -- next suggestion
-        }),
-      })
       cmp.setup.cmdline({ "/", "?" }, {
         mapping = cmp.mapping.preset.cmdline(),
         sources = {
           { name = "buffer" },
         },
       })
-    end,
-  },
-  {
-    "olimorris/codecompanion.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-      "hrsh7th/nvim-cmp", -- Optional: For using slash commands and variables in the chat buffer
-      "nvim-telescope/telescope.nvim", -- Optional: For using slash commands
-      { "stevearc/dressing.nvim", opts = {} }, -- Optional: Improves `vim.ui.select`
-    },
-    config = function()
-      require("codecompanion").setup({
-        opts = {
-          log_level = true,
-        },
-        strategies = {
-          chat = {
-            adapter = "anthropic",
-          },
-          inline = {
-            adapter = "anthropic",
-          },
-          agent = {
-            adapter = "anthropic",
-          },
-        },
-        adapters = {
-          anthropic = function()
-            return require("codecompanion.adapters").extend("anthropic", {
-              env = {
-                api_key = "cmd:echo $ANTHROPIC_API_KEY",
-              },
-              schema = {
-                model = {
-                  default = "claude-3-5-sonnet-20240620",
-                },
-              },
-            })
-          end,
-        },
+      local path = vim.fn.getcwd() .. "/.vscode/snippets"
+      vim.g.vsnip_snippet_dir = path
+      opts.sources = cmp.config.sources({
+        { name = "nvim_lsp" },
+        { name = "path" },
+        { name = "vsnip" },
+      }, {
+        { name = "buffer" },
       })
-      vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-      -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-
-      -- Expand 'cc' into 'CodeCompanion' in the command line
-      -- vim.cmd([[cab cc CodeCompanion]])
+      return opts
     end,
   },
+
+  -- {
+  --   "olimorris/codecompanion.nvim",
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --     "nvim-treesitter/nvim-treesitter",
+  --     "hrsh7th/nvim-cmp", -- Optional: For using slash commands and variables in the chat buffer
+  --     "nvim-telescope/telescope.nvim", -- Optional: For using slash commands
+  --     { "stevearc/dressing.nvim", opts = {} }, -- Optional: Improves `vim.ui.select`
+  --   },
+  --   config = function()
+  --     require("codecompanion").setup({
+  --       opts = {
+  --         log_level = true,
+  --       },
+  --       strategies = {
+  --         chat = {
+  --           adapter = "anthropic",
+  --         },
+  --         inline = {
+  --           adapter = "anthropic",
+  --         },
+  --         agent = {
+  --           adapter = "anthropic",
+  --         },
+  --       },
+  --       adapters = {
+  --         anthropic = function()
+  --           return require("codecompanion.adapters").extend("anthropic", {
+  --             env = {
+  --               api_key = "cmd:echo $ANTHROPIC_API_KEY",
+  --             },
+  --             schema = {
+  --               model = {
+  --                 default = "claude-3-5-sonnet-20240620",
+  --               },
+  --             },
+  --           })
+  --         end,
+  --       },
+  --     })
+  --     vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --     -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --
+  --     -- Expand 'cc' into 'CodeCompanion' in the command line
+  --     -- vim.cmd([[cab cc CodeCompanion]])
+  --   end,
+  -- },
   -- {
   --   "yetone/avante.nvim",
   --   event = "VeryLazy",

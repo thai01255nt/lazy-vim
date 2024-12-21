@@ -45,3 +45,7 @@ vim.opt.formatoptions:append({ "r" })
 -- folding
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldmethod = "expr"
+
+vim.g.lazyvim_picker = "telescope"
+vim.g.snacks_animate = false
+vim.g.lazyvim_cmp = "nvim-cmp"
