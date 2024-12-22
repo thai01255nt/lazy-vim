@@ -174,7 +174,8 @@ return {
             respect_gitignore = false,
             hidden = true,
             grouped = true,
-            previewer = false,
+            previewer = true,
+            -- preview_cutoff = 9999,
             initial_mode = "normal",
             layout_config = { height = 40 },
           })
@@ -213,15 +214,15 @@ return {
       }
       opts.extensions = {
         file_browser = {
-          theme = "dropdown",
+          -- theme = "dropdown",
           -- disables netrw and use telescope-file-browser in its place
           hijack_netrw = true,
           mappings = {
             -- your custom insert mode mappingsedit
             ["n"] = {
               -- your custom normal mode mappings
-              ["N"] = fb_actions.create,
-              ["h"] = fb_actions.goto_parent_dir,
+              -- ["N"] = fb_actions.create,
+              -- ["h"] = fb_actions.goto_parent_dir,
               ["/"] = function()
                 vim.cmd("startinsert")
               end,
@@ -237,6 +238,11 @@ return {
               end,
               ["<PageUp>"] = actions.preview_scrolling_up,
               ["<PageDown>"] = actions.preview_scrolling_down,
+            },
+            ["i"] = {
+              ["<C-w>"] = function()
+                vim.cmd([[normal! db]])
+              end,
             },
           },
         },
