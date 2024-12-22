@@ -53,7 +53,7 @@ return {
       }, {
         { name = "buffer" },
       })
-      opts.mapping["<CR>"] = cmp.config.disable
+      -- opts.mapping["<CR>"] = cmp.config.disable
       return opts
     end,
   },
