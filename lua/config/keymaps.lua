@@ -52,7 +52,7 @@ keymap.set("n", "<C-w><C-down>", "2<C-W>-")
 -- })
 -- Format yaml, json
 vim.api.nvim_create_autocmd("BufWritePost", {
-  pattern = { "*.yaml", "*.yml", "*.json", "*.ts", "*.js"},
+  pattern = { "*.yaml", "*.yml", "*.json", "*.ts", "*.js" },
   callback = function()
     local v = vim.fn.winsaveview()
     vim.cmd("%!prettier --stdin-filepath % --write")
@@ -63,7 +63,12 @@ vim.api.nvim_create_autocmd("BufWritePost", {
   pattern = { "*.sql" },
   callback = function()
     local v = vim.fn.winsaveview()
-    vim.cmd("%!prettier-sql %")
+    local currentPath = vim.fn.expand("%:p")
+    if currentPath:match("*.postgresql.sql") then
+      vim.cmd("%!sql-formatter % --language postgresql")
+    else
+      vim.cmd("%!sql-formatter %")
+    end
     vim.fn.winrestview(v)
   end,
 })
