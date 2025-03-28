@@ -13,32 +13,32 @@ return {
   {
     "neovim/nvim-lspconfig",
     ft = "python",
-    -- config = function()
-    --   local lspconfig = require("lspconfig")
-    --   -- local cmp_nvim_lsp = require("cmp_nvim_lsp")
-    --   -- local opts = { noremap = true, slient = true }
-    --   local on_attach = require("plugins/extras/lang/on_attach").on_attach
-    --
-    --   -- local capabilities = cmp_nvim_lsp.default_capabilities()
-    --   local capabilities = vim.lsp.protocol.make_client_capabilities()
-    --   capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
-    --   lspconfig["pyright"].setup({
-    --     capabilities = capabilities,
-    --     on_attach = on_attach,
-    --     settings = {
-    --       python = {
-    --         analysis = {
-    --           autoImportCompletions = true,
-    --           autoSearchPaths = true,
-    --           diagnosticMode = "workspace",
-    --           useLibraryCodeForTypes = true,
-    --           useLibrarySourceForTypes = true,
-    --           typeCheckingMode = "standard",
-    --         },
-    --       },
-    --     },
-    --   })
-    -- end,
+    config = function()
+      local lspconfig = require("lspconfig")
+      -- local cmp_nvim_lsp = require("cmp_nvim_lsp")
+      -- local opts = { noremap = true, slient = true }
+      local on_attach = require("plugins/extras/lang/on_attach").on_attach
+
+      -- local capabilities = cmp_nvim_lsp.default_capabilities()
+      local capabilities = vim.lsp.protocol.make_client_capabilities()
+      capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
+      lspconfig["pyright"].setup({
+        capabilities = capabilities,
+        on_attach = on_attach,
+        settings = {
+          python = {
+            analysis = {
+              autoImportCompletions = true,
+              autoSearchPaths = true,
+              diagnosticMode = "workspace",
+              useLibraryCodeForTypes = true,
+              useLibrarySourceForTypes = true,
+              typeCheckingMode = "standard",
+            },
+          },
+        },
+      })
+    end,
     opts = function(_, opts)
       vim.list_extend(opts.servers, {
         pyright = {
