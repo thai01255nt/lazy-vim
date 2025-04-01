@@ -76,3 +76,17 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 -- keymap.set("n", "<C-j>", function()
 --   vim.diagnostics.goto_next()
 -- end, opts)
+local esc = vim.api.nvim_replace_termcodes("<Esc>", true, true, true)
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "javascript", "typescript" },
+  callback = function()
+    vim.fn.setreg("l", "yoconsole.log('[LOG_DEV] " .. esc .. "pa:', " .. esc .. "pl")
+  end,
+})
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "python" },
+  callback = function()
+    vim.fn.setreg("l", "yoLOGGER.info(f'[LOG_DEV] " .. esc .. "pa: {str(" .. esc .. "pa)}'" .. esc .. "l")
+    vim.fn.setreg("p", "yoprint(f'[LOG_DEV] " .. esc .. "pa: {str(" .. esc .. "pa)}'" .. esc .. "l")
+  end,
+})
