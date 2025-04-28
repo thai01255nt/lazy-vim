@@ -188,6 +188,7 @@ return {
       vim.keymap.set("n", "<space>rr", "<cmd>IronRestart<cr>", { desc = "[r]epl [r]estart" })
       vim.keymap.set("n", "<space>rf", "<cmd>IronFocus<cr>", { desc = "[r]epl [f]ocus" })
       vim.keymap.set("n", "<space>rh", "<cmd>IronHide<cr>", { desc = "[r]epl [h]ide" })
+      vim.keymap.set("t", "<C-[>", "<C-\\><C-n>", { desc = "[r]epl exit terminal mode" })
     end,
   },
 }
