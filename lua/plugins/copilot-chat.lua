@@ -40,6 +40,7 @@ return {
       { "github/copilot.vim" }, -- or zbirenbaum/copilot.lua
       { "nvim-lua/plenary.nvim" },
     },
+    version = "v3.12.0",
     opts = {
       -- question_header = "## User ",
       -- answer_header = "## Copilot ",
