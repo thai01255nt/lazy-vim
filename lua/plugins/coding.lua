@@ -63,9 +63,6 @@ return {
   --   dependencies = {
   --     "nvim-lua/plenary.nvim",
   --     "nvim-treesitter/nvim-treesitter",
-  --     "hrsh7th/nvim-cmp", -- Optional: For using slash commands and variables in the chat buffer
-  --     "nvim-telescope/telescope.nvim", -- Optional: For using slash commands
-  --     { "stevearc/dressing.nvim", opts = {} }, -- Optional: Improves `vim.ui.select`
   --   },
   --   config = function()
   --     require("codecompanion").setup({
@@ -74,24 +71,24 @@ return {
   --       },
   --       strategies = {
   --         chat = {
-  --           adapter = "anthropic",
+  --           adapter = "copilot",
   --         },
   --         inline = {
-  --           adapter = "anthropic",
+  --           adapter = "copilot",
   --         },
   --         agent = {
-  --           adapter = "anthropic",
+  --           adapter = "copilot",
   --         },
   --       },
   --       adapters = {
   --         anthropic = function()
-  --           return require("codecompanion.adapters").extend("anthropic", {
+  --           return require("codecompanion.adapters").extend("copilot", {
   --             env = {
-  --               api_key = "cmd:echo $ANTHROPIC_API_KEY",
+  --               CODECOMPANION_TOKEN_PATH = "~/.config/github-copilot/hosts.json",
   --             },
   --             schema = {
   --               model = {
-  --                 default = "claude-3-5-sonnet-20240620",
+  --                 default = "claude-3.7-sonet",
   --               },
   --             },
   --           })

@@ -37,6 +37,7 @@ return {
     dir = IS_DEV and "~/research/CopilotChat.nvim" or nil,
     "CopilotC-Nvim/CopilotChat.nvim",
     dependencies = {
+      { "github/copilot.vim" }, -- or zbirenbaum/copilot.lua
       { "nvim-lua/plenary.nvim" },
     },
     opts = {
@@ -44,7 +45,7 @@ return {
       -- answer_header = "## Copilot ",
       -- error_header = "## Error ",
       prompts = prompts,
-      model = "claude-3.7-sonnet",
+      -- model = "claude-3.7-sonnet",
       disable_extra_info = "no",
       debug = true,
       mappings = {
