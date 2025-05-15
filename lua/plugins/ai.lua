@@ -258,6 +258,7 @@ return {
       "nvim-lua/plenary.nvim",
       "nvim-treesitter/nvim-treesitter",
     },
+    version = "v15.4.1",
     config = function()
       require("codecompanion").setup({
         opts = {
