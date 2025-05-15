@@ -1,5 +1,6 @@
 return {
   {
+    { "nvim-lua/plenary.nvim", lazy = true },
     "echasnovski/mini.hipatterns",
     event = "BufReadPre",
     opts = {
