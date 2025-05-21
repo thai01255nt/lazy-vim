@@ -10,6 +10,7 @@ vim.api.nvim_create_autocmd("InsertLeave", {
 local function set_transparency()
   vim.cmd([[
     hi Normal guibg=NONE ctermbg=NONE
+    hi NormalFloat guibg=NONE ctermbg=NONE
     hi NormalNC guibg=NONE ctermbg=NONE
     hi SignColumn guibg=NONE ctermbg=NONE
     hi StatusLine guibg=NONE ctermbg=NONE
@@ -30,7 +31,15 @@ end
 
 -- Apply transparency settings initially
 set_transparency()
-
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "Avante",
+  callback = function()
+    vim.api.nvim_set_hl(0, "AvanteSidebarNormal", { link = "Normal" })
+    vim.api.nvim_set_hl(0, "AvanteSidebarWinSeparator", { link = "WinSeparator" })
+    -- local normal_bg = string.format("#%06x", vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
+    vim.api.nvim_set_hl(0, "AvanteSidebarWinHorizontalSeparator", { link = "Normal" })
+  end,
+})
 -- -- Reapply transparency on buffer enter
 -- vim.api.nvim_create_autocmd("BufEnter", {
 --   pattern = "*",

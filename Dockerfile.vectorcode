@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install pipx
+RUN pipx ensurepath
+
+RUN pipx install vectorcode[intel,lsp,mcp]
+
+ENV PATH="/root/.local/bin:${PATH}"
+
+RUN mkdir -p root/.config/vectorcode
+
+RUN echo '{"db_url": "http://chromadb:8100"}' > /root/.config/vectorcode/config.json
+
+WORKDIR /root/Developments
+
+expose 8101

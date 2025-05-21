@@ -1,3 +1,24 @@
+local function set_transparency()
+  vim.cmd([[
+    hi Normal guibg=NONE ctermbg=NONE
+    hi NormalNC guibg=NONE ctermbg=NONE
+    hi SignColumn guibg=NONE ctermbg=NONE
+    hi StatusLine guibg=NONE ctermbg=NONE
+    hi StatusLineNC guibg=NONE ctermbg=NONE
+    hi VertSplit guibg=NONE ctermbg=NONE
+    hi TabLine guibg=NONE ctermbg=NONE
+    hi TabLineFill guibg=NONE ctermbg=NONE
+    hi TabLineSel guibg=NONE ctermbg=NONE
+    hi Pmenu guibg=NONE ctermbg=NONE
+    hi PmenuSel guibg=NONE ctermbg=NONE
+    hi NeoTreeNormal guibg=NONE ctermbg=NONE
+    hi NeoTreeNormalNC guibg=NONE ctermbg=NONE
+    hi NeoTreeWinSeparator guibg=NONE ctermbg=NONE
+    hi NeoTreeEndOfBuffer guibg=NONE ctermbg=NONE
+    hi EndOfBuffer guibg=NONE ctermbg=NONE
+  ]])
+end
+
 local IS_DEV = false
 local prompts = {
   -- Code related prompts
@@ -19,20 +40,73 @@ local prompts = {
 }
 
 return {
-  -- {
-  --   "ravitemer/mcphub.nvim",
-  --   dependencies = {
-  --     "nvim-lua/plenary.nvim", -- Required for Job and HTTP requests
-  --   },
-  --   -- uncomment the following line to load hub lazily
-  --   --cmd = "MCPHub",  -- lazy load
-  --   build = "npm install -g mcp-hub@latest", -- Installs required mcp-hub npm module
-  --   -- uncomment this if you don't want mcp-hub to be available globally or can't use -g
-  --   -- build = "bundled_build.lua",  -- Use this and set use_bundled_binary = true in opts  (see Advanced configuration)
-  --   config = function()
-  --     require("mcphub").setup()
-  --   end,
-  -- },
+  {
+    "yetone/avante.nvim",
+    event = "VeryLazy",
+    lazy = true,
+    version = false,
+    opts = {
+      provider = "copilot",
+      copilot = {
+        model = "claude-3.7-sonnet",
+      },
+      behavior = {
+        support_paste_from_clipboard = true,
+        auto_focus_sidebar = false,
+      },
+      windows = {
+        position = "bottom",
+        sidebar_header = {
+          enabled = true,
+          rounded = false,
+        },
+        ask = {
+          -- floating = true,
+          start_insert = false,
+        },
+      },
+    },
+    build = "make",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "stevearc/dressing.nvim",
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      "echasnovski/mini.pick",
+      "nvim-telescope/telescope.nvim",
+      "hrsh7th/nvim-cmp",
+      "ibhagwan/fzf-lua",
+      "nvim-tree/nvim-web-devicons",
+      "zbirenbaum/copilot.lua",
+      {
+        -- support for image pasting
+        "HakonHarnes/img-clip.nvim",
+        event = "VeryLazy",
+        opts = {
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            use_absolute_path = true,
+          },
+        },
+      },
+    },
+  },
+  {
+    "supermaven-inc/supermaven-nvim",
+    config = function()
+      require("supermaven-nvim").setup({
+        keymaps = {
+          accept_suggestion = "<Tab>",
+          clear_suggestion = "<C-e>",
+          accept_word = "<C-j>",
+        },
+      })
+    end,
+  },
   {
     "folke/which-key.nvim",
     optional = true,
@@ -235,70 +309,101 @@ return {
   --     { "<leader>aa", "<cmd>CopilotChatAgents<cr>", desc = "CopilotChat - Select Agents" },
   --   },
   -- },
-  {
-    "folke/which-key.nvim",
-    optional = true,
-    opts = {
-      spec = {
-        { "<leader>gm", group = "Copilot Chat" },
-      },
-    },
-  },
+  -- {
+  --   "folke/which-key.nvim",
+  --   optional = true,
+  --   opts = {
+  --     spec = {
+  --       { "<leader>gm", group = "Copilot Chat" },
+  --     },
+  --   },
+  -- },
   {
     "MeanderingProgrammer/render-markdown.nvim",
     optional = true,
     opts = {
-      file_types = { "markdown", "copilot-chat", "codecompanion" },
+      file_types = { "markdown", "copilot-chat", "codecompanion", "Avante" },
     },
-    ft = { "markdown", "copilot-chat", "codecompanion" },
+    ft = { "markdown", "copilot-chat", "codecompanion", "Avante" },
   },
-  {
-    "olimorris/codecompanion.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-    },
-    version = "v15.4.1",
-    config = function()
-      require("codecompanion").setup({
-        opts = {
-          log_level = true,
-        },
-        strategies = {
-          chat = {
-            adapter = "copilot",
-          },
-          inline = {
-            adapter = "copilot",
-          },
-          agent = {
-            adapter = "copilot",
-          },
-        },
-        adapters = {
-          copilot = function()
-            return require("codecompanion.adapters").extend("copilot", {
-              -- env = {
-              --   CODECOMPANION_TOKEN_PATH = "~/.config/github-copilot/hosts.json",
-              -- },
-              schema = {
-                model = {
-                  default = "claude-3.7-sonnet",
-                },
-              },
-            })
-          end,
-        },
-      })
-      vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
-      -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-
-      -- Expand 'cc' into 'CodeCompanion' in the command line
-      -- vim.cmd([[cab cc CodeCompanion]])
-    end,
-  },
+  -- {
+  --   "olimorris/codecompanion.nvim",
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --     "nvim-treesitter/nvim-treesitter",
+  --   },
+  --   version = "v15.4.1",
+  --   config = function()
+  --     require("codecompanion").setup({
+  --       -- extensions = {
+  --       --   mcphub = {
+  --       --     callback = "mcphub.extensions.codecompanion",
+  --       --     opts = {
+  --       --       show_result_in_chat = true, -- Show mcp tool results in chat
+  --       --       make_vars = true, -- Convert resources to #variables
+  --       --       make_slash_commands = true, -- Add prompts as /slash commands
+  --       --     },
+  --       --   },
+  --       -- extensions = {
+  --       --   vectorcode = {
+  --       --     opts = {
+  --       --       add_tool = true,
+  --       --     },
+  --       --   },
+  --       -- },
+  --       opts = {
+  --         log_level = true,
+  --       },
+  --       strategies = {
+  --         chat = {
+  --           adapter = "copilot",
+  --         },
+  --         inline = {
+  --           adapter = "copilot",
+  --         },
+  --         agent = {
+  --           adapter = "copilot",
+  --         },
+  --       },
+  --       adapters = {
+  --         copilot = function()
+  --           return require("codecompanion.adapters").extend("copilot", {
+  --             -- env = {
+  --             --   CODECOMPANION_TOKEN_PATH = "~/.config/github-copilot/hosts.json",
+  --             -- },
+  --             schema = {
+  --               model = {
+  --                 default = "claude-3.7-sonnet",
+  --               },
+  --             },
+  --           })
+  --         end,
+  --       },
+  --     })
+  --     vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
+  --     -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --
+  --     -- Expand 'cc' into 'CodeCompanion' in the command line
+  --     -- vim.cmd([[cab cc CodeCompanion]])
+  --   end,
+  -- },
+  -- {
+  --   "ravitemer/mcphub.nvim",
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --   },
+  --   config = function()
+  --     require("mcphub").setup()
+  --   end,
+  -- },
+  -- {
+  --   "Davidyz/VectorCode",
+  --   version = "main", -- optional, depending on whether you're on nightly or release
+  --   dependencies = { "nvim-lua/plenary.nvim" },
+  --   cmd = "VectorCode", -- if you're lazy-loading VectorCode
+  -- },
 }
