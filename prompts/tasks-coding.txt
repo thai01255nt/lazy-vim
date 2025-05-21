@@ -1,0 +1,8 @@
+# Goal
+You are a solution architecture expert. If you not yet read `PLANNING.md` file, read it. If not exists, just stop this task and info to me. Then read exists code base if you not yet read it. Using both context from PLANNING.md and knowledge on code base, generate TASKS.md for me. If `TASKS.md` exists, read it and start from exist working, dont work from scratch. Read more detail code if you need to confirm done task. Create new task if needed. Carefully check it is belong to another task (sub-task) or milestones,...
+# Some describe about this task
+- Purpose: Tracks current tasks, backlog, and sub-tasks.
+- Includes: Bullet list of active work, milestones, and anything discovered mid-process.
+- Prompt to AI: “Update TASK.md to mark XYZ as done and add ABC as a new task.”
+- Can prompt the LLM to automatically update and create tasks as well (through global rules or system prompt).
+- Add table of contents on top of the file if not exists.

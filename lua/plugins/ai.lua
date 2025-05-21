@@ -1,4 +1,21 @@
+local function read_prompt_file(file_path)
+  file_path = vim.fn.stdpath("config") .. file_path
+  if vim.fn.filereadable(file_path) == 0 then
+    vim.notify("prompt.txt file not found at: " .. file_path, vim.log.levels.ERROR)
+    return nil
+  end
+  local file = io.open(file_path, "r")
+  if not file then
+    vim.notify("Could not open prompt.txt file", vim.log.levels.ERROR)
+    return nil
+  end
+  local content = file:read("*a")
+  file:close()
+  return content
+end
 local IS_DEV = false
+local SYSTEM_PROMPT = read_prompt_file("/prompts/system.txt")
+
 local prompts = {
   -- Code related prompts
   Explain = "Please explain how the following code works.",
@@ -26,8 +43,9 @@ return {
     version = false,
     opts = {
       provider = "copilot",
+      system_prompt = SYSTEM_PROMPT,
       copilot = {
-        model = "claude-3.7-sonnet",
+        model = "gpt-4.1",
       },
       behavior = {
         support_paste_from_clipboard = true,
@@ -297,14 +315,6 @@ return {
   --     },
   --   },
   -- },
-  {
-    "MeanderingProgrammer/render-markdown.nvim",
-    optional = true,
-    opts = {
-      file_types = { "markdown", "copilot-chat", "codecompanion", "Avante" },
-    },
-    ft = { "markdown", "copilot-chat", "codecompanion", "Avante" },
-  },
   -- {
   --   "olimorris/codecompanion.nvim",
   --   dependencies = {
