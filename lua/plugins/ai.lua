@@ -62,6 +62,14 @@ return {
           start_insert = false,
         },
       },
+      mappings = {
+        diff = {
+          ours = "go",
+          theirs = "gt",
+          all_theirs = "ga",
+          both = "gb",
+        },
+      },
     },
     build = "make",
     dependencies = {
