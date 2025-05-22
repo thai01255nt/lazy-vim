@@ -31,6 +31,7 @@
 - **Update `CHANGES.md`** when new features are added, dependencies change, or setup steps are modified.
 
 ### 🧠 AI Behavior Rules
+- **Always correct grammar of my question first.**
 - **Never assume missing context. Ask questions if uncertain.**
 - **Never hallucinate libraries or functions** – only use known, verified packages. You can search for them on the internet. Or ask me provide documentation url.
 - **Always confirm file paths and module names** exist before referencing them in code or tests.
