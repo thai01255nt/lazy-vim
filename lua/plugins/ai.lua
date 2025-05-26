@@ -36,71 +36,71 @@ local prompts = {
 }
 
 return {
-  -- {
-  --   "yetone/avante.nvim",
-  --   event = "VeryLazy",
-  --   lazy = true,
-  --   version = false,
-  --   opts = {
-  --     provider = "copilot",
-  --     system_prompt = SYSTEM_PROMPT,
-  --     copilot = {
-  --       -- model = "gpt-4.1",
-  --       model = "claude-3.7-sonnet",
-  --     },
-  --     behavior = {
-  --       support_paste_from_clipboard = true,
-  --       auto_focus_sidebar = false,
-  --     },
-  --     windows = {
-  --       position = "bottom",
-  --       sidebar_header = {
-  --         enabled = true,
-  --         rounded = false,
-  --       },
-  --       ask = {
-  --         -- floating = true,
-  --         start_insert = false,
-  --       },
-  --     },
-  --     mappings = {
-  --       diff = {
-  --         ours = "go",
-  --         theirs = "gt",
-  --         all_theirs = "ga",
-  --         both = "gb",
-  --       },
-  --     },
-  --   },
-  --   build = "make",
-  --   dependencies = {
-  --     "nvim-treesitter/nvim-treesitter",
-  --     "stevearc/dressing.nvim",
-  --     "nvim-lua/plenary.nvim",
-  --     "MunifTanjim/nui.nvim",
-  --     "echasnovski/mini.pick",
-  --     "nvim-telescope/telescope.nvim",
-  --     "hrsh7th/nvim-cmp",
-  --     "ibhagwan/fzf-lua",
-  --     "nvim-tree/nvim-web-devicons",
-  --     "zbirenbaum/copilot.lua",
-  --     {
-  --       -- support for image pasting
-  --       "HakonHarnes/img-clip.nvim",
-  --       event = "VeryLazy",
-  --       opts = {
-  --         default = {
-  --           embed_image_as_base64 = false,
-  --           prompt_for_file_name = false,
-  --           drag_and_drop = {
-  --             insert_mode = true,
-  --           },
-  --           use_absolute_path = true,
-  --         },
-  --       },
-  --     },
-  --   },
-  -- },
+  {
+    "yetone/avante.nvim",
+    event = "VeryLazy",
+    lazy = true,
+    version = false,
+    opts = {
+      provider = "copilot",
+      system_prompt = SYSTEM_PROMPT,
+      copilot = {
+        -- model = "gpt-4.1",
+        model = "claude-3.7-sonnet",
+      },
+      behavior = {
+        support_paste_from_clipboard = true,
+        auto_focus_sidebar = false,
+      },
+      windows = {
+        position = "bottom",
+        sidebar_header = {
+          enabled = true,
+          rounded = false,
+        },
+        ask = {
+          -- floating = true,
+          start_insert = false,
+        },
+      },
+      mappings = {
+        diff = {
+          ours = "go",
+          theirs = "gt",
+          all_theirs = "ga",
+          both = "gb",
+        },
+      },
+    },
+    build = "make",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "stevearc/dressing.nvim",
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      "echasnovski/mini.pick",
+      "nvim-telescope/telescope.nvim",
+      "hrsh7th/nvim-cmp",
+      "ibhagwan/fzf-lua",
+      "nvim-tree/nvim-web-devicons",
+      "zbirenbaum/copilot.lua",
+      {
+        -- support for image pasting
+        "HakonHarnes/img-clip.nvim",
+        event = "VeryLazy",
+        opts = {
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            use_absolute_path = true,
+          },
+        },
+      },
+    },
+  },
   {
     "supermaven-inc/supermaven-nvim",
     config = function()
