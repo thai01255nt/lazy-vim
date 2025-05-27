@@ -45,8 +45,8 @@ return {
       provider = "copilot",
       system_prompt = SYSTEM_PROMPT,
       copilot = {
-        -- model = "gpt-4.1",
-        model = "claude-3.7-sonnet",
+        model = "gpt-4.1",
+        -- model = "claude-3.7-sonnet",
       },
       behavior = {
         support_paste_from_clipboard = true,
