@@ -45,8 +45,9 @@ return {
       provider = "copilot",
       system_prompt = SYSTEM_PROMPT,
       copilot = {
-        model = "gpt-4.1",
-        -- model = "claude-3.7-sonnet",
+        -- model = "gpt-4.1",
+        -- model = "claude-sonnet-4",
+        model = "gemini-2.5-pro",
       },
       behavior = {
         support_paste_from_clipboard = true,
@@ -140,7 +141,7 @@ return {
   --     answer_header = "## Copilot ",
   --     error_header = "## Error ",
   --     prompts = prompts,
-  --     model = "claude-3.7-sonnet",
+  --     model = "claude-sonnet-4",
   --     agent = "copilot", -- Default agent to use, see ':CopilotChatAgents' for available agents (can be specified manually in prompt via @).
   --     disable_extra_info = "no",
   --     debug = true,
