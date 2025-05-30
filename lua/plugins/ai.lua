@@ -14,7 +14,7 @@ local function read_prompt_file(file_path)
   return content
 end
 local IS_DEV = false
-local SYSTEM_PROMPT = read_prompt_file("/prompts/system.txt")
+local SYSTEM_PROMPT = read_prompt_file("/prompts/system_v2.txt")
 
 local prompts = {
   -- Code related prompts
