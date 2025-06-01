@@ -73,7 +73,7 @@ return {
         },
       },
     },
-    build = "make",
+    -- build = "make",
     dependencies = {
       "nvim-treesitter/nvim-treesitter",
       "stevearc/dressing.nvim",
