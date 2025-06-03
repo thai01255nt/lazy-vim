@@ -44,10 +44,12 @@ return {
     opts = {
       provider = "copilot",
       system_prompt = SYSTEM_PROMPT,
-      copilot = {
-        -- model = "gpt-4.1",
-        model = "claude-sonnet-4",
-        -- model = "gemini-2.5-pro",
+      providers = {
+        copilot = {
+          -- model = "gpt-4.1",
+          model = "claude-sonnet-4",
+          -- model = "gemini-2.5-pro",
+        },
       },
       behavior = {
         support_paste_from_clipboard = true,
