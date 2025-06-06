@@ -187,18 +187,14 @@ return {
     config = function(_, opts)
       local telescope = require("telescope")
       local actions = require("telescope.actions")
-      local fb_actions = require("telescope").extensions.file_browser.actions
+      local browse_files = require("telescope._extensions.file_browser.finders").browse_files
+      local browse_folders = require("telescope._extensions.file_browser.finders").browse_folders
       local is_windows = vim.fn.has("win64") == 1 or vim.fn.has("win32") == 1
       local vimfnameescape = vim.fn.fnameescape
       local winfnameescape = function(path)
         local escaped_path = vimfnameescape(path)
         if is_windows then
-          local need_extra_esc = path:find("[%[%]`%$~]")
-          local esc = need_extra_esc and "\\\\" or "\\"
-          escaped_path = escaped_path:gsub("\\[%(%)%^&;]", esc .. "%1")
-          if need_extra_esc then
-            escaped_path = escaped_path:gsub("\\\\['` ]", "\\%1")
-          end
+          escaped_path = escaped_path:gsub("\\", "/")
         end
         return escaped_path
       end
@@ -207,6 +203,34 @@ return {
         vim.fn.fnameescape = winfnameescape
         local result = actions.select_default(prompt_bufnr, "default")
         vim.fn.fnameescape = vimfnameescape
+        return result
+      end
+
+      local new_browse_files = function(opts)
+        vim.notify(opts.cwd)
+        local cwd = opts.cwd
+        local path = opts.path
+        opts.cwd = winfnameescape(cwd)
+        opts.path = winfnameescape(path)
+        vim.notify(opts.cwd)
+        vim.notify(opts.path)
+        local result = browse_files(opts)
+        opts.cwd = cwd
+        opts.path = path
+        return result
+      end
+
+      local new_browse_folders = function(opts)
+        vim.notify(opts.cwd)
+        local cwd = opts.cwd
+        local path = opts.path
+        opts.cwd = winfnameescape(cwd)
+        opts.path = winfnameescape(path)
+        vim.notify(opts.cwd)
+        vim.notify(opts.path)
+        local result = browse_folders(opts)
+        opts.cwd = cwd
+        opts.path = path
         return result
       end
 
@@ -242,6 +266,8 @@ return {
         file_browser = {
           -- theme = "dropdown",
           -- disables netrw and use telescope-file-browser in its place
+          browse_files = new_browse_files,
+          browse_folders = new_browse_folders,
           hijack_netrw = true,
           mappings = {
             -- your custom insert mode mappingsedit
@@ -264,13 +290,13 @@ return {
               end,
               ["<PageUp>"] = actions.preview_scrolling_up,
               ["<PageDown>"] = actions.preview_scrolling_down,
-              ["<cr>"] = select_default,
+              ["<C-b>"] = actions.preview_scrolling_up,
+              ["<C-f>"] = actions.preview_scrolling_down,
             },
             ["i"] = {
               ["<C-w>"] = function()
                 vim.cmd([[normal! db]])
               end,
-              ["<cr>"] = select_default,
             },
           },
         },
