@@ -207,13 +207,10 @@ return {
       end
 
       local new_browse_files = function(opts)
-        vim.notify(opts.cwd)
         local cwd = opts.cwd
         local path = opts.path
         opts.cwd = winfnameescape(cwd)
         opts.path = winfnameescape(path)
-        vim.notify(opts.cwd)
-        vim.notify(opts.path)
         local result = browse_files(opts)
         opts.cwd = cwd
         opts.path = path
@@ -221,13 +218,10 @@ return {
       end
 
       local new_browse_folders = function(opts)
-        vim.notify(opts.cwd)
         local cwd = opts.cwd
         local path = opts.path
         opts.cwd = winfnameescape(cwd)
         opts.path = winfnameescape(path)
-        vim.notify(opts.cwd)
-        vim.notify(opts.path)
         local result = browse_folders(opts)
         opts.cwd = cwd
         opts.path = path
