@@ -194,7 +194,14 @@ return {
       local winfnameescape = function(path)
         local escaped_path = vimfnameescape(path)
         if is_windows then
-          escaped_path = escaped_path:gsub("\\", "/")
+          -- escaped_path = escaped_path:gsub("\\", "/")
+          local need_esc = path:find("[%(%)]")
+          local esc = "\\"
+          if need_esc then
+            escaped_path = escaped_path:gsub("\\[%(%)]", esc .. "%1")
+            -- escaped_path = escaped_path:gsub("/\\", "\\\\")
+            -- escaped_path = escaped_path:gsub("/[%[%]]", esc .. "%1")
+          end
         end
         return escaped_path
       end
@@ -207,24 +214,53 @@ return {
       end
 
       local new_browse_files = function(opts)
-        local cwd = opts.cwd
-        local path = opts.path
-        opts.cwd = winfnameescape(cwd)
-        opts.path = winfnameescape(path)
+        local _cwd = opts.cwd
+        local _path = opts.path
+        local _entry_maker = opts.entry_maker
+        local _vim_escape = vim.fn.escape
+        opts.cwd = winfnameescape(_cwd)
+        opts.path = winfnameescape(_path)
+        opts.entry_maker = function(opts)
+          local cwd = opts.cwd
+          opts.cwd = cwd:gsub("\\([%(%)])", "%1")
+          local result = _entry_maker(opts)
+          opts.cwd = cwd
+          return result
+        end
+        vim.fn.escape = function(str, chars)
+          return str
+        end
+
         local result = browse_files(opts)
-        opts.cwd = cwd
-        opts.path = path
+        opts.cwd = _cwd
+        opts.path = _path
+        opts.entry_maker = _entry_maker
+        vim.fn.escape = _vim_escape
         return result
       end
 
       local new_browse_folders = function(opts)
-        local cwd = opts.cwd
-        local path = opts.path
-        opts.cwd = winfnameescape(cwd)
-        opts.path = winfnameescape(path)
+        local _cwd = opts.cwd
+        local _path = opts.path
+        local _entry_maker = opts.entry_maker
+        opts.cwd = winfnameescape(_cwd)
+        opts.path = winfnameescape(_path)
+        local _vim_escape = vim.fn.escape
+        opts.entry_maker = function(opts)
+          local cwd = opts.cwd
+          opts.cwd = cwd:gsub("\\\\", "\\")
+          local result = _entry_maker(opts)
+          opts.cwd = cwd
+          return result
+        end
+        vim.fn.escape = function(str, chars)
+          return str
+        end
         local result = browse_folders(opts)
-        opts.cwd = cwd
-        opts.path = path
+        opts.cwd = _cwd
+        opts.path = _path
+        opts.entry_maker = _entry_maker
+        vim.fn.escape = _vim_escape
         return result
       end
 
