@@ -415,6 +415,16 @@ return {
           },
           inline = {
             adapter = "copilot",
+            keymaps = {
+              reject_change = {
+                modes = {
+                  n = "gt",
+                },
+                index = 2,
+                callback = "keymaps.reject_change",
+                description = "Reject change",
+              },
+            },
           },
           agent = {
             adapter = "copilot",
@@ -444,6 +454,62 @@ return {
         },
         auto_scoll = false,
         prompt_library = {
+          ["Brainstorm Phase"] = {
+            strategy = "chat",
+            description = "Brainstorm Phase",
+            opts = {
+              short_name = "brainstorm-phase",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              {
+                role = "user",
+                content = "\n@full_stack_dev @files work for this code base\nBrainstorm phase: ",
+              },
+            },
+          },
+          ["Skeleton Phase"] = {
+            strategy = "chat",
+            description = "Skeleton Phase",
+            opts = {
+              short_name = "skeleton-phase",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              {
+                role = "user",
+                content = "\n@full_stack_dev @files work for this code base\nSkeleton phase: ",
+              },
+            },
+          },
+          ["Discovery Phase"] = {
+            strategy = "chat",
+            description = "Discovery Phase",
+            opts = {
+              short_name = "discovery-phase",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              {
+                role = "user",
+                content = "\n@full_stack_dev @files work for this code base\nDiscovery phase: ",
+              },
+            },
+          },
+          ["Enhancement Skeleton Phase"] = {
+            strategy = "chat",
+            description = "Generate Skeleton",
+            opts = {
+              short_name = "generate-skeleton",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              {
+                role = "user",
+                content = "\n@full_stack_dev @files work for this code base\nExpand Skeleton phase: ",
+              },
+            },
+          },
           ["Coding Workflow"] = {
             strategy = "chat",
             description = "Coding Workflow",
@@ -461,7 +527,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nAsk:",
+                content = "\n@full_stack_dev @files work for this code base\nAsk: ",
               },
             },
           },
@@ -487,7 +553,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nProblem:",
+                content = "\n@full_stack_dev @files work for this code base\nProblem: ",
               },
             },
           },

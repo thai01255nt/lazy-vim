@@ -2,11 +2,124 @@
 
 ## 🏗️ Skeleton-First Development Workflow
 
-This workflow is optimized for developers with fast typing skills who prefer LLMs to generate structural code first, then implement details manually.
+This workflow is optimized for developers with fast typing skills who prefer LLMs to generate structural code first, then implement details manually. The workflow includes intelligent phase recognition and task type routing for maximum efficiency.
 
 ### Overview
 
-The workflow consists of 4 phases that alternate between LLM structure generation and manual implementation, maximizing both code quality and development speed.
+The workflow consists of 5 phases that alternate between LLM structure generation and manual implementation, maximizing both code quality and development speed. Phase 0 provides collaborative exploration for complex architectural decisions.
+## 🧠 Workflow Phase Recognition & Task Routing
+
+### Phase 0: Brainstorming & Discovery (Collaborative Exploration)
+
+**Trigger phrases**: "brainstorm", "explore options", "what's the best approach", "consider alternatives", "design choices", "evaluate solutions", "architecture options"
+
+**Goal**: Collaborative exploration of solution approaches with clear trade-off analysis
+
+**Actions Required**:
+1. **Problem Space Analysis**:
+   - Extract core requirements and constraints from PLANNING.md
+   - Identify stakeholder needs and success criteria
+   - Map problem to existing system architecture
+   - Understand business context and user impact
+
+2. **Solution Space Exploration**:
+   - Generate multiple architectural approaches (2-4 viable options)
+   - Evaluate trade-offs (performance, maintainability, complexity, cost)
+   - Consider integration points with existing codebase
+   - Assess team expertise and learning curve requirements
+
+3. **Decision Framework Application**:
+   - Assess each option against project constraints from PLANNING.md
+   - Consider long-term scalability and maintenance implications
+   - Evaluate development timeline and resource requirements
+   - Analyze risk factors and mitigation strategies
+
+4. **Collaborative Refinement**:
+   - Present 2-3 viable options with clear trade-offs
+   - Seek user input on priorities and preferences
+   - Refine chosen approach based on feedback
+   - Document decision rationale for future reference
+
+**Response Style**: Exploratory and analytical, present multiple valid options, clear trade-off analysis, collaborative decision-making
+
+**Output Format**:
+```markdown
+## Problem Analysis
+[Core requirements, constraints, and business context]
+
+## Approach Options
+
+### Option 1: [Descriptive Name]
+**Pros:** [Key benefits and advantages]
+**Cons:** [Limitations and challenges]
+**Best for:** [Specific use cases and scenarios]
+**Complexity:** [Development and maintenance effort]
+**Timeline:** [Estimated implementation time]
+
+### Option 2: [Descriptive Name]
+**Pros:** [Key benefits and advantages]
+**Cons:** [Limitations and challenges]
+**Best for:** [Specific use cases and scenarios]
+**Complexity:** [Development and maintenance effort]
+**Timeline:** [Estimated implementation time]
+
+## Recommendation
+[Preferred approach with detailed rationale based on project context]
+
+## Next Steps
+[Transition plan to Phase 1 - Architecture Discovery with chosen solution path]
+```
+
+**Transition to Phase 1**: Once approach is agreed upon, automatically move to architecture discovery with the chosen solution path, carrying forward the decision context
+
+### Task Type Recognition & Workflow Routing
+
+**New Feature Development** (Full Skeleton-First Workflow):
+- **Trigger phrases**: "new feature", "implement [feature]", "create [service/controller/model]"
+- **Complexity Assessment**:
+  - Simple: Single service + tests
+  - Medium: Service + API + tests
+  - Complex: Full stack + documentation
+- **Workflow**: Phase 0 (if needed) → Architecture Discovery → Skeleton Generation → Implementation → Iteration
+
+**Bug Fix Workflow** (Targeted Analysis):
+- **Trigger phrases**: "fix bug", "resolve issue", "debug [problem]"
+- **Scope Assessment**:
+  - Single method: Quick fix + regression test
+  - Multiple files: Systematic pattern analysis
+- **Workflow**: Pattern Analysis → Targeted Skeleton → Implementation → Regression Tests
+
+**Refactoring Workflow** (Safe Migration):
+- **Trigger phrases**: "refactor", "restructure", "migrate", "modernize"
+- **Risk Assessment**:
+  - Low risk: Direct refactor with parallel tests
+  - High risk: Safe migration pattern with rollback plan
+- **Workflow**: Structure Analysis → Migration Skeleton → Dual Implementation → Safe Migration
+
+**Enhancement Workflow** (Size-Based Approach):
+- **Trigger phrases**: "improve", "enhance", "add to existing"
+- **Size Assessment**:
+  - Small: Mini skeleton-first approach
+  - Large: Full feature workflow
+- **Workflow**: Based on size assessment, follow appropriate pattern
+
+### Batch Processing & Parallel Development Optimization
+
+**Batch Skeleton Generation**:
+- **When to use**: User requests multiple related components
+- **Approach**: Generate all skeletons in single response
+- **Template recognition**: "Generate skeletons for all [services/controllers/models] needed for [feature]"
+- **Benefits**: Reduces round-trip time, ensures consistency across components
+
+**Parallel Development Guidance**:
+- **Suggest parallel work**: When generating skeleton A, suggest implementing previously generated skeleton B
+- **Timeline optimization**: "While you implement [Component A], I can prepare skeleton for [Component B]"
+- **Workflow coordination**: Guide user through overlapping LLM and human tasks
+
+**Template-Based Generation**:
+- **Pattern recognition**: "Using [ExistingService] template, create skeleton for [NewService]"
+- **Batch templates**: "Generate CRUD services for [Entity1, Entity2, Entity3] following [ExistingCRUD] pattern"
+- **Efficiency focus**: Reuse established patterns for similar components
 
 ## 📊 Main Workflow Visualization
 
