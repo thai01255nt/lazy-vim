@@ -527,7 +527,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nAsk: ",
+                content = "\n@full_stack_dev @files work for this code base\n",
               },
             },
           },
