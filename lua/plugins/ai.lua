@@ -365,14 +365,20 @@ return {
           chat = {
             adapter = "copilot",
             keymaps = {
-              close = {
+              toggle = {
                 modes = {
                   n = "q",
-                  i = "<C-q>",
                 },
                 callback = function()
                   require("codecompanion").toggle()
                 end,
+                description = "Toggle Chat",
+              },
+              close = {
+                modes = {
+                  n = "<C-q>",
+                },
+                callback = "keymaps.close",
                 description = "Close Chat",
               },
               stop = {
@@ -464,7 +470,7 @@ return {
             prompts = {
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nBrainstorm phase: ",
+                content = "\n**This ask include brainstorm phase**\n",
               },
             },
           },
@@ -478,7 +484,7 @@ return {
             prompts = {
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nSkeleton phase: ",
+                content = "\n**This ask include skeleton phase**\n",
               },
             },
           },
@@ -492,7 +498,7 @@ return {
             prompts = {
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nDiscovery phase: ",
+                content = "\n**This ask include discovery phase**\n",
               },
             },
           },
@@ -506,7 +512,7 @@ return {
             prompts = {
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nExpand Skeleton phase: ",
+                content = "\n**This ask include enhancement skeleton phase**\n",
               },
             },
           },
@@ -527,7 +533,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\n",
+                content = "\n**@full_stack_dev @files work for this code base**",
               },
             },
           },
@@ -553,7 +559,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\nProblem: ",
+                content = "\n**@full_stack_dev @files work for this code base**\nProblem: ",
               },
             },
           },
@@ -582,7 +588,7 @@ return {
               },
               {
                 role = "user",
-                content = "\n@full_stack_dev @files work for this code base\n",
+                content = "\n**@full_stack_dev @files work for this code base**\n",
                 opts = {
                   visible = true,
                   auto_submit = true,
