@@ -538,11 +538,10 @@ return {
             },
           },
           ["Generate Planning"] = {
-            strategy = "chat",
+            strategy = "workflow",
             description = "Generate Planning",
             opts = {
               short_name = "generate-planning",
-              is_slash_cmd = true,
             },
             references = {
               {
@@ -554,21 +553,22 @@ return {
             },
             prompts = {
               {
-                role = "system",
-                content = GENERATE_PLANNING_PROMPT,
-              },
-              {
-                role = "user",
-                content = "\n**@full_stack_dev @files work for this code base**\nProblem: ",
+                {
+                  role = "system",
+                  content = GENERATE_PLANNING_PROMPT,
+                },
+                {
+                  role = "user",
+                  content = "\n**@full_stack_dev @files work for this code base**\nProblem: ",
+                },
               },
             },
           },
           ["Generate Tasks"] = {
-            strategy = "chat",
+            strategy = "workflow",
             description = "Generate Tasks",
             opts = {
               short_name = "generate-tasks",
-              is_slash_cmd = true,
             },
             references = {
               {
@@ -580,18 +580,21 @@ return {
             },
             prompts = {
               {
-                role = "user",
-                content = GENERATE_TASKS_PROMPT,
-                opts = {
-                  visible = false,
+                {
+                  role = "system",
+                  content = "",
                 },
-              },
-              {
-                role = "user",
-                content = "\n**@full_stack_dev @files work for this code base**\n",
-                opts = {
-                  visible = true,
-                  auto_submit = true,
+                {
+                  role = "user",
+                  content = GENERATE_TASKS_PROMPT,
+                  opts = { visible = false },
+                },
+                {
+                  role = "user",
+                  content = "\n**@full_stack_dev @files work for this code base**\n",
+                  opts = {
+                    visible = true,
+                  },
                 },
               },
             },
