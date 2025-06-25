@@ -504,9 +504,9 @@ return {
           },
           ["Enhancement Skeleton Phase"] = {
             strategy = "chat",
-            description = "Generate Skeleton",
+            description = "Enhancement Skeleton Phase",
             opts = {
-              short_name = "generate-skeleton",
+              short_name = "enhancement-skeleton-phase",
               is_slash_cmd = true,
             },
             prompts = {
@@ -533,15 +533,16 @@ return {
               },
               {
                 role = "user",
-                content = "\n**@full_stack_dev @files work for this code base**",
+                content = "\n**@full_stack_dev work for this code base**",
               },
             },
           },
           ["Generate Planning"] = {
-            strategy = "workflow",
+            strategy = "chat",
             description = "Generate Planning",
             opts = {
               short_name = "generate-planning",
+              is_slash_cmd = true,
             },
             references = {
               {
@@ -553,22 +554,21 @@ return {
             },
             prompts = {
               {
-                {
-                  role = "system",
-                  content = GENERATE_PLANNING_PROMPT,
-                },
-                {
-                  role = "user",
-                  content = "\n**@full_stack_dev @files work for this code base**\nProblem: ",
-                },
+                role = "system",
+                content = GENERATE_PLANNING_PROMPT,
+              },
+              {
+                role = "user",
+                content = "\n**@full_stack_dev work for this code base**\nProblem: ",
               },
             },
           },
           ["Generate Tasks"] = {
-            strategy = "workflow",
+            strategy = "chat",
             description = "Generate Tasks",
             opts = {
               short_name = "generate-tasks",
+              is_slash_cmd = true,
             },
             references = {
               {
@@ -580,21 +580,19 @@ return {
             },
             prompts = {
               {
-                {
-                  role = "system",
-                  content = "",
-                },
-                {
-                  role = "user",
-                  content = GENERATE_TASKS_PROMPT,
-                  opts = { visible = false },
-                },
-                {
-                  role = "user",
-                  content = "\n**@full_stack_dev @files work for this code base**\n",
-                  opts = {
-                    visible = true,
-                  },
+                role = "system",
+                content = "",
+              },
+              {
+                role = "user",
+                content = GENERATE_TASKS_PROMPT,
+                opts = { visible = false },
+              },
+              {
+                role = "user",
+                content = "\n**@full_stack_dev work for this code base**\n",
+                opts = {
+                  visible = true,
                 },
               },
             },
