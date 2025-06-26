@@ -18,19 +18,24 @@ local CODING_WORKFLOW_PROMPT = read_prompt_file("/prompts/coding-workflow.txt")
 local GENERATE_PLANNING_PROMPT = read_prompt_file("/prompts/generate-planning.txt")
 local GENERATE_TASKS_PROMPT = read_prompt_file("/prompts/generate-tasks.txt")
 
+local prompts = {
+  system_prompt = CODING_WORKFLOW_PROMPT,
+}
 return {
   -- {
   --   "yetone/avante.nvim",
-  --   event = "VeryLazy",
-  --   lazy = true,
+  --   -- event = "VeryLazy",
+  --   -- lazy = true,
   --   version = false,
   --   opts = {
   --     provider = "copilot",
-  --     system_prompt = SYSTEM_PROMPT,
+  --     system_prompt = CODING_WORKFLOW_PROMPT,
   --     providers = {
   --       copilot = {
   --         -- model = "gpt-4.1",
-  --         model = "claude-sonnet-4",
+  --         -- model = "claude-sonnet-4",
+  --         -- model = "claude-3.7-sonnet",
+  --         model = "grok-3",
   --         -- model = "gemini-2.5-pro",
   --       },
   --     },
@@ -94,49 +99,32 @@ return {
   --       },
   --     },
   --   },
-  --   {
-  --     -- support for image pasting
-  --     "HakonHarnes/img-clip.nvim",
-  --     event = "VeryLazy",
-  --     opts = {
-  --       -- recommended settings
-  --       default = {
-  --         embed_image_as_base64 = false,
-  --         prompt_for_file_name = false,
-  --         drag_and_drop = {
-  --           insert_mode = true,
-  --         },
-  --         -- required for Windows users
-  --         use_absolute_path = true,
+  -- },
+  -- {
+  --   "supermaven-inc/supermaven-nvim",
+  --   config = function()
+  --     require("supermaven-nvim").setup({
+  --       keymaps = {
+  --         accept_suggestion = "<Tab>",
+  --         clear_suggestion = "<C-e>",
+  --         accept_word = "<C-j>",
   --       },
+  --     })
+  --   end,
+  -- },
+  -- {
+  --   "folke/which-key.nvim",
+  --   optional = true,
+  --   opts = {
+  --     spec = {
+  --       { "<leader>a", group = "ai", mode = { "n", "v" } },
   --     },
   --   },
   -- },
-  {
-    "supermaven-inc/supermaven-nvim",
-    config = function()
-      require("supermaven-nvim").setup({
-        keymaps = {
-          accept_suggestion = "<Tab>",
-          clear_suggestion = "<C-e>",
-          accept_word = "<C-j>",
-        },
-      })
-    end,
-  },
-  {
-    "folke/which-key.nvim",
-    optional = true,
-    opts = {
-      spec = {
-        { "<leader>a", group = "ai", mode = { "n", "v" } },
-      },
-    },
-  },
-  -- {
-  --   "nvim-treesitter/nvim-treesitter",
-  --   opts = { ensure_installed = { "diff", "markdown" } },
-  -- },
+  -- -- {
+  -- --   "nvim-treesitter/nvim-treesitter",
+  -- --   opts = { ensure_installed = { "diff", "markdown" } },
+  -- -- },
   -- {
   --   -- [NOTE]: brew install lynx if you want browser terminal
   --   dir = IS_DEV and "~/research/CopilotChat.nvim" or nil,
@@ -441,7 +429,7 @@ return {
             return require("codecompanion.adapters").extend("copilot", {
               schema = {
                 model = {
-                  default = "claude-sonnet-4",
+                  default = "gpt-4.1",
                 },
               },
             })
