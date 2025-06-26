@@ -7,6 +7,7 @@ vim.api.nvim_create_autocmd("InsertLeave", {
   pattern = "*",
   command = "set nopaste",
 })
+
 local function set_transparency()
   vim.cmd([[
     hi Normal guibg=NONE ctermbg=NONE

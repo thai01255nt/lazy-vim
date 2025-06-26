@@ -35,11 +35,29 @@ return {
     end,
   },
   {
+    "folke/which-key.nvim",
+    optional = true,
+    opts = {
+      spec = {
+        { "<leader>m", group = "markdown", mode = { "n" } },
+      },
+    },
+  },
+  {
     "MeanderingProgrammer/render-markdown.nvim",
     optional = true,
     opts = {
       file_types = { "markdown", "copilot-chat", "codecompanion", "Avante" },
     },
     ft = { "markdown", "copilot-chat", "codecompanion", "Avante" },
+    config = function()
+      require("render-markdown").setup({})
+      vim.api.nvim_set_keymap(
+        "n",
+        "<leader>mt",
+        "<cmd>RenderMarkdown buf_toggle<cr>",
+        { noremap = true, silent = true }
+      )
+    end,
   },
 }
