@@ -12,22 +12,23 @@ return {
     lazy = true,
     event = { "BufReadPre", "BufNewFile" }, -- to disable, comment this out
     config = function()
-      local bin_path = vim.fn.getcwd() .. "/bin/golangci-lint"
+      local bin_path = "./bin/golangci-lint"
+      require("lint").linters.golangci_lint = {
+        cmd = bin_path,
+        name = "golangci-lint",
+        stdin = false,
+        stream = "stdout",
+        parser = require("lint.parser").from_errorformat("%f:%l:%c: %m", {
+          source = "golangci-lint",
+          severity = vim.diagnostic.severity.WARN,
+        }),
+      }
       if vim.fn.executable(bin_path) ~= 1 then
         vim.notify("golangci-lint not found in ./bin", vim.log.levels.WARN)
       end
       local lint = require("lint")
       lint.linters_by_ft = {
-        go = {
-          cmd = bin_path,
-          stdin = false,
-          args = { "run", "--out-format", "json" },
-          stream = "stdout",
-          parser = require("lint.parser").from_errorformat("%f:%l:%c: %m", {
-            source = "golangci-lint",
-            severity = vim.diagnostic.severity.WARN,
-          }),
-        },
+        go = { "golangci_lint" },
       }
     end,
   },
@@ -38,7 +39,6 @@ return {
         gopls = {
           settings = {
             gopls = {
-              gofumpt = true,
               codelenses = {
                 gc_details = false,
                 generate = true,
@@ -77,6 +77,7 @@ return {
         gopls = function(_, opts)
           -- workaround for gopls not supporting semanticTokensProvider
           -- https://github.com/golang/go/issues/54531#issuecomment-1464982242
+          --
           LazyVim.lsp.on_attach(function(client, _)
             if not client.server_capabilities.semanticTokensProvider then
               local semantic = client.config.capabilities.textDocument.semanticTokens
@@ -89,6 +90,7 @@ return {
                 range = true,
               }
             end
+            client.server_capabilities.documentFormattingProvider = false
           end, "gopls")
           -- end workaround
         end,

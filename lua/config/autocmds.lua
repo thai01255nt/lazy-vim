@@ -52,3 +52,14 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.opt_local.spell = false
   end,
 })
+
+vim.api.nvim_create_autocmd("BufWritePre", {
+  pattern = "*.go",
+  callback = function()
+    local v = vim.fn.winsaveview()
+    vim.cmd("silent %!./bin/gofumpt")
+    vim.cmd("silent %!./bin/goimports")
+    -- Reload buffer nếu nội dung bị thay đổi
+    vim.fn.winrestview(v)
+  end,
+})
