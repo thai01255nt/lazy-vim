@@ -22,109 +22,109 @@ local prompts = {
   system_prompt = CODING_WORKFLOW_PROMPT,
 }
 return {
+  {
+    "yetone/avante.nvim",
+    -- event = "VeryLazy",
+    -- lazy = true,
+    version = false,
+    opts = {
+      provider = "copilot",
+      system_prompt = CODING_WORKFLOW_PROMPT,
+      providers = {
+        copilot = {
+          model = "gpt-4.1",
+          -- model = "claude-sonnet-4",
+          -- model = "claude-3.7-sonnet",
+          -- model = "grok-3",
+          -- model = "gemini-2.5-pro",
+        },
+      },
+      behavior = {
+        support_paste_from_clipboard = true,
+        auto_focus_sidebar = false,
+      },
+      windows = {
+        position = "bottom",
+        sidebar_header = {
+          enabled = true,
+          rounded = false,
+        },
+        ask = {
+          -- floating = true,
+          start_insert = false,
+        },
+      },
+      mappings = {
+        diff = {
+          ours = "go",
+          theirs = "gt",
+          all_theirs = "ga",
+          both = "gb",
+        },
+      },
+    },
+    -- build = "make",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "stevearc/dressing.nvim",
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      "echasnovski/mini.pick",
+      "nvim-telescope/telescope.nvim",
+      "hrsh7th/nvim-cmp",
+      "ibhagwan/fzf-lua",
+      "nvim-tree/nvim-web-devicons",
+      "zbirenbaum/copilot.lua",
+      {
+        -- support for image pasting
+        "HakonHarnes/img-clip.nvim",
+        event = "VeryLazy",
+        opts = {
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            use_absolute_path = true,
+          },
+        },
+        {
+          -- Make sure to set this up properly if you have lazy=true
+          "MeanderingProgrammer/render-markdown.nvim",
+          opts = {
+            file_types = { "markdown", "Avante" },
+          },
+          ft = { "markdown", "Avante" },
+        },
+      },
+    },
+  },
+  {
+    "supermaven-inc/supermaven-nvim",
+    config = function()
+      require("supermaven-nvim").setup({
+        keymaps = {
+          accept_suggestion = "<Tab>",
+          clear_suggestion = "<C-e>",
+          accept_word = "<C-j>",
+        },
+      })
+    end,
+  },
+  {
+    "folke/which-key.nvim",
+    optional = true,
+    opts = {
+      spec = {
+        { "<leader>a", group = "ai", mode = { "n", "v" } },
+      },
+    },
+  },
   -- {
-  --   "yetone/avante.nvim",
-  --   -- event = "VeryLazy",
-  --   -- lazy = true,
-  --   version = false,
-  --   opts = {
-  --     provider = "copilot",
-  --     system_prompt = CODING_WORKFLOW_PROMPT,
-  --     providers = {
-  --       copilot = {
-  --         -- model = "gpt-4.1",
-  --         -- model = "claude-sonnet-4",
-  --         -- model = "claude-3.7-sonnet",
-  --         model = "grok-3",
-  --         -- model = "gemini-2.5-pro",
-  --       },
-  --     },
-  --     behavior = {
-  --       support_paste_from_clipboard = true,
-  --       auto_focus_sidebar = false,
-  --     },
-  --     windows = {
-  --       position = "bottom",
-  --       sidebar_header = {
-  --         enabled = true,
-  --         rounded = false,
-  --       },
-  --       ask = {
-  --         -- floating = true,
-  --         start_insert = false,
-  --       },
-  --     },
-  --     mappings = {
-  --       diff = {
-  --         ours = "go",
-  --         theirs = "gt",
-  --         all_theirs = "ga",
-  --         both = "gb",
-  --       },
-  --     },
-  --   },
-  --   -- build = "make",
-  --   dependencies = {
-  --     "nvim-treesitter/nvim-treesitter",
-  --     "stevearc/dressing.nvim",
-  --     "nvim-lua/plenary.nvim",
-  --     "MunifTanjim/nui.nvim",
-  --     "echasnovski/mini.pick",
-  --     "nvim-telescope/telescope.nvim",
-  --     "hrsh7th/nvim-cmp",
-  --     "ibhagwan/fzf-lua",
-  --     "nvim-tree/nvim-web-devicons",
-  --     "zbirenbaum/copilot.lua",
-  --     {
-  --       -- support for image pasting
-  --       "HakonHarnes/img-clip.nvim",
-  --       event = "VeryLazy",
-  --       opts = {
-  --         default = {
-  --           embed_image_as_base64 = false,
-  --           prompt_for_file_name = false,
-  --           drag_and_drop = {
-  --             insert_mode = true,
-  --           },
-  --           use_absolute_path = true,
-  --         },
-  --       },
-  --       {
-  --         -- Make sure to set this up properly if you have lazy=true
-  --         "MeanderingProgrammer/render-markdown.nvim",
-  --         opts = {
-  --           file_types = { "markdown", "Avante" },
-  --         },
-  --         ft = { "markdown", "Avante" },
-  --       },
-  --     },
-  --   },
+  --   "nvim-treesitter/nvim-treesitter",
+  --   opts = { ensure_installed = { "diff", "markdown" } },
   -- },
-  -- {
-  --   "supermaven-inc/supermaven-nvim",
-  --   config = function()
-  --     require("supermaven-nvim").setup({
-  --       keymaps = {
-  --         accept_suggestion = "<Tab>",
-  --         clear_suggestion = "<C-e>",
-  --         accept_word = "<C-j>",
-  --       },
-  --     })
-  --   end,
-  -- },
-  -- {
-  --   "folke/which-key.nvim",
-  --   optional = true,
-  --   opts = {
-  --     spec = {
-  --       { "<leader>a", group = "ai", mode = { "n", "v" } },
-  --     },
-  --   },
-  -- },
-  -- -- {
-  -- --   "nvim-treesitter/nvim-treesitter",
-  -- --   opts = { ensure_installed = { "diff", "markdown" } },
-  -- -- },
   -- {
   --   -- [NOTE]: brew install lynx if you want browser terminal
   --   dir = IS_DEV and "~/research/CopilotChat.nvim" or nil,
@@ -323,283 +323,283 @@ return {
   --     },
   --   },
   -- },
-  {
-    "echasnovski/mini.diff",
-    config = function()
-      local diff = require("mini.diff")
-      diff.setup({
-        -- Disabled by default
-        source = diff.gen_source.none(),
-      })
-    end,
-  },
-  {
-    "olimorris/codecompanion.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-      {
-        -- Make sure to set this up properly if you have lazy=true
-        "MeanderingProgrammer/render-markdown.nvim",
-        opts = {
-          file_types = { "markdown", "codecompanion" },
-        },
-        ft = { "markdown", "codecompanion" },
-      },
-    },
-    config = function()
-      require("codecompanion").setup({
-        strategies = {
-          chat = {
-            adapter = "copilot",
-            keymaps = {
-              toggle = {
-                modes = {
-                  n = "q",
-                },
-                callback = function()
-                  require("codecompanion").toggle()
-                end,
-                description = "Toggle Chat",
-              },
-              close = {
-                modes = {
-                  n = "<C-q>",
-                },
-                callback = "keymaps.close",
-                description = "Close Chat",
-              },
-              stop = {
-                modes = {
-                  n = "<C-c>",
-                  i = "<C-c>",
-                },
-              },
-              goto_file_under_cursor = {
-                modes = { n = "gd" },
-                index = 19,
-                callback = "keymaps.goto_file_under_cursor",
-                description = "Open the file under cursor in a new tab.",
-              },
-              fold_code = {
-                modes = {
-                  n = "za",
-                },
-                index = 15,
-                callback = "keymaps.fold_code",
-                description = "Fold code",
-              },
-              previous_chat = {
-                modes = {
-                  n = "gb",
-                },
-                index = 12,
-                callback = "keymaps.previous_chat",
-                description = "Previous Chat",
-              },
-              next_chat = {
-                modes = {
-                  n = "gf",
-                },
-                index = 12,
-                callback = "keymaps.previous_chat",
-                description = "Previous Chat",
-              },
-            },
-          },
-          inline = {
-            adapter = "copilot",
-            keymaps = {
-              reject_change = {
-                modes = {
-                  n = "gt",
-                },
-                index = 2,
-                callback = "keymaps.reject_change",
-                description = "Reject change",
-              },
-            },
-          },
-          agent = {
-            adapter = "copilot",
-          },
-        },
-        adapters = {
-          copilot = function()
-            return require("codecompanion.adapters").extend("copilot", {
-              schema = {
-                model = {
-                  default = "gpt-4.1",
-                },
-              },
-            })
-          end,
-        },
-        display = {
-          chat = {
-            window = {
-              width = 0.3,
-            },
-            show_header_separator = true,
-          },
-          diff = {
-            provider = "mini_diff",
-          },
-        },
-        auto_scoll = false,
-        prompt_library = {
-          ["Brainstorm Phase"] = {
-            strategy = "chat",
-            description = "Brainstorm Phase",
-            opts = {
-              short_name = "brainstorm-phase",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              {
-                role = "user",
-                content = "\n**This ask include brainstorm phase**\n",
-              },
-            },
-          },
-          ["Skeleton Phase"] = {
-            strategy = "chat",
-            description = "Skeleton Phase",
-            opts = {
-              short_name = "skeleton-phase",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              {
-                role = "user",
-                content = "\n**This ask include skeleton phase**\n",
-              },
-            },
-          },
-          ["Discovery Phase"] = {
-            strategy = "chat",
-            description = "Discovery Phase",
-            opts = {
-              short_name = "discovery-phase",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              {
-                role = "user",
-                content = "\n**This ask include discovery phase**\n",
-              },
-            },
-          },
-          ["Enhancement Skeleton Phase"] = {
-            strategy = "chat",
-            description = "Enhancement Skeleton Phase",
-            opts = {
-              short_name = "enhancement-skeleton-phase",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              {
-                role = "user",
-                content = "\n**This ask include enhancement skeleton phase**\n",
-              },
-            },
-          },
-          ["Coding Workflow"] = {
-            strategy = "chat",
-            description = "Coding Workflow",
-            opts = {
-              short_name = "coding-workflow",
-              ignore_system_prompt = true,
-            },
-            prompts = {
-              {
-                role = "system",
-                content = CODING_WORKFLOW_PROMPT,
-                opts = {
-                  visible = false,
-                },
-              },
-              {
-                role = "user",
-                content = "\n**@full_stack_dev work for this code base**",
-              },
-            },
-          },
-          ["Generate Planning"] = {
-            strategy = "chat",
-            description = "Generate Planning",
-            opts = {
-              short_name = "generate-planning",
-              is_slash_cmd = true,
-            },
-            references = {
-              {
-                type = "file",
-                path = {
-                  vim.fn.stdpath("config") .. "/prompts/TEMPLATE_PLANNING.md",
-                },
-              },
-            },
-            prompts = {
-              {
-                role = "system",
-                content = GENERATE_PLANNING_PROMPT,
-              },
-              {
-                role = "user",
-                content = "\n**@full_stack_dev work for this code base**\nProblem: ",
-              },
-            },
-          },
-          ["Generate Tasks"] = {
-            strategy = "chat",
-            description = "Generate Tasks",
-            opts = {
-              short_name = "generate-tasks",
-              is_slash_cmd = true,
-            },
-            references = {
-              {
-                type = "file",
-                path = {
-                  vim.fn.stdpath("config") .. "/prompts/TEMPLATE_TASKS.md",
-                },
-              },
-            },
-            prompts = {
-              {
-                role = "system",
-                content = "",
-              },
-              {
-                role = "user",
-                content = GENERATE_TASKS_PROMPT,
-                opts = { visible = false },
-              },
-              {
-                role = "user",
-                content = "\n**@full_stack_dev work for this code base**\n",
-                opts = {
-                  visible = true,
-                },
-              },
-            },
-          },
-        },
-      })
-      vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
-      vim.keymap.set("n", "<leader>aw", function()
-        require("codecompanion").prompt("coding-workflow")
-      end, { noremap = true, silent = true })
-      -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-
-      -- Expand 'cc' into 'CodeCompanion' in the command line
-      -- vim.cmd([[cab cc CodeCompanion]])
-    end,
-  },
+  -- {
+  --   "echasnovski/mini.diff",
+  --   config = function()
+  --     local diff = require("mini.diff")
+  --     diff.setup({
+  --       -- Disabled by default
+  --       source = diff.gen_source.none(),
+  --     })
+  --   end,
+  -- },
+  -- {
+  --   "olimorris/codecompanion.nvim",
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --     "nvim-treesitter/nvim-treesitter",
+  --     {
+  --       -- Make sure to set this up properly if you have lazy=true
+  --       "MeanderingProgrammer/render-markdown.nvim",
+  --       opts = {
+  --         file_types = { "markdown", "codecompanion" },
+  --       },
+  --       ft = { "markdown", "codecompanion" },
+  --     },
+  --   },
+  --   config = function()
+  --     require("codecompanion").setup({
+  --       strategies = {
+  --         chat = {
+  --           adapter = "copilot",
+  --           keymaps = {
+  --             toggle = {
+  --               modes = {
+  --                 n = "q",
+  --               },
+  --               callback = function()
+  --                 require("codecompanion").toggle()
+  --               end,
+  --               description = "Toggle Chat",
+  --             },
+  --             close = {
+  --               modes = {
+  --                 n = "<C-q>",
+  --               },
+  --               callback = "keymaps.close",
+  --               description = "Close Chat",
+  --             },
+  --             stop = {
+  --               modes = {
+  --                 n = "<C-c>",
+  --                 i = "<C-c>",
+  --               },
+  --             },
+  --             goto_file_under_cursor = {
+  --               modes = { n = "gd" },
+  --               index = 19,
+  --               callback = "keymaps.goto_file_under_cursor",
+  --               description = "Open the file under cursor in a new tab.",
+  --             },
+  --             fold_code = {
+  --               modes = {
+  --                 n = "za",
+  --               },
+  --               index = 15,
+  --               callback = "keymaps.fold_code",
+  --               description = "Fold code",
+  --             },
+  --             previous_chat = {
+  --               modes = {
+  --                 n = "gb",
+  --               },
+  --               index = 12,
+  --               callback = "keymaps.previous_chat",
+  --               description = "Previous Chat",
+  --             },
+  --             next_chat = {
+  --               modes = {
+  --                 n = "gf",
+  --               },
+  --               index = 12,
+  --               callback = "keymaps.previous_chat",
+  --               description = "Previous Chat",
+  --             },
+  --           },
+  --         },
+  --         inline = {
+  --           adapter = "copilot",
+  --           keymaps = {
+  --             reject_change = {
+  --               modes = {
+  --                 n = "gt",
+  --               },
+  --               index = 2,
+  --               callback = "keymaps.reject_change",
+  --               description = "Reject change",
+  --             },
+  --           },
+  --         },
+  --         agent = {
+  --           adapter = "copilot",
+  --         },
+  --       },
+  --       adapters = {
+  --         copilot = function()
+  --           return require("codecompanion.adapters").extend("copilot", {
+  --             schema = {
+  --               model = {
+  --                 default = "gpt-4.1",
+  --               },
+  --             },
+  --           })
+  --         end,
+  --       },
+  --       display = {
+  --         chat = {
+  --           window = {
+  --             width = 0.3,
+  --           },
+  --           show_header_separator = true,
+  --         },
+  --         diff = {
+  --           provider = "mini_diff",
+  --         },
+  --       },
+  --       auto_scoll = false,
+  --       prompt_library = {
+  --         ["Brainstorm Phase"] = {
+  --           strategy = "chat",
+  --           description = "Brainstorm Phase",
+  --           opts = {
+  --             short_name = "brainstorm-phase",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "user",
+  --               content = "\n**This ask include brainstorm phase**\n",
+  --             },
+  --           },
+  --         },
+  --         ["Skeleton Phase"] = {
+  --           strategy = "chat",
+  --           description = "Skeleton Phase",
+  --           opts = {
+  --             short_name = "skeleton-phase",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "user",
+  --               content = "\n**This ask include skeleton phase**\n",
+  --             },
+  --           },
+  --         },
+  --         ["Discovery Phase"] = {
+  --           strategy = "chat",
+  --           description = "Discovery Phase",
+  --           opts = {
+  --             short_name = "discovery-phase",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "user",
+  --               content = "\n**This ask include discovery phase**\n",
+  --             },
+  --           },
+  --         },
+  --         ["Enhancement Skeleton Phase"] = {
+  --           strategy = "chat",
+  --           description = "Enhancement Skeleton Phase",
+  --           opts = {
+  --             short_name = "enhancement-skeleton-phase",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "user",
+  --               content = "\n**This ask include enhancement skeleton phase**\n",
+  --             },
+  --           },
+  --         },
+  --         ["Coding Workflow"] = {
+  --           strategy = "chat",
+  --           description = "Coding Workflow",
+  --           opts = {
+  --             short_name = "coding-workflow",
+  --             ignore_system_prompt = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "system",
+  --               content = CODING_WORKFLOW_PROMPT,
+  --               opts = {
+  --                 visible = false,
+  --               },
+  --             },
+  --             {
+  --               role = "user",
+  --               content = "\n**@full_stack_dev work for this code base**",
+  --             },
+  --           },
+  --         },
+  --         ["Generate Planning"] = {
+  --           strategy = "chat",
+  --           description = "Generate Planning",
+  --           opts = {
+  --             short_name = "generate-planning",
+  --             is_slash_cmd = true,
+  --           },
+  --           references = {
+  --             {
+  --               type = "file",
+  --               path = {
+  --                 vim.fn.stdpath("config") .. "/prompts/TEMPLATE_PLANNING.md",
+  --               },
+  --             },
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "system",
+  --               content = GENERATE_PLANNING_PROMPT,
+  --             },
+  --             {
+  --               role = "user",
+  --               content = "\n**@full_stack_dev work for this code base**\nProblem: ",
+  --             },
+  --           },
+  --         },
+  --         ["Generate Tasks"] = {
+  --           strategy = "chat",
+  --           description = "Generate Tasks",
+  --           opts = {
+  --             short_name = "generate-tasks",
+  --             is_slash_cmd = true,
+  --           },
+  --           references = {
+  --             {
+  --               type = "file",
+  --               path = {
+  --                 vim.fn.stdpath("config") .. "/prompts/TEMPLATE_TASKS.md",
+  --               },
+  --             },
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "system",
+  --               content = "",
+  --             },
+  --             {
+  --               role = "user",
+  --               content = GENERATE_TASKS_PROMPT,
+  --               opts = { visible = false },
+  --             },
+  --             {
+  --               role = "user",
+  --               content = "\n**@full_stack_dev work for this code base**\n",
+  --               opts = {
+  --                 visible = true,
+  --               },
+  --             },
+  --           },
+  --         },
+  --       },
+  --     })
+  --     vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
+  --     vim.keymap.set("n", "<leader>aw", function()
+  --       require("codecompanion").prompt("coding-workflow")
+  --     end, { noremap = true, silent = true })
+  --     -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --
+  --     -- Expand 'cc' into 'CodeCompanion' in the command line
+  --     -- vim.cmd([[cab cc CodeCompanion]])
+  --   end,
+  -- },
 }
