@@ -20,26 +20,26 @@ return {
     end,
   },
   -- lsp servers
-  {
-    "williamboman/mason-lspconfig.nvim",
-    dependencies = {
-      "williamboman/mason.nvim",
-    },
-    config = function()
-      -- import mason
-      -- local mason = require("mason")
-      -- import mason-lspconfig
-      local mason_lspconfig = require("mason-lspconfig")
-      mason_lspconfig.setup({
-        auto_installation = true,
-      })
-    end,
-  },
+  -- {
+  --   "williamboman/mason-lspconfig.nvim",
+  --   dependencies = {
+  --     "williamboman/mason.nvim",
+  --   },
+  --   config = function()
+  --     -- import mason
+  --     -- local mason = require("mason")
+  --     -- import mason-lspconfig
+  --     local mason_lspconfig = require("mason-lspconfig")
+  --     mason_lspconfig.setup({
+  --       auto_installation = true,
+  --     })
+  --   end,
+  -- },
   {
     "neovim/nvim-lspconfig",
     dependencies = {
       "williamboman/mason.nvim",
-      "williamboman/mason-lspconfig.nvim",
+      -- "williamboman/mason-lspconfig.nvim",
     },
     -- opts = {
     -- capabilities = {
@@ -57,11 +57,11 @@ return {
     opts = {},
     setup = {},
   },
-  {
-    "rshkarin/mason-nvim-lint",
-    opts = {},
-    setup = {},
-  },
+  -- {
+  --   "rshkarin/mason-nvim-lint",
+  --   opts = {},
+  --   setup = {},
+  -- },
   { import = "plugins.extras.lang.python" },
   { import = "plugins.extras.lang.golang" },
   { import = "plugins.extras.lang.typescript" },

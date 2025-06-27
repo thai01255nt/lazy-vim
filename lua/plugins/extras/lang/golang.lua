@@ -1,35 +1,22 @@
 return {
   {
-    "williamboman/mason.nvim",
-    opts = {
-      ensure_installed = {
-        "gopls",
-      },
-    },
-  },
-  {
     "mfussenegger/nvim-lint",
     lazy = true,
     event = { "BufReadPre", "BufNewFile" }, -- to disable, comment this out
     config = function()
       local bin_path = "./bin/golangci-lint"
-      require("lint").linters.golangci_lint = {
-        cmd = bin_path,
-        name = "golangci-lint",
-        stdin = false,
-        stream = "stdout",
-        parser = require("lint.parser").from_errorformat("%f:%l:%c: %m", {
-          source = "golangci-lint",
-          severity = vim.diagnostic.severity.WARN,
-        }),
-      }
-      if vim.fn.executable(bin_path) ~= 1 then
-        vim.notify("golangci-lint not found in ./bin", vim.log.levels.WARN)
-      end
       local lint = require("lint")
+      lint.linters.golangcilint.cmd = bin_path
       lint.linters_by_ft = {
-        go = { "golangci_lint" },
+        go = {
+          "golangcilint",
+        },
       }
+      vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+        callback = function()
+          require("lint").try_lint()
+        end,
+      })
     end,
   },
   {
@@ -66,7 +53,7 @@ return {
               },
               usePlaceholders = true,
               completeUnimported = true,
-              staticcheck = true,
+              -- staticcheck = true,
               directoryFilters = { "-.git", "-.vscode", "-.idea", "go.mod", "go.work" },
               semanticTokens = true,
             },
@@ -90,7 +77,6 @@ return {
                 range = true,
               }
             end
-            client.server_capabilities.documentFormattingProvider = false
           end, "gopls")
           -- end workaround
         end,
