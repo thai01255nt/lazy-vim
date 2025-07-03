@@ -29,11 +29,7 @@
 
 ## Tech Stack
 
-<!--
-INSTRUCTION: List the primary technologies, frameworks, libraries, and tools used in the project.
-Organize by category (e.g., Backend Framework, Database, Processing, Storage, Authentication, Deployment).
-Include specific versions if relevant.
--->
+<!-- List primary technologies by category. Include versions if relevant. -->
 
 - **[CATEGORY_1]**: [TECHNOLOGY_1]
 - **[CATEGORY_2]**: [TECHNOLOGY_2]
@@ -49,37 +45,33 @@ Include specific versions if relevant.
 
 ## Layer Structure
 
-<!--
-INSTRUCTION: Describe the architectural layers of the system from top to bottom.
-Each layer should have a clear responsibility and interact with adjacent layers.
-Include 3-6 layers typically (e.g., Presentation, Business Logic, Data Access, Infrastructure).
--->
+<!-- Describe 3-6 architectural layers with clear responsibilities. -->
 
 The system follows a multi-layered architecture:
 
 1. **[LAYER_1_NAME]**:
-   <!-- INSTRUCTION: Describe the topmost layer - usually presentation/API layer -->
+   <!-- Topmost layer - presentation/API -->
 
    - [RESPONSIBILITY_1]
    - [RESPONSIBILITY_2]
    - [RESPONSIBILITY_3]
 
 2. **[LAYER_2_NAME]**:
-   <!-- INSTRUCTION: Describe the business logic layer -->
+   <!-- Business logic layer -->
 
    - [RESPONSIBILITY_1]
    - [RESPONSIBILITY_2]
    - [RESPONSIBILITY_3]
 
 3. **[LAYER_3_NAME]**:
-   <!-- INSTRUCTION: Describe the data access layer -->
+   <!-- Data access layer -->
 
    - [RESPONSIBILITY_1]
    - [RESPONSIBILITY_2]
    - [RESPONSIBILITY_3]
 
 4. **[LAYER_4_NAME]**:
-   <!-- INSTRUCTION: Describe the core processing/domain layer -->
+   <!-- Core processing/domain layer -->
 
    - [RESPONSIBILITY_1]
    - [RESPONSIBILITY_2]
@@ -88,21 +80,17 @@ The system follows a multi-layered architecture:
    - [RESPONSIBILITY_5]
 
 5. **[LAYER_5_NAME]**:
-   <!-- INSTRUCTION: Describe any specialized processing layer -->
+   <!-- Specialized processing layer -->
    - [RESPONSIBILITY_1]
    - [RESPONSIBILITY_2]
    - [RESPONSIBILITY_3]
 
 ## Feature List
 
-<!--
-INSTRUCTION: List the main functional areas/features of the system.
-Group related features together under logical categories.
-Include 3-7 main feature groups with 3-5 features each.
--->
+<!-- List 3-7 main feature groups with 3-5 features each. -->
 
 1. **[FEATURE_GROUP_1]**:
-   <!-- INSTRUCTION: Core configuration/setup features -->
+   <!-- Core configuration/setup features -->
 
    - [FEATURE_1]
    - [FEATURE_2]
@@ -111,7 +99,7 @@ Include 3-7 main feature groups with 3-5 features each.
    - [FEATURE_5]
 
 2. **[FEATURE_GROUP_2]**:
-   <!-- INSTRUCTION: Main processing/business logic features -->
+   <!-- Main processing/business logic features -->
 
    - [FEATURE_1]
    - [FEATURE_2]
@@ -120,7 +108,7 @@ Include 3-7 main feature groups with 3-5 features each.
    - [FEATURE_5]
 
 3. **[FEATURE_GROUP_3]**:
-   <!-- INSTRUCTION: Specialized/advanced features -->
+   <!-- Specialized/advanced features -->
 
    - [FEATURE_1]
    - [FEATURE_2]
@@ -128,7 +116,7 @@ Include 3-7 main feature groups with 3-5 features each.
    - [FEATURE_4]
 
 4. **[FEATURE_GROUP_4]**:
-   <!-- INSTRUCTION: API/Interface features -->
+   <!-- API/Interface features -->
 
    - [FEATURE_1]
    - [FEATURE_2]
@@ -136,19 +124,14 @@ Include 3-7 main feature groups with 3-5 features each.
    - [FEATURE_4]
 
 5. **[FEATURE_GROUP_5]**:
-   <!-- INSTRUCTION: Security, monitoring, and operational features -->
+   <!-- Security, monitoring, operational features -->
    - [FEATURE_1]
    - [FEATURE_2]
    - [FEATURE_3]
 
 ## Architecture Overview
 
-<!--
-INSTRUCTION: Provide a high-level description of the system architecture.
-Describe the main components and how they interact.
-Mention the overall architectural pattern(s) used.
-Keep this section concise but comprehensive.
--->
+<!-- High-level architecture description with main components and interactions. -->
 
 The [PROJECT_NAME] is designed with [NUMBER] main components:
 
@@ -162,7 +145,7 @@ These components are integrated through [INTEGRATION_PATTERN] that allows [INTEG
 
 ### 1. [LAYER_1_NAME]
 
-<!-- INSTRUCTION: Describe the first architectural layer in detail -->
+<!-- First architectural layer details -->
 
 The [LAYER_1_NAME] [LAYER_PURPOSE]. It includes:
 
@@ -173,7 +156,7 @@ The [LAYER_1_NAME] [LAYER_PURPOSE]. It includes:
 
 ### 2. [LAYER_2_NAME]
 
-<!-- INSTRUCTION: Describe the second architectural layer in detail -->
+<!-- Second architectural layer details -->
 
 The [LAYER_2_NAME] [LAYER_PURPOSE]. It includes:
 
@@ -183,7 +166,7 @@ The [LAYER_2_NAME] [LAYER_PURPOSE]. It includes:
 
 ### 3. [LAYER_3_NAME]
 
-<!-- INSTRUCTION: Describe the third architectural layer in detail -->
+<!-- Third architectural layer details -->
 
 The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
@@ -193,11 +176,11 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 ### 4. [MAIN_COMPONENT_GROUP]
 
-<!-- INSTRUCTION: Describe the main processing components group -->
+<!-- Main processing components group -->
 
 #### 4.1 [SUB_COMPONENT_1]
 
-<!-- INSTRUCTION: Describe the first sub-component type -->
+<!-- First sub-component type -->
 
 [SUB_COMPONENT_1] [PURPOSE]:
 
@@ -211,7 +194,7 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 #### 4.2 [SUB_COMPONENT_2]
 
-<!-- INSTRUCTION: Describe the second sub-component type -->
+<!-- Second sub-component type -->
 
 [SUB_COMPONENT_2] [PURPOSE]:
 
@@ -223,7 +206,7 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 #### 4.3 [SUB_COMPONENT_3]
 
-<!-- INSTRUCTION: Describe the third sub-component type -->
+<!-- Third sub-component type -->
 
 [SUB_COMPONENT_3] [PURPOSE]:
 
@@ -234,7 +217,7 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 #### 4.4 [SUB_COMPONENT_4]
 
-<!-- INSTRUCTION: Describe the fourth sub-component type -->
+<!-- Fourth sub-component type -->
 
 [SUB_COMPONENT_4] [PURPOSE]:
 
@@ -247,7 +230,7 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 #### 4.5 [SUB_COMPONENT_5]
 
-<!-- INSTRUCTION: Describe the fifth sub-component type -->
+<!-- Fifth sub-component type -->
 
 [SUB_COMPONENT_5] [PURPOSE] by:
 
@@ -258,7 +241,7 @@ The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
 
 ### 5. [SPECIALIZED_COMPONENT]
 
-<!-- INSTRUCTION: Describe any specialized component that deserves its own section -->
+<!-- Specialized component details -->
 
 The [SPECIALIZED_COMPONENT] [PURPOSE]:
 
@@ -272,11 +255,7 @@ The [SPECIALIZED_COMPONENT] [PURPOSE]:
 
 ### Overall System Architecture
 
-<!--
-INSTRUCTION: Create a Mermaid diagram showing the high-level system architecture.
-Include main components, external systems, and data flow.
-Use appropriate Mermaid syntax (graph TD, classDiagram, sequenceDiagram, etc.).
--->
+<!-- Mermaid diagram: high-level system architecture with components and data flow. -->
 
 ```mermaid
 graph TD
@@ -314,10 +293,7 @@ graph TD
 
 ### [MAIN_COMPONENT] Architecture
 
-<!--
-INSTRUCTION: Create a class diagram showing the structure of your main component.
-Include interfaces, implementations, and relationships.
--->
+<!-- Class diagram: main component structure with interfaces and relationships. -->
 
 ```mermaid
 classDiagram
@@ -383,10 +359,7 @@ classDiagram
 
 ### [SPECIALIZED_COMPONENT] Architecture
 
-<!--
-INSTRUCTION: Create a class diagram for any specialized component.
-Focus on its unique structure and relationships.
--->
+<!-- Class diagram: specialized component structure and relationships. -->
 
 ```mermaid
 classDiagram
@@ -423,10 +396,7 @@ classDiagram
 
 ### [PROCESS_FLOW] Flow
 
-<!--
-INSTRUCTION: Create a sequence diagram showing the main process flow.
-Include key actors, services, and the sequence of interactions.
--->
+<!-- Sequence diagram: main process flow with actors and interactions. -->
 
 ```mermaid
 sequenceDiagram
@@ -476,11 +446,7 @@ sequenceDiagram
 
 ## Design Principles
 
-<!--
-INSTRUCTION: List 5-8 key design principles that guide the architecture.
-Include principles like modularity, extensibility, separation of concerns, etc.
-Explain briefly why each principle is important for this project.
--->
+<!-- List 5-8 key design principles with brief explanations. -->
 
 1. **[PRINCIPLE_1]**: [DESCRIPTION_AND_BENEFIT].
 2. **[PRINCIPLE_2]**: [DESCRIPTION_AND_BENEFIT].
@@ -492,10 +458,7 @@ Explain briefly why each principle is important for this project.
 
 ## References
 
-<!--
-INSTRUCTION: List relevant external references, documentation, standards, or similar projects.
-Include links to official documentation, architectural patterns, or related systems.
--->
+<!-- External references, documentation, standards, related projects. -->
 
 - [[REFERENCE_1_NAME]]([REFERENCE_1_URL]) - [REFERENCE_1_PURPOSE]
 - [[REFERENCE_2_NAME]]([REFERENCE_2_URL]) - [REFERENCE_2_PURPOSE]

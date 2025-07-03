@@ -14,13 +14,16 @@ local function read_prompt_file(file_path)
   return content
 end
 local IS_DEV = false
-local CODING_WORKFLOW_PROMPT = read_prompt_file("/prompts/coding-workflow.txt")
-local GENERATE_PLANNING_PROMPT = read_prompt_file("/prompts/generate-planning.txt")
-local GENERATE_TASKS_PROMPT = read_prompt_file("/prompts/generate-tasks.txt")
+local core_rules = read_prompt_file("/prompts/core-rules.txt")
+local step_project_overview = read_prompt_file("/prompts/step-project-overview.txt")
+local step_planning = read_prompt_file("/prompts/step-planning.txt")
+local step_tasks = read_prompt_file("/prompts/step-tasks.txt")
 
-local prompts = {
-  system_prompt = CODING_WORKFLOW_PROMPT,
-}
+local step_1_context = read_prompt_file("/prompts/step-1-context.txt")
+local step_2_skeleton = read_prompt_file("/prompts/step-2-skeleton.txt")
+local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
+local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
+
 return {
   -- {
   --   "yetone/avante.nvim",
@@ -448,59 +451,101 @@ return {
         },
         auto_scoll = false,
         prompt_library = {
-          ["Brainstorm Phase"] = {
+          ["Planning"] = {
             strategy = "chat",
-            description = "Brainstorm Phase",
+            description = "Planning",
             opts = {
-              short_name = "brainstorm-phase",
+              short_name = "planning",
               is_slash_cmd = true,
             },
             prompts = {
+              { role = "user", content = step_planning, opts = { visible = false } },
               {
                 role = "user",
-                content = "\n**This ask include brainstorm phase**\n",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
               },
             },
           },
-          ["Skeleton Phase"] = {
+          ["Tasks"] = {
             strategy = "chat",
-            description = "Skeleton Phase",
+            description = "Tasks",
             opts = {
-              short_name = "skeleton-phase",
+              short_name = "tasks",
               is_slash_cmd = true,
             },
+            references = {
+              {
+                type = "file",
+                path = {
+                  vim.fn.stdpath("config") .. "/prompts/TASKS-TEMPLATE.md",
+                },
+              },
+            },
             prompts = {
+              { role = "user", content = step_tasks, opts = { visible = false } },
               {
                 role = "user",
-                content = "\n**This ask include skeleton phase**\n",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
               },
             },
           },
-          ["Discovery Phase"] = {
+          ["Context"] = {
             strategy = "chat",
-            description = "Discovery Phase",
+            description = "Context",
             opts = {
-              short_name = "discovery-phase",
+              short_name = "context",
               is_slash_cmd = true,
             },
             prompts = {
+              { role = "user", content = step_1_context, opts = { visible = false } },
               {
                 role = "user",
-                content = "\n**This ask include discovery phase**\n",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
               },
             },
           },
-          ["Enhancement Skeleton Phase"] = {
+          ["Skeleton"] = {
             strategy = "chat",
-            description = "Enhancement Skeleton Phase",
+            description = "Skeleton",
             opts = {
-              short_name = "enhancement-skeleton-phase",
+              short_name = "skeleton",
               is_slash_cmd = true,
             },
             prompts = {
+              { role = "user", content = step_2_skeleton, opts = { visible = false } },
               {
                 role = "user",
-                content = "\n**This ask include enhancement skeleton phase**\n",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
+              },
+            },
+          },
+          ["Review"] = {
+            strategy = "chat",
+            description = "Review",
+            opts = {
+              short_name = "review",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              { role = "user", content = step_3_review, opts = { visible = false } },
+              {
+                role = "user",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
+              },
+            },
+          },
+          ["Enhance"] = {
+            strategy = "chat",
+            description = "Enhance",
+            opts = {
+              short_name = "enhance",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              { role = "user", content = step_4_enhance, opts = { visible = false } },
+              {
+                role = "user",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
               },
             },
           },
@@ -514,81 +559,48 @@ return {
             prompts = {
               {
                 role = "system",
-                content = CODING_WORKFLOW_PROMPT,
+                content = core_rules,
                 opts = {
                   visible = false,
                 },
               },
               {
                 role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**",
+                content = "\n**@{full_stack_dev} work for this code base\n**",
               },
             },
           },
-          ["Generate Planning"] = {
+          ["project-overview"] = {
             strategy = "chat",
-            description = "Generate Planning",
+            description = "Project Overview",
             opts = {
-              short_name = "generate-planning",
+              short_name = "project-overview",
               is_slash_cmd = true,
             },
             references = {
               {
                 type = "file",
                 path = {
-                  vim.fn.stdpath("config") .. "/prompts/TEMPLATE_PLANNING.md",
+                  vim.fn.stdpath("config") .. "/prompts/PROJECT-OVERVIEW-TEMPLATE.md",
                 },
               },
             },
             prompts = {
               {
-                role = "system",
-                content = GENERATE_PLANNING_PROMPT,
-              },
-              {
                 role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\nProblem: ",
-              },
-            },
-          },
-          ["Generate Tasks"] = {
-            strategy = "chat",
-            description = "Generate Tasks",
-            opts = {
-              short_name = "generate-tasks",
-              is_slash_cmd = true,
-            },
-            references = {
-              {
-                type = "file",
-                path = {
-                  vim.fn.stdpath("config") .. "/prompts/TEMPLATE_TASKS.md",
-                },
-              },
-            },
-            prompts = {
-              {
-                role = "system",
-                content = "",
-              },
-              {
-                role = "user",
-                content = GENERATE_TASKS_PROMPT,
+                content = step_project_overview,
                 opts = { visible = false },
               },
               {
                 role = "user",
                 content = "\n**@{full_stack_dev} work for this code base**\n",
-                opts = {
-                  visible = true,
-                },
               },
             },
           },
         },
       })
-      vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+      -- vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+      -- vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
       vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
       vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
       vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })

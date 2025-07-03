@@ -1,0 +1,92 @@
+# Step: Tasks Generation
+
+## Purpose
+Generate or update tasks file from planning file, breaking down feature planning into actionable tasks in `.claude/custom/tasks/` folder.
+
+## Process
+1. **Load Planning File** → Read from `.claude/custom/planning/[name].md`
+2. **Check Existing Tasks** → Look for `.claude/custom/tasks/[name].md`
+3. **Compare & Analyze** → Compare planning vs existing tasks to identify changes
+4. **Task Management** → Add new tasks, remove obsolete tasks, update existing tasks
+5. **Preserve Progress** → Keep completed tasks and active work status
+6. **Update Tasks File** → Save updated task breakdown with changes highlighted
+
+## File Detection & Workflow
+- **Planning file**: Must specify which planning file to use
+- **Tasks file**: Auto-check `.claude/custom/tasks/[same-name].md`
+- **If tasks exist**: Auto-continue with comparison and update
+- **If new**: Create new tasks file with same name as planning file
+
+## Task Management Logic
+
+### For Existing Tasks File
+1. **Preserve Progress & Status**
+   - Keep all `[x]` completed tasks in flat "Tasks" section
+   - Maintain `[⏳]` in progress and `[⏸️]` blocked tasks in place
+   - Keep task completion dates, blocked reasons, and notes
+
+2. **Compare with Planning**
+   - Identify new components/requirements in planning → Create new `[ ]` tasks
+   - Find removed components in planning → Convert to `[❌]` cancelled tasks
+   - Detect changed requirements → Update affected task descriptions
+
+3. **Smart Status Management**
+   - Add new tasks as `[ ]` TODO to flat "Tasks" section
+   - Convert obsolete tasks to `[❌]` CANCELLED status in place
+   - Update task descriptions while preserving current status
+   - Maintain task dependencies and blocked relationships
+
+4. **Change Highlighting**
+   - `🆕 NEW: [ ] [Task description]` for added tasks
+   - `📝 UPDATED: [status] [Task description]` for modified tasks  
+   - `❌ OBSOLETE: [❌] [Task description]` for removed tasks
+
+## Template Reference
+Use `TASKS-TEMPLATE.md` as the base structure for all generated tasks files.
+
+## Task Status System
+- `[ ]` TODO → `[⏳]` IN PROGRESS → `[x]` COMPLETED
+- `[⏸️]` BLOCKED (waiting on dependency)  
+- `[❌]` CANCELLED (no longer needed)
+
+## Task Generation Strategy
+### From Planning Components
+- **Components** → Implementation tasks (use `[ ]` TODO status)
+- **Integration points** → Integration tasks with dependencies
+- **Testing strategy** → Testing tasks linked to implementation
+- **Documentation** → Documentation tasks for each component
+
+### Task Management Rules
+- **New tasks**: Always start as `[ ]` TODO
+- **Break down large tasks**: Max 1-3 days each
+- **Include acceptance criteria**: From planning requirements
+- **Set dependencies**: Link related tasks
+- **Estimate effort**: Based on component complexity
+
+## Update Mode (Existing Tasks)
+When updating existing tasks file:
+- **Preserve completed tasks and active work** with current checkbox status
+- **Add new tasks** as `[ ]` TODO from planning changes to flat "Tasks" section
+- **Mark obsolete tasks** as `[❌]` CANCELLED in place (no separate section)
+- **Update task descriptions** while maintaining checkbox status
+- **Highlight all changes** with clear status indicators
+
+## Output Format
+### For New Tasks File
+- Complete task breakdown from planning with `[ ]` TODO checkboxes
+- Flat "Tasks" section with all tasks
+- Clear task dependencies and blocked relationships
+- Time estimates and acceptance criteria included
+
+### For Updated Tasks File
+- Summary of changes made with change indicators
+- New `[ ]` tasks added to flat "Tasks" section
+- Status preserved: `[x]` completed, `[⏳]` in progress, `[⏸️]` blocked
+- Obsolete tasks converted to `[❌]` CANCELLED in place
+
+### Example Output
+```
+🆕 NEW: [ ] Implement OAuth2 token validation
+📝 UPDATED: [⏳] User registration - now includes email verification  
+❌ OBSOLETE: [❌] Basic auth login - moved to cancelled section
+```

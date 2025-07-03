@@ -1,0 +1,59 @@
+# Core Rules for LLM Assistant
+
+## Anti-Hallucination
+- Only suggest proven technologies (3+ years production usage)
+- Always verify before suggesting. If uncertain: research first. If still unverifiable: mark as "unknown". Never fabricate.
+- Prefer established patterns, provide official documentation links
+
+## Required Context (Always Do First)
+1. **Read PROJECT-OVERVIEW.md** → Extract tech stack, architecture, constraints
+2. **Scan Codebase** → Use `ls`/`glob`/`grep` (or `Read`/`Grep` tools) to find existing patterns
+
+## Decision Making
+- Default "Yes" for clear requests
+- Only ask clarifications for: ambiguous approaches, contradictory requirements, safety-critical decisions
+
+## Code Standards
+- **File Size**: 500-line limit → auto-refactor
+- **Naming**: Follow codebase patterns first, then language conventions
+- **Documentation**: Google docstrings, WHY not WHAT comments
+- **Testing**: Use approach from PROJECT-OVERVIEW.md
+- **Implementation**: Follow existing patterns (error handling, logging, DI, configs)
+
+## Quality Standards
+
+### Pre-Implementation Checklist
+- [ ] Naming conventions match existing codebase patterns
+- [ ] Architecture patterns align with PROJECT-OVERVIEW.md
+- [ ] All method signatures include proper type hints
+- [ ] Comprehensive docstrings present (Google style)
+- [ ] Interface definitions clear and complete
+- [ ] Import statements follow project conventions
+- [ ] No implementation logic in skeleton phase
+
+### Post-Implementation Checklist
+- [ ] Error handling matches project patterns
+- [ ] Logging follows established format and levels
+- [ ] Dependencies properly injected following existing patterns
+- [ ] Code consistency with existing implementations
+- [ ] Security considerations addressed
+- [ ] Performance implications considered
+- [ ] Resource cleanup (connections, file handles, etc.)
+
+### Security Standards
+- Never commit secrets - check for accidental exposure
+- Follow authentication patterns from project
+- Validate all inputs using project validation patterns
+- Use parameterized queries for database operations
+- Follow HTTPS and security headers for web applications
+
+### Testing Requirements
+- Tests in `/tests` folder mirroring app structure
+- **Coverage per feature**: happy path + edge case + failure test
+- Update affected tests when modifying existing logic
+- Follow testing framework specified in PROJECT-OVERVIEW.md
+
+## Auto-Update Requirements
+- PROJECT-OVERVIEW.md (new tech/architecture)
+- README.md (setup/usage changes)
+- API docs (public interfaces)

@@ -1,0 +1,148 @@
+# Software Architecture Project Overview Assistant
+
+## Goal
+Expert architect creating or updating comprehensive PROJECT-OVERVIEW.md blueprints for production systems.
+
+## Core Principles
+- Only suggest proven, widely-adopted technologies/patterns
+- Production-ready recommendations
+- Industry-standard practices
+- Specific, actionable guidance
+- Design for scalability and maintenance
+
+## Process
+
+### 1. Existing File Detection
+**Check for PROJECT-OVERVIEW.md in current directory**
+- **If exists**: Ask user: "Found existing PROJECT-OVERVIEW.md. Continue with update mode? (Y/n) Or specify different approach:"
+- **If missing**: Ask user: "No PROJECT-OVERVIEW.md found. What is the main goal/problem this project should solve?" Then create new file from scratch
+- **Update mode**: Preserve existing structure and merge new requirements
+
+### 2. Codebase Analysis (Auto-Scan)
+**Automatically scan current project to understand existing state:**
+- **Package files**: Check package.json, requirements.txt, Cargo.toml, etc. for dependencies
+- **Config files**: Look for .env, config/, docker-compose.yml, etc.
+- **Source structure**: Scan src/, lib/, app/ folders for architecture patterns
+- **Existing tech stack**: Identify frameworks, databases, tools already in use
+- **Documentation**: Read README.md, docs/ for context
+
+### 3. Problem Analysis
+- Core business requirements (from user input)
+- Non-functional requirements (performance, scalability, security, maintainability)
+- Primary purpose and key use cases
+- Complexity assessment
+
+### 4. Context Assessment
+- Review existing PROJECT-OVERVIEW.md (if found)
+- Merge discovered codebase technologies with new requirements
+- Technical constraints from existing implementation
+- Team size and expertise (from user or inferred from complexity)
+
+### 5. Technology Stack Decision
+**For New Projects**: Apply selection criteria (3+ years production usage, strong community, rich ecosystem)
+**For Existing Projects**: 
+- Keep current proven technologies that work well
+- Identify gaps where new tech is needed
+- Recommend upgrades only for compelling reasons (security, performance, maintenance)
+- Preserve team knowledge and existing integrations
+
+**Categories**: Language/Runtime, Web Framework, Database, Messaging, Auth, Monitoring, Testing, CI/CD, Infrastructure, Data Processing, Integrations
+
+### 6. Architecture Design
+**New Projects**: Design from scratch with layered architecture, proven patterns
+**Existing Projects**: 
+- Identify current architecture pattern from codebase scan
+- Preserve good existing patterns
+- Suggest improvements for problem areas only
+- Show migration path for architectural changes
+
+**Focus**: Layered architecture, design patterns (Factory/Strategy/Repository/Observer), error handling, security, performance, maintainability
+
+### 7. Component Specification
+**New Projects**: Define all components from requirements
+**Existing Projects**: 
+- Map existing components from codebase
+- Identify missing components for new requirements
+- Show integration points between existing and new components
+- Preserve existing component interfaces where possible
+
+For each component: Purpose, Responsibilities, Interfaces, Dependencies, Configuration
+
+## Documentation Requirements
+
+### Tech Stack
+- Proven technologies with official documentation links
+- Specify versions for compatibility
+- Group by purpose with technical rationale
+- Include considered alternatives
+
+### Architecture Patterns
+Layered/N-Tier, Repository, Factory, Strategy, Observer, Circuit Breaker, CQRS (when applicable)
+
+### Mermaid Diagrams
+**Required**: System Context, Component Architecture, Class Structure, Sequence Flows, Data Flow
+**Guidelines**: Standard UML, essential elements only, show relationships, group components, consistent naming
+
+### Feature Breakdown
+**Categories**: Core (MVP), Advanced (enhancements), Operational (monitoring), Security (auth/audit), Integration (external systems)
+
+### Design Principles
+1. Single Responsibility
+2. Open/Closed
+3. Dependency Inversion
+4. Separation of Concerns
+5. DRY (Don't Repeat Yourself)
+6. KISS (Keep It Simple)
+7. YAGNI (You Aren't Gonna Need It)
+
+## Quality Checklist
+
+**Technical**: Technologies exist/maintained, version compatibility, security, performance, scalability
+**Architectural**: Separation of concerns, abstraction layers, error handling, testability, configuration
+**Documentation**: Complete sections, correct Mermaid syntax, valid references, specific details, extension points
+
+## Industry Considerations
+
+**Web**: RESTful APIs, frontend-backend separation, session management, rate limiting, CORS, SEO
+**Data Processing**: ETL/ELT, validation, batch vs stream, lineage, schema evolution
+**Microservices**: Service discovery, API gateway, inter-service communication, distributed tracing
+**Real-time**: WebSockets, event-driven architecture, message queuing, load balancing
+
+## Anti-Patterns to Avoid
+God Objects, Tight Coupling, Premature Optimization, Magic Numbers/Strings, Monolithic Database, Shared Mutable State
+
+## Update Mode Workflow
+**When existing PROJECT-OVERVIEW.md found:**
+1. **Read existing file** → Extract current tech stack, architecture, components
+2. **Compare with codebase** → Validate documentation matches reality
+3. **Identify gaps** → What's missing from current documentation
+4. **Merge requirements** → Combine existing + new user requirements
+5. **Preserve good sections** → Keep working architecture decisions
+6. **Update outdated info** → Fix version numbers, deprecated tech, etc.
+7. **Add new sections** → Include new requirements and components
+
+## Codebase Integration Commands
+**Auto-scan tools to use:**
+- `ls` and `glob` → Identify project structure and file types
+- `grep` → Search for framework imports, config patterns, API endpoints
+- `read` → Examine package.json, requirements.txt, main files
+- Look for: Framework indicators, database connections, API patterns, testing setup
+
+## Output Format
+**For New Projects**: Use PROJECT-OVERVIEW-TEMPLATE.md enhanced with detailed specs
+**For Existing Projects**: 
+- Update existing sections with discovered information
+- Add new sections for additional requirements
+- Mark changed sections with update indicators
+- Preserve existing formatting and structure where possible
+
+## Final Validation
+1. Technologies are real and current
+2. Patterns are well-established  
+3. Mermaid syntax is correct
+4. Implementation details are actionable
+5. Solution addresses original problem
+6. **Update mode**: Existing functionality preserved
+7. **Update mode**: New requirements properly integrated
+
+Goal: Reliable blueprint for production-quality systems that works with existing codebases.

@@ -1,0 +1,75 @@
+# Step: Planning & Brainstorming
+
+## Purpose
+Brainstorm feature approach and generate structured planning file in `.claude/custom/planning/` folder.
+
+## Process
+1. **Check for Existing Planning**: Scan `.claude/custom/planning/` for relevant planning files
+2. **Load Foundation** (if exists): Read existing planning file and confirm it's correct
+3. **Analyze Requirements**: Break down the feature request (or continue from existing planning)
+4. **Explore Approaches**: Generate 2-4 viable architectural approaches with trade-offs
+5. **Recommend Solution**: Present preferred approach with rationale
+6. **Update/Generate Planning File**: Create new or update existing structured planning document
+
+## Planning File Template
+```markdown
+# Feature: [FEATURE_NAME]
+
+## Requirements
+- [Core requirement 1]
+- [Core requirement 2]
+- [Non-functional requirements]
+
+## Architecture Approach
+[Chosen approach with rationale]
+
+## Components Needed
+- [Component 1]: [Purpose]
+- [Component 2]: [Purpose]
+- [Component 3]: [Purpose]
+
+## Implementation Notes
+- [Key consideration 1]
+- [Key consideration 2]
+- [Dependencies and constraints]
+
+## Integration Points
+- [How it connects to existing code]
+- [APIs or services it will use]
+
+## Testing Strategy
+- [Testing approach for this feature]
+```
+
+## Existing Planning Detection
+1. **Auto-scan**: Look for relevant planning files in `.claude/custom/planning/`
+2. **Confirm file**: "Found `user-authentication.md`, continue from this? (Y/n) or specify different path:"
+3. **If confirmed**: Load existing planning as foundation and continue brainstorming
+4. **If new planning needed**: Ask for filename confirmation
+
+## File Naming & Confirmation (New Files)
+1. Auto-suggest filename based on feature context: `[feature-name].md`
+2. Ask for confirmation: "Save as `user-authentication.md`? (Y/n) or enter different name:"
+3. Save to `.claude/custom/planning/[confirmed-name].md`
+
+## Continuation Mode (Existing Files)
+When continuing from existing planning:
+- Show current planning summary
+- Identify areas that need expansion or refinement
+- Ask what specific aspects to brainstorm further
+- Update existing sections or add new ones
+- Preserve existing decisions unless explicitly changing them
+
+## Output Format
+### For New Planning
+- Present approach options with clear pros/cons
+- Highlight recommended solution
+- Generate planning file with confirmed name
+- Provide next steps guidance
+
+### For Continued Planning  
+- Summary of existing planning decisions
+- Areas identified for further brainstorming
+- New approach options or refinements
+- Updated planning file with changes highlighted
+- Clear indication of what was added/modified
