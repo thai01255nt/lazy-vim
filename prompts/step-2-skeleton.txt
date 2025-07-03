@@ -1,10 +1,15 @@
 # Step 2: Skeleton Generation
 
 ## Context Check
-**Checking for step-1 context in this chat session...**
+**MANUAL WORKFLOW ENFORCEMENT**
 
-If no step-1 context found:
-⚠️ **Missing Context**: No step-1 context detected. Please run step-1-context first, then rerun step-2-skeleton.
+Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
+
+🛑 **STOP - Do NOT auto-execute step-1**
+📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
+🔄 **THEN**: Return to run `step-2-skeleton`
+
+**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
 
 ## Purpose
 Generate complete structural framework with no implementation logic, based on planning file and codebase patterns.

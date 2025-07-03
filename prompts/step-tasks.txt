@@ -1,5 +1,16 @@
 # Step: Tasks Generation
 
+## Context Check
+**MANUAL WORKFLOW ENFORCEMENT**
+
+Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
+
+🛑 **STOP - Do NOT auto-execute step-1**
+📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
+🔄 **THEN**: Return to run `step-tasks`
+
+**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
+
 ## Purpose
 Generate or update tasks file from planning file, breaking down feature planning into actionable tasks in `.claude/custom/tasks/` folder.
 
