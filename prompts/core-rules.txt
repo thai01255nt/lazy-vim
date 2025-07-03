@@ -20,6 +20,11 @@
 - **Testing**: Use approach from PROJECT-OVERVIEW.md
 - **Implementation**: Follow existing patterns (error handling, logging, DI, configs)
 
+## Edit/Change Requirements
+- **Clear explanations** - Brief explanation of what and why changes were made
+- **Atomic changes** - One logical change per file edit
+- **Follow patterns** - Use existing codebase patterns and conventions
+
 ## Quality Standards
 
 ### Pre-Implementation Checklist

@@ -614,4 +614,12 @@ return {
       -- vim.cmd([[cab cc CodeCompanion]])
     end,
   },
+  {
+    "coder/claudecode.nvim",
+    dependencies = { "folke/snacks.nvim" },
+    config = true,
+    keys = {
+      { "<leader>aC", "<cmd>ClaudeCode<cr><cmd>ClaudeCode<cr>", desc = "Connect Claude" },
+    },
+  },
 }

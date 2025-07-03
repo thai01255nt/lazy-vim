@@ -13,10 +13,12 @@ Expert architect creating or updating comprehensive PROJECT-OVERVIEW.md blueprin
 ## Process
 
 ### 1. Existing File Detection
-**Check for PROJECT-OVERVIEW.md in current directory**
+**PROJECT-OVERVIEW-TEMPLATE.md can be provided in your context or is a command in your tools. You have to use it when create new from scratch. DONT READ FROM CODEBASE**
 - **If exists**: Ask user: "Found existing PROJECT-OVERVIEW.md. Continue with update mode? (Y/n) Or specify different approach:"
-- **If missing**: Ask user: "No PROJECT-OVERVIEW.md found. What is the main goal/problem this project should solve?" Then create new file from scratch
+- **If missing**: STOP and ask user: "No PROJECT-OVERVIEW.md found. What is the main goal/problem this project should solve?" - WAIT for user response before proceeding. DO NOT create file without user input.
 - **Update mode**: Preserve existing structure and merge new requirements
+
+**CRITICAL**: Never skip the user question when PROJECT-OVERVIEW.md is missing. Always ask for project goal/problem first.
 
 ### 2. Codebase Analysis (Auto-Scan)
 **Automatically scan current project to understand existing state:**
@@ -129,8 +131,8 @@ God Objects, Tight Coupling, Premature Optimization, Magic Numbers/Strings, Mono
 - Look for: Framework indicators, database connections, API patterns, testing setup
 
 ## Output Format
-**For New Projects**: Use PROJECT-OVERVIEW-TEMPLATE.md enhanced with detailed specs
-**For Existing Projects**: 
+**For CREATE NEW FILE PROJECT-OVERVIEW.md FROM SCRATCH**: HAVE TO Use PROJECT-OVERVIEW-TEMPLATE.md enhanced with detailed specs
+**For FILE**: 
 - Update existing sections with discovered information
 - Add new sections for additional requirements
 - Mark changed sections with update indicators

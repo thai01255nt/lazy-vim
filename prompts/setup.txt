@@ -1,0 +1,12 @@
+mkdir -p ~/.claude/commands
+cp ./prompts/core-rules.txt ~/.claude/CLAUDE.md
+cp ./prompts/core-rules.txt ~/.claude/core-rules.md
+cp ./prompts/step-project-overview.txt ~/.claude/commands/project-overview.md
+cp ./prompts/step-1-context.txt ~/.claude/commands/step-1-context.md
+cp ./prompts/step-2-skeleton.txt ~/.claude/commands/step-2-skeleton.md
+cp ./prompts/step-3-review.txt ~/.claude/commands/step-3-review.md
+cp ./prompts/step-4-enhance.txt ~/.claude/commands/step-4-enhance.md
+cp ./prompts/step-planning.txt ~/.claude/commands/step-planning.md
+cp ./prompts/step-tasks.txt ~/.claude/commands/step-tasks.md
+cp ./prompts/TASKS-TEMPLATE.md ~/.claude/commands/TASKS-TEMPLATE.md.md
+cp ./prompts/PROJECT-OVERVIEW-TEMPLATE.md ~/.claude/commands/PROJECT-OVERVIEW-TEMPLATE.md.md
