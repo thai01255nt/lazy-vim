@@ -61,6 +61,11 @@ This guide documents the complete LLM workflow system for structured software de
   - Performance and security improvements
   - Integration enhancements
 
+- **`step-5-implement.txt`**: Business logic implementation
+  - Convert skeleton methods to working code
+  - Implement business logic and data processing
+  - Add validation, error handling, and integrations
+
 #### 4. Specialized Assistants
 
 - **`step-project-overview.txt`**: PROJECT-OVERVIEW.md creation/update specialist

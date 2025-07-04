@@ -23,6 +23,7 @@ local step_1_context = read_prompt_file("/prompts/step-1-context.txt")
 local step_2_skeleton = read_prompt_file("/prompts/step-2-skeleton.txt")
 local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
 local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
+local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
 
 return {
   -- {
@@ -543,6 +544,21 @@ return {
             },
             prompts = {
               { role = "user", content = step_4_enhance, opts = { visible = false } },
+              {
+                role = "user",
+                content = "\n**@{full_stack_dev} work for this code base**\n",
+              },
+            },
+          },
+          ["Implement"] = {
+            strategy = "chat",
+            description = "Implement",
+            opts = {
+              short_name = "implement",
+              is_slash_cmd = true,
+            },
+            prompts = {
+              { role = "user", content = step_5_implement, opts = { visible = false } },
               {
                 role = "user",
                 content = "\n**@{full_stack_dev} work for this code base**\n",
