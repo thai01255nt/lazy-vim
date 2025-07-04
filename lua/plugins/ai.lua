@@ -25,6 +25,8 @@ local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
 local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
 local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
 
+local system_prompt = read_prompt_file("/prompts/system-prompt-general.txt")
+
 return {
   -- {
   --   "yetone/avante.nvim",
@@ -434,6 +436,7 @@ return {
               schema = {
                 model = {
                   default = "gpt-4.1",
+                  -- default = "claude-sonnet-4",
                 },
               },
             })
@@ -452,26 +455,22 @@ return {
         },
         auto_scoll = false,
         prompt_library = {
-          ["Planning"] = {
+          ["step-planning"] = {
             strategy = "chat",
-            description = "Planning",
+            description = "step-planning",
             opts = {
-              short_name = "planning",
+              short_name = "step-planning",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_planning, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_planning, opts = { visible = false } },
             },
           },
-          ["Tasks"] = {
+          ["step-tasks"] = {
             strategy = "chat",
-            description = "Tasks",
+            description = "step-tasks",
             opts = {
-              short_name = "tasks",
+              short_name = "step-tasks",
               is_slash_cmd = true,
             },
             references = {
@@ -483,96 +482,79 @@ return {
               },
             },
             prompts = {
-              { role = "user", content = step_tasks, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_tasks, opts = { visible = false } },
             },
           },
-          ["Context"] = {
+          ["step-1-context"] = {
             strategy = "chat",
-            description = "Context",
+            description = "step-1-context",
             opts = {
-              short_name = "context",
+              short_name = "step-1-context",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_1_context, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_1_context, opts = { visible = false } },
             },
           },
-          ["Skeleton"] = {
+          ["step-2-skeleton"] = {
             strategy = "chat",
-            description = "Skeleton",
+            description = "step-2-skeleton",
             opts = {
-              short_name = "skeleton",
+              short_name = "step-2-skeleton",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_2_skeleton, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_2_skeleton, opts = { visible = false } },
             },
           },
-          ["Review"] = {
+          ["step-3-review"] = {
             strategy = "chat",
-            description = "Review",
+            description = "step-3-review",
             opts = {
-              short_name = "review",
+              short_name = "step-3-review",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_3_review, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_3_review, opts = { visible = false } },
             },
           },
-          ["Enhance"] = {
+          ["step-4-enhance"] = {
             strategy = "chat",
-            description = "Enhance",
+            description = "step-4-enhance",
             opts = {
-              short_name = "enhance",
+              short_name = "step-4-enhance",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_4_enhance, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_4_enhance, opts = { visible = false } },
             },
           },
-          ["Implement"] = {
+          ["step-5-implement"] = {
             strategy = "chat",
-            description = "Implement",
+            description = "step-5-implement",
             opts = {
-              short_name = "implement",
+              short_name = "step-5-implement",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "user", content = step_5_implement, opts = { visible = false } },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
-              },
+              { role = "system", content = step_5_implement, opts = { visible = false } },
             },
           },
-          ["Coding Workflow"] = {
+          ["core-rules"] = {
             strategy = "chat",
-            description = "Coding Workflow",
+            description = "core-rules",
             opts = {
-              short_name = "coding-workflow",
+              short_name = "core-rules",
               ignore_system_prompt = true,
             },
             prompts = {
+              {
+                role = "system",
+                content = system_prompt,
+                opts = {
+                  visible = false,
+                },
+              },
               {
                 role = "system",
                 content = core_rules,
@@ -582,15 +564,15 @@ return {
               },
               {
                 role = "user",
-                content = "\n**@{full_stack_dev} work for this code base\n**",
+                content = "\n@{full_stack_dev} \n",
               },
             },
           },
-          ["project-overview"] = {
+          ["step-project-overview"] = {
             strategy = "chat",
-            description = "Project Overview",
+            description = "step-project-overview",
             opts = {
-              short_name = "project-overview",
+              short_name = "step-project-overview",
               is_slash_cmd = true,
             },
             references = {
@@ -603,13 +585,9 @@ return {
             },
             prompts = {
               {
-                role = "user",
+                role = "sytem",
                 content = step_project_overview,
                 opts = { visible = false },
-              },
-              {
-                role = "user",
-                content = "\n**@{full_stack_dev} work for this code base**\n",
               },
             },
           },
@@ -622,7 +600,7 @@ return {
       vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })
       vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
       vim.keymap.set("n", "<leader>aw", function()
-        require("codecompanion").prompt("coding-workflow")
+        require("codecompanion").prompt("core-rules")
       end, { noremap = true, silent = true })
       -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
 
