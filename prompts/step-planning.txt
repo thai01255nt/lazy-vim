@@ -5,11 +5,12 @@ Brainstorm feature approach and generate structured planning file in `.claude/cu
 
 ## Process
 1. **Check for Existing Planning**: Scan `.claude/custom/planning/` for relevant planning files
-2. **Load Foundation** (if exists): Read existing planning file and confirm it's correct
-3. **Analyze Requirements**: Break down the feature request (or continue from existing planning)
-4. **Explore Approaches**: Generate 2-4 viable architectural approaches with trade-offs
-5. **Recommend Solution**: Present preferred approach with rationale
-6. **Update/Generate Planning File**: Create new or update existing structured planning document
+2. **MANDATORY CONFIRMATION**: If found, ask "Found `feat-user-auth.md`, continue from this? (Y/n) or specify different path:"
+3. **Load Foundation**: Read existing planning file only after confirmation
+4. **Analyze Requirements**: Break down the feature request 
+5. **Explore Approaches**: Generate 2-4 viable architectural approaches with trade-offs
+6. **Recommend Solution**: Present preferred approach with rationale
+7. **MANDATORY FILENAME CONFIRMATION**: For new files, ALWAYS ask for filename confirmation before proceeding
 
 ## Planning File Template
 ```markdown
@@ -41,35 +42,22 @@ Brainstorm feature approach and generate structured planning file in `.claude/cu
 - [Testing approach for this feature]
 ```
 
-## Existing Planning Detection
-1. **Auto-scan**: Look for relevant planning files in `.claude/custom/planning/`
-2. **Confirm file**: "Found `user-authentication.md`, continue from this? (Y/n) or specify different path:"
-3. **If confirmed**: Load existing planning as foundation and continue brainstorming
-4. **If new planning needed**: Ask for filename confirmation
-
-## File Naming & Confirmation (New Files)
-1. Auto-suggest filename based on feature context: `[feature-name].md`
-2. Ask for confirmation: "Save as `user-authentication.md`? (Y/n) or enter different name:"
-3. Save to `.claude/custom/planning/[confirmed-name].md`
-
-## Continuation Mode (Existing Files)
-When continuing from existing planning:
-- Show current planning summary
-- Identify areas that need expansion or refinement
-- Ask what specific aspects to brainstorm further
-- Update existing sections or add new ones
-- Preserve existing decisions unless explicitly changing them
+## File Naming & Confirmation (New Files) - MANDATORY
+1. **ALWAYS** auto-suggest filename following git branch naming convention: `[type]-[feature-name].md`
+   - **feat**: New features (e.g., `feat-user-authentication.md`)
+   - **bugfix**: Bug fixes (e.g., `bugfix-login-error.md`)
+   - **refactor**: Code refactoring (e.g., `refactor-auth-service.md`)
+   - **hotfix**: Critical fixes (e.g., `hotfix-security-patch.md`)
+   - **docs**: Documentation (e.g., `docs-api-guide.md`)
+   - **test**: Testing (e.g., `test-auth-coverage.md`)
+   - **chore**: Maintenance (e.g., `chore-dependency-update.md`)
+2. **MUST** ask for confirmation: "Save planning as `feat-user-authentication.md`? (Y/n) or enter different name:"
+3. **WAIT** for user response before proceeding
+4. **ONLY** save to `.claude/custom/planning/[confirmed-name].md` after confirmation
+5. **NEVER** proceed without explicit filename confirmation
 
 ## Output Format
-### For New Planning
 - Present approach options with clear pros/cons
 - Highlight recommended solution
 - Generate planning file with confirmed name
-- Provide next steps guidance
-
-### For Continued Planning  
-- Summary of existing planning decisions
-- Areas identified for further brainstorming
-- New approach options or refinements
-- Updated planning file with changes highlighted
-- Clear indication of what was added/modified
+- For existing files: preserve decisions and highlight changes

@@ -40,22 +40,17 @@ Expert architect creating or updating comprehensive PROJECT-OVERVIEW.md blueprin
 - Technical constraints from existing implementation
 - Team size and expertise (from user or inferred from complexity)
 
-### 5. Technology Stack Decision
-**For New Projects**: Apply selection criteria (3+ years production usage, strong community, rich ecosystem)
+### 5. Technology Stack & Architecture Decision
+**For New Projects**: 
+- Apply selection criteria (3+ years production usage, strong community, rich ecosystem)
+- Design from scratch with layered architecture, proven patterns
+- **Categories**: Language/Runtime, Web Framework, Database, Messaging, Auth, Monitoring, Testing, CI/CD, Infrastructure, Data Processing, Integrations
+
 **For Existing Projects**: 
 - Keep current proven technologies that work well
-- Identify gaps where new tech is needed
-- Recommend upgrades only for compelling reasons (security, performance, maintenance)
-- Preserve team knowledge and existing integrations
-
-**Categories**: Language/Runtime, Web Framework, Database, Messaging, Auth, Monitoring, Testing, CI/CD, Infrastructure, Data Processing, Integrations
-
-### 6. Architecture Design
-**New Projects**: Design from scratch with layered architecture, proven patterns
-**Existing Projects**: 
 - Identify current architecture pattern from codebase scan
-- Preserve good existing patterns
-- Suggest improvements for problem areas only
+- Preserve good existing patterns and team knowledge
+- Recommend upgrades only for compelling reasons (security, performance, maintenance)
 - Show migration path for architectural changes
 
 **Focus**: Layered architecture, design patterns (Factory/Strategy/Repository/Observer), error handling, security, performance, maintainability

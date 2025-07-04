@@ -1,18 +1,14 @@
 # Step 3: Implementation Review
 
-## Context Check
-**MANUAL WORKFLOW ENFORCEMENT**
-
-Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
-
-🛑 **STOP - Do NOT auto-execute step-1**
-📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
-🔄 **THEN**: Return to run `step-3-review`
-
-**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
-
 ## Purpose
 Review implementation against established patterns, planning decisions, and quality standards.
+
+## Context Requirement
+**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+
+🛑 **STOP** - Do NOT proceed
+📋 **REQUEST**: Ask user to manually run `step-1-context` first
+🔄 **THEN**: Return to run `step-3-review`
 
 ## Process
 1. **Load Context** → Use step-1 context or specified planning file
@@ -68,7 +64,3 @@ Highlight any planning updates needed:
 - Performance optimization opportunities
 - Security enhancements
 
-### Next Steps
-- Priority order for addressing feedback
-- Integration guidance
-- Testing recommendations

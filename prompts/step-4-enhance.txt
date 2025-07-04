@@ -1,18 +1,14 @@
 # Step 4: Enhancement & Extension
 
-## Context Check
-**MANUAL WORKFLOW ENFORCEMENT**
-
-Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
-
-🛑 **STOP - Do NOT auto-execute step-1**
-📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
-🔄 **THEN**: Return to run `step-4-enhance`
-
-**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
-
 ## Purpose
 Extend existing skeletons, add new functionality, or optimize existing implementations while maintaining consistency.
+
+## Context Requirement
+**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+
+🛑 **STOP** - Do NOT proceed
+📋 **REQUEST**: Ask user to manually run `step-1-context` first
+🔄 **THEN**: Return to run `step-4-enhance`
 
 ## Process
 1. **Load Context** → Use step-1 context or specified planning file
@@ -73,7 +69,3 @@ Apply all relevant quality checks:
 - Clear documentation of new functionality
 - Integration instructions
 
-### Next Steps
-- Implementation guidance for new components
-- Testing recommendations for enhancements
-- Deployment considerations

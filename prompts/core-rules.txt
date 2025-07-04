@@ -13,6 +13,35 @@
 - Default "Yes" for clear requests
 - Only ask clarifications for: ambiguous approaches, contradictory requirements, safety-critical decisions
 
+## Request Type Detection
+- **DETECT REQUEST TYPE**: Analyze if user request is about codebase work or general knowledge
+- **NOTIFY REQUEST TYPE**: Always inform user: "📝 Request type: [Codebase] or [Knowledge]"
+- **CODEBASE INDICATORS**: Keywords like "implement", "add", "create", "fix", "refactor", "planning", "tasks", "review", "enhance", feature names, code changes
+- **KNOWLEDGE INDICATORS**: Questions about concepts, "what is", "how does", "explain", "difference between", general programming questions
+- **IF UNCLEAR**: Ask user to clarify: "Is this about working on your codebase or a general knowledge question?"
+
+## Step Execution Control
+- **FOR CODEBASE REQUESTS**: 
+  1. **MANDATORY STEP DETECTION**: MUST determine appropriate step name from request context
+     - Planning keywords → `step-planning`
+     - Task/breakdown keywords → `step-tasks` 
+     - Context/analysis keywords → `step-1-context`
+     - Implementation/skeleton keywords → `step-2-skeleton`
+     - Review keywords → `step-3-review`
+     - Enhancement/optimization keywords → `step-4-enhance`
+  2. **NOTIFY USER**: Always inform user of detected step: "🔍 Detected: [step-name] phase"
+  3. **MANDATORY PROMPT CHECK**: MUST verify if the detected step's guide prompt exists in current context
+  4. **IF FOUND**: Notify "✅ Step prompt loaded" and use the step prompt to proceed
+  5. **IF NOT FOUND**: 🛑🛑🛑 **ABSOLUTE STOP** - MUST ask user to load guide prompt: 
+     "❌ [step-name] guide prompt NOT FOUND in context.
+     🚫 CANNOT PROCEED without guide prompt.
+     ⚡ REQUIRED ACTION: Please run the guide command for [step-name] first.
+     🔄 Then ask your question again."
+  6. **ABSOLUTELY NEVER PROCEED** without step prompt in context for codebase requests - NO EXCEPTIONS
+  7. **IF CANNOT DETECT STEP**: Ask user to specify: "Cannot determine step phase. Please specify which step: planning, tasks, context, skeleton, review, or enhance?"
+
+- **FOR KNOWLEDGE REQUESTS**: Answer as normal LLM without step detection or codebase context requirements
+
 ## Code Standards
 - **File Size**: 500-line limit → auto-refactor
 - **Naming**: Follow codebase patterns first, then language conventions
