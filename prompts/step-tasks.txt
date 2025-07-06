@@ -1,76 +1,52 @@
 # Step: Tasks Generation
 
-## Context Requirement
-**AUTO-DETECT PLANNING FILE** - Analyze user's feature request to determine planning file:
-
-1. **Extract feature context** from user request
-2. **Auto-suggest planning filename** following git branch naming: `[type]-[feature-name].md`
-3. **Scan `.claude/custom/planning/`** for the suggested file
-4. **If found**: 🛑 **STOP** - Ask confirmation "Found `feat-user-auth.md`, use this planning file? (Y/n)"
-5. **WAIT** for user response before proceeding
-6. **If confirmed**: Load and proceed with tasks generation
-7. **If not found**: 🛑 **STOP** - Ask user to create planning file first: "Planning file not found. Please run planning step first for this feature."
-
 ## Purpose
-Generate or update tasks file from planning file, breaking down feature planning into actionable tasks in `.claude/custom/tasks/` folder.
+Group tasks by big problems from planning file, get user confirmation for each group, save simplest task file.
 
-## Process
-1. **Load Planning File** → Read from `.claude/custom/planning/[name].md`
-2. **Check Existing Tasks** → Look for `.claude/custom/tasks/[name].md`
-3. **Compare & Analyze** → Compare planning vs existing tasks to identify changes
-4. **Task Management** → Add new tasks, remove obsolete tasks, update existing tasks
-5. **Preserve Progress** → Keep completed tasks and active work status
-6. **Update Tasks File** → Save updated task breakdown with changes highlighted
+## MANDATORY Process
+1. Extract feature context from user request
+2. Check existing files in `.claude/custom/planning/` and `.claude/custom/tasks/`
+3. If planning file found, ask "Found `existing-file.md`, use this planning file? (Y/n):"
+4. If planning file not found, ask user to create planning file first
+5. **If task file exists**: Ask "Task file exists. Working mode: (1) Review current/next tasks (2) Regenerate tasks? Choose 1 or 2:"
+6. **If mode 1**: Load task file and help with current/next task questions
+7. **If mode 2**: Load planning file, group tasks, ask confirmations, save updated task file
+8. **If no task file**: Load planning file, group tasks, ask confirmations, save new task file
 
+## Task Grouping Rules
+- **Planning file reference**: Use planning file as initial reference for grouping
+- **Creative regrouping**: Change grouping if needed based on problem complexity or logic
+- **Implementation order**: Order big problems and tasks by logical implementation sequence
+- **ALIGN TARGETS**: Match class names, method names, file paths to actual current codebase
+- **Write tasks without skeleton**: If skeleton code or implementation doesn't exist, create tasks anyway
+- **Ask confirmation**: For each big problem, show task list and ask "Confirm tasks for [Problem Name]? (Y/n)"
+- **Wait for confirmation**: Don't proceed until user confirms each group
 
-## Task Generation & Management Rules
-
-### Task Status System
+## Task Status System
 - `[ ]` TODO → `[⏳]` IN PROGRESS → `[x]` COMPLETED
-- `[⏸️]` BLOCKED (waiting on dependency)  
-- `[❌]` CANCELLED (no longer needed)
+- `[⏸️]` BLOCKED → `[❌]` CANCELLED
 
-### From Planning Components
-- **Components** → Implementation tasks (use `[ ]` TODO status)
-- **Integration points** → Integration tasks with dependencies
-- **Testing strategy** → Testing tasks linked to implementation
-- **Documentation** → Documentation tasks for each component
+## Template Format
+```markdown
+# [FEATURE_NAME]
 
-### Task Rules
-- **New tasks**: Always start as `[ ]` TODO
-- **Create BIG logical tasks**: Task names should be major feature components (e.g., "User Authentication System", "Payment Processing Flow")
-- **Detail in Requirements**: List small implementation steps within Requirements section of each big task
-- **MANDATORY Implementation Targets**: MUST specify exact methods, classes, and file paths for every task
-- **Focus on feature outcomes**: Tasks should deliver complete feature functionality
-- **Avoid micro-task names**: Don't create separate tasks for tiny steps - group them under big tasks
-- **Set dependencies**: Link related tasks
+## 1. [Big Problem Name]
+1. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+3. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
 
-### For Existing Tasks File
-- **Preserve Progress**: Keep `[x]` completed, `[⏳]` in progress, `[⏸️]` blocked tasks
-- **Add new tasks**: As `[ ]` TODO from planning changes
-- **Mark obsolete tasks**: As `[❌]` CANCELLED in place
-- **Change Highlighting**: `🆕 NEW`, `📝 UPDATED`, `❌ OBSOLETE`
+## 2. [Another Big Problem Name]
+1. `[⏳]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
 
-### Template Reference
-Use `TASKS-TEMPLATE.md` as the base structure for all generated tasks files.
-
-
-## Output Format
-### For New Tasks File
-- Complete task breakdown from planning with `[ ]` TODO checkboxes
-- Flat "Tasks" section with all tasks
-- Clear task dependencies and blocked relationships
-- Time estimates and acceptance criteria included
-
-### For Updated Tasks File
-- Summary of changes made with change indicators
-- New `[ ]` tasks added to flat "Tasks" section
-- Status preserved: `[x]` completed, `[⏳]` in progress, `[⏸️]` blocked
-- Obsolete tasks converted to `[❌]` CANCELLED in place
-
-### Example Output
+## 3. [Third Big Problem Name]
+1. `[x]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[⏸️]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+3. `[]` Task name
 ```
-🆕 NEW: [ ] Implement OAuth2 token validation
-📝 UPDATED: [⏳] User registration - now includes email verification  
-❌ OBSOLETE: [❌] Basic auth login - moved to cancelled section
-```
+
+## File Naming Rules
+1. **ALWAYS** use same filename as planning file
+2. **MUST** ask confirmation before saving
+3. **NEVER** proceed without explicit filename confirmation
+4. **ONLY** save to `.claude/custom/tasks/[confirmed-name].md`

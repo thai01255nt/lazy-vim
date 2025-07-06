@@ -473,14 +473,6 @@ return {
               short_name = "step-tasks",
               is_slash_cmd = true,
             },
-            references = {
-              {
-                type = "file",
-                path = {
-                  vim.fn.stdpath("config") .. "/prompts/TASKS-TEMPLATE.md",
-                },
-              },
-            },
             prompts = {
               { role = "system", content = step_tasks, opts = { visible = false } },
             },
