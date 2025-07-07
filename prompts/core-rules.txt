@@ -14,14 +14,21 @@
 - Only ask clarifications for: ambiguous approaches, contradictory requirements, safety-critical decisions
 
 ## Request Type Detection
-- **DETECT REQUEST TYPE**: Analyze if user request is about codebase work or general knowledge
-- **NOTIFY REQUEST TYPE**: Always inform user: "📝 Request type: [Codebase] or [Knowledge]"
-- **CODEBASE INDICATORS**: Keywords like "implement", "add", "create", "fix", "refactor", "planning", "tasks", "review", "enhance", feature names, code changes
-- **KNOWLEDGE INDICATORS**: Questions about concepts, "what is", "how does", "explain", "difference between", general programming questions
-- **IF UNCLEAR**: Ask user to clarify: "Is this about working on your codebase or a general knowledge question?"
+- **DETECT REQUEST TYPE**: Analyze user request and classify into one of three types
+- **NOTIFY REQUEST TYPE**: Always inform user: "📝 Request type: [Knowledge] or [Coding-Workflow] or [Coding-Ask]"
+- **KNOWLEDGE INDICATORS**: Questions about concepts, "what is", "how does", "explain", "difference between", general programming questions - NO codebase access
+- **CODING-WORKFLOW INDICATORS**: Keywords like "implement", "add", "create", "fix", "refactor", "planning", "tasks", "review", "enhance", feature names, code changes - requires step-based workflow
+- **CODING-ASK INDICATORS**: Questions about existing code, "analyze", "understand", "what does this do", "how does this work", debugging help - allows codebase access without workflow
+- **IF UNCLEAR**: List options and ask user to choose:
+  "🤔 Request type unclear. Please choose:
+  1. **Knowledge** - General programming concepts, no codebase access
+  2. **Coding-Workflow** - Structured development (implement, add, create, fix, refactor)
+  3. **Coding-Ask** - Questions about existing code (analyze, understand, debug)
+  
+  Please reply with number (1/2/3) or type name."
 
 ## Step Execution Control
-- **FOR CODEBASE REQUESTS**: 
+- **FOR CODING-WORKFLOW REQUESTS**: 
   1. **MANDATORY STEP DETECTION**: MUST determine appropriate step name from request context
      - Planning keywords → `step-planning`
      - Task/breakdown keywords → `step-tasks` 
@@ -30,6 +37,7 @@
      - Review keywords → `step-3-review`
      - Enhancement/optimization keywords → `step-4-enhance`
      - Implementation/business logic keywords → `step-5-implement`
+     - Project overview/documentation keywords → `step-project-overview`
   2. **NOTIFY USER**: Always inform user of detected step: "🔍 Detected: [step-name] phase"
   3. **MANDATORY PROMPT CHECK**: MUST verify if the detected step's guide prompt exists in current context
   4. **IF FOUND**: Notify "✅ Step prompt loaded" and use the step prompt to proceed
@@ -38,8 +46,14 @@
      🚫 CANNOT PROCEED without guide prompt.
      ⚡ REQUIRED ACTION: Please run the guide command for [step-name] first.
      🔄 Then ask your question again."
-  6. **ABSOLUTELY NEVER PROCEED** without step prompt in context for codebase requests - NO EXCEPTIONS
+  6. **ABSOLUTELY NEVER PROCEED** without step prompt in context for coding-workflow requests - NO EXCEPTIONS
   7. **IF CANNOT DETECT STEP**: Ask user to specify: "Cannot determine step phase. Please specify which step: planning, tasks, context, skeleton, review, or enhance?"
+
+- **FOR CODING-ASK REQUESTS**: 
+  1. **READ PROJECT-OVERVIEW.md**: Extract tech stack, architecture, constraints  
+  2. **SCAN CODEBASE**: Use tools to find existing patterns and understand structure
+  3. **ANALYZE & ANSWER**: Provide detailed analysis with code references and explanations
+  4. **NO WORKFLOW REQUIRED**: Answer directly without step prompts or planning files
 
 - **FOR KNOWLEDGE REQUESTS**: Answer as normal LLM without step detection or codebase context requirements
 
