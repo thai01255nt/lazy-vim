@@ -1,0 +1,465 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# [PROJECT_NAME] Architecture Planning
+
+## Table of Contents
+
+- [[PROJECT_NAME] Architecture Planning](#[project_name_lowercase]-architecture-planning)
+  - [Table of Contents](#table-of-contents)
+  - [Tech Stack](#tech-stack)
+  - [Layer Structure](#layer-structure)
+  - [Feature List](#feature-list)
+  - [Architecture Overview](#architecture-overview)
+  - [Component Details](#component-details)
+    - [1. [LAYER_1_NAME]](#1-[layer_1_name_lowercase])
+    - [2. [LAYER_2_NAME]](#2-[layer_2_name_lowercase])
+    - [3. [LAYER_3_NAME]](#3-[layer_3_name_lowercase])
+    - [4. [MAIN_COMPONENT_GROUP]](#4-[main_component_group_lowercase])
+      - [4.1 [SUB_COMPONENT_1]](#41-[sub_component_1_lowercase])
+      - [4.2 [SUB_COMPONENT_2]](#42-[sub_component_2_lowercase])
+      - [4.3 [SUB_COMPONENT_3]](#43-[sub_component_3_lowercase])
+      - [4.4 [SUB_COMPONENT_4]](#44-[sub_component_4_lowercase])
+      - [4.5 [SUB_COMPONENT_5]](#45-[sub_component_5_lowercase])
+    - [5. [SPECIALIZED_COMPONENT]](#5-[specialized_component_lowercase])
+  - [Architecture Diagrams](#architecture-diagrams)
+    - [Overall System Architecture](#overall-system-architecture)
+    - [[MAIN_COMPONENT] Architecture](#[main_component_lowercase]-architecture)
+    - [[SPECIALIZED_COMPONENT] Architecture](#[specialized_component_lowercase]-architecture)
+    - [[PROCESS_FLOW] Flow](#[process_flow_lowercase]-flow)
+  - [Design Principles](#design-principles)
+  - [References](#references)
+
+## Tech Stack
+
+<!-- List primary technologies by category. Include versions if relevant. -->
+
+- **[CATEGORY_1]**: [TECHNOLOGY_1]
+- **[CATEGORY_2]**: [TECHNOLOGY_2]
+- **[CATEGORY_3]**:
+  - [TECHNOLOGY_3A]
+  - [TECHNOLOGY_3B]
+  - [TECHNOLOGY_3C]
+- **[CATEGORY_4]**:
+  - [TECHNOLOGY_4A]
+  - [TECHNOLOGY_4B]
+- **[CATEGORY_5]**: [TECHNOLOGY_5]
+- **[CATEGORY_6]**: [TECHNOLOGY_6]
+
+## Layer Structure
+
+<!-- Describe 3-6 architectural layers with clear responsibilities. -->
+
+The system follows a multi-layered architecture:
+
+1. **[LAYER_1_NAME]**:
+   <!-- Topmost layer - presentation/API -->
+   - [RESPONSIBILITY_1]
+   - [RESPONSIBILITY_2]
+   - [RESPONSIBILITY_3]
+
+2. **[LAYER_2_NAME]**:
+   <!-- Business logic layer -->
+   - [RESPONSIBILITY_1]
+   - [RESPONSIBILITY_2]
+   - [RESPONSIBILITY_3]
+
+3. **[LAYER_3_NAME]**:
+   <!-- Data access layer -->
+   - [RESPONSIBILITY_1]
+   - [RESPONSIBILITY_2]
+   - [RESPONSIBILITY_3]
+
+4. **[LAYER_4_NAME]**:
+   <!-- Core processing/domain layer -->
+   - [RESPONSIBILITY_1]
+   - [RESPONSIBILITY_2]
+   - [RESPONSIBILITY_3]
+   - [RESPONSIBILITY_4]
+   - [RESPONSIBILITY_5]
+
+5. **[LAYER_5_NAME]**:
+   <!-- Specialized processing layer -->
+   - [RESPONSIBILITY_1]
+   - [RESPONSIBILITY_2]
+   - [RESPONSIBILITY_3]
+
+## Feature List
+
+<!-- List 3-7 main feature groups with 3-5 features each. -->
+
+1. **[FEATURE_GROUP_1]**:
+   <!-- Core configuration/setup features -->
+   - [FEATURE_1]
+   - [FEATURE_2]
+   - [FEATURE_3]
+   - [FEATURE_4]
+   - [FEATURE_5]
+
+2. **[FEATURE_GROUP_2]**:
+   <!-- Main processing/business logic features -->
+   - [FEATURE_1]
+   - [FEATURE_2]
+   - [FEATURE_3]
+   - [FEATURE_4]
+   - [FEATURE_5]
+
+3. **[FEATURE_GROUP_3]**:
+   <!-- Specialized/advanced features -->
+   - [FEATURE_1]
+   - [FEATURE_2]
+   - [FEATURE_3]
+   - [FEATURE_4]
+
+4. **[FEATURE_GROUP_4]**:
+   <!-- API/Interface features -->
+   - [FEATURE_1]
+   - [FEATURE_2]
+   - [FEATURE_3]
+   - [FEATURE_4]
+
+5. **[FEATURE_GROUP_5]**:
+   <!-- Security, monitoring, operational features -->
+   - [FEATURE_1]
+   - [FEATURE_2]
+   - [FEATURE_3]
+
+## Architecture Overview
+
+<!-- High-level architecture description with main components and interactions. -->
+
+The [PROJECT_NAME] is designed with [NUMBER] main components:
+
+1. **[COMPONENT_1]**: [COMPONENT_1_DESCRIPTION]
+2. **[COMPONENT_2]**: [COMPONENT_2_DESCRIPTION]
+3. **[COMPONENT_3]**: [COMPONENT_3_DESCRIPTION]
+
+These components are integrated through [INTEGRATION_PATTERN] that allows [INTEGRATION_BENEFIT].
+
+## Component Details
+
+### 1. [LAYER_1_NAME]
+
+<!-- First architectural layer details -->
+
+The [LAYER_1_NAME] [LAYER_PURPOSE]. It includes:
+
+- [DETAIL_1]
+- [DETAIL_2]
+- [DETAIL_3]
+- [DETAIL_4]
+
+### 2. [LAYER_2_NAME]
+
+<!-- Second architectural layer details -->
+
+The [LAYER_2_NAME] [LAYER_PURPOSE]. It includes:
+
+- [DETAIL_1]
+- [DETAIL_2]
+- [DETAIL_3]
+
+### 3. [LAYER_3_NAME]
+
+<!-- Third architectural layer details -->
+
+The [LAYER_3_NAME] [LAYER_PURPOSE]. It includes:
+
+- [DETAIL_1]
+- [DETAIL_2]
+- [DETAIL_3]
+
+### 4. [MAIN_COMPONENT_GROUP]
+
+<!-- Main processing components group -->
+
+#### 4.1 [SUB_COMPONENT_1]
+
+<!-- First sub-component type -->
+
+[SUB_COMPONENT_1] [PURPOSE]:
+
+- [SUPPORTED_TYPE_1]
+- [SUPPORTED_TYPE_2]
+- [SUPPORTED_TYPE_3]
+- [SUPPORTED_TYPE_4]
+- [SUPPORTED_TYPE_5]
+
+[COMMON_INTERFACE_DESCRIPTION].
+
+#### 4.2 [SUB_COMPONENT_2]
+
+<!-- Second sub-component type -->
+
+[SUB_COMPONENT_2] [PURPOSE]:
+
+- [SUPPORTED_TYPE_1]
+- [SUPPORTED_TYPE_2]
+- [SUPPORTED_TYPE_3]
+
+[CAPABILITY_DESCRIPTION].
+
+#### 4.3 [SUB_COMPONENT_3]
+
+<!-- Third sub-component type -->
+
+[SUB_COMPONENT_3] [PURPOSE]:
+
+- [CAPABILITY_1]
+- [CAPABILITY_2]
+- [CAPABILITY_3]
+- [CAPABILITY_4]
+
+#### 4.4 [SUB_COMPONENT_4]
+
+<!-- Fourth sub-component type -->
+
+[SUB_COMPONENT_4] [PURPOSE]:
+
+- [SUPPORTED_TYPE_1]
+- [SUPPORTED_TYPE_2]
+- [SUPPORTED_TYPE_3]
+- [SUPPORTED_TYPE_4]
+
+[CAPABILITY_DESCRIPTION].
+
+#### 4.5 [SUB_COMPONENT_5]
+
+<!-- Fifth sub-component type -->
+
+[SUB_COMPONENT_5] [PURPOSE] by:
+
+- [CAPABILITY_1]
+- [CAPABILITY_2]
+- [CAPABILITY_3]
+- [CAPABILITY_4]
+
+### 5. [SPECIALIZED_COMPONENT]
+
+<!-- Specialized component details -->
+
+The [SPECIALIZED_COMPONENT] [PURPOSE]:
+
+- [CAPABILITY_1]
+- [CAPABILITY_2]
+- [CAPABILITY_3]
+- [CAPABILITY_4]
+- [CAPABILITY_5]
+
+## Architecture Diagrams
+
+### Overall System Architecture
+
+<!-- Mermaid diagram: high-level system architecture with components and data flow. -->
+
+```mermaid
+graph TD
+    CLIENT_NODE([Client Applications]) --> ENTRY_POINT[Main Entry Point]
+    ENTRY_POINT --> SERVICE_1[Service 1]
+    ENTRY_POINT --> SERVICE_2[Service 2]
+
+    SERVICE_1 --> REPOSITORY[(Data Repository)]
+    SERVICE_2 --> MAIN_PROCESSOR[Main Processor]
+    SERVICE_2 --> SPECIALIZED_PROCESSOR[Specialized Processor]
+
+    MAIN_PROCESSOR --> COMPONENT_1[Component 1]
+    MAIN_PROCESSOR --> COMPONENT_2[Component 2]
+    MAIN_PROCESSOR --> COMPONENT_3[Component 3]
+
+    COMPONENT_1 --> SHARED_RESOURCES[Shared Resources]
+    COMPONENT_3 --> SHARED_RESOURCES
+
+    SPECIALIZED_PROCESSOR --> EXTERNAL_SYSTEM_1[(External System 1)]
+
+    subgraph "External Systems"
+        EXTERNAL_SYSTEM_1
+        EXTERNAL_SYSTEM_2[(External System 2)]
+        EXTERNAL_SYSTEM_3[(External System 3)]
+        EXTERNAL_SYSTEM_4[(External System 4)]
+        EXTERNAL_SYSTEM_5[(External System 5)]
+    end
+
+    SHARED_RESOURCES --> EXTERNAL_SYSTEM_2
+    SHARED_RESOURCES --> EXTERNAL_SYSTEM_3
+    SHARED_RESOURCES --> EXTERNAL_SYSTEM_4
+    SHARED_RESOURCES --> EXTERNAL_SYSTEM_5
+    SHARED_RESOURCES --> EXTERNAL_SYSTEM_1
+```
+
+### [MAIN_COMPONENT] Architecture
+
+<!-- Class diagram: main component structure with interfaces and relationships. -->
+
+```mermaid
+classDiagram
+    class INTERFACE_1 {
+        +PROPERTY_1: TYPE
+        +PROPERTY_2: TYPE
+    }
+
+    class INTERFACE_2 {
+        +PROPERTY_1: TYPE
+        +PROPERTY_2: TYPE
+    }
+
+    class INTERFACE_3 {
+        +PROPERTY_1: TYPE
+        +PROPERTY_2: TYPE
+    }
+
+    class BASE_CLASS_1 {
+        +METHOD_1()
+    }
+
+    class BASE_CLASS_2 {
+        +METHOD_1()
+    }
+
+    class BASE_CLASS_3 {
+        +METHOD_1()
+    }
+
+    class ORCHESTRATOR_CLASS {
+        +COMPONENT_1: BASE_CLASS_1
+        +COMPONENT_2: BASE_CLASS_2
+        +COMPONENT_3: BASE_CLASS_3
+        +METHOD_1()
+    }
+
+    INTERFACE_1 <|-- IMPLEMENTATION_1A
+    INTERFACE_1 <|-- IMPLEMENTATION_1B
+    INTERFACE_1 <|-- IMPLEMENTATION_1C
+    INTERFACE_1 <|-- IMPLEMENTATION_1D
+
+    INTERFACE_2 <|-- IMPLEMENTATION_2A
+    INTERFACE_2 <|-- IMPLEMENTATION_2B
+
+    INTERFACE_3 <|-- IMPLEMENTATION_3A
+
+    BASE_CLASS_1 <|-- IMPLEMENTATION_1A
+    BASE_CLASS_1 <|-- IMPLEMENTATION_1B
+
+    BASE_CLASS_3 <|-- IMPLEMENTATION_3A
+    BASE_CLASS_3 <|-- IMPLEMENTATION_3B
+
+    ORCHESTRATOR_CLASS o-- BASE_CLASS_1
+    ORCHESTRATOR_CLASS o-- BASE_CLASS_2
+    ORCHESTRATOR_CLASS o-- BASE_CLASS_3
+
+    BASE_CLASS_1 ..> INTERFACE_1 : uses
+    BASE_CLASS_1 ..> INTERFACE_2 : uses
+    BASE_CLASS_3 ..> INTERFACE_1 : uses
+    BASE_CLASS_3 ..> INTERFACE_3 : uses
+```
+
+### [SPECIALIZED_COMPONENT] Architecture
+
+<!-- Class diagram: specialized component structure and relationships. -->
+
+```mermaid
+classDiagram
+    class SPECIALIZED_CONFIG {
+        +CONFIG_PROPERTY_1: CONFIG_TYPE_1
+        +CONFIG_PROPERTY_2: CONFIG_TYPE_2
+        +CONFIG_PROPERTY_3: CONFIG_TYPE_3
+        +CONFIG_PROPERTY_4: CONFIG_TYPE_4
+    }
+
+    class SPECIALIZED_SUB_CONFIG {
+        +PROPERTY_1: TYPE
+        +PROPERTY_2: CONFIG_TYPE
+    }
+
+    class SPECIALIZED_INNER_CONFIG {
+        +PROPERTY_1: TYPE
+        +PROPERTY_2: TYPE
+        +PROPERTY_3: TYPE
+    }
+
+    class SPECIALIZED_COMPONENT {
+        +CONFIG_PROPERTY: SPECIALIZED_CONFIG
+        +METHOD_1()
+        -PRIVATE_METHOD_1()
+        -PRIVATE_METHOD_2()
+        -PRIVATE_METHOD_3()
+        -PRIVATE_METHOD_4()
+    }
+
+    SPECIALIZED_CONFIG o-- SPECIALIZED_SUB_CONFIG
+    SPECIALIZED_COMPONENT o-- SPECIALIZED_CONFIG
+```
+
+### [PROCESS_FLOW] Flow
+
+<!-- Sequence diagram: main process flow with actors and interactions. -->
+
+```mermaid
+sequenceDiagram
+    actor [ACTOR] as [Actor Name]
+    participant [SYSTEM_1] as [System 1]
+    participant [SYSTEM_2] as [System 2]
+    participant [SYSTEM_3] as [System 3]
+    participant [FACTORY] as [Factory Component]
+    participant [ORCHESTRATOR] as [Orchestrator]
+    participant [WORKER_COMPONENTS] as [Worker Components]
+
+    [ACTOR]->>[SYSTEM_1]: [ACTION_1] ([METHOD])
+    [SYSTEM_1]->>[SYSTEM_2]: [ACTION_2]
+    [SYSTEM_2]->>[SYSTEM_3]: [ACTION_3]
+    [SYSTEM_3]-->>[SYSTEM_2]: [RESULT_1]
+    [SYSTEM_2]-->>[SYSTEM_1]: [RESULT_2]
+    [SYSTEM_1]-->>[ACTOR]: [RESULT_3]
+
+    [ACTOR]->>[SYSTEM_1]: [ACTION_4] ([METHOD])
+    [SYSTEM_1]->>[SYSTEM_2]: [ACTION_5]
+    [SYSTEM_2]->>[SYSTEM_3]: [ACTION_6]
+    [SYSTEM_3]-->>[SYSTEM_2]: [RESULT_4]
+    [SYSTEM_2]-->>[SYSTEM_1]: [RESULT_5]
+    [SYSTEM_1]-->>[ACTOR]: [RESULT_6]
+
+    [ACTOR]->>[SYSTEM_1]: [ACTION_7] ([METHOD])
+    [SYSTEM_1]->>[SYSTEM_2]: [ACTION_8]
+    [SYSTEM_2]->>[SYSTEM_3]: [ACTION_9]
+    [SYSTEM_3]-->>[SYSTEM_2]: [RESULT_7]
+    [SYSTEM_2]-->>[SYSTEM_1]: [RESULT_8]
+    [SYSTEM_1]-->>[ACTOR]: [RESULT_9]
+
+    [ACTOR]->>[SYSTEM_1]: [MAIN_ACTION] ([METHOD])
+    [SYSTEM_1]->>[SYSTEM_2]: [TRIGGER_ACTION]
+    [SYSTEM_2]->>[SYSTEM_3]: [GET_CONFIG]
+    [SYSTEM_3]-->>[SYSTEM_2]: [CONFIG_DATA]
+    [SYSTEM_2]->>[FACTORY]: [CREATE_COMPONENTS]
+    [FACTORY]->>[WORKER_COMPONENTS]: [INSTANTIATE]
+    [FACTORY]-->>[SYSTEM_2]: [COMPONENT_INSTANCE]
+    [SYSTEM_2]->>[ORCHESTRATOR]: [EXECUTE_PROCESS]
+    [ORCHESTRATOR]->>[WORKER_COMPONENTS]: [RUN_PROCESS]
+    [WORKER_COMPONENTS]-->>[ORCHESTRATOR]: [PROCESSING_RESULTS]
+    [ORCHESTRATOR]-->>[SYSTEM_2]: [EXECUTION_STATUS]
+    [SYSTEM_2]-->>[SYSTEM_1]: [PROCESS_STATUS]
+    [SYSTEM_1]-->>[ACTOR]: [FINAL_RESULT]
+```
+
+## Design Principles
+
+<!-- List 5-8 key design principles with brief explanations. -->
+
+1. **[PRINCIPLE_1]**: [DESCRIPTION_AND_BENEFIT].
+2. **[PRINCIPLE_2]**: [DESCRIPTION_AND_BENEFIT].
+3. **[PRINCIPLE_3]**: [DESCRIPTION_AND_BENEFIT].
+4. **[PRINCIPLE_4]**: [DESCRIPTION_AND_BENEFIT].
+5. **[PRINCIPLE_5]**: [DESCRIPTION_AND_BENEFIT].
+6. **[PRINCIPLE_6]**: [DESCRIPTION_AND_BENEFIT].
+7. **[PRINCIPLE_7]**: [DESCRIPTION_AND_BENEFIT].
+
+## References
+
+<!-- External references, documentation, standards, related projects. -->
+
+- [[REFERENCE_1_NAME]]([REFERENCE_1_URL]) - [REFERENCE_1_PURPOSE]
+- [[REFERENCE_2_NAME]]([REFERENCE_2_URL]) - [REFERENCE_2_PURPOSE]
+- [[REFERENCE_3_NAME]]([REFERENCE_3_URL]) - [REFERENCE_3_PURPOSE]
+- [[REFERENCE_4_NAME]]([REFERENCE_4_URL]) - [REFERENCE_4_PURPOSE]
+- [[REFERENCE_5_NAME]]([REFERENCE_5_URL]) - [REFERENCE_5_PURPOSE]

@@ -1,0 +1,76 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Step 4: Enhancement & Extension
+
+## Purpose
+Extend existing skeletons, add new functionality, or optimize existing implementations while maintaining consistency.
+
+## Context Requirement
+**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+
+🛑 **STOP** - Do NOT proceed
+📋 **REQUEST**: Ask user to manually run `step-1-context` first
+🔄 **THEN**: Return to run `step-4-enhance`
+
+## Process
+1. **Load Context** → Use step-1 context or specified planning file
+2. **Analyze Current State** → Understand existing implementation
+3. **Plan Enhancement** → Design extensions following existing patterns
+4. **Generate Extensions** → Add new methods, classes, or optimizations
+
+## Enhancement Types
+
+### Skeleton Extension
+- Add new methods to existing classes
+- Create additional classes following same patterns
+- Extend interfaces with new operations
+- Add new exception types
+
+### Optimization Suggestions
+- Performance improvements
+- Security enhancements  
+- Error handling improvements
+- Code organization refinements
+
+### Integration Enhancements
+- Better connection with existing services
+- Improved configuration management
+- Enhanced logging and monitoring
+- Additional validation layers
+
+## Pattern Consistency
+- Maintain naming conventions from existing code
+- Follow established architectural patterns
+- Use same dependency injection patterns
+- Apply consistent error handling approaches
+
+## Planning Updates
+Highlight any planning file updates needed:
+```
+🔄 PLANNING UPDATE: Adding new component "[ComponentName]" to handle [functionality]
+🔄 PLANNING UPDATE: Updating integration approach for [component] based on [reason]
+```
+
+## Quality Assurance
+Apply all relevant quality checks:
+- [ ] New code follows existing patterns
+- [ ] Proper type hints and documentation
+- [ ] Consistent with project architecture
+- [ ] Security considerations addressed
+- [ ] Performance optimized
+- [ ] Integration points well-defined
+
+## Output Format
+### Enhancement Summary
+- Overview of additions/changes made
+- Rationale for enhancement decisions
+- Impact on existing code
+
+### Generated Code
+- Complete enhanced skeletons or implementations
+- Clear documentation of new functionality
+- Integration instructions
+

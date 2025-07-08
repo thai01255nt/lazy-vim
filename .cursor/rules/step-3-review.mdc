@@ -1,0 +1,72 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Step 3: Implementation Review
+
+## Purpose
+Review implementation against established patterns, planning decisions, and quality standards.
+
+## Context Requirement
+**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+
+🛑 **STOP** - Do NOT proceed
+📋 **REQUEST**: Ask user to manually run `step-1-context` first
+🔄 **THEN**: Return to run `step-3-review`
+
+## Process
+1. **Load Context** → Use step-1 context or specified planning file
+2. **Analyze Implementation** → Compare user's implementation against skeleton and patterns
+3. **Validate Patterns** → Ensure consistency with existing codebase
+4. **Suggest Improvements** → Recommend optimizations and corrections
+
+## Review Areas
+
+### Pattern Consistency
+- Compare against existing similar implementations
+- Verify naming conventions match codebase patterns
+- Check architectural pattern adherence
+- Validate integration with existing services
+
+### Code Quality
+- Error handling follows project patterns
+- Logging uses established format and levels
+- Dependencies properly injected
+- Resource cleanup implemented
+- Security considerations addressed
+
+### Planning Alignment
+- Implementation matches planning decisions
+- All planned components included
+- Integration points properly implemented
+- Requirements satisfied
+
+## Quality Validation (Auto-Applied)
+- [ ] Error handling matches project patterns
+- [ ] Logging follows established format and levels
+- [ ] Dependencies properly injected following existing patterns
+- [ ] Code consistency with existing implementations
+- [ ] Security considerations addressed
+- [ ] Performance implications considered
+- [ ] Resource cleanup (connections, file handles, etc.)
+
+## Planning Updates
+Highlight any planning updates needed:
+```
+🔄 PLANNING UPDATE: [Description of what needs to be added/changed in planning file]
+```
+
+## Output Format
+### Review Summary
+- Overall assessment of implementation quality
+- Adherence to planning and patterns
+- Key strengths and areas for improvement
+
+### Specific Recommendations
+- Concrete suggestions for improvements
+- Code examples for corrections
+- Performance optimization opportunities
+- Security enhancements
+

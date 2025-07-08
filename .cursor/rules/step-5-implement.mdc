@@ -1,0 +1,88 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Step 5: Implementation
+
+## Purpose
+Implement the exact method requested by user, reusing existing methods from codebase when possible, adding TODO comments for missing methods.
+
+## Context Requirement
+**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+
+🛑 **STOP** - Do NOT proceed
+📋 **REQUEST**: Ask user to manually run `step-1-context` first
+🔄 **THEN**: Return to run `step-5-implement`
+
+## Process
+1. **Load Context** → Use step-1 context and PROJECT-OVERVIEW patterns
+2. **Detect Target Method** → Search for method matching user request in codebase
+3. **Method Detection Logic**:
+   - **If SINGLE method found**: 🛑 **STOP** - Ask confirmation: "Found method `methodName()` in `ClassName` at `src/services/UserService.js:42`. Implement this method? (Y/n)"
+   - **If MULTIPLE methods found**: 🛑 **STOP** - List all matches: "Found multiple methods: 1) `method1()` in `Class1` at `src/auth/AuthService.js:15` 2) `method2()` in `Class2` at `src/user/UserController.js:28`. Choose number or enter different name:"
+   - **If NO method found**: 🛑 **STOP** - Ask to create skeleton: "Method not found. Please run skeleton step to create empty method first."
+4. **Wait for confirmation** before proceeding
+5. **Implement Logic** → Fill confirmed method with actual working code
+6. **Handle Missing Dependencies** → Add TODO comments with method calls for non-existent methods
+
+## Implementation Focus
+
+### Target Method Only
+- Implement ONLY the specific method user requested
+- Convert `pass`, `throw new Error()`, etc. into actual working logic
+- Focus on the exact functionality needed for this method
+
+### Reuse Existing Methods
+- **Search PROJECT-OVERVIEW and step-1 context** for existing methods
+- **Reuse existing methods** when available instead of reimplementing
+- **Call existing utilities, services, and helpers** identified in codebase scan
+
+### Handle Missing Methods
+- **If method doesn't exist**: Write method call with TODO comment above
+- **Format**: `// TODO: Implement methodName()` followed by method call
+- **Example**: 
+  ```
+  // TODO: Implement validateInput()
+  const isValid = this.validateInput(data);
+  ```
+
+### Pattern Adherence
+- Follow error handling patterns from existing codebase
+- Use logging patterns identified in step-1 context
+- Apply dependency injection patterns consistently
+
+## Reuse Strategy
+
+### Search for Existing Methods
+1. **Check PROJECT-OVERVIEW** for documented services, utilities, patterns
+2. **Review step-1 context** for identified existing methods and patterns
+3. **Look for similar functionality** in codebase scan results
+4. **Prefer composition over duplication** - call existing methods
+
+### Implementation Guidelines
+- **If exists**: Use existing method with proper imports/dependencies
+- **If missing**: Write method call with `// TODO: Implement methodName()` above
+- **Keep it simple**: Focus only on the requested method logic
+- **Follow patterns**: Use existing error handling, logging, validation patterns
+
+## Quality Requirements
+- [ ] Target method has working implementation
+- [ ] Existing methods are reused when available
+- [ ] Missing methods have TODO comments with method calls
+- [ ] Error handling follows project patterns
+- [ ] Uses patterns from PROJECT-OVERVIEW and step-1 context
+- [ ] Proper imports/dependencies for existing methods
+
+## Output Format
+### Implementation Summary
+- Which specific method was implemented
+- Existing methods reused (with source references)
+- Missing methods marked with TODO comments
+- Patterns applied from codebase
+
+### Generated Code
+- Implementation of the requested method only
+- Calls to existing methods when available
+- TODO comments for missing dependencies
+- Proper imports and error handling patterns

@@ -1,0 +1,61 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Step 2: Skeleton Generation
+
+## Context Check
+**MANUAL WORKFLOW ENFORCEMENT**
+
+Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
+
+🛑 **STOP - Do NOT auto-execute step-1**
+📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
+🔄 **THEN**: Return to run `step-2-skeleton`
+
+**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
+
+## Purpose
+Generate complete structural framework with no implementation logic, based on planning file and codebase patterns.
+
+## Process
+1. **Load Context** → Use step-1 context or specified planning file
+2. **Design Structure** → Create classes, methods, interfaces based on planning
+3. **Apply Patterns** → Follow existing codebase naming and architectural patterns
+4. **Generate Skeletons** → Complete structure with proper typing and documentation
+
+## Output Requirements
+### Class Structures
+- Complete class and method declarations
+- Proper type hints for all parameters and returns
+- Comprehensive Google-style docstrings
+- Constructor with dependency injection following project patterns
+
+### Interface Definitions
+- Clear interface contracts
+- Exception class definitions
+- Type definitions and enums
+- Import statements following project conventions
+
+### Implementation Placeholders
+- Empty method bodies with appropriate placeholders (`pass`, `throw new Error()`, etc.)
+- **NO business logic implementation**
+- Proper syntax for target programming language
+- Comments indicating implementation areas
+
+## Quality Checks (Auto-Applied)
+- [ ] Naming conventions match existing codebase patterns
+- [ ] Architecture patterns align with PROJECT-OVERVIEW.md and planning
+- [ ] All method signatures include proper type hints
+- [ ] Comprehensive docstrings present
+- [ ] Interface definitions clear and complete
+- [ ] Import statements follow project conventions
+- [ ] No implementation logic included
+
+## Output Format
+Present complete skeleton code with:
+- Clear separation of components
+- Explanation of architectural decisions
+- Notes on integration points
