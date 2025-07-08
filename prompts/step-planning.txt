@@ -10,6 +10,13 @@ Auto-list what needs to be solved, discuss solutions, save confirmed decisions. 
 4. **Ask brainstorm mode**: "This feature needs brainstorming? (Y/n):"
 5. **If brainstorming**: Auto-generate problem list, wait for user review, go through items ONE BY ONE, discuss solutions
 6. **If no brainstorming**: Just describe feature context for task generation
+
+## ⚠️ BRAINSTORMING MODE CONFIRMATION PROCESS ⚠️
+- **STOP AND ASK**: For each problem, present it and ask "Discuss solution for [Problem Name]? (Y/n)"
+- **🛑 ABSOLUTE STOP**: NEVER proceed to next problem until user confirms current one
+- **WAIT FOR RESPONSE**: User must type Y/n before continuing
+- **ONE PROBLEM AT A TIME**: Present only one problem, wait for confirmation, then discuss solution
+- **NO BATCH PROCESSING**: Do not show all problems at once
 7. Save using template format with filename confirmation
 
 ## Template Format
