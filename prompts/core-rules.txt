@@ -41,6 +41,12 @@
      - Enhancement/optimization keywords → `step-4-enhance`
      - Implementation/business logic keywords → `step-5-implement`
      - Project overview/documentation keywords → `step-project-overview`
+     - Method/function implementation keywords → `step-method-implement` (standalone method, implement method, fill method, complete method, method body, function implementation)
+     - Add body to method, write method logic, code method, build method functionality
+
+**Note**: Distinguish between:
+- **`step-5-implement`**: Full business logic implementation requiring planning/tasks context
+- **`step-method-implement`**: Standalone method implementation without planning dependencies
   2. **NOTIFY USER**: Always inform user of detected step: "🔍 Detected: [step-name] phase"
   3. **MANDATORY PROMPT CHECK**: MUST verify if the detected step's guide prompt exists in current context
   4. **IF FOUND**: Notify "✅ Step prompt loaded" and use the step prompt to proceed
@@ -51,6 +57,8 @@
      🔄 Then ask your question again."
   6. **ABSOLUTELY NEVER PROCEED** without step prompt in context for coding-workflow requests - NO EXCEPTIONS
   7. **IF CANNOT DETECT STEP**: Ask user to specify: "Cannot determine step phase. Please specify which step: planning, tasks, context, skeleton, review, or enhance?"
+     - Include method-implement for standalone method implementation requests
+     → Updated options: "Please specify which step: planning, tasks, context, skeleton, review, enhance, or method-implement?"
 
 - **FOR CODING-ASK REQUESTS**: 
   1. **READ docs/PROJECT-OVERVIEW.md**: Extract tech stack, architecture, constraints  
