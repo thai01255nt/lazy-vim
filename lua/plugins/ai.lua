@@ -435,8 +435,8 @@ return {
             return require("codecompanion.adapters").extend("copilot", {
               schema = {
                 model = {
-                  default = "gpt-4.1",
-                  -- default = "claude-sonnet-4",
+                  -- default = "gpt-4.1",
+                  default = "claude-sonnet-4",
                 },
               },
             })
@@ -571,7 +571,7 @@ return {
               {
                 type = "file",
                 path = {
-                  vim.fn.stdpath("config") .. "/prompts/PROJECT-OVERVIEW-TEMPLATE.md",
+                  vim.fn.stdpath("config") .. "/prompts/PROJECT-DOCS-TEMPLATES.md",
                 },
               },
             },

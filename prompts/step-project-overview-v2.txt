@@ -1,0 +1,237 @@
+# Step: Project Overview Generator (Smart 6-Step Process)
+
+## Purpose
+Generate focused project documentation system with 6 essential files through intelligent step-by-step process. Each step builds on previous context and applies anti-redundancy rules.
+
+## Pre-Execution Setup
+
+### 1. Template & Context Validation
+```
+🛑 MANDATORY CHECKS:
+✅ PROJECT-DOCS-TEMPLATES.md in context
+✅ docs/ folder exists (create if missing)
+✅ User input collected (if new project)
+```
+
+### 2. Smart File Detection
+```
+SCAN docs/ for existing files:
+- PROJECT-OVERVIEW.md    → Flag: [EXISTS/MISSING]
+- DEVELOPER-GUIDE.md     → Flag: [EXISTS/MISSING]  
+- CODING-STANDARDS.md    → Flag: [EXISTS/MISSING]
+- CODEBASE-REFERENCE.md  → Flag: [EXISTS/MISSING]
+- DEPENDENCIES-GUIDE.md  → Flag: [EXISTS/MISSING]
+- LLM-CONTEXT.md         → Flag: [EXISTS/MISSING]
+```
+
+### 3. Execution Mode Selection
+```
+IF any files missing → MODE: NEW_GENERATION
+IF all files exist → ASK USER:
+  1. Update specific file (specify which)
+  2. Sync all with codebase  
+  3. Full regeneration
+  4. Add missing sections
+```
+
+## Smart Generation Framework
+
+### Core Generation Pattern
+```
+FOR each file_step in [4.1, 4.2, 4.3, 4.4, 4.5, 4.6]:
+  1. LOAD_CONTEXT(file_step)
+  2. ANALYZE_REQUIREMENTS(file_step)
+  3. GENERATE_CONTENT(file_step)
+  4. VALIDATE_OUTPUT(file_step)
+  5. SAVE_TO_CONTEXT(file_step)
+```
+
+### Context Loading Strategy
+```
+CONTEXT_MAP = {
+  4.1: [template, user_input, tech_stack],
+  4.2: [template, 4.1_output, package_analysis],
+  4.3: [template, 4.1_output, code_patterns],
+  4.4: [template, 4.1_output, 4.3_output, code_inventory],
+  4.5: [template, 4.1_output, dependencies],
+  4.6: [template, ALL_PREVIOUS_OUTPUTS, domain_analysis]
+}
+```
+
+## Intelligent Step Definitions
+
+### 4.1: PROJECT-OVERVIEW.md (Foundation)
+```
+CONTEXT_LOAD:
+- Template: PROJECT-OVERVIEW from PROJECT-DOCS-TEMPLATES.md
+- User Input: Project description, goals, features
+- Tech Analysis: package.json, requirements.txt, composer.json
+- Architecture: folder structure scan
+
+GENERATE:
+- Project description + user input
+- Tech stack summary (framework + core libraries)
+- High-level architecture (folder structure + patterns)
+- Key features list
+- Quick start commands
+
+OUTPUT: Max 300 lines
+SAVE_TO_CONTEXT: tech_stack, architecture_pattern, project_info
+```
+
+### 4.2: DEVELOPER-GUIDE.md (Workflow)
+```
+CONTEXT_LOAD:
+- Template: DEVELOPER-GUIDE from PROJECT-DOCS-TEMPLATES.md
+- Previous: PROJECT-OVERVIEW.md (tech_stack, architecture_pattern)
+- Package Analysis: scripts, engines, requirements
+- Workflow Detection: dev/build/test commands
+
+GENERATE:
+- Quick start (reference DEPENDENCIES-GUIDE for install details)
+- Prerequisites (from package engines)
+- Development workflow (from scripts)
+- Testing commands (detected framework)
+- Common tasks (from available scripts)
+- Troubleshooting (common issues)
+
+OUTPUT: Max 200 lines
+SAVE_TO_CONTEXT: dev_workflow, testing_framework, common_commands
+```
+
+### 4.3: CODING-STANDARDS.md (Patterns)
+```
+CONTEXT_LOAD:
+- Template: CODING-STANDARDS from PROJECT-DOCS-TEMPLATES.md
+- Previous: PROJECT-OVERVIEW.md (tech_stack, architecture_pattern)
+- Code Analysis: naming patterns, file structure, error handling
+
+GENERATE:
+- Naming conventions (detected from codebase)
+- File organization (from architecture scan)
+- Core code patterns (1-2 examples max)
+- Error handling pattern (detected pattern)
+- Testing structure (from testing framework)
+
+OUTPUT: Max 150 lines
+SAVE_TO_CONTEXT: naming_conventions, code_patterns, error_handling
+```
+
+### 4.4: CODEBASE-REFERENCE.md (Inventory)
+```
+CONTEXT_LOAD:
+- Template: CODEBASE-REFERENCE from PROJECT-DOCS-TEMPLATES.md
+- Previous: PROJECT-OVERVIEW.md + CODING-STANDARDS.md
+- Code Inventory: classes, functions, APIs, database
+
+GENERATE:
+- Class inventory (grouped by category)
+- Function catalog (essential ones only)
+- API endpoints (from routes analysis)
+- Database schema (from models/migrations)
+- Constants & configuration (from config files)
+
+OUTPUT: Max 250 lines
+SAVE_TO_CONTEXT: class_inventory, api_endpoints, database_schema
+```
+
+### 4.5: DEPENDENCIES-GUIDE.md (Configuration)
+```
+CONTEXT_LOAD:
+- Template: DEPENDENCIES-GUIDE from PROJECT-DOCS-TEMPLATES.md
+- Previous: PROJECT-OVERVIEW.md (tech_stack)
+- Dependency Analysis: package files, external services, env vars
+
+GENERATE:
+- Core dependencies (purpose + version)
+- Development dependencies (build tools, testing)
+- External services (database, APIs, cloud)
+- Environment setup (env vars, config files)
+- Configuration management (config patterns)
+
+OUTPUT: Max 200 lines
+SAVE_TO_CONTEXT: dependencies, external_services, env_config
+```
+
+### 4.6: LLM-CONTEXT.md (AI Context)
+```
+CONTEXT_LOAD:
+- Template: LLM-CONTEXT from PROJECT-DOCS-TEMPLATES.md
+- Previous: ALL 5 previous files
+- Domain Analysis: business terms, reusable patterns
+
+GENERATE:
+- Project context for AI
+- Domain terminology (from code + business context)
+- Code patterns to follow (from CODING-STANDARDS + CODEBASE-REFERENCE)
+- Reusable components (from CODEBASE-REFERENCE)
+- Business rules & constraints (from analysis)
+- Quick reference (most common functions/commands)
+
+OUTPUT: Max 200 lines
+SAVE_TO_CONTEXT: domain_terms, ai_patterns, business_rules
+```
+
+## Anti-Redundancy Engine
+
+### Content Deduplication Rules
+```
+UNIQUE_CONTENT_MAP = {
+  "Configuration": "DEPENDENCIES-GUIDE.md",
+  "Architecture": "PROJECT-OVERVIEW.md (high-level), CODING-STANDARDS.md (patterns)",
+  "Code Examples": "CODEBASE-REFERENCE.md OR LLM-CONTEXT.md",
+  "Setup Instructions": "DEVELOPER-GUIDE.md",
+  "Business Rules": "LLM-CONTEXT.md",
+  "Error Handling": "CODING-STANDARDS.md (pattern), LLM-CONTEXT.md (examples)"
+}
+```
+
+### Cross-Reference Strategy
+```
+INSTEAD OF duplicating content:
+- Use: "See DEPENDENCIES-GUIDE.md for installation details"
+- Use: "Refer to CODING-STANDARDS.md for naming conventions"
+- Use: "Check CODEBASE-REFERENCE.md for API endpoints"
+```
+
+## Execution Control
+
+### Smart Validation
+```
+AFTER each step:
+✅ Length within limits
+✅ No content duplication with previous files
+✅ Template sections properly filled
+✅ Context saved for next step
+```
+
+### Adaptive Processing
+```
+IF step fails → RETRY with reduced scope
+IF context too large → SUMMARIZE and continue
+IF template missing → STOP and request template
+```
+
+## Output Requirements
+
+### Success Criteria
+- All 6 files generated in docs/ folder
+- Zero content duplication across files
+- Each file within length limits
+- Cross-file references instead of duplication
+- Context properly built through steps
+- Anti-redundancy rules enforced
+
+### Quality Metrics
+- Content uniqueness: 100%
+- Length compliance: Max limits respected
+- Context continuity: Each step builds on previous
+- Template adherence: All placeholders filled
+- Cross-references: Used instead of duplication
+
+This restructured approach provides:
+1. **Smart context loading** with dependency mapping
+2. **Intelligent step execution** with adaptive processing
+3. **Built-in anti-redundancy engine** with cross-reference strategy
+4. **Validation at each step** to ensure quality
+5. **Adaptive error handling** for robust execution
