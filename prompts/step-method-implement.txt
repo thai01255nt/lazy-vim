@@ -1,0 +1,118 @@
+# Step: Method Implementation (Standalone)
+
+## Purpose
+Implement specific methods independently without requiring planning or task context. Focus on quick method implementation using existing codebase patterns.
+
+## Additional Required Documentation
+**Load these files IF NOT already in context:**
+- **docs/CODEBASE-REFERENCE.md** → For existing methods and functions to reuse
+- **docs/CODING-STANDARDS.md** → For implementation patterns and conventions
+
+## Context Requirement
+**NO PLANNING/TASK CONTEXT REQUIRED** - This step works independently:
+
+✅ **DIRECT IMPLEMENTATION** - Can proceed immediately
+📋 **MINIMAL CONTEXT** - Only scans codebase for patterns and existing methods
+🔄 **FAST WORKFLOW** - No dependency on planning or task files
+
+## Process
+1. **Scan Codebase** → Quick analysis of existing patterns and methods
+2. **Detect Target Method** → Search for method matching user request
+3. **Method Detection Logic**:
+   - **If SINGLE method found**: 🛑 **STOP** - Ask confirmation: "Found method `methodName()` in `ClassName` at `src/services/UserService.js:42`. Implement this method? (Y/n)"
+   - **If MULTIPLE methods found**: 🛑 **STOP** - List all matches: "Found multiple methods: 1) `method1()` in `Class1` at `src/auth/AuthService.js:15` 2) `method2()` in `Class2` at `src/user/UserController.js:28`. Choose number or enter different name:"
+   - **If NO method found**: 🛑 **STOP** - Ask to create: "Method not found. Create new method `methodName()` in which file/class?"
+4. **Wait for confirmation** before proceeding
+5. **Implement Logic** → Fill confirmed method with actual working code
+6. **Handle Missing Dependencies** → Add TODO comments with method calls for non-existent methods
+
+## Implementation Focus
+
+### Target Method Only
+- Implement ONLY the specific method user requested
+- Convert `pass`, `throw new Error()`, placeholder code into actual working logic
+- Focus on the exact functionality needed for this method
+
+### Quick Pattern Detection
+- **Scan nearby files** for similar patterns and conventions
+- **Auto-detect tech stack** from imports, dependencies, and file structure
+- **Identify common patterns** for error handling, logging, validation
+- **Find existing utilities** that can be reused
+
+### Reuse Existing Methods
+- **Search codebase** for existing methods that can be reused
+- **Prefer composition** over duplication - call existing methods
+- **Import existing utilities** when available
+
+### Handle Missing Methods
+- **If method doesn't exist**: Write method call with TODO comment above
+- **Format**: `// TODO: Implement methodName()` followed by method call
+- **Example**: 
+  ```
+  // TODO: Implement validateInput()
+  const isValid = this.validateInput(data);
+  ```
+
+### Pattern Adherence
+- Follow error handling patterns from nearby files
+- Use logging patterns detected in codebase
+- Apply dependency injection patterns consistently
+- Match naming conventions and code style
+
+## Reuse Strategy
+
+### Auto-Discovery Process
+1. **File Structure Analysis** → Understand project organization
+2. **Import Analysis** → Identify available libraries and utilities
+3. **Pattern Recognition** → Detect common coding patterns
+4. **Existing Method Search** → Find reusable functionality
+5. **Dependency Resolution** → Identify required imports/dependencies
+
+### Implementation Guidelines
+- **If exists**: Use existing method with proper imports/dependencies
+- **If missing**: Write method call with `// TODO: Implement methodName()` above
+- **Keep it simple**: Focus only on the requested method logic
+- **Follow patterns**: Use detected error handling, logging, validation patterns
+- **Match style**: Follow codebase naming conventions and formatting
+
+## Quality Requirements
+- [ ] Target method has working implementation
+- [ ] Existing methods are reused when available
+- [ ] Missing methods have TODO comments with method calls
+- [ ] Error handling follows detected patterns
+- [ ] Uses patterns from codebase analysis
+- [ ] Proper imports/dependencies for existing methods
+- [ ] Follows project naming conventions and code style
+
+## Output Format
+### Quick Analysis Summary
+- Project structure and tech stack detected
+- Existing patterns and conventions identified
+- Target method location and confirmation
+
+### Implementation Summary
+- Which specific method was implemented
+- Existing methods reused (with source references)
+- Missing methods marked with TODO comments
+- Patterns applied from codebase analysis
+
+### Generated Code
+- Implementation of the requested method only
+- Calls to existing methods when available
+- TODO comments for missing dependencies
+- Proper imports and error handling patterns
+
+## Use Cases
+- Quick method implementation without full planning
+- Implementing specific functions during development
+- Adding missing method implementations
+- Prototyping and testing individual methods
+- Emergency fixes and hotfixes
+
+## Advantages
+- ✅ No dependency on planning or task files
+- ✅ Fast implementation workflow
+- ✅ Automatic pattern detection
+- ✅ Reuses existing codebase methods
+- ✅ Maintains code consistency
+- ✅ Suitable for quick development tasks

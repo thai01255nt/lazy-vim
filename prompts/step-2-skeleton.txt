@@ -1,18 +1,24 @@
 # Step 2: Skeleton Generation
 
 ## Context Check
-**MANUAL WORKFLOW ENFORCEMENT**
+**MANDATORY STEP-1 DEPENDENCY**
 
-Before proceeding, check if **feature planning context** exists in this chat session. If NO feature planning context available:
+🛑🛑🛑 **ABSOLUTE STOP** - Check if **step-1-context** has been run in this chat session:
 
-🛑 **STOP - Do NOT auto-execute step-1**
-📋 **REQUEST**: Please manually run `step-1-context` first to gather feature planning context
-🔄 **THEN**: Return to run `step-2-skeleton`
+**IF NO STEP-1 CONTEXT EXISTS:**
+📋 **FORCE USER TO RUN**: "❌ This step requires step-1-context to be run first.
+🚫 CANNOT PROCEED without step-1 context and documentation loading.
+⚡ REQUIRED ACTION: Please run step-1-context first.
+🔄 Then ask your question again."
 
-**LLM must ask user to run step-1 manually - DO NOT auto-execute.**
+**NEVER PROCEED** without step-1 context - **NO EXCEPTIONS**
+**DO NOT** auto-execute step-1 - **FORCE USER TO RUN IT**
 
 ## Purpose
 Generate complete structural framework with no implementation logic, based on planning file and codebase patterns.
+
+## Additional Required Documentation
+**None - All required docs loaded by step-1-context**
 
 ## Process
 1. **Load Context** → Use step-1 context or specified planning file
@@ -41,7 +47,7 @@ Generate complete structural framework with no implementation logic, based on pl
 
 ## Quality Checks (Auto-Applied)
 - [ ] Naming conventions match existing codebase patterns
-- [ ] Architecture patterns align with PROJECT-OVERVIEW.md and planning
+- [ ] Architecture patterns align with core docs, loaded docs, and planning
 - [ ] All method signatures include proper type hints
 - [ ] Comprehensive docstrings present
 - [ ] Interface definitions clear and complete

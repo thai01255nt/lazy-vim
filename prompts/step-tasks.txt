@@ -3,6 +3,10 @@
 ## Purpose
 Group tasks by big problems from planning file, get user confirmation for each group, save simplest task file.
 
+## Additional Required Documentation
+**Load these files IF NOT already in context:**
+- **docs/CODEBASE-REFERENCE.md** → To align task targets with existing classes, methods, and file paths
+
 ## MANDATORY Process
 1. Extract feature context from user request
 2. Check existing files in `.claude/custom/planning/` and `.claude/custom/tasks/`

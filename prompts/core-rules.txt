@@ -6,8 +6,11 @@
 - Prefer established patterns, provide official documentation links
 
 ## Required Context (Always Do First)
-1. **Read PROJECT-OVERVIEW.md** → Extract tech stack, architecture, constraints
-2. **Scan Codebase** → Use `ls`/`glob`/`grep` (or `Read`/`Grep` tools) to find existing patterns
+1. **Load Core Documentation** → Load these files IF NOT already in context:
+   - **docs/PROJECT-OVERVIEW.md** → Tech stack, architecture, business context
+   - **docs/LLM-CONTEXT.md** → Domain terminology, business rules, patterns
+2. **Load Step-Specific Docs** → Each step defines additional required docs (load only if not in context)
+3. **Scan Codebase** → Use `ls`/`glob`/`grep` (or `Read`/`Grep` tools) to find existing patterns
 
 ## Decision Making
 - Default "Yes" for clear requests
@@ -50,7 +53,7 @@
   7. **IF CANNOT DETECT STEP**: Ask user to specify: "Cannot determine step phase. Please specify which step: planning, tasks, context, skeleton, review, or enhance?"
 
 - **FOR CODING-ASK REQUESTS**: 
-  1. **READ PROJECT-OVERVIEW.md**: Extract tech stack, architecture, constraints  
+  1. **READ docs/PROJECT-OVERVIEW.md**: Extract tech stack, architecture, constraints  
   2. **SCAN CODEBASE**: Use tools to find existing patterns and understand structure
   3. **ANALYZE & ANSWER**: Provide detailed analysis with code references and explanations
   4. **NO WORKFLOW REQUIRED**: Answer directly without step prompts or planning files
@@ -61,7 +64,7 @@
 - **File Size**: 500-line limit → auto-refactor
 - **Naming**: Follow codebase patterns first, then language conventions
 - **Documentation**: Google docstrings, WHY not WHAT comments
-- **Testing**: Use approach from PROJECT-OVERVIEW.md
+- **Testing**: Use approach from docs/DEVELOPER-GUIDE.md
 - **Implementation**: Follow existing patterns (error handling, logging, DI, configs)
 
 ## Edit/Change Requirements
@@ -73,7 +76,7 @@
 
 ### Pre-Implementation Checklist
 - [ ] Naming conventions match existing codebase patterns
-- [ ] Architecture patterns align with PROJECT-OVERVIEW.md
+- [ ] Architecture patterns align with docs/PROJECT-OVERVIEW.md and docs/CODING-STANDARDS.md
 - [ ] All method signatures include proper type hints
 - [ ] Comprehensive docstrings present (Google style)
 - [ ] Interface definitions clear and complete
@@ -100,9 +103,12 @@
 - Tests in `/tests` folder mirroring app structure
 - **Coverage per feature**: happy path + edge case + failure test
 - Update affected tests when modifying existing logic
-- Follow testing framework specified in PROJECT-OVERVIEW.md
+- Follow testing framework specified in docs/DEVELOPER-GUIDE.md
 
 ## Auto-Update Requirements
-- PROJECT-OVERVIEW.md (new tech/architecture)
+- docs/PROJECT-OVERVIEW.md (new tech/architecture)
+- docs/CODING-STANDARDS.md (new patterns/conventions)
+- docs/CODEBASE-REFERENCE.md (new classes/functions)
+- docs/LLM-CONTEXT.md (new business rules/patterns)
 - README.md (setup/usage changes)
 - API docs (public interfaces)

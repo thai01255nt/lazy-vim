@@ -3,14 +3,20 @@
 ## Purpose
 Gather all necessary context for development by reading project overview, planning file, and scanning codebase patterns.
 
+## Additional Required Documentation
+**Load these files IF NOT already in context:**
+- **docs/CODING-STANDARDS.md** → For code patterns, conventions, and style guidelines
+- **docs/CODEBASE-REFERENCE.md** → For integration points, existing classes, and services
+- **docs/DEPENDENCIES-GUIDE.md** → For external services, APIs, and environment variables
+
 ## Process
-1. **Use PROJECT-OVERVIEW Context** → Apply tech stack, architecture patterns, constraints from PROJECT-OVERVIEW.md
+1. **Use Documentation Context** → Apply tech stack, architecture patterns, constraints from core docs
 2. **Extract Feature Context** → Analyze user's feature request to determine feature type and name
 3. **Auto-Suggest Planning File** → Generate filename following git branch naming: `[type]-[feature-name].md`
 4. **Scan for Planning File** → Check `.claude/custom/planning/` for the suggested file
 5. **MANDATORY CONFIRMATION** → Force stop and ask confirmation if planning file found
 6. **Auto-Find Tasks File** → Check `.claude/custom/tasks/` for corresponding tasks file
-7. **Analyze Integration Points** → Understand how new code will connect to existing system using PROJECT-OVERVIEW context
+7. **Analyze Integration Points** → Understand how new code will connect to existing system using loaded documentation
 
 ## Planning File Detection & Confirmation
 1. **Extract feature context** from user request

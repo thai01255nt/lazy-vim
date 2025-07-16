@@ -3,12 +3,23 @@
 ## Purpose
 Review implementation against established patterns, planning decisions, and quality standards.
 
-## Context Requirement
-**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+## Additional Required Documentation
+**Load these files IF NOT already in context:**
+- **docs/DEVELOPER-GUIDE.md** → Testing approach and workflow validation
 
-🛑 **STOP** - Do NOT proceed
-📋 **REQUEST**: Ask user to manually run `step-1-context` first
-🔄 **THEN**: Return to run `step-3-review`
+## Context Requirement
+**MANDATORY STEP-1 DEPENDENCY**
+
+🛑🛑🛑 **ABSOLUTE STOP** - Check if **step-1-context** has been run in this chat session:
+
+**IF NO STEP-1 CONTEXT EXISTS:**
+📋 **FORCE USER TO RUN**: "❌ This step requires step-1-context to be run first.
+🚫 CANNOT PROCEED without step-1 context and documentation loading.
+⚡ REQUIRED ACTION: Please run step-1-context first.
+🔄 Then ask your question again."
+
+**NEVER PROCEED** without step-1 context - **NO EXCEPTIONS**
+**DO NOT** auto-execute step-1 - **FORCE USER TO RUN IT**
 
 ## Process
 1. **Load Context** → Use step-1 context or specified planning file

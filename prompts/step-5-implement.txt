@@ -3,15 +3,25 @@
 ## Purpose
 Implement the exact method requested by user, reusing existing methods from codebase when possible, adding TODO comments for missing methods.
 
-## Context Requirement
-**REQUIRES STEP-1 CONTEXT** - If no feature planning context exists in this chat:
+## Additional Required Documentation
+**None - All required docs loaded by step-1-context**
 
-🛑 **STOP** - Do NOT proceed
-📋 **REQUEST**: Ask user to manually run `step-1-context` first
-🔄 **THEN**: Return to run `step-5-implement`
+## Context Requirement
+**MANDATORY STEP-1 DEPENDENCY**
+
+🛑🛑🛑 **ABSOLUTE STOP** - Check if **step-1-context** has been run in this chat session:
+
+**IF NO STEP-1 CONTEXT EXISTS:**
+📋 **FORCE USER TO RUN**: "❌ This step requires step-1-context to be run first.
+🚫 CANNOT PROCEED without step-1 context and documentation loading.
+⚡ REQUIRED ACTION: Please run step-1-context first.
+🔄 Then ask your question again."
+
+**NEVER PROCEED** without step-1 context - **NO EXCEPTIONS**
+**DO NOT** auto-execute step-1 - **FORCE USER TO RUN IT**
 
 ## Process
-1. **Load Context** → Use step-1 context and PROJECT-OVERVIEW patterns
+1. **Load Context** → Use step-1 context and loaded documentation patterns
 2. **Detect Target Method** → Search for method matching user request in codebase
 3. **Method Detection Logic**:
    - **If SINGLE method found**: 🛑 **STOP** - Ask confirmation: "Found method `methodName()` in `ClassName` at `src/services/UserService.js:42`. Implement this method? (Y/n)"
@@ -29,7 +39,7 @@ Implement the exact method requested by user, reusing existing methods from code
 - Focus on the exact functionality needed for this method
 
 ### Reuse Existing Methods
-- **Search PROJECT-OVERVIEW and step-1 context** for existing methods
+- **Search docs/CODEBASE-REFERENCE.md and step-1 context** for existing methods
 - **Reuse existing methods** when available instead of reimplementing
 - **Call existing utilities, services, and helpers** identified in codebase scan
 
@@ -50,7 +60,7 @@ Implement the exact method requested by user, reusing existing methods from code
 ## Reuse Strategy
 
 ### Search for Existing Methods
-1. **Check PROJECT-OVERVIEW** for documented services, utilities, patterns
+1. **Check docs/CODEBASE-REFERENCE.md** for documented services, utilities, patterns
 2. **Review step-1 context** for identified existing methods and patterns
 3. **Look for similar functionality** in codebase scan results
 4. **Prefer composition over duplication** - call existing methods
@@ -66,7 +76,7 @@ Implement the exact method requested by user, reusing existing methods from code
 - [ ] Existing methods are reused when available
 - [ ] Missing methods have TODO comments with method calls
 - [ ] Error handling follows project patterns
-- [ ] Uses patterns from PROJECT-OVERVIEW and step-1 context
+- [ ] Uses patterns from loaded documentation and step-1 context
 - [ ] Proper imports/dependencies for existing methods
 
 ## Output Format

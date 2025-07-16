@@ -8,4 +8,4 @@ cp ./prompts/step-4-enhance.txt ~/.claude/commands/step-4-enhance.md
 cp ./prompts/step-5-implement.txt ~/.claude/commands/step-5-implement.md
 cp ./prompts/step-planning.txt ~/.claude/commands/step-planning.md
 cp ./prompts/step-tasks.txt ~/.claude/commands/step-tasks.md
-cp ./prompts/PROJECT-OVERVIEW-TEMPLATE.md ~/.claude/commands/PROJECT-OVERVIEW-TEMPLATE.md.md
+cp ./prompts/PROJECT-DOCS-TEMPLATES.md ~/.claude/commands/PROJECT-DOCS-TEMPLATES.md
