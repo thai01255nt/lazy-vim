@@ -8,7 +8,6 @@
 ## Required Context (Always Do First)
 1. **Load Core Documentation** → Load these files IF NOT already in context:
    - **docs/PROJECT-OVERVIEW.md** → Tech stack, architecture, business context
-   - **docs/LLM-CONTEXT.md** → Domain terminology, business rules, patterns
 2. **Load Step-Specific Docs** → Each step defines additional required docs (load only if not in context)
 3. **Scan Codebase** → Use `ls`/`glob`/`grep` (or `Read`/`Grep` tools) to find existing patterns
 
@@ -117,6 +116,5 @@
 - docs/PROJECT-OVERVIEW.md (new tech/architecture)
 - docs/CODING-STANDARDS.md (new patterns/conventions)
 - docs/CODEBASE-REFERENCE.md (new classes/functions)
-- docs/LLM-CONTEXT.md (new business rules/patterns)
 - README.md (setup/usage changes)
 - API docs (public interfaces)

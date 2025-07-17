@@ -1,7 +1,7 @@
-# Step: Project Overview Generator (5-Step Process)
+# Step: Project Overview Generator (4-Step Process)
 
 ## Purpose
-Generate focused project documentation system with 5 essential files in docs/ folder through a structured 5-step process. Each step focuses on one file with specific context analysis. Documentation will be concise, avoid redundancy, and focus on unique information per file.
+Generate focused project documentation system with 4 essential files in docs/ folder through a structured 4-step process. Each step focuses on one file with specific context analysis. Documentation will be concise, avoid redundancy, and focus on unique information per file.
 
 ## Additional Required Documentation
 **When updating existing docs (load IF NOT already in context):**
@@ -25,12 +25,11 @@ Generate focused project documentation system with 5 essential files in docs/ fo
 ### 2. Check docs/ Folder Structure
 **After template confirmed:**
 1. **CHECK docs/ folder existence** → Create if missing
-2. **SCAN for 5 required files**:
+2. **SCAN for 4 required files**:
    - `docs/PROJECT-OVERVIEW.md` (Business & architecture)
    - `docs/DEVELOPER-GUIDE.md` (Setup & workflow)
    - `docs/CODING-STANDARDS.md` (Conventions & patterns)
    - `docs/CODEBASE-REFERENCE.md` (Classes & functions)
-   - `docs/LLM-CONTEXT.md` (AI-specific context)
 
 ### 3. File Status Detection & User Input
 **IF ANY FILES MISSING (First Time Setup):**
@@ -54,16 +53,16 @@ Generate focused project documentation system with 5 essential files in docs/ fo
 🛑 **STOP** - Ask user:
 ```
 ✅ All documentation files exist. Choose action:
-1. **Update specific file** (1-5) - specify which file and run corresponding step
-2. **Sync all with codebase** - run all 5 steps to update dynamic sections
-3. **Full regeneration** - recreate from scratch using 5-step process
+1. **Update specific file** (1-4) - specify which file and run corresponding step
+2. **Sync all with codebase** - run all 4 steps to update dynamic sections
+3. **Full regeneration** - recreate from scratch using 4-step process
 4. **Add missing sections** - detect and fill gaps
 
 Which option? (1/2/3/4)
 ```
 **WAIT** for user choice.
 
-### 4. Five-Step Generation Process
+### 4. Four-Step Generation Process
 
 **🔄 PROCESS: Generate files in sequence, one at a time**
 
@@ -166,29 +165,6 @@ Which option? (1/2/3/4)
 - **Categorized Organization**: Group by logical modules (models, services, controllers, utils)
 - **Compact Reference**: Maximum information density in minimum space
 
-#### **Step 4.5: Generate LLM-CONTEXT.md**
-**Sub-steps:**
-1. **Load Template**: Ensure LLM-CONTEXT template from PROJECT-DOCS-TEMPLATES.md
-2. **Load Previous**: Read all 4 previous files for complete context
-3. **Domain Analysis**:
-   - Extract domain terms from code comments, variables
-   - Identify business-specific terminology
-   - Analyze naming patterns for domain concepts
-4. **Pattern Collection**:
-   - Find reusable functions, services from CODEBASE-REFERENCE.md
-   - Identify common code patterns from CODING-STANDARDS.md
-   - Extract validation rules, constraints
-5. **Utility Scan**:
-   - Find helper functions, middleware
-   - Identify common utilities
-   - Check for frequently used patterns
-6. **Generate File**: LLM-CONTEXT.md (Max 200 lines)
-   - Project context for AI
-   - Domain terminology
-   - Code patterns to follow
-   - Reusable components
-   - Business rules & constraints
-   - Quick reference
 
 ### 5. Content Generation Strategy
 
@@ -200,7 +176,7 @@ Which option? (1/2/3/4)
 - Reference other files instead of duplicating content
 
 **Step-by-Step Execution:**
-- **Generate files in sequence 4.1 → 4.2 → 4.3 → 4.4 → 4.5**
+- **Generate files in sequence 4.1 → 4.2 → 4.3 → 4.4**
 - **Complete each step fully before moving to next**
 - **Perform required context analysis for each step**
 - **Stay within length limits for each file**
@@ -214,12 +190,11 @@ Which option? (1/2/3/4)
 
 ## Execution Guidelines
 
-**🔄 MANDATORY: Follow 5-Step Sequence**
+**🔄 MANDATORY: Follow 4-Step Sequence**
 1. **Execute Step 4.1** → Generate PROJECT-OVERVIEW.md
 2. **Execute Step 4.2** → Generate DEVELOPER-GUIDE.md
 3. **Execute Step 4.3** → Generate CODING-STANDARDS.md
 4. **Execute Step 4.4** → Generate CODEBASE-REFERENCE.md
-5. **Execute Step 4.5** → Generate LLM-CONTEXT.md
 
 **For Each Step:**
 - **Perform required context analysis** as specified
@@ -229,19 +204,19 @@ Which option? (1/2/3/4)
 - **Reference other files when needed**
 
 ## Output Requirements
-- All 5 files generated in docs/ folder through 5-step process
+- All 4 files generated in docs/ folder through 4-step process
 - User input properly integrated
 - Context analysis complete for each step
 - Dynamic sections reflect current code state
 - **ZERO content duplication** across files
 - Each file stays within length limits
 - Cross-file references instead of duplication
-- LLM context optimized for AI assistance
+- Essential documentation for development workflow
 
 ## Content Deduplication Rules
 1. **Configuration**: Only in DEVELOPER-GUIDE.md
 2. **Architecture**: High-level in PROJECT-OVERVIEW.md, patterns in CODING-STANDARDS.md
-3. **Code Examples**: Only in CODEBASE-REFERENCE.md or LLM-CONTEXT.md
+3. **Code Examples**: Only in CODEBASE-REFERENCE.md (quick reference format)
 4. **Setup Instructions**: Only in DEVELOPER-GUIDE.md
-5. **Business Rules**: Only in LLM-CONTEXT.md
-6. **Error Handling**: Pattern in CODING-STANDARDS.md, examples in LLM-CONTEXT.md
+5. **Error Handling**: Pattern in CODING-STANDARDS.md only
+6. **Reusable Components**: Only in CODEBASE-REFERENCE.md tables
