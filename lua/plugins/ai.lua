@@ -25,7 +25,8 @@ local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
 local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
 local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
 
-local system_prompt = read_prompt_file("/prompts/system-prompt-general.txt")
+-- local system_prompt = read_prompt_file("/prompts/system-prompt-general.txt")
+local system_prompt = read_prompt_file("/prompts/system-prompt-compact.txt")
 
 return {
   -- {

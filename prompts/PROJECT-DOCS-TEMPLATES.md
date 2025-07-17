@@ -56,6 +56,93 @@ This file contains all templates for the comprehensive project documentation sys
 
 <!-- DYNAMIC: Generated from project structure analysis -->
 
+### System Overview
+
+```mermaid
+graph TD
+    A[Client/Frontend] --> B[API Gateway/Load Balancer]
+    B --> C[Application Server]
+    C --> D[Business Logic Layer]
+    D --> E[Data Access Layer]
+    E --> F[Database]
+    
+    C --> G[External APIs]
+    C --> H[Cache Layer]
+    
+    subgraph "Application Core"
+        D
+        E
+    end
+    
+    subgraph "Infrastructure"
+        F
+        G
+        H
+    end
+```
+
+### Data Flow Diagram
+
+```mermaid
+flowchart LR
+    User[User Request] --> Auth[Authentication]
+    Auth --> Valid{Valid?}
+    Valid -->|Yes| Process[Process Request]
+    Valid -->|No| Error[Return Error]
+    Process --> DB[(Database)]
+    DB --> Response[Format Response]
+    Response --> User
+```
+
+### API Interaction Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as API Server
+    participant DB as Database
+    participant Cache as Cache
+    
+    C->>API: Request
+    API->>Cache: Check Cache
+    alt Cache Hit
+        Cache-->>API: Return Cached Data
+    else Cache Miss
+        API->>DB: Query Database
+        DB-->>API: Return Data
+        API->>Cache: Store in Cache
+    end
+    API-->>C: Response
+```
+
+### Component Dependencies
+
+```mermaid
+graph LR
+    subgraph "Frontend Layer"
+        UI[User Interface]
+        State[State Management]
+    end
+    
+    subgraph "Backend Layer"
+        API[API Controllers]
+        Service[Business Services]
+        Repo[Data Repositories]
+    end
+    
+    subgraph "Data Layer"
+        DB[(Primary Database)]
+        Cache[(Cache Store)]
+    end
+    
+    UI --> API
+    State --> API
+    API --> Service
+    Service --> Repo
+    Repo --> DB
+    Service --> Cache
+```
+
 ### Architectural Pattern
 
 This project follows a **[ARCHITECTURE_PATTERN]** architecture with the following layers:
@@ -134,7 +221,6 @@ For detailed setup instructions, see: [DEVELOPER-GUIDE.md](./DEVELOPER-GUIDE.md)
 - **[DEVELOPER-GUIDE.md](./DEVELOPER-GUIDE.md)** - Setup, installation, and development workflow
 - **[CODING-STANDARDS.md](./CODING-STANDARDS.md)** - Code conventions and patterns
 - **[CODEBASE-REFERENCE.md](./CODEBASE-REFERENCE.md)** - Complete code reference and API documentation
-- **[DEPENDENCIES-GUIDE.md](./DEPENDENCIES-GUIDE.md)** - External libraries and services
 - **[LLM-CONTEXT.md](./LLM-CONTEXT.md)** - AI development context and patterns
 
 ---
@@ -682,18 +768,7 @@ describe('[TEST_SUITE_NAME]', () => {
 ```markdown
 # Codebase Reference
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Class Inventory](#class-inventory)
-- [Function Catalog](#function-catalog)
-- [API Endpoints](#api-endpoints)
-- [Database Schema](#database-schema)
-- [Constants & Configuration](#constants--configuration)
-
-## Overview
-
-This document provides a comprehensive reference to all classes, functions, and components in the codebase. It is automatically generated and updated to reflect the current state of the code.
+Quick reference for LLM assistants to reuse existing code components.
 
 ## Class Inventory
 
@@ -701,66 +776,19 @@ This document provides a comprehensive reference to all classes, functions, and 
 
 ### [CATEGORY_1_NAME]
 
-#### [CLASS_1_NAME]
-**Location**: `[CLASS_1_PATH]`
-**Purpose**: [CLASS_1_PURPOSE]
-
-**Properties**:
-- `[PROPERTY_1_NAME]`: [PROPERTY_1_TYPE] - [PROPERTY_1_DESCRIPTION]
-- `[PROPERTY_2_NAME]`: [PROPERTY_2_TYPE] - [PROPERTY_2_DESCRIPTION]
-
-**Methods**:
-- `[METHOD_1_NAME]([PARAMS])`: [METHOD_1_RETURN_TYPE] - [METHOD_1_DESCRIPTION]
-- `[METHOD_2_NAME]([PARAMS])`: [METHOD_2_RETURN_TYPE] - [METHOD_2_DESCRIPTION]
-
-**Usage Example**:
-```[LANGUAGE]
-[USAGE_EXAMPLE]
-````
-
-#### [CLASS_2_NAME]
-
-**Location**: `[CLASS_2_PATH]`
-**Purpose**: [CLASS_2_PURPOSE]
-
-**Properties**:
-
-- `[PROPERTY_1_NAME]`: [PROPERTY_1_TYPE] - [PROPERTY_1_DESCRIPTION]
-- `[PROPERTY_2_NAME]`: [PROPERTY_2_TYPE] - [PROPERTY_2_DESCRIPTION]
-
-**Methods**:
-
-- `[METHOD_1_NAME]([PARAMS])`: [METHOD_1_RETURN_TYPE] - [METHOD_1_DESCRIPTION]
-- `[METHOD_2_NAME]([PARAMS])`: [METHOD_2_RETURN_TYPE] - [METHOD_2_DESCRIPTION]
-
-**Usage Example**:
-
-```[LANGUAGE]
-[USAGE_EXAMPLE]
-```
+| Class | Location | Purpose | Key Methods |
+|-------|----------|---------|-------------|
+| `[CLASS_1_NAME]` | `[CLASS_1_PATH]` | [CLASS_1_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
+| `[CLASS_2_NAME]` | `[CLASS_2_PATH]` | [CLASS_2_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
+| `[CLASS_3_NAME]` | `[CLASS_3_PATH]` | [CLASS_3_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
 
 ### [CATEGORY_2_NAME]
 
-#### [CLASS_3_NAME]
-
-**Location**: `[CLASS_3_PATH]`
-**Purpose**: [CLASS_3_PURPOSE]
-
-**Properties**:
-
-- `[PROPERTY_1_NAME]`: [PROPERTY_1_TYPE] - [PROPERTY_1_DESCRIPTION]
-- `[PROPERTY_2_NAME]`: [PROPERTY_2_TYPE] - [PROPERTY_2_DESCRIPTION]
-
-**Methods**:
-
-- `[METHOD_1_NAME]([PARAMS])`: [METHOD_1_RETURN_TYPE] - [METHOD_1_DESCRIPTION]
-- `[METHOD_2_NAME]([PARAMS])`: [METHOD_2_RETURN_TYPE] - [METHOD_2_DESCRIPTION]
-
-**Usage Example**:
-
-```[LANGUAGE]
-[USAGE_EXAMPLE]
-```
+| Class | Location | Purpose | Key Methods |
+|-------|----------|---------|-------------|
+| `[CLASS_4_NAME]` | `[CLASS_4_PATH]` | [CLASS_4_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
+| `[CLASS_5_NAME]` | `[CLASS_5_PATH]` | [CLASS_5_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
+| `[CLASS_6_NAME]` | `[CLASS_6_PATH]` | [CLASS_6_PURPOSE] | `[METHOD_1]`, `[METHOD_2]`, `[METHOD_3]` |
 
 ## Function Catalog
 
@@ -768,79 +796,27 @@ This document provides a comprehensive reference to all classes, functions, and 
 
 ### [FUNCTION_CATEGORY_1]
 
-#### [FUNCTION_1_NAME]
+| Function | Location | Purpose | Signature |
+|----------|----------|---------|-----------|
+| `[FUNCTION_1_NAME]` | `[FUNCTION_1_PATH]` | [FUNCTION_1_PURPOSE] | `[FUNCTION_1_SIGNATURE]` |
+| `[FUNCTION_2_NAME]` | `[FUNCTION_2_PATH]` | [FUNCTION_2_PURPOSE] | `[FUNCTION_2_SIGNATURE]` |
+| `[FUNCTION_3_NAME]` | `[FUNCTION_3_PATH]` | [FUNCTION_3_PURPOSE] | `[FUNCTION_3_SIGNATURE]` |
 
-**Location**: `[FUNCTION_1_PATH]`
-**Purpose**: [FUNCTION_1_PURPOSE]
-**Signature**: `[FUNCTION_1_SIGNATURE]`
-**Returns**: [FUNCTION_1_RETURN_TYPE] - [FUNCTION_1_RETURN_DESCRIPTION]
+### [FUNCTION_CATEGORY_2] 
 
-**Parameters**:
-
-**Usage Example**:
-
-```[LANGUAGE]
-[FUNCTION_1_USAGE_EXAMPLE]
-```
-
-#### [FUNCTION_2_NAME]
-
-**Location**: `[FUNCTION_2_PATH]`
-**Purpose**: [FUNCTION_2_PURPOSE]
-**Signature**: `[FUNCTION_2_SIGNATURE]`
-**Returns**: [FUNCTION_2_RETURN_TYPE] - [FUNCTION_2_RETURN_DESCRIPTION]
-
-**Parameters**:
-
-**Usage Example**:
-
-```[LANGUAGE]
-[FUNCTION_2_USAGE_EXAMPLE]
-```
-
-### [FUNCTION_CATEGORY_2]
-
-#### [FUNCTION_3_NAME]
-
-**Location**: `[FUNCTION_3_PATH]`
-**Purpose**: [FUNCTION_3_PURPOSE]
-**Signature**: `[FUNCTION_3_SIGNATURE]`
-**Returns**: [FUNCTION_3_RETURN_TYPE] - [FUNCTION_3_RETURN_DESCRIPTION]
-
-**Parameters**:
-
-**Usage Example**:
-
-```[LANGUAGE]
-[FUNCTION_3_USAGE_EXAMPLE]
-```
-
-### [FUNCTION_CATEGORY_3] - Essential Functions
-
-| Function            | Location            | Purpose              | Signature                |
-| ------------------- | ------------------- | -------------------- | ------------------------ |
+| Function | Location | Purpose | Signature |
+|----------|----------|---------|-----------|
 | `[FUNCTION_4_NAME]` | `[FUNCTION_4_PATH]` | [FUNCTION_4_PURPOSE] | `[FUNCTION_4_SIGNATURE]` |
 | `[FUNCTION_5_NAME]` | `[FUNCTION_5_PATH]` | [FUNCTION_5_PURPOSE] | `[FUNCTION_5_SIGNATURE]` |
 | `[FUNCTION_6_NAME]` | `[FUNCTION_6_PATH]` | [FUNCTION_6_PURPOSE] | `[FUNCTION_6_SIGNATURE]` |
+
+### [FUNCTION_CATEGORY_3]
+
+| Function | Location | Purpose | Signature |
+|----------|----------|---------|-----------|
 | `[FUNCTION_7_NAME]` | `[FUNCTION_7_PATH]` | [FUNCTION_7_PURPOSE] | `[FUNCTION_7_SIGNATURE]` |
-
-### [FUNCTION_CATEGORY_4] - Utility Functions
-
-| Function             | Location             | Purpose               | Signature                 |
-| -------------------- | -------------------- | --------------------- | ------------------------- |
-| `[FUNCTION_8_NAME]`  | `[FUNCTION_8_PATH]`  | [FUNCTION_8_PURPOSE]  | `[FUNCTION_8_SIGNATURE]`  |
-| `[FUNCTION_9_NAME]`  | `[FUNCTION_9_PATH]`  | [FUNCTION_9_PURPOSE]  | `[FUNCTION_9_SIGNATURE]`  |
-| `[FUNCTION_10_NAME]` | `[FUNCTION_10_PATH]` | [FUNCTION_10_PURPOSE] | `[FUNCTION_10_SIGNATURE]` |
-| `[FUNCTION_11_NAME]` | `[FUNCTION_11_PATH]` | [FUNCTION_11_PURPOSE] | `[FUNCTION_11_SIGNATURE]` |
-
-### [FUNCTION_CATEGORY_5] - Helper Functions
-
-| Function             | Location             | Purpose               | Signature                 |
-| -------------------- | -------------------- | --------------------- | ------------------------- |
-| `[FUNCTION_12_NAME]` | `[FUNCTION_12_PATH]` | [FUNCTION_12_PURPOSE] | `[FUNCTION_12_SIGNATURE]` |
-| `[FUNCTION_13_NAME]` | `[FUNCTION_13_PATH]` | [FUNCTION_13_PURPOSE] | `[FUNCTION_13_SIGNATURE]` |
-| `[FUNCTION_14_NAME]` | `[FUNCTION_14_PATH]` | [FUNCTION_14_PURPOSE] | `[FUNCTION_14_SIGNATURE]` |
-| `[FUNCTION_15_NAME]` | `[FUNCTION_15_PATH]` | [FUNCTION_15_PURPOSE] | `[FUNCTION_15_SIGNATURE]` |
+| `[FUNCTION_8_NAME]` | `[FUNCTION_8_PATH]` | [FUNCTION_8_PURPOSE] | `[FUNCTION_8_SIGNATURE]` |
+| `[FUNCTION_9_NAME]` | `[FUNCTION_9_PATH]` | [FUNCTION_9_PURPOSE] | `[FUNCTION_9_SIGNATURE]` |
 
 ## API Endpoints
 
@@ -848,109 +824,33 @@ This document provides a comprehensive reference to all classes, functions, and 
 
 ### [API_GROUP_1]
 
-#### [ENDPOINT_1_METHOD] [ENDPOINT_1_PATH]
+| Method | Endpoint | Purpose | Auth |
+|--------|----------|---------|------|
+| `[METHOD_1]` | `[ENDPOINT_1_PATH]` | [ENDPOINT_1_PURPOSE] | [AUTH_1] |
+| `[METHOD_2]` | `[ENDPOINT_2_PATH]` | [ENDPOINT_2_PURPOSE] | [AUTH_2] |
+| `[METHOD_3]` | `[ENDPOINT_3_PATH]` | [ENDPOINT_3_PURPOSE] | [AUTH_3] |
 
-**Purpose**: [ENDPOINT_1_PURPOSE]
-**Authentication**: [ENDPOINT_1_AUTH_REQUIRED]
-**Rate Limit**: [ENDPOINT_1_RATE_LIMIT]
+### [API_GROUP_2]
 
-**Parameters**:
-
-**Request Example**:
-
-```[LANGUAGE]
-[ENDPOINT_1_REQUEST_EXAMPLE]
-```
-
-**Response Example**:
-
-```[LANGUAGE]
-[ENDPOINT_1_RESPONSE_EXAMPLE]
-```
-
-**Error Responses**:
-
-#### [ENDPOINT_2_METHOD] [ENDPOINT_2_PATH]
-
-**Purpose**: [ENDPOINT_2_PURPOSE]
-**Authentication**: [ENDPOINT_2_AUTH_REQUIRED]
-**Rate Limit**: [ENDPOINT_2_RATE_LIMIT]
-
-**Parameters**:
-
-**Request Example**:
-
-```[LANGUAGE]
-[ENDPOINT_2_REQUEST_EXAMPLE]
-```
-
-**Response Example**:
-
-```[LANGUAGE]
-[ENDPOINT_2_RESPONSE_EXAMPLE]
-```
-
-**Error Responses**:
-
-### [API_GROUP_2] - Additional Endpoints
-
-| Method       | Endpoint            | Purpose              | Auth     |
-| ------------ | ------------------- | -------------------- | -------- |
-| `[METHOD_1]` | `[ENDPOINT_3_PATH]` | [ENDPOINT_3_PURPOSE] | [AUTH_3] |
-| `[METHOD_2]` | `[ENDPOINT_4_PATH]` | [ENDPOINT_4_PURPOSE] | [AUTH_4] |
-| `[METHOD_3]` | `[ENDPOINT_5_PATH]` | [ENDPOINT_5_PURPOSE] | [AUTH_5] |
-| `[METHOD_4]` | `[ENDPOINT_6_PATH]` | [ENDPOINT_6_PURPOSE] | [AUTH_6] |
-
-### [API_GROUP_3] - Utility Endpoints
-
-| Method       | Endpoint             | Purpose               | Auth      |
-| ------------ | -------------------- | --------------------- | --------- |
-| `[METHOD_5]` | `[ENDPOINT_7_PATH]`  | [ENDPOINT_7_PURPOSE]  | [AUTH_7]  |
-| `[METHOD_6]` | `[ENDPOINT_8_PATH]`  | [ENDPOINT_8_PURPOSE]  | [AUTH_8]  |
-| `[METHOD_7]` | `[ENDPOINT_9_PATH]`  | [ENDPOINT_9_PURPOSE]  | [AUTH_9]  |
-| `[METHOD_8]` | `[ENDPOINT_10_PATH]` | [ENDPOINT_10_PURPOSE] | [AUTH_10] |
+| Method | Endpoint | Purpose | Auth |
+|--------|----------|---------|------|
+| `[METHOD_4]` | `[ENDPOINT_4_PATH]` | [ENDPOINT_4_PURPOSE] | [AUTH_4] |
+| `[METHOD_5]` | `[ENDPOINT_5_PATH]` | [ENDPOINT_5_PURPOSE] | [AUTH_5] |
+| `[METHOD_6]` | `[ENDPOINT_6_PATH]` | [ENDPOINT_6_PURPOSE] | [AUTH_6] |
 
 ## Database Schema
 
 <!-- DYNAMIC: Auto-generated from database analysis -->
 
-### Tables
+### Main Tables
 
-#### [TABLE_1_NAME]
+| Table | Purpose | Key Columns | Relationships |
+|-------|---------|-------------|---------------|
+| `[TABLE_1_NAME]` | [TABLE_1_PURPOSE] | `[KEY_COLUMNS_1]` | [RELATIONSHIPS_1] |
+| `[TABLE_2_NAME]` | [TABLE_2_PURPOSE] | `[KEY_COLUMNS_2]` | [RELATIONSHIPS_2] |
+| `[TABLE_3_NAME]` | [TABLE_3_PURPOSE] | `[KEY_COLUMNS_3]` | [RELATIONSHIPS_3] |
 
-**Purpose**: [TABLE_1_PURPOSE]
-
-**Columns**:
-
-- `[COLUMN_1_NAME]`: [COLUMN_1_TYPE] - [COLUMN_1_DESCRIPTION] ([COLUMN_1_CONSTRAINTS])
-- `[COLUMN_2_NAME]`: [COLUMN_2_TYPE] - [COLUMN_2_DESCRIPTION] ([COLUMN_2_CONSTRAINTS])
-
-**Indexes**:
-
-- `[INDEX_1_NAME]`: [INDEX_1_COLUMNS] - [INDEX_1_PURPOSE]
-
-**Relationships**:
-
-- `[RELATIONSHIP_1]`: [RELATIONSHIP_1_DESCRIPTION]
-
-#### [TABLE_2_NAME]
-
-**Purpose**: [TABLE_2_PURPOSE]
-
-**Columns**:
-
-- `[COLUMN_1_NAME]`: [COLUMN_1_TYPE] - [COLUMN_1_DESCRIPTION] ([COLUMN_1_CONSTRAINTS])
-- `[COLUMN_2_NAME]`: [COLUMN_2_TYPE] - [COLUMN_2_DESCRIPTION] ([COLUMN_2_CONSTRAINTS])
-
-**Indexes**:
-
-- `[INDEX_1_NAME]`: [INDEX_1_COLUMNS] - [INDEX_1_PURPOSE]
-
-**Relationships**:
-
-- `[RELATIONSHIP_1]`: [RELATIONSHIP_1_DESCRIPTION]
-
-## Constants & Configuration
+## Constants & Utilities
 
 <!-- DYNAMIC: Auto-generated from constants analysis -->
 
@@ -961,324 +861,21 @@ This document provides a comprehensive reference to all classes, functions, and 
 [CONSTANT_1_NAME] = [CONSTANT_1_VALUE]; // [CONSTANT_1_DESCRIPTION]
 [CONSTANT_2_NAME] = [CONSTANT_2_VALUE]; // [CONSTANT_2_DESCRIPTION]
 
-// [CONSTANT_CATEGORY_2]
+// [CONSTANT_CATEGORY_2] 
 [CONSTANT_3_NAME] = [CONSTANT_3_VALUE]; // [CONSTANT_3_DESCRIPTION]
 [CONSTANT_4_NAME] = [CONSTANT_4_VALUE]; // [CONSTANT_4_DESCRIPTION]
 ```
 
-### Environment Variables
-
-```bash
-# [ENV_CATEGORY_1]
-[ENV_VAR_1]=[DEFAULT_VALUE_1]  # [ENV_VAR_1_DESCRIPTION]
-[ENV_VAR_2]=[DEFAULT_VALUE_2]  # [ENV_VAR_2_DESCRIPTION]
-
-# [ENV_CATEGORY_2]
-[ENV_VAR_3]=[DEFAULT_VALUE_3]  # [ENV_VAR_3_DESCRIPTION]
-[ENV_VAR_4]=[DEFAULT_VALUE_4]  # [ENV_VAR_4_DESCRIPTION]
-```
-
-### Configuration Files
-
-- **[CONFIG_FILE_1]**: [CONFIG_FILE_1_PURPOSE]
-- **[CONFIG_FILE_2]**: [CONFIG_FILE_2_PURPOSE]
-- **[CONFIG_FILE_3]**: [CONFIG_FILE_3_PURPOSE]
-
 ---
 
 **Last Updated**: [TIMESTAMP]
-**Version**: [VERSION]
 **Generated by**: Claude Code Assistant
 
 ````
 
 ---
 
-## Template 5: DEPENDENCIES-GUIDE.md
-
-```markdown
-# Dependencies Guide
-
-## Table of Contents
-
-- [Core Dependencies](#core-dependencies)
-- [Development Dependencies](#development-dependencies)
-- [External Services](#external-services)
-- [Environment Setup](#environment-setup)
-- [Configuration Management](#configuration-management)
-
-## Core Dependencies
-
-<!-- DYNAMIC: Auto-generated from package analysis -->
-
-### Runtime Dependencies
-
-#### [DEPENDENCY_1_NAME] v[VERSION]
-**Purpose**: [DEPENDENCY_1_PURPOSE]
-**Documentation**: [DEPENDENCY_1_DOCS_URL]
-**License**: [DEPENDENCY_1_LICENSE]
-
-**Installation**:
-```bash
-[DEPENDENCY_1_INSTALL_COMMAND]
-````
-
-**Configuration**:
-
-```[LANGUAGE]
-[DEPENDENCY_1_CONFIG_EXAMPLE]
-```
-
-**Usage Examples**:
-
-```[LANGUAGE]
-[DEPENDENCY_1_USAGE_EXAMPLE]
-```
-
-#### [DEPENDENCY_2_NAME] v[VERSION]
-
-**Purpose**: [DEPENDENCY_2_PURPOSE]
-**Documentation**: [DEPENDENCY_2_DOCS_URL]
-**License**: [DEPENDENCY_2_LICENSE]
-
-**Installation**:
-
-```bash
-[DEPENDENCY_2_INSTALL_COMMAND]
-```
-
-**Configuration**:
-
-```[LANGUAGE]
-[DEPENDENCY_2_CONFIG_EXAMPLE]
-```
-
-**Usage Examples**:
-
-```[LANGUAGE]
-[DEPENDENCY_2_USAGE_EXAMPLE]
-```
-
-### Framework Dependencies
-
-#### [FRAMEWORK_1_NAME] v[VERSION]
-
-**Purpose**: [FRAMEWORK_1_PURPOSE]
-**Documentation**: [FRAMEWORK_1_DOCS_URL]
-**License**: [FRAMEWORK_1_LICENSE]
-
-**Key Features Used**:
-
-- [FEATURE_1]: [FEATURE_1_USAGE]
-- [FEATURE_2]: [FEATURE_2_USAGE]
-- [FEATURE_3]: [FEATURE_3_USAGE]
-
-**Configuration**:
-
-```[LANGUAGE]
-[FRAMEWORK_1_CONFIG_EXAMPLE]
-```
-
-**Common Patterns**:
-
-```[LANGUAGE]
-[FRAMEWORK_1_PATTERN_EXAMPLE]
-```
-
-## Development Dependencies
-
-<!-- DYNAMIC: Auto-generated from dev dependency analysis -->
-
-### Build Tools
-
-#### [BUILD_TOOL_1_NAME] v[VERSION]
-
-**Purpose**: [BUILD_TOOL_1_PURPOSE]
-**Configuration File**: `[BUILD_TOOL_1_CONFIG_FILE]`
-
-**Scripts**:
-
-```bash
-# [BUILD_SCRIPT_1_DESCRIPTION]
-[BUILD_SCRIPT_1_COMMAND]
-
-# [BUILD_SCRIPT_2_DESCRIPTION]
-[BUILD_SCRIPT_2_COMMAND]
-```
-
-### Testing Tools
-
-#### [TEST_TOOL_1_NAME] v[VERSION]
-
-**Purpose**: [TEST_TOOL_1_PURPOSE]
-**Configuration File**: `[TEST_TOOL_1_CONFIG_FILE]`
-
-**Common Commands**:
-
-```bash
-# [TEST_COMMAND_1_DESCRIPTION]
-[TEST_COMMAND_1]
-
-# [TEST_COMMAND_2_DESCRIPTION]
-[TEST_COMMAND_2]
-```
-
-### Code Quality Tools
-
-#### [QUALITY_TOOL_1_NAME] v[VERSION]
-
-**Purpose**: [QUALITY_TOOL_1_PURPOSE]
-**Configuration File**: `[QUALITY_TOOL_1_CONFIG_FILE]`
-
-**Rules Configuration**:
-
-```[LANGUAGE]
-[QUALITY_TOOL_1_RULES_EXAMPLE]
-```
-
-## External Services
-
-<!-- DYNAMIC: Auto-generated from external service analysis -->
-
-### Database Services
-
-#### [DATABASE_SERVICE_1_NAME]
-
-**Purpose**: [DATABASE_SERVICE_1_PURPOSE]
-**Version**: [DATABASE_SERVICE_1_VERSION]
-**Connection**: [DATABASE_SERVICE_1_CONNECTION]
-
-**Configuration**:
-
-```[LANGUAGE]
-[DATABASE_SERVICE_1_CONFIG]
-```
-
-**Common Operations**:
-
-```[LANGUAGE]
-[DATABASE_SERVICE_1_OPERATIONS]
-```
-
-### API Services
-
-#### [API_SERVICE_1_NAME]
-
-**Purpose**: [API_SERVICE_1_PURPOSE]
-**Base URL**: [API_SERVICE_1_BASE_URL]
-**Authentication**: [API_SERVICE_1_AUTH]
-
-**Configuration**:
-
-```[LANGUAGE]
-[API_SERVICE_1_CONFIG]
-```
-
-**Usage Examples**:
-
-```[LANGUAGE]
-[API_SERVICE_1_USAGE]
-```
-
-### Cloud Services
-
-#### [CLOUD_SERVICE_1_NAME]
-
-**Purpose**: [CLOUD_SERVICE_1_PURPOSE]
-**Region**: [CLOUD_SERVICE_1_REGION]
-**Service Type**: [CLOUD_SERVICE_1_TYPE]
-
-**Configuration**:
-
-```[LANGUAGE]
-[CLOUD_SERVICE_1_CONFIG]
-```
-
-**Integration Example**:
-
-```[LANGUAGE]
-[CLOUD_SERVICE_1_INTEGRATION]
-```
-
-## Environment Setup
-
-<!-- DYNAMIC: Auto-generated from environment analysis -->
-
-### Development Environment
-
-```bash
-# [DEV_ENV_DESCRIPTION]
-[DEV_ENV_SETUP_COMMANDS]
-```
-
-### Production Environment
-
-```bash
-# [PROD_ENV_DESCRIPTION]
-[PROD_ENV_SETUP_COMMANDS]
-```
-
-### Environment Variables
-
-```bash
-# [ENV_CATEGORY_1]
-[ENV_VAR_1]=[DEFAULT_VALUE_1]  # [ENV_VAR_1_DESCRIPTION]
-[ENV_VAR_2]=[DEFAULT_VALUE_2]  # [ENV_VAR_2_DESCRIPTION]
-
-# [ENV_CATEGORY_2]
-[ENV_VAR_3]=[DEFAULT_VALUE_3]  # [ENV_VAR_3_DESCRIPTION]
-[ENV_VAR_4]=[DEFAULT_VALUE_4]  # [ENV_VAR_4_DESCRIPTION]
-```
-
-## Configuration Management
-
-<!-- DYNAMIC: Auto-generated from config analysis -->
-
-### Configuration Files
-
-#### [CONFIG_FILE_1]
-
-**Purpose**: [CONFIG_FILE_1_PURPOSE]
-**Format**: [CONFIG_FILE_1_FORMAT]
-
-```[LANGUAGE]
-[CONFIG_FILE_1_EXAMPLE]
-```
-
-#### [CONFIG_FILE_2]
-
-**Purpose**: [CONFIG_FILE_2_PURPOSE]
-**Format**: [CONFIG_FILE_2_FORMAT]
-
-```[LANGUAGE]
-[CONFIG_FILE_2_EXAMPLE]
-```
-
-### Environment-Specific Configuration
-
-#### Development
-
-```[LANGUAGE]
-[DEV_CONFIG_EXAMPLE]
-```
-
-#### Production
-
-```[LANGUAGE]
-[PROD_CONFIG_EXAMPLE]
-```
-
----
-
-**Last Updated**: [TIMESTAMP]
-**Version**: [VERSION]
-**Generated by**: Claude Code Assistant
-
-````
-
----
-
-## Template 6: LLM-CONTEXT.md
+## Template 5: LLM-CONTEXT.md
 
 ```markdown
 # LLM Context & Development Patterns

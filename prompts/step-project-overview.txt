@@ -1,14 +1,13 @@
-# Step: Project Overview Generator (6-Step Process)
+# Step: Project Overview Generator (5-Step Process)
 
 ## Purpose
-Generate focused project documentation system with 6 essential files in docs/ folder through a structured 6-step process. Each step focuses on one file with specific context analysis. Documentation will be concise, avoid redundancy, and focus on unique information per file.
+Generate focused project documentation system with 5 essential files in docs/ folder through a structured 5-step process. Each step focuses on one file with specific context analysis. Documentation will be concise, avoid redundancy, and focus on unique information per file.
 
 ## Additional Required Documentation
 **When updating existing docs (load IF NOT already in context):**
 - **docs/DEVELOPER-GUIDE.md** → For testing framework and workflow info
 - **docs/CODING-STANDARDS.md** → For existing patterns and conventions  
 - **docs/CODEBASE-REFERENCE.md** → For existing code inventory
-- **docs/DEPENDENCIES-GUIDE.md** → For existing library and service info
 
 **Note**: These are loaded for content analysis and updates when they exist. For new generation, they will be created from scratch.
 
@@ -26,12 +25,11 @@ Generate focused project documentation system with 6 essential files in docs/ fo
 ### 2. Check docs/ Folder Structure
 **After template confirmed:**
 1. **CHECK docs/ folder existence** → Create if missing
-2. **SCAN for 6 required files**:
+2. **SCAN for 5 required files**:
    - `docs/PROJECT-OVERVIEW.md` (Business & architecture)
    - `docs/DEVELOPER-GUIDE.md` (Setup & workflow)
    - `docs/CODING-STANDARDS.md` (Conventions & patterns)
    - `docs/CODEBASE-REFERENCE.md` (Classes & functions)
-   - `docs/DEPENDENCIES-GUIDE.md` (Libraries & integrations)
    - `docs/LLM-CONTEXT.md` (AI-specific context)
 
 ### 3. File Status Detection & User Input
@@ -56,16 +54,16 @@ Generate focused project documentation system with 6 essential files in docs/ fo
 🛑 **STOP** - Ask user:
 ```
 ✅ All documentation files exist. Choose action:
-1. **Update specific file** (1-6) - specify which file and run corresponding step
-2. **Sync all with codebase** - run all 6 steps to update dynamic sections
-3. **Full regeneration** - recreate from scratch using 6-step process
+1. **Update specific file** (1-5) - specify which file and run corresponding step
+2. **Sync all with codebase** - run all 5 steps to update dynamic sections
+3. **Full regeneration** - recreate from scratch using 5-step process
 4. **Add missing sections** - detect and fill gaps
 
 Which option? (1/2/3/4)
 ```
 **WAIT** for user choice.
 
-### 4. Six-Step Generation Process
+### 4. Five-Step Generation Process
 
 **🔄 PROCESS: Generate files in sequence, one at a time**
 
@@ -80,11 +78,19 @@ Which option? (1/2/3/4)
 4. **Architecture Scan**:
    - Check folder structure (src/, app/, lib/, etc.)
    - Identify organization pattern (MVC, layered, etc.)
-   - Map main components
-5. **Generate File**: PROJECT-OVERVIEW.md (Max 300 lines)
+   - Map main components and their relationships
+   - Analyze data flow between modules
+5. **Mermaid Diagram Generation**:
+   - **System Architecture**: Create high-level component diagram showing main modules
+   - **Data Flow**: Generate flowchart for key business processes
+   - **Dependencies**: Show relationships between layers (frontend, backend, database)
+   - **API Flow**: Create sequence diagram for main user interactions
+   - **Use Mermaid syntax**: graph TD, flowchart, sequenceDiagram, classDiagram as appropriate
+6. **Generate File**: PROJECT-OVERVIEW.md (Max 350 lines)
    - Project description + user input
    - Tech stack summary
-   - High-level architecture ONLY
+   - High-level architecture description
+   - **Mermaid architecture diagrams** (system overview + data flow)
    - Key features list
    - Quick start commands
 
@@ -144,66 +150,26 @@ Which option? (1/2/3/4)
    - Scan models for table structures and relationships
    - Extract key fields and constraints
    - Identify main entities and their associations
-6. **Generate File**: CODEBASE-REFERENCE.md (Max 250 lines)
-   - **Concise class inventory** (grouped by category with essential methods only)
-   - **Essential function catalog** (public APIs and key utilities)
-   - **API endpoints summary** (main routes by module)
-   - **Database schema overview** (tables, key fields, relationships)
-   - **Constants & configuration** (key settings and enums)
-   - **Focus on reference value** - what developers need to know to implement
+6. **Generate File**: CODEBASE-REFERENCE.md (Max 150 lines)
+   - **Class inventory tables** (class, location, purpose, key methods)
+   - **Function catalog tables** (function, location, purpose, signature)
+   - **API endpoints tables** (method, endpoint, purpose, auth)
+   - **Database schema table** (table, purpose, key columns, relationships)
+   - **Constants list** (key settings and enums)
+   - **Focus on quick reference** - LLM can quickly find and reuse existing code
 
 **Generation Strategy for CODEBASE-REFERENCE.md:**
-- **Class Inventory**: 3-5 key classes per category with essential methods only
-- **Function Catalog**: Mix detailed entries (3-4 critical functions) with table format (10-15 utility functions)
-- **API Endpoints**: Group by module/feature, show main HTTP methods only
-- **Database Schema**: Key tables with primary fields and relationships
-- **Constants**: Essential enums, config values, and application constants
-- **Prioritize by Usage**: Focus on what developers reference most during implementation
-- **Smart Grouping**: Organize by architectural layers (models, services, controllers, utilities)
+- **Table-First Approach**: All content in concise table format
+- **Essential Info Only**: Class/Function name, location, purpose, signature/methods
+- **No Examples**: Remove usage examples, detailed descriptions
+- **Quick Scanning**: LLM can quickly scan tables to find reusable components
+- **Categorized Organization**: Group by logical modules (models, services, controllers, utils)
+- **Compact Reference**: Maximum information density in minimum space
 
-**Generation Strategy for CODEBASE-REFERENCE.md:**
-- **Class Inventory**: 3-5 key classes per category with essential methods only
-- **Function Catalog**: Mix detailed entries (3-4 critical functions) with table format (10-15 utility functions)
-- **API Endpoints**: Group by module/feature, show main HTTP methods only
-- **Database Schema**: Key tables with primary fields and relationships
-- **Constants**: Essential enums, config values, and application constants
-- **Prioritize by Usage**: Focus on what developers reference most during implementation
-- **Smart Grouping**: Organize by architectural layers (models, services, controllers, utilities)
-
-**Balanced Documentation Approach:**
-- **Detailed Format**: Use for 2-3 most important classes/functions per category (with usage examples)
-- **Table Format**: Use for comprehensive coverage of utility functions, helper methods, and secondary APIs
-- **Focus on Developer Needs**: Include signature, purpose, and location for quick reference
-- **Avoid Duplication**: Don't repeat information from CODING-STANDARDS.md or LLM-CONTEXT.md
-- **Reference-First**: This should be the go-to file for "what exists" and "how to call it"
-
-#### **Step 4.5: Generate DEPENDENCIES-GUIDE.md**
-**Sub-steps:**
-1. **Load Template**: Ensure DEPENDENCIES-GUIDE template from PROJECT-DOCS-TEMPLATES.md
-2. **Load Previous**: Read PROJECT-OVERVIEW.md for tech stack context
-3. **Dependency Analysis**:
-   - Parse package.json, requirements.txt, composer.json
-   - Categorize core vs dev dependencies
-   - Identify purpose of each major dependency
-4. **Service Detection**:
-   - Scan for database connections (config files)
-   - Identify external APIs (env vars, config)
-   - Check cloud services integration
-5. **Environment Analysis**:
-   - Check .env files, config files
-   - Identify environment variables
-   - Analyze configuration patterns
-6. **Generate File**: DEPENDENCIES-GUIDE.md (Max 200 lines)
-   - Core dependencies (purpose + version)
-   - Development dependencies
-   - External services
-   - Environment setup
-   - Configuration management
-
-#### **Step 4.6: Generate LLM-CONTEXT.md**
+#### **Step 4.5: Generate LLM-CONTEXT.md**
 **Sub-steps:**
 1. **Load Template**: Ensure LLM-CONTEXT template from PROJECT-DOCS-TEMPLATES.md
-2. **Load Previous**: Read all 5 previous files for complete context
+2. **Load Previous**: Read all 4 previous files for complete context
 3. **Domain Analysis**:
    - Extract domain terms from code comments, variables
    - Identify business-specific terminology
@@ -234,7 +200,7 @@ Which option? (1/2/3/4)
 - Reference other files instead of duplicating content
 
 **Step-by-Step Execution:**
-- **Generate files in sequence 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6**
+- **Generate files in sequence 4.1 → 4.2 → 4.3 → 4.4 → 4.5**
 - **Complete each step fully before moving to next**
 - **Perform required context analysis for each step**
 - **Stay within length limits for each file**
@@ -248,13 +214,12 @@ Which option? (1/2/3/4)
 
 ## Execution Guidelines
 
-**🔄 MANDATORY: Follow 6-Step Sequence**
+**🔄 MANDATORY: Follow 5-Step Sequence**
 1. **Execute Step 4.1** → Generate PROJECT-OVERVIEW.md
 2. **Execute Step 4.2** → Generate DEVELOPER-GUIDE.md
 3. **Execute Step 4.3** → Generate CODING-STANDARDS.md
 4. **Execute Step 4.4** → Generate CODEBASE-REFERENCE.md
-5. **Execute Step 4.5** → Generate DEPENDENCIES-GUIDE.md
-6. **Execute Step 4.6** → Generate LLM-CONTEXT.md
+5. **Execute Step 4.5** → Generate LLM-CONTEXT.md
 
 **For Each Step:**
 - **Perform required context analysis** as specified
@@ -264,7 +229,7 @@ Which option? (1/2/3/4)
 - **Reference other files when needed**
 
 ## Output Requirements
-- All 6 files generated in docs/ folder through 6-step process
+- All 5 files generated in docs/ folder through 5-step process
 - User input properly integrated
 - Context analysis complete for each step
 - Dynamic sections reflect current code state
@@ -274,7 +239,7 @@ Which option? (1/2/3/4)
 - LLM context optimized for AI assistance
 
 ## Content Deduplication Rules
-1. **Configuration**: Only in DEPENDENCIES-GUIDE.md
+1. **Configuration**: Only in DEVELOPER-GUIDE.md
 2. **Architecture**: High-level in PROJECT-OVERVIEW.md, patterns in CODING-STANDARDS.md
 3. **Code Examples**: Only in CODEBASE-REFERENCE.md or LLM-CONTEXT.md
 4. **Setup Instructions**: Only in DEVELOPER-GUIDE.md

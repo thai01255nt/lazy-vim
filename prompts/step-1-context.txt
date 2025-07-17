@@ -7,7 +7,6 @@ Gather all necessary context for development by reading project overview, planni
 **Load these files IF NOT already in context:**
 - **docs/CODING-STANDARDS.md** → For code patterns, conventions, and style guidelines
 - **docs/CODEBASE-REFERENCE.md** → For integration points, existing classes, and services
-- **docs/DEPENDENCIES-GUIDE.md** → For external services, APIs, and environment variables
 
 ## Process
 1. **Use Documentation Context** → Apply tech stack, architecture patterns, constraints from core docs
