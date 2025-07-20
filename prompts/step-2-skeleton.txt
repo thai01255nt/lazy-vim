@@ -21,10 +21,15 @@ Generate complete structural framework with no implementation logic, based on pl
 **None - All required docs loaded by step-1-context**
 
 ## Process
-1. **Load Context** → Use step-1 context or specified planning file
-2. **Design Structure** → Create classes, methods, interfaces based on planning
+1. **Load Context** → Use step-1 context (planning file + tasks file required)
+2. **Interactive Task-by-Task Generation**:
+   - Ask: "Generate skeleton for: [Task Name] - [Class.method()] - [file.path]? (Y/n)"
+   - Generate skeleton using planning context for meaning and tasks for structure
+   - Show code, get user feedback, refine skeleton
+   - Auto-detect changes and ask confirm task updates
+   - "Continue to next task? (Y/n)"
 3. **Apply Patterns** → Follow existing codebase naming and architectural patterns
-4. **Generate Skeletons** → Complete structure with proper typing and documentation
+4. **Save Updates** → Update tasks file with confirmed changes, preserve status
 
 ## Output Requirements
 ### Class Structures
