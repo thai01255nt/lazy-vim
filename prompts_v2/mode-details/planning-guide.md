@@ -8,10 +8,10 @@ Smart brainstorming: unlimited levels, user-controlled depth, individual item fo
 
 ## Process
 1. **Ask task description** → STOP for user response
-2. **Auto suggest filename** → ask user confirm suggested name
-3. **Auto detect existing file** → ask continue + detect current level if found
+2. **Auto-find existing planning files** based on feature context → if found, ask user confirm to continue
+3. **If no existing file found** → Auto suggest new filename → ask user confirm suggested name
 4. **Ask brainstorming needed** → STOP for user response
-5. **Execute smart brainstorming workflow** (resume from detected level if continuing)
+5. **Execute smart brainstorming workflow** (resume from detected level if continuing existing file)
 
 ## Smart Brainstorming Workflow
 
@@ -87,6 +87,42 @@ Satisfied with this analysis? Next item? (Y/n)
 **Triple (+Skeleton)**: Add code structure at any level, sync all files
 
 ## File Management
+
+### Auto-Find Existing Files Process
+**Step 1: Extract keywords from task description**
+```
+User description: "user authentication and session management"
+Keywords: ["user", "authentication", "auth", "session", "login", "register"]
+```
+
+**Step 2: Search existing planning files**
+```
+Search pattern: `.claude/custom/planning/*.md`
+Match against:
+- Filename: feat-user-auth.md, feat-authentication.md, feat-session-mgmt.md
+- File content: Look for keywords in titles and component names
+```
+
+**Step 3: Present matches for continuation**
+```
+🔍 Found existing planning files:
+1. feat-user-authentication.md (95% match) - "User Authentication Planning" 
+   Current progress: Level 2 - LoginService Sub-Components
+2. feat-session-management.md (80% match) - "Session Management Design"
+   Current progress: Level 1 - Components
+
+Continue with existing file? (1/2/new)
+```
+
+**Step 4: Handle selection**
+```
+If user picks existing file:
+- Parse content → detect current deepest level → resume from next level
+- Ask: "Continue from Level X? Or restart from beginning? (continue/restart)"
+
+If user picks "new":
+- Proceed to Auto Filename Suggestion below
+```
 
 ### Auto Filename Suggestion (GitHub Convention)
 **Pattern**: `[type]-[kebab-case-name].md`
