@@ -5,7 +5,7 @@ Convert skeleton code and task specifications into working business logic implem
 
 ## Context Requirements
 **MANDATORY CONTEXT - All Required:**
-- **Planning file**: Auto-find in `docs/planning/[type]-[feature].md` or ask user to specify
+- **Planning file**: Auto-find in `.claude/custom/planning/[type]-[feature].md` or ask user to specify
 - **Tasks file**: Same location as planning file (combined file format)
 - **Skeleton code**: TODO structure and method signatures
 - **All 4 docs**: BUSINESS-CONTEXT.md, ARCHITECTURE.md, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
@@ -236,7 +236,7 @@ After implementation completion, automatically update:
 ```
 
 ## Integration
-- **Context discovery**: Auto-find planning/tasks in `docs/planning/` or ask user
+- **Context discovery**: Auto-find planning/tasks in `.claude/custom/planning/` or ask user
 - **Context docs**: Planning, tasks, skeleton files + all 4 project docs
 - **Auto-updates**: Tasks completion status, planning progress
 - **Error handling**: Follow shared-patterns.md guidelines

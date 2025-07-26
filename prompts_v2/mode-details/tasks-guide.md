@@ -9,11 +9,12 @@ Generate method lists and implementation items from planning context. Focus on a
 
 ## Process
 1. Detect mode variant from keywords
-2. **Auto-find planning file**: Search `docs/planning/` for `[type]-[feature-name].md` matching current project context
-3. Load: CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md + found planning file
-4. Check existing tasks file → Follow Universal Stop Protocol for update choice
-5. Generate/update tasks from planning context
-6. Auto-activate skeleton if dual mode
+2. **Check planning context in chat**: If planning context exists in current conversation → auto-find planning file and ask user confirm
+3. **If no planning context**: Ask user for project description → STOP for user response → auto-find planning file and ask user confirm
+4. Load: CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md + confirmed planning file
+5. Check existing tasks file → Follow Universal Stop Protocol for update choice
+6. Generate/update tasks from planning context
+7. Auto-activate skeleton if dual mode
 
 ## Task Generation
 
@@ -46,9 +47,11 @@ Generate method lists and implementation items from planning context. Focus on a
 ## Mode Behaviors
 
 ### Standalone
-- **Auto-find planning file**: Search `docs/planning/` directory for matching `[type]-[feature].md`
-- **Fallback**: If no planning found, ask user to specify or create new
-- Use all 4 docs + planning context
+- **Smart context detection**: Check if planning context exists in current chat conversation
+- **If context exists**: Auto-find matching planning file in `.claude/custom/planning/` → ask user confirm
+- **If no context**: Ask user for project description → auto-find planning file → ask user confirm
+- **Fallback**: If no planning file found, suggest creating new planning session
+- Use all 4 docs + confirmed planning context
 - Generate tasks based on planning decisions
 - Output: Tasks file only
 
@@ -63,7 +66,7 @@ Generate method lists and implementation items from planning context. Focus on a
 ```markdown
 # [FEATURE_NAME] Tasks
 
-← Planning: `docs/planning/[type]-[feature-name].md`
+← Planning: `.claude/custom/planning/[type]-[feature-name].md`
 
 ## High-Level Implementation
 - [ ] [Major component 1]

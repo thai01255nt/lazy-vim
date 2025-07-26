@@ -1,7 +1,7 @@
 # Planning Mode - Smart Hierarchical Brainstorming
 
 ## Purpose
-Smart brainstorming: unlimited levels, user-controlled depth, individual item focus.
+Smart brainstorming: unlimited levels, user-controlled depth, individual item focus with **trade-off discussions** and **LLM recommendations** for multiple valid approaches.
 
 ## Mode Detection
 - `"planning"` → standalone | `"planning tasks"` → +tasks | `"planning skeleton"` → +tasks+skeleton
@@ -32,9 +32,10 @@ Items: 1.[Item] 2.[Item] 3.[Item]
 Ready to brainstorm each? (Y/n)
 ```
 
-**Step 2: Individual Focus**
+**Step 2: Individual Focus with Discussion**
 - Focus ONE item: "Brainstorming [Item]..."
-- Cover: Requirements, design, interactions, constraints
+- **Discussion Mode**: When multiple approaches exist, present options with trade-offs + **LLM recommendation**
+- **Suggestion Mode**: When clear best practice exists, provide direct guidance
 - Ask: "Satisfied with [Item]? Next item? (Y/n)"
 - Update files after user OK
 
@@ -58,13 +59,25 @@ Go deeper? Which item? ('done' to finish)
 **Level 2**: `1.Login 2.Profiles 3.Permissions` → User picks "Login"  
 **Level 3**: `1.Validation 2.Sessions 3.MFA` → Brainstorm each
 
-**Individual Brainstorming**:
+**Individual Brainstorming with Discussion**:
 ```
 Brainstorming: Login Service
 Requirements: Email validation, token generation, security
-Design: JWT vs sessions, expiry policies, rate limiting
-Integration: Frontend → validate → return token
-Satisfied? Next item? (Y/n)
+
+Discussion: Authentication Strategy
+Option 1: JWT Tokens
+✅ Pros: Stateless, scalable, microservices-friendly
+❌ Cons: Token revocation complex, larger payload
+
+Option 2: Session-based  
+✅ Pros: Easy revocation, smaller requests, server control
+❌ Cons: Stateful, scaling challenges, sticky sessions
+
+💡 My Recommendation: JWT for this case
+Reasoning: Based on requirements mentioning "scalability" and modern architecture trends, JWT provides better long-term flexibility despite revocation complexity.
+
+Which approach do you prefer? Or shall we go with my recommendation?
+Satisfied with this analysis? Next item? (Y/n)
 ```
 
 ## Mode Behaviors
@@ -86,7 +99,7 @@ Satisfied? Next item? (Y/n)
 **Process**: Auto suggest → ask user confirm → proceed
 
 ### Existing File Detection  
-**Check**: `docs/planning/[suggested-name].md` exists?
+**Check**: `.claude/custom/planning/[suggested-name].md` exists?
 **If found**:
 ```
 Found: feat-user-authentication.md
@@ -96,7 +109,7 @@ Continue from Level 2? Or restart? (continue/restart)
 **Auto detect**: Parse content → find deepest level → resume from next
 
 ### File Template
-**Location**: `docs/planning/[type]-[kebab-case].md`
+**Location**: `.claude/custom/planning/[type]-[kebab-case].md`
 **Combined**: Planning + Tasks in same file
 ```markdown
 # User Authentication - Planning
@@ -127,8 +140,37 @@ Continue from Level 2? Or restart? (continue/restart)
 - [ ] validateSession(token) → check validity
 ```
 
+## Discussion Patterns
+
+### When to Use Discussion Mode
+- **Multiple valid approaches** exist without clear best practice
+- **Architecture decisions** with significant trade-offs
+- **Technology choices** depending on context
+- **Design patterns** with different benefits
+
+### Discussion Template with LLM Recommendation
+```
+Component: [Item Name]
+Requirements: [What needs to be solved]
+
+Discussion: [Multiple Approaches Available]
+Option 1: [Approach A]
+✅ Pros: [Benefits]
+❌ Cons: [Drawbacks]
+
+Option 2: [Approach B]  
+✅ Pros: [Benefits]
+❌ Cons: [Drawbacks]
+
+💡 My Recommendation: [Preferred Option]
+Reasoning: [Why this fits better - context, requirements, best practices]
+
+Which approach do you prefer? Or shall we go with my recommendation?
+Satisfied with this analysis? Next item? (Y/n)
+```
+
 ## Integration
 - **Context**: BUSINESS-CONTEXT.md, ARCHITECTURE.md, CODEBASE-MAP.md
 - **Mode switching**: Activate tasks/skeleton mid-conversation  
-- **Updates**: Files update after each item satisfaction
+- **Updates**: Files update after each item satisfaction with chosen approach
 - **Error handling**: Follow shared-patterns.md
