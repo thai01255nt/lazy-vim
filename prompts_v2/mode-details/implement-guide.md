@@ -10,6 +10,23 @@ Convert skeleton code and task specifications into working business logic implem
 - **Skeleton code**: TODO structure and method signatures
 - **All 4 docs**: BUSINESS-CONTEXT.md, ARCHITECTURE.md, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
 
+## Process
+1. **Auto-find context files**: Use same algorithm as tasks mode to find planning/tasks files in `.claude/custom/planning/`
+2. **Load comprehensive context**: All required files + skeleton code structure
+3. **Method discovery**: Use smart method detection to find methods from tasks
+4. **Individual implementation**: Implement ONE method at a time
+5. **Method completion**: Show completed implementation → STOP for user approval
+6. **Ask for next**: "Method completed. Continue to next method? (Y/n)" → STOP and wait
+7. **Repeat cycle**: Continue until all methods implemented or user stops
+
+### Context Discovery Process
+**Use same auto-find algorithm as tasks mode:**
+- Extract keywords from user request or skeleton code
+- Search `.claude/custom/planning/*.md` for matching files
+- Rank by filename and content relevance
+- Present best matches → ask user confirm
+- Load confirmed planning + tasks (combined file) + skeleton + 4 docs
+
 ## Smart Method Detection
 
 ### Multi-Level Search Strategy
