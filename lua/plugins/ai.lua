@@ -14,19 +14,19 @@ local function read_prompt_file(file_path)
   return content
 end
 local IS_DEV = false
-local core_rules = read_prompt_file("/prompts/core-rules.txt")
-local step_project_overview = read_prompt_file("/prompts/step-project-overview.txt")
-local step_planning = read_prompt_file("/prompts/step-planning.txt")
-local step_tasks = read_prompt_file("/prompts/step-tasks.txt")
-
-local step_1_context = read_prompt_file("/prompts/step-1-context.txt")
-local step_2_skeleton = read_prompt_file("/prompts/step-2-skeleton.txt")
-local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
-local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
-local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
+-- local core_rules = read_prompt_file("/prompts/core-rules.txt")
+-- local step_project_overview = read_prompt_file("/prompts/step-project-overview.txt")
+-- local step_planning = read_prompt_file("/prompts/step-planning.txt")
+-- local step_tasks = read_prompt_file("/prompts/step-tasks.txt")
+--
+-- local step_1_context = read_prompt_file("/prompts/step-1-context.txt")
+-- local step_2_skeleton = read_prompt_file("/prompts/step-2-skeleton.txt")
+-- local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
+-- local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
+-- local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
 
 -- local system_prompt = read_prompt_file("/prompts/system-prompt-general.txt")
-local system_prompt = read_prompt_file("/prompts/system-prompt-compact.txt")
+-- local system_prompt = read_prompt_file("/prompts/system-prompt-compact.txt")
 
 return {
   -- {
