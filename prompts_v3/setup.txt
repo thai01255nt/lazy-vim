@@ -1,0 +1,59 @@
+# V3 Setup Instructions - Session Continuity System
+
+## Quick Setup (Recommended)
+
+### Replace V2 System
+```bash
+# Backup current system
+cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE-v2-backup.md
+
+# Install V3 core system
+cp ./prompts_v3/core-rules.md ~/.claude/CLAUDE.md
+
+# Create context directory for session continuity
+mkdir -p ~/.claude/docs
+mkdir -p ~/.claude/archive
+
+# Optional: Install full intelligence
+mkdir -p ~/.claude/commands/mode-details
+cp ./prompts_v3/mode-details/* ~/.claude/commands/mode-details/
+```
+
+### Verify Installation
+```bash
+# Check core system
+ls -la ~/.claude/CLAUDE.md
+
+# Check mode details (optional)  
+ls -la ~/.claude/commands/mode-details/
+
+# Check session directories
+ls -la ~/.claude/docs/
+ls -la ~/.claude/archive/
+```
+
+## V3 New Features
+
+### 🔄 Session Continuity
+- **Auto-discovery**: Scans .claude/docs/ on every chat start
+- **Context recovery**: Resumes exactly where you left off
+- **State tracking**: Maintains progress across sessions
+- **Archive system**: Saves old work when starting fresh
+
+### 🎯 Flexible Modes for Solo Developer
+- **Quick Mode**: Fast minimal planning + skeleton
+- **Detailed Mode**: Comprehensive planning with review points  
+- **Exploratory Mode**: Multiple approaches when unclear
+- **Continue Mode**: Resume any previous work seamlessly
+
+### 📁 Organized Context
+- All project files in `.claude/docs/` for easy discovery
+- Session state tracking in `session-state.json`
+- Automatic archiving to preserve old work
+- Smart dependency loading
+
+## Usage Examples
+
+### First Time Setup
+```
+User: "I want to build a user authentication system"
