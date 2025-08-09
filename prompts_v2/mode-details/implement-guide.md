@@ -1,87 +1,96 @@
 # Implement Mode - Detailed Guide
 
 ## Purpose
-Convert tasks/skeleton into working code. Method-by-method implementation with smart detection.
 
-## Context Requirements
-**MANDATORY:** Planning file + tasks + skeleton + 4 docs (BUSINESS-CONTEXT, ARCHITECTURE, CODEBASE-MAP, PATTERNS-CONVENTIONS)
+Convert tasks/skeleton into working code. Method-by-method implementation with smart detection or quick implement for specific method.
 
 ## Process
-1. **Auto-find planning files** → confirm with user → STOP
-2. **Load context** → planning + tasks + skeleton + 4 docs
-3. **Method discovery** → smart detection from tasks
-4. **Method-by-method cycle:**
-   - Show methods → user picks → STOP
-   - Implement → show code → STOP for approval
-   - "Next method? (Y/n/method-name)" → STOP
-   - Repeat until done
 
-### Context Discovery
-**Auto-find:** Extract keywords → search `.claude/custom/planning/*.md` → rank relevance → confirm with user
+1. Ask for `quick implement` or `mode-follow implement` (USP)
+2. **If quick implement**: follow quick implement execution guide
+3. **If mode-follow implement**: follow mode-flow implement execution guide
 
-**Confirmation Template:**
-```
-🔍 Found: feat-user-auth.md (95% match)
-Methods: createUser(), validateSession(), updateProfile()
-Use this file? (Y/n/other)
-```
+## Shared Execution
+
+### Overview
+
+Shared execution provides a common interface for all implementation types.
+
+### Process Flow
+
+1. **Auto-pattern detection**: using PATTERNS-CONVENTIONS.md, ARCHITECTURE.md, CODEBASE-MAP.md, to understand for similar patterns
+2. **Auto detect priority**: base on context
+3. **Generate component**: start first component base on priority, detect component exists or not
+4. **If component exists**: Implement first method base on priority
+5. **If component not exists**: Generate component then implement method
+6. **Present result**: Show generated code and wait for user confirmation. (USP)
+7. **If user confirm**: repeat process with next priority
+
+## Quick Implement Execution
+
+### Overview
+
+Quick implement provides rapid method implementation for specific functions without full context loading. Best for single method fixes, small utilities, or when you know exactly what to implement.
+
+### Context loading
+
+- No need more context loading
+
+## Mode-Flow Implement Execution
+
+### Context loading
+
+- Check for planning and tasks context
+- If planning context not found: ask user for project description (USP) → auto-find planning file base on section [File manage patterns] of `core-rules` and ask user confirm (USP) → load planning context
+- When planning context confirmed: auto load tasks context with same filename
 
 ## Smart Method Detection
 
 **Multi-Level Search:**
+
 ```
 1. Exact Match → methodName() in class
-2. Fuzzy Match → similar names  
-3. Context Search → from tasks/planning
+2. Fuzzy Match → similar names
+3. Context Search → from tasks/planning (for `mode-flow type`) or from user description (for `quick type`)
 4. Pattern Match → similar functionality
 5. Create New → if not found
 ```
 
-**Method Selection:**
+**Method Order Selection:**
+
+- Auto order priority, list methods by priority. And ask to confirm start implement first method. (USP)
+
 ```
 🎯 Available methods:
 - [ ] createUser() → validation + database save
 - [ ] updateUser() → data sanitization + update
 
-Which method first? (createUser/updateUser)
-```
-
-**Method Confirmation:**
-```
-✅ Selected: createUser()
-📋 Context: validation + database save
-🔄 Dependencies: validateInput(), saveToDatabase()
-Ready to implement? (Y/n)
+Start implement createUser()? (Y/n)
 ```
 
 ## Implementation Cycle
-1. **Show methods** → user picks → STOP
-2. **Confirm method** → show details → STOP for approval  
-3. **Implement** → complete method with quality standards
-4. **Review** → show code → STOP for approval
-5. **Next prompt**: "Method done. Continue? (Y/n/method-name)" → STOP
-6. **Repeat** until done
 
-**Next Method Template:**
-```
-✅ createUser() completed!
-Next: (updateUser/deleteUser/stop)
-```
+1. **Show methods** → wait confirmation (USP)
+2. **Implement** → complete method with quality standards
+3. **Review** → show code → wait for approval (USP)
+4. **Next prompt** (USP): "Method done. Continue? (Y/n/method-name)"
+5. **Repeat** until done
 
 ## Implementation Strategy
 
 **Method Implementation Pattern:**
+
 ```typescript
 async createUser(userData: UserData): Promise<User> {
   // TODO: [UTILITY] validateUserData() - input validation (HIGH priority)
   await this.validateUserData(userData);
-  
+
   // TODO: [SERVICE] checkUserExists() - duplicate prevention (HIGH)
   await this.checkUserExists(userData.email);
-  
+
   // REUSE: Found PasswordHasher.hash() in security service
   const hashedPassword = await this.passwordHasher.hash(userData.password);
-  
+
   // TODO: [REPOSITORY] saveUser() - transactional persistence (MEDIUM)
   const savedUser = await this.userRepository.saveUser({
     id: this.generateUserId(), // REUSE: ID generation pattern
@@ -89,58 +98,25 @@ async createUser(userData: UserData): Promise<User> {
     password: hashedPassword,
     createdAt: new Date()
   });
-  
+
   // TODO: [INTEGRATION] sendWelcomeEmail() - async notification (LOW)
   await this.emailService.sendWelcomeEmail(savedUser.email);
-  
+
   return this.sanitizeUserForResponse(savedUser); // REUSE: sanitization pattern
-}
-```
-
-## Quality Standards
-
-**Implementation includes:**
-- **Structure**: Input validation → business rules → processing → persistence → response
-- **Error handling**: Try-catch with specific error types and logging
-- **Security**: Input sanitization, rate limiting, audit logging
-- **Performance**: Monitoring, async patterns, resource cleanup
-- **Documentation**: Method docs, TODO priorities, dependency notes
-
-**Code Pattern:**
-```typescript
-async methodName(input: Type): Promise<ReturnType> {
-  try {
-    // TODO: Input validation (HIGH)
-    // TODO: Business rules (HIGH) 
-    // REUSE: Found existing patterns
-    // TODO: Persistence (MEDIUM)
-    // TODO: Side effects (LOW)
-    return result;
-  } catch (error) {
-    this.logger.error('Operation failed', { operation: 'methodName', error });
-    throw new AppropriateError('Descriptive message');
-  }
 }
 ```
 
 ## Auto-Status Updates
 
 **Tasks File Updates:**
+
 ```markdown
 - [x] createUser() → COMPLETED
   - Quality: 95/100, Dependencies: PasswordHasher, EmailService
   - TODO methods: validateUserData(), checkUserExists(), sendWelcomeEmail()
 ```
 
-**Planning File Updates:**
-```markdown
-## Implementation Progress
-- UserService: 🟢 Complete (3/3 methods)
-- Quality: 94/100 average, Performance: <100ms
-- Next: AuthController
-```
-
 ## Integration
-- **Context**: Auto-find planning/tasks + 4 docs (BUSINESS-CONTEXT, ARCHITECTURE, CODEBASE-MAP, PATTERNS-CONVENTIONS)
-- **Updates**: Auto-update task status and planning progress
-- **Error handling**: Follow shared-patterns.md
+
+- **Context**: 4 docs (BUSINESS-CONTEXT, ARCHITECTURE, CODEBASE-MAP, PATTERNS-CONVENTIONS), planning file and tasks file (for `mode-flow type`)
+- **Updates**: Auto-update task status

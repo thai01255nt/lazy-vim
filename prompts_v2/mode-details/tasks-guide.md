@@ -2,24 +2,26 @@
 
 ## Purpose
 
-Generate method lists and implementation items from planning context. Focus on actionable implementation breakdown.
-
-## Mode Detection
-
-- `"tasks"` → standalone (auto-load planning context)
-- `"tasks skeleton"` → dual (tasks + skeleton)
+Generate method lists and implementation items from planning context (planning file content). Focus on actionable implementation breakdown. (tasks file)
 
 ## Process
 
-1. Detect mode variant from keywords
-2. **Check planning context in chat**: If planning context exists in current conversation → auto-find planning file and ask user confirm
-3. **If no planning context**: Ask user for project description → STOP for user response → auto-find planning file and ask user confirm
+1. **Check planning context in chat**: If planning context exists in current conversation → show planning filename and ask user confirm (USP)
+2. **If no planning context**: Ask user for project description (USP) → auto-find planning file and ask user confirm (USP)
+3. **If no planning file**: stop require user planning first (USP)
 4. Load: CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md + confirmed planning file
-5. Check existing tasks file → Follow Universal Stop Protocol for update choice
+5. **Check existing tasks file**: find existing tasks file with same name with planning filename
+   - If found: ask user confirm (USP)
+   - If not found: ask create new file with same name (USP)
 6. Generate/update tasks from planning context
-7. Auto-activate skeleton if dual mode
 
 ## Task Generation
+
+### step-by-step process
+
+1. Context extraction
+2. Breakdown levels
+3. At each level and each item, wait for user confirmation (USP)
 
 ### Context Extraction
 
@@ -51,26 +53,6 @@ Generate method lists and implementation items from planning context. Focus on a
 - [ ] deleteUser() → soft delete logic
 - [ ] findById() → user retrieval with error handling
 ```
-
-## Mode Behaviors
-
-### Standalone
-
-- **Smart context detection**: Check if planning context exists in current chat conversation
-- **If context exists**: Auto-find matching planning file in `.claude/custom/planning/` → ask user confirm
-- **If no context**: Ask user for project description → auto-find planning file → ask user confirm
-- **Fallback**: If no planning file found, suggest creating new planning session
-- Use all 4 docs + confirmed planning context
-- Generate tasks based on planning decisions
-- Output: Tasks file only
-
-### Dual (+ Skeleton)
-
-- Inherit from current session or load fresh
-- Real-time skeleton generation as tasks defined
-- Skeleton generation → update task references
-- Tasks ↔ Skeleton bidirectional sync
-- Output: Tasks + skeleton code files
 
 ## Document Template
 
@@ -107,8 +89,6 @@ Generate method lists and implementation items from planning context. Focus on a
 
 ## Integration
 
-- **Context docs**: Planning file, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
+- **Docs Context**: Planning file, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
 - **Auto-update**: Preserve task status, add new tasks, real-time sync
 - **File management**: Mirror planning filename, incremental updates
-- **Error handling**: Follow shared-patterns.md guidelines
-
