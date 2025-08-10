@@ -93,7 +93,7 @@ Satisfied with this analysis? Next item? (Y/n)
 **Step 2: Search existing planning files**
 
 ```
-Search pattern: `.claude/custom/planning/*.md`
+Search pattern: `${WORKSPACE_FOLDER}/.claude/custom/planning/*.md`
 Match against:
 - Filename: feat-user-auth.md, feat-authentication.md, feat-session-mgmt.md
 - File content: Look for keywords in titles and component names
@@ -124,26 +124,51 @@ If user picks "new":
 
 ### File Template
 
-**Location**: `.claude/custom/planning/[type]-[feature-name].md`
+**Location**: `${WORKSPACE_FOLDER}.claude/custom/planning/[type]-[feature-name].md`
 
 ```markdown
-# User Authentication - Planning
+# {Mission Name} - Planning
 
 ## Level 1 - Components
 
-1. UserAuth → authentication/sessions
-2. TokenManager → session handling
+1. Missing Data Handler → ffill, bfill, interpolation, imputation strategies
+2. Normalization Engine → standardization, min-max scaling, robust scaling
 
-## Level 2 - UserAuth Sub-Components
+## Level 1 Component Details
 
-1. LoginService → credential validation
-2. SessionManager → token lifecycle
+### Missing Data Handler (Level 1 Item)
 
-### LoginService (Level 2 Item)
+**Problem**: Xử lý missing values trong financial time series data
+{add more details if needed}
 
-**Problem**: Secure user authentication
-**Requirements**: Email validation, token generation
-**Design**: JWT vs sessions, expiry policies
+### Level 2 - Missing Data Handler Sub-Components
+
+1. Data Characteristics Analyzer → phân tích pattern, distribution, seasonality của datafield
+2. Gap Pattern Detector → detect missing data patterns, gap sizes, frequencies
+
+#### Level 2 Component Details
+
+##### Data Characteristics Analyzer (Level 2 Item)
+
+**Problem**: Phân tích đặc tính của datafield để quyết định strategy fill missing data tối ưu
+{add more details if needed}
+
+##### Gap Pattern Detector (Level 2 Item)
+
+**Problem**: Phân tích patterns của missing data để hiểu root cause và chọn appropriate fill strategy
+{add more details if needed}
+
+## Level 1 Component Details (Continued)
+
+### Normalization Engine (Level 1 Item)
+
+**Problem**: Chuẩn hóa data để đảm bảo signals có scale tương đương và comparable
+{add more details if needed}
+
+### Other Components (Not Yet Brainstormed)
+
+**5. Data Smoother** → moving averages, exponential smoothing, noise reduction
+{add more details if needed}
 ```
 
 ## Integration

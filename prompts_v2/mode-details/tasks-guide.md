@@ -59,7 +59,7 @@ Generate method lists and implementation items from planning context (planning f
 ```markdown
 # [FEATURE_NAME] Tasks
 
-← Planning: `.claude/custom/planning/[type]-[feature-name].md`
+← Planning: `${WORKSPACE_FOLDER}/.claude/custom/planning/[type]-[feature-name].md`
 
 ## High-Level Implementation
 

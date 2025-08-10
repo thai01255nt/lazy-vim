@@ -123,9 +123,9 @@ standalone-implement → quick method fixes
 
 ### Structure context
 
-- .claude/custom/docs/ (docs context): BUSINESS-CONTEXT.md, ARCHITECTURE.md, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
-- .claude/custom/planning(planning context): [type]-[feature-name].md
-- .claude/custom/tasks(tasks context): [type]-[feature-name].md
+- ${WORKSPACE_FOLDER}/.claude/custom/docs/ (docs context): BUSINESS-CONTEXT.md, ARCHITECTURE.md, CODEBASE-MAP.md, PATTERNS-CONVENTIONS.md
+- ${WORKSPACE_FOLDER}/.claude/custom/planning(planning context): [type]-[feature-name].md
+- ${WORKSPACE_FOLDER}/.claude/custom/tasks(tasks context): [type]-[feature-name].md
 
 ### Session-Aware
 
@@ -136,4 +136,3 @@ standalone-implement → quick method fixes
 - Check existing files → (USP) to confirm selected file
 - Preserve manual sections, update auto-generated
 - About planning, tasks, skeleton, implement mode: Auto-suggest planning filename based on mission description and git convention, `[type]-[mission-name].md`. There `[type]` is different type git `docs`, `feat`, `refactor`, `fix`, `text`, ..., `[mission-name]` is name of planning filename base on mission description user provided.
-
