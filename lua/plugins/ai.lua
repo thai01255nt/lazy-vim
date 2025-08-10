@@ -6,27 +6,20 @@ local function read_prompt_file(file_path)
   end
   local file = io.open(file_path, "r")
   if not file then
-    vim.notify("Could not open prompt.txt file", vim.log.levels.ERROR)
+    vim.notify("Could not open " .. file_path .. " file", vim.log.levels.ERROR)
     return nil
   end
   local content = file:read("*a")
   file:close()
   return content
 end
-local IS_DEV = false
--- local core_rules = read_prompt_file("/prompts/core-rules.txt")
--- local step_project_overview = read_prompt_file("/prompts/step-project-overview.txt")
--- local step_planning = read_prompt_file("/prompts/step-planning.txt")
--- local step_tasks = read_prompt_file("/prompts/step-tasks.txt")
---
--- local step_1_context = read_prompt_file("/prompts/step-1-context.txt")
--- local step_2_skeleton = read_prompt_file("/prompts/step-2-skeleton.txt")
--- local step_3_review = read_prompt_file("/prompts/step-3-review.txt")
--- local step_4_enhance = read_prompt_file("/prompts/step-4-enhance.txt")
--- local step_5_implement = read_prompt_file("/prompts/step-5-implement.txt")
+local core_rules = read_prompt_file("/prompts_v2/core-rules.md")
 
--- local system_prompt = read_prompt_file("/prompts/system-prompt-general.txt")
--- local system_prompt = read_prompt_file("/prompts/system-prompt-compact.txt")
+local project_overview_mode = read_prompt_file("/prompts_v2/mode-details/project-overview-guide.md")
+local planning_mode = read_prompt_file("/prompts_v2/mode-details/planning-guide.md")
+local tasks_mode = read_prompt_file("/prompts_v2/mode-details/tasks-guide.md")
+local skeleton_mode = read_prompt_file("/prompts_v2/mode-details/skeleton-guide.md")
+local implement_mode = read_prompt_file("/prompts_v2/mode-details/implement-guide.md")
 
 return {
   -- {
@@ -36,14 +29,9 @@ return {
   --   version = false,
   --   opts = {
   --     provider = "copilot",
-  --     system_prompt = CODING_WORKFLOW_PROMPT,
   --     providers = {
   --       copilot = {
-  --         model = "gpt-4.1",
-  --         -- model = "claude-sonnet-4",
-  --         -- model = "claude-3.7-sonnet",
-  --         -- model = "grok-3",
-  --         -- model = "gemini-2.5-pro",
+  --         model = "gpt-5",
   --       },
   --     },
   --     behavior = {
@@ -436,8 +424,9 @@ return {
             return require("codecompanion.adapters").extend("copilot", {
               schema = {
                 model = {
+                  default = "gpt-5",
                   -- default = "gpt-4.1",
-                  default = "claude-sonnet-4",
+                  -- default = "claude-sonnet-4",
                 },
               },
             })
@@ -456,81 +445,48 @@ return {
         },
         auto_scoll = false,
         prompt_library = {
-          ["step-planning"] = {
+          ["planning-mode"] = {
             strategy = "chat",
-            description = "step-planning",
+            description = "planning-mode",
             opts = {
-              short_name = "step-planning",
+              short_name = "planning-mode",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "system", content = step_planning, opts = { visible = false } },
+              { role = "system", content = planning_mode, opts = { visible = false } },
             },
           },
-          ["step-tasks"] = {
+          ["tasks-mode"] = {
             strategy = "chat",
-            description = "step-tasks",
+            description = "tasks-mode",
             opts = {
-              short_name = "step-tasks",
+              short_name = "tasks-mode",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "system", content = step_tasks, opts = { visible = false } },
+              { role = "system", content = tasks_mode, opts = { visible = false } },
             },
           },
-          ["step-1-context"] = {
+          ["skeleton-mode"] = {
             strategy = "chat",
-            description = "step-1-context",
+            description = "skeleton-mode",
             opts = {
-              short_name = "step-1-context",
+              short_name = "skeleton-mode",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "system", content = step_1_context, opts = { visible = false } },
+              { role = "system", content = skeleton_mode, opts = { visible = false } },
             },
           },
-          ["step-2-skeleton"] = {
+          ["implement-mode"] = {
             strategy = "chat",
-            description = "step-2-skeleton",
+            description = "implement-mode",
             opts = {
-              short_name = "step-2-skeleton",
+              short_name = "implement-mode",
               is_slash_cmd = true,
             },
             prompts = {
-              { role = "system", content = step_2_skeleton, opts = { visible = false } },
-            },
-          },
-          ["step-3-review"] = {
-            strategy = "chat",
-            description = "step-3-review",
-            opts = {
-              short_name = "step-3-review",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = step_3_review, opts = { visible = false } },
-            },
-          },
-          ["step-4-enhance"] = {
-            strategy = "chat",
-            description = "step-4-enhance",
-            opts = {
-              short_name = "step-4-enhance",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = step_4_enhance, opts = { visible = false } },
-            },
-          },
-          ["step-5-implement"] = {
-            strategy = "chat",
-            description = "step-5-implement",
-            opts = {
-              short_name = "step-5-implement",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = step_5_implement, opts = { visible = false } },
+              { role = "system", content = implement_mode, opts = { visible = false } },
             },
           },
           ["core-rules"] = {
@@ -543,7 +499,7 @@ return {
             prompts = {
               {
                 role = "system",
-                content = system_prompt,
+                content = core_rules,
                 opts = {
                   visible = false,
                 },
@@ -561,25 +517,17 @@ return {
               },
             },
           },
-          ["step-project-overview"] = {
+          ["project-overview-mode"] = {
             strategy = "chat",
-            description = "step-project-overview",
+            description = "project-overview-mode",
             opts = {
-              short_name = "step-project-overview",
+              short_name = "project-overview-mode",
               is_slash_cmd = true,
-            },
-            references = {
-              {
-                type = "file",
-                path = {
-                  vim.fn.stdpath("config") .. "/prompts/PROJECT-DOCS-TEMPLATES.md",
-                },
-              },
             },
             prompts = {
               {
                 role = "sytem",
-                content = step_project_overview,
+                content = project_overview_mode,
                 opts = { visible = false },
               },
             },
