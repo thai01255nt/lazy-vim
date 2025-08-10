@@ -1,76 +1,11 @@
-# Optimized Prompt System Setup for Claude Code
-
-## Minimal Setup (1,330 tokens - Recommended)
-```bash
-mkdir -p ~/.claude
-cp ./prompts_v2/core-rules.md ~/.claude/CLAUDE.md
-```
-
-**Result**: Complete system functionality in single file
-- Request detection and mode matrix
-- Universal Stop Protocol
-- Quality standards and security
-- Stop protocol for missing guides
-
-## Full Intelligence Setup (11,580 tokens - Optional)
-```bash
 # Core system
 mkdir -p ~/.claude
 cp ./prompts_v2/core-rules.md ~/.claude/CLAUDE.md
 
 # On-demand guides (load when needed)
 mkdir -p ~/.claude/commands/mode-details
-cp ./prompts_v2/mode-details/shared-patterns.md ~/.claude/commands/mode-details/
 cp ./prompts_v2/mode-details/planning-guide.md ~/.claude/commands/mode-details/
 cp ./prompts_v2/mode-details/tasks-guide.md ~/.claude/commands/mode-details/
 cp ./prompts_v2/mode-details/implement-guide.md ~/.claude/commands/mode-details/
-cp ./prompts_v2/mode-details/standalone-implement-guide.md ~/.claude/commands/mode-details/
 cp ./prompts_v2/mode-details/project-overview-guide.md ~/.claude/commands/mode-details/
 cp ./prompts_v2/mode-details/skeleton-guide.md ~/.claude/commands/mode-details/
-cp ./prompts_v2/mode-details/benefit-messages.md ~/.claude/commands/mode-details/
-```
-
-**Result**: Full advanced intelligence for complex projects
-
-## Usage
-
-### Basic Usage (Minimal Setup)
-1. System detects request type and mode automatically
-2. For basic requests: Works immediately with core intelligence
-3. For advanced requests: System asks user to load specific guide
-4. User loads guide manually when prompted
-
-### Advanced Usage (Full Setup)
-1. All guides available on-demand
-2. LLM loads specific guides automatically when needed
-3. Progressive complexity based on task requirements
-4. No manual intervention required
-
-## File Structure After Setup
-
-### Minimal (1 file)
-```
-~/.claude/
-└── CLAUDE.md (997 words ≈ 1,330 tokens)
-```
-
-### Full (9 files)
-```
-~/.claude/
-├── CLAUDE.md (997 words ≈ 1,330 tokens)
-└── commands/mode-details/
-    ├── shared-patterns.md (203 words ≈ 270 tokens)
-    ├── planning-guide.md (691 words ≈ 920 tokens)
-    ├── tasks-guide.md (390 words ≈ 520 tokens)
-    ├── implement-guide.md (952 words ≈ 1,270 tokens)
-    ├── standalone-implement-guide.md (968 words ≈ 1,290 tokens)
-    ├── project-overview-guide.md (534 words ≈ 710 tokens)
-    ├── skeleton-guide.md (703 words ≈ 940 tokens)
-    └── benefit-messages.md (376 words ≈ 500 tokens)
-```
-
-## Optimization Summary
-- **10.8% token reduction** while preserving 100% functionality
-- **Template redundancy removed** (763 words saved)
-- **Patterns consolidated** (288 words saved)
-- **Setup simplified** from 3 required files to 1 file
