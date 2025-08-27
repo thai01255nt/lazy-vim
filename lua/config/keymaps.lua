@@ -66,6 +66,8 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     local currentPath = vim.fn.expand("%:p")
     if currentPath:match(".*postgres.*") then
       vim.cmd("%!sql-formatter % --language postgresql")
+    elseif currentPath:match(".*sqlserver.*") then
+      vim.cmd("%!sql-formatter % --language tsql")
     else
       vim.cmd("%!sql-formatter %")
     end
