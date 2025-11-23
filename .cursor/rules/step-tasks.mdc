@@ -1,0 +1,71 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Step: Tasks Generation
+
+## Purpose
+Group tasks by big problems from planning file, get user confirmation for each group, save simplest task file.
+
+## MANDATORY Process
+1. Extract feature context from user request
+2. Check existing files in `.claude/custom/planning/` and `.claude/custom/tasks/`
+3. If planning file found, ask "Found `existing-file.md`, use this planning file? (Y/n):"
+4. If planning file not found, ask user to create planning file first
+5. **If task file exists**: Ask "Task file exists. Working mode: (1) Review current/next tasks (2) Regenerate tasks? Choose 1 or 2:"
+6. **If mode 1**: Load task file and help with current/next task questions
+7. **If mode 2**: Load planning file, group tasks, ask confirmations, save updated task file
+8. **If no task file**: Load planning file, group tasks, ask confirmations, save new task file
+
+## Task Grouping Rules
+- **Planning file reference**: Use planning file as initial reference for grouping
+- **Creative regrouping**: Change grouping if needed based on problem complexity or logic
+- **Implementation order**: Order big problems and tasks by logical implementation sequence
+- **ALIGN TARGETS**: Match class names, method names, file paths to actual current codebase
+- **Write tasks without skeleton**: If skeleton code or implementation doesn't exist, create tasks anyway
+
+## ⚠️ MANDATORY CONFIRMATION PROCESS ⚠️
+- **STOP AND ASK**: For each big problem group, show task list and ask "Confirm tasks for [Problem Name]? (Y/n)"
+- **🛑 ABSOLUTE STOP**: NEVER proceed to next group until user confirms current group
+- **WAIT FOR RESPONSE**: User must type Y/n before continuing
+- **ONE GROUP AT A TIME**: Present only one group, wait for confirmation, then present next group
+- **NO BATCH PROCESSING**: Do not show all groups at once
+
+## Task Status System
+- `[ ]` TODO → `[⏳]` IN PROGRESS → `[x]` COMPLETED
+- `[⏸️]` BLOCKED → `[❌]` CANCELLED
+
+## Step-by-Step Confirmation Flow
+1. **Present Group 1**: Show first big problem and its tasks
+2. **Ask Confirmation**: "Confirm tasks for [Problem Name]? (Y/n)"
+3. **Wait for Y/n**: Do not continue until user responds
+4. **If Y**: Move to Group 2, repeat process
+5. **If n**: Ask user to specify changes needed
+6. **Repeat**: Continue until all groups confirmed
+7. **Only then**: Save the task file
+
+## Template Format
+```markdown
+# [FEATURE_NAME]
+
+## 1. [Big Problem Name]
+1. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+3. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+
+## 2. [Another Big Problem Name]
+1. `[⏳]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[ ]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+
+## 3. [Third Big Problem Name]
+1. `[x]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+2. `[⏸️]` Task name - `ClassName.methodName()` - `src/path/file.ts`
+3. `[]` Task name
+```
+
+## File Naming Rules
+1. **ALWAYS** use same filename as planning file
+2. **MUST** ask confirmation before saving
+3. **NEVER** proceed without explicit filename confirmation
+4. **ONLY** save to `.claude/custom/tasks/[confirmed-name].md`

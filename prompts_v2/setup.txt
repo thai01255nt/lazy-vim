@@ -1,0 +1,11 @@
+# Core system
+mkdir -p ~/.claude
+cp ./prompts_v2/core-rules.md ~/.claude/CLAUDE.md
+
+# On-demand guides (load when needed)
+mkdir -p ~/.claude/commands/mode-details
+cp ./prompts_v2/mode-details/planning-guide.md ~/.claude/commands/mode-details/
+cp ./prompts_v2/mode-details/tasks-guide.md ~/.claude/commands/mode-details/
+cp ./prompts_v2/mode-details/implement-guide.md ~/.claude/commands/mode-details/
+cp ./prompts_v2/mode-details/project-overview-guide.md ~/.claude/commands/mode-details/
+cp ./prompts_v2/mode-details/skeleton-guide.md ~/.claude/commands/mode-details/

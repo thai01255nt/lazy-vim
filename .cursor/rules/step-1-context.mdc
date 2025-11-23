@@ -1,0 +1,66 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Step 1: Context Analysis
+
+## Purpose
+Gather all necessary context for development by reading project overview, planning file, and scanning codebase patterns.
+
+## Process
+1. **Use PROJECT-OVERVIEW Context** → Apply tech stack, architecture patterns, constraints from PROJECT-OVERVIEW.md
+2. **Extract Feature Context** → Analyze user's feature request to determine feature type and name
+3. **Auto-Suggest Planning File** → Generate filename following git branch naming: `[type]-[feature-name].md`
+4. **Scan for Planning File** → Check `.claude/custom/planning/` for the suggested file
+5. **MANDATORY CONFIRMATION** → Force stop and ask confirmation if planning file found
+6. **Auto-Find Tasks File** → Check `.claude/custom/tasks/` for corresponding tasks file
+7. **Analyze Integration Points** → Understand how new code will connect to existing system using PROJECT-OVERVIEW context
+
+## Planning File Detection & Confirmation
+1. **Extract feature context** from user request
+2. **Auto-suggest planning filename** following git branch naming: `[type]-[feature-name].md`
+3. **Scan `.claude/custom/planning/`** for the suggested file
+4. **If found**: 🛑 **STOP** - Ask confirmation "Found `feat-user-auth.md`, use this planning file? (Y/n)"
+5. **WAIT** for user response before proceeding
+6. **If confirmed**: Load planning file and continue
+7. **If not found**: 🛑 **STOP** - Ask user to create planning file first: "Planning file not found. Please run planning step first for this feature."
+
+## Tasks File Detection
+- Check `.claude/custom/tasks/` for file with same name as planning file
+- **If found**: Auto-load tasks file: "Found corresponding tasks file `user-authentication.md`"
+- **If missing**: Stop and request manual step execution: "⚠️ No tasks file found. Please run step-tasks first to generate tasks breakdown, then rerun step-1-context."
+
+## Context Analysis Output
+### Project Context
+- Tech stack and frameworks in use
+- Architecture patterns (layered, microservices, etc.)
+- Code organization and naming conventions
+- Testing approach and patterns
+
+### Planning Context  
+- Feature requirements and scope
+- Chosen architecture approach
+- Components to be implemented
+- Integration points and dependencies
+
+### Tasks Context (if available)
+- Current task breakdown and priorities
+- Completed vs remaining work
+- Task dependencies and milestones
+- Implementation progress status
+
+### Codebase Patterns
+- Similar existing implementations
+- Naming conventions used
+- Error handling patterns
+- Logging and monitoring patterns
+- Configuration patterns
+
+## Session Context Storage
+Store context for use by subsequent steps in this chat session:
+- Project tech stack and patterns
+- Planning file path and contents
+- Tasks file path and contents (if available)
+- Identified codebase patterns
+- Integration requirements

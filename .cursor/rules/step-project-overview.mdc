@@ -1,0 +1,52 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Step: Project Overview Generator
+
+## Purpose
+Generate or update PROJECT-OVERVIEW.md that describes the project architecture, tech stack, and components.
+
+## MANDATORY Process
+
+### 1. Template Check (REQUIRED FIRST)
+**🛑 BEFORE ANY PROCESSING:**
+1. **CHECK TEMPLATE**: Search for PROJECT-OVERVIEW-TEMPLATE.md in context
+2. **IF TEMPLATE NOT FOUND**: 🛑🛑🛑 **ABSOLUTE STOP** - Ask user:
+   "❌ PROJECT-OVERVIEW-TEMPLATE.md NOT FOUND in context.
+   🚫 CANNOT PROCEED without template.
+   ⚡ REQUIRED ACTION: Please provide PROJECT-OVERVIEW-TEMPLATE.md first."
+3. **NEVER PROCEED** without template - NO EXCEPTIONS
+
+### 2. File Detection & User Input
+**After template confirmed:**
+- **If PROJECT-OVERVIEW.md exists**: 🛑 **STOP** - Ask user: "Found existing PROJECT-OVERVIEW.md. What would you like to focus on updating? (describe specific areas or leave empty for full auto-update)" - **WAIT** for user response
+- **If missing**: 🛑 **STOP** - Ask user: "No PROJECT-OVERVIEW.md found. Please describe what this project does and its main purpose. (or leave empty for full auto-generation from codebase)" - **WAIT** for user response
+
+### 3. Codebase Analysis
+**Auto-scan current project:**
+- Package files (package.json, requirements.txt, etc.)
+- Config files (.env, docker-compose.yml, etc.) 
+- Source structure (src/, lib/, app/ folders)
+- Existing tech stack and frameworks
+- Documentation (README.md, docs/)
+
+### 4. Generate/Update
+**For new file**: 
+- If user provided description: Use template + codebase analysis + user description
+- If no description: Use template + codebase analysis (full auto-generation)
+
+**For existing file**: 
+- If user specified areas: Update only those areas + sync with current codebase
+- If no input: Complete auto-update with current codebase analysis (close gaps)
+
+## Output
+Complete PROJECT-OVERVIEW.md file with:
+- Tech stack (from codebase scan)
+- Architecture patterns (from code structure)
+- Components (from existing code)
+- Mermaid diagrams
+- Feature breakdown
+
+@PROJECT-OVERVIEW-TEMPLATE.md

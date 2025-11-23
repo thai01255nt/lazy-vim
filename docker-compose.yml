@@ -1,0 +1,19 @@
+services:
+  chromadb:
+    image: chromadb/chroma
+    ports:
+      - "59623:8000"
+    environment:
+      - ALLOW_RESET=true
+    restart: unless-stopped
+
+  # vectorcode-mcp:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.vectorcode
+  #   volumes:
+  #     - ~/Developments:/root/Developments
+  #   environment:
+  #     - VECTORCODE_LOG_LEVEL=INFO
+  #   command: sleep infinity
+  #   # command: vectorcode-mcp-server --host 0.0.0.0 --port 8101 --db-url http://chromadb:8100

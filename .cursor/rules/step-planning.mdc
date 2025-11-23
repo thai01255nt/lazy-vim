@@ -1,0 +1,44 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Step: Planning & Brainstorming
+
+## Purpose
+Auto-list what needs to be solved, discuss solutions, save confirmed decisions. For simple features, just describe context for task generation.
+
+## MANDATORY Process
+1. Extract feature context from user request
+2. Check existing files in `.claude/custom/planning/`
+3. If found, ask "Found `existing-file.md`, continue from this? (Y/n):"
+4. **Ask brainstorm mode**: "This feature needs brainstorming? (Y/n):"
+5. **If brainstorming**: Auto-generate problem list, wait for user review, go through items ONE BY ONE, discuss solutions
+6. **If no brainstorming**: Just describe feature context for task generation
+7. Save using template format with filename confirmation
+
+## Template Format
+**For brainstorming mode:**
+```markdown
+# [FEATURE_NAME]
+
+## [Problem 1]
+[Solution after discussion]
+
+## [Problem 2]  
+[Solution after discussion]
+```
+
+**For simple context mode:**
+```markdown
+# [FEATURE_NAME]
+
+## Context
+[Brief description of what needs to be implemented for task generation]
+```
+
+## File Naming Rules
+1. **ALWAYS** auto-suggest: `[type]-[feature-name].md` (feat, bugfix, refactor, etc.)
+2. **MUST** ask confirmation: "Save planning as `filename.md`? (Y/n) or enter different name:"
+3. **NEVER** proceed without explicit filename confirmation
+4. **ONLY** save to `.claude/custom/planning/[confirmed-name].md` after confirmation
