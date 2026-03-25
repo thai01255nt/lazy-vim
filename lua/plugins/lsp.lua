@@ -65,4 +65,5 @@ return {
   { import = "plugins.extras.lang.python" },
   { import = "plugins.extras.lang.golang" },
   { import = "plugins.extras.lang.typescript" },
+  { import = "plugins.extras.lang.java" },
 }
