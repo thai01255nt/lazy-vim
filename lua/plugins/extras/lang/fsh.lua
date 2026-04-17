@@ -59,7 +59,7 @@ local FSH_SETTINGS = {
     format = {
       indentSize = 2,
       maxLineLength = 120,
-      alignCaretPaths = false,
+      alignCaretPaths = true,
     },
     diagnostics = {
       maxProblems = 100,
@@ -165,6 +165,84 @@ end
 -- Message is "Unknown parent profile: Claim" or "Unknown parent profile: Claim (in Profile: Foo)".
 -- Capture up to first space or end, then strip trailing punctuation.
 local UNKNOWN_PARENT_PATTERN = "^Unknown parent %w+:%s+([%w%-_]+)"
+
+-- -----------------------------------------------------------------------------
+-- Snippet body normalizer
+-- -----------------------------------------------------------------------------
+--
+-- friendly-snippets ships an fsh.json with nested regex transforms
+-- (`${3:${1/(...)/${2:/downcase}.../g}}`) that Neovim's built-in vim.snippet
+-- parser rejects. vim-vsnip / cmp-vsnip scan the runtime path independently
+-- of our nvim-snippets registry override, so those bodies still reach
+-- vim.snippet.expand. We strip the transforms with a brace-balanced walk
+-- before delegating to the original expand.
+
+local function strip_snippet_transforms(body)
+  if type(body) ~= "string" or not body:find("%${%d+/", 1) then
+    return body
+  end
+  local out = {}
+  local i = 1
+  while i <= #body do
+    local start, finish, num = body:find("^%${(%d+)/", i)
+    if not start then
+      out[#out + 1] = body:sub(i, i)
+      i = i + 1
+    else
+      -- Skip past `${N/` and walk until we find the matching closing `}`
+      -- at the outermost level. `{` opens nesting, `}` closes it. We start
+      -- at depth 1 because we've already consumed the outer `${`.
+      local depth, j = 1, finish + 1
+      while j <= #body and depth > 0 do
+        local c = body:sub(j, j)
+        if c == "{" then
+          depth = depth + 1
+        elseif c == "}" then
+          depth = depth - 1
+          if depth == 0 then
+            break
+          end
+        end
+        j = j + 1
+      end
+      if depth == 0 then
+        out[#out + 1] = "${" .. num .. "}"
+        i = j + 1
+      else
+        -- Unbalanced — emit the raw text and bail out.
+        out[#out + 1] = body:sub(start)
+        i = #body + 1
+      end
+    end
+  end
+  return table.concat(out)
+end
+
+local function install_snippet_shim()
+  if vim.g._fsh_snippet_shim_installed then
+    return
+  end
+  vim.g._fsh_snippet_shim_installed = true
+  if not (vim.snippet and vim.snippet.expand) then
+    return
+  end
+  local orig = vim.snippet.expand
+  vim.snippet.expand = function(body)
+    local ok, err = pcall(orig, body)
+    if ok then
+      return
+    end
+    local fixed = strip_snippet_transforms(body)
+    if fixed ~= body then
+      local ok2 = pcall(orig, fixed)
+      if ok2 then
+        return
+      end
+    end
+    -- Re-raise original error if we couldn't fix it.
+    error(err, 0)
+  end
+end
 
 local function install_diagnostic_filter()
   if vim.g._fsh_diag_filter_installed then
@@ -369,6 +447,7 @@ return {
         init_options = FSH_SETTINGS,
         on_attach = function(client, bufnr)
           install_diagnostic_filter()
+          install_snippet_shim()
           local ok, mod = pcall(require, "plugins.extras.lang.on_attach")
           if ok and mod and mod.on_attach then
             mod.on_attach(client, bufnr)
@@ -379,14 +458,29 @@ return {
   },
 
   -- Teach nvim-snippets where to find our VSCode-format FSH snippets.
+  -- LazyVim enables `friendly_snippets = true`, which ships an fsh.json that
+  -- relies on nested regex transforms (`${3:${1/.../.../g}}`) the built-in
+  -- vim.snippet parser rejects. Override the registry entry so only ours
+  -- is used for the `fsh` filetype.
   {
     "garymjr/nvim-snippets",
     optional = true,
     opts = function(_, opts)
       opts = opts or {}
       opts.search_paths = opts.search_paths or {}
-      table.insert(opts.search_paths, vim.fn.stdpath("config") .. "/snippets")
+      local local_path = vim.fn.stdpath("config") .. "/snippets"
+      if not vim.tbl_contains(opts.search_paths, local_path) then
+        table.insert(opts.search_paths, local_path)
+      end
       return opts
+    end,
+    config = function(_, opts)
+      require("snippets").setup(opts)
+      local registry = require("snippets").registry
+      local my_path = vim.fn.stdpath("config") .. "/snippets/fsh.json"
+      if vim.uv.fs_stat(my_path) then
+        registry.fsh = { my_path }
+      end
     end,
   },
 
@@ -396,6 +490,8 @@ return {
     lazy = false,
     priority = 500,
     config = function()
+      install_snippet_shim()
+
       vim.api.nvim_create_user_command("FshOpenDoc", open_fhir_docs, {
         desc = "Open HL7 FHIR documentation for the word under the cursor",
       })
