@@ -66,4 +66,5 @@ return {
   { import = "plugins.extras.lang.golang" },
   { import = "plugins.extras.lang.typescript" },
   { import = "plugins.extras.lang.java" },
+  { import = "plugins.extras.lang.fsh" },
 }

@@ -1,0 +1,11 @@
+{
+  "name": "user-fsh-snippets",
+  "contributes": {
+    "snippets": [
+      {
+        "language": ["fsh"],
+        "path": "./fsh.json"
+      }
+    ]
+  }
+}
