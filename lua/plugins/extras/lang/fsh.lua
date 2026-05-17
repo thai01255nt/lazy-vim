@@ -448,6 +448,15 @@ return {
         on_attach = function(client, bufnr)
           install_diagnostic_filter()
           install_snippet_shim()
+
+          -- Disable the LSP formatter. fsh-lsp's FshFormattingProvider doesn't
+          -- track FSH path nesting — it moves top-level rules to column 2 and
+          -- flattens sub-path indentation, which breaks SUSHI's canonical
+          -- `* name` / `  * name.given[0]` style. Keep gd/completion/hover/
+          -- diagnostics; let the user manage indentation manually.
+          client.server_capabilities.documentFormattingProvider = false
+          client.server_capabilities.documentRangeFormattingProvider = false
+
           local ok, mod = pcall(require, "plugins.extras.lang.on_attach")
           if ok and mod and mod.on_attach then
             mod.on_attach(client, bufnr)
