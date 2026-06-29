@@ -293,233 +293,250 @@ return {
       })
     end,
   },
-  {
-    "olimorris/codecompanion.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-      {
-        -- Make sure to set this up properly if you have lazy=true
-        "MeanderingProgrammer/render-markdown.nvim",
-        opts = {
-          file_types = { "markdown", "codecompanion" },
-        },
-        ft = { "markdown", "codecompanion" },
-      },
-    },
-    config = function()
-      require("codecompanion").setup({
-        strategies = {
-          chat = {
-            adapter = "copilot",
-            keymaps = {
-              toggle = {
-                modes = {
-                  n = "q",
-                },
-                callback = function()
-                  require("codecompanion").toggle()
-                end,
-                description = "Toggle Chat",
-              },
-              close = {
-                modes = {
-                  n = "<C-q>",
-                },
-                callback = "keymaps.close",
-                description = "Close Chat",
-              },
-              stop = {
-                modes = {
-                  n = "<C-c>",
-                  i = "<C-c>",
-                },
-              },
-              goto_file_under_cursor = {
-                modes = { n = "gd" },
-                index = 19,
-                callback = "keymaps.goto_file_under_cursor",
-                description = "Open the file under cursor in a new tab.",
-              },
-              fold_code = {
-                modes = {
-                  n = "za",
-                },
-                index = 15,
-                callback = "keymaps.fold_code",
-                description = "Fold code",
-              },
-              previous_chat = {
-                modes = {
-                  n = "gb",
-                },
-                index = 12,
-                callback = "keymaps.previous_chat",
-                description = "Previous Chat",
-              },
-              next_chat = {
-                modes = {
-                  n = "gf",
-                },
-                index = 12,
-                callback = "keymaps.previous_chat",
-                description = "Previous Chat",
-              },
-            },
-          },
-          inline = {
-            adapter = "copilot",
-            keymaps = {
-              reject_change = {
-                modes = {
-                  n = "gt",
-                },
-                index = 2,
-                callback = "keymaps.reject_change",
-                description = "Reject change",
-              },
-            },
-          },
-          agent = {
-            adapter = "copilot",
-          },
-        },
-        adapters = {
-          copilot = function()
-            return require("codecompanion.adapters").extend("copilot", {
-              schema = {
-                model = {
-                  default = "gpt-5",
-                  -- default = "gpt-4.1",
-                  -- default = "claude-sonnet-4",
-                },
-              },
-            })
-          end,
-        },
-        display = {
-          chat = {
-            window = {
-              width = 0.3,
-            },
-            show_header_separator = true,
-          },
-          diff = {
-            provider = "mini_diff",
-          },
-        },
-        auto_scoll = false,
-        prompt_library = {
-          ["planning-mode"] = {
-            strategy = "chat",
-            description = "planning-mode",
-            opts = {
-              short_name = "planning-mode",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = planning_mode, opts = { visible = false } },
-            },
-          },
-          ["tasks-mode"] = {
-            strategy = "chat",
-            description = "tasks-mode",
-            opts = {
-              short_name = "tasks-mode",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = tasks_mode, opts = { visible = false } },
-            },
-          },
-          ["skeleton-mode"] = {
-            strategy = "chat",
-            description = "skeleton-mode",
-            opts = {
-              short_name = "skeleton-mode",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = skeleton_mode, opts = { visible = false } },
-            },
-          },
-          ["implement-mode"] = {
-            strategy = "chat",
-            description = "implement-mode",
-            opts = {
-              short_name = "implement-mode",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              { role = "system", content = implement_mode, opts = { visible = false } },
-            },
-          },
-          ["core-rules"] = {
-            strategy = "chat",
-            description = "core-rules",
-            opts = {
-              short_name = "core-rules",
-              ignore_system_prompt = true,
-            },
-            prompts = {
-              {
-                role = "system",
-                content = core_rules,
-                opts = {
-                  visible = false,
-                },
-              },
-              {
-                role = "system",
-                content = core_rules,
-                opts = {
-                  visible = false,
-                },
-              },
-              {
-                role = "user",
-                content = "\n@{full_stack_dev} \n",
-              },
-            },
-          },
-          ["project-overview-mode"] = {
-            strategy = "chat",
-            description = "project-overview-mode",
-            opts = {
-              short_name = "project-overview-mode",
-              is_slash_cmd = true,
-            },
-            prompts = {
-              {
-                role = "sytem",
-                content = project_overview_mode,
-                opts = { visible = false },
-              },
-            },
-          },
-        },
-      })
-      -- vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      -- vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })
-      vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
-      vim.keymap.set("n", "<leader>aw", function()
-        require("codecompanion").prompt("core-rules")
-      end, { noremap = true, silent = true })
-      -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-
-      -- Expand 'cc' into 'CodeCompanion' in the command line
-      -- vim.cmd([[cab cc CodeCompanion]])
-    end,
-  },
+  -- {
+  --   "olimorris/codecompanion.nvim",
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --     "nvim-treesitter/nvim-treesitter",
+  --     {
+  --       -- Make sure to set this up properly if you have lazy=true
+  --       "MeanderingProgrammer/render-markdown.nvim",
+  --       opts = {
+  --         file_types = { "markdown", "codecompanion" },
+  --       },
+  --       ft = { "markdown", "codecompanion" },
+  --     },
+  --   },
+  --   config = function()
+  --     require("codecompanion").setup({
+  --       strategies = {
+  --         chat = {
+  --           adapter = "copilot",
+  --           keymaps = {
+  --             toggle = {
+  --               modes = {
+  --                 n = "q",
+  --               },
+  --               callback = function()
+  --                 require("codecompanion").toggle()
+  --               end,
+  --               description = "Toggle Chat",
+  --             },
+  --             close = {
+  --               modes = {
+  --                 n = "<C-q>",
+  --               },
+  --               callback = "keymaps.close",
+  --               description = "Close Chat",
+  --             },
+  --             stop = {
+  --               modes = {
+  --                 n = "<C-c>",
+  --                 i = "<C-c>",
+  --               },
+  --             },
+  --             goto_file_under_cursor = {
+  --               modes = { n = "gd" },
+  --               index = 19,
+  --               callback = "keymaps.goto_file_under_cursor",
+  --               description = "Open the file under cursor in a new tab.",
+  --             },
+  --             fold_code = {
+  --               modes = {
+  --                 n = "za",
+  --               },
+  --               index = 15,
+  --               callback = "keymaps.fold_code",
+  --               description = "Fold code",
+  --             },
+  --             previous_chat = {
+  --               modes = {
+  --                 n = "gb",
+  --               },
+  --               index = 12,
+  --               callback = "keymaps.previous_chat",
+  --               description = "Previous Chat",
+  --             },
+  --             next_chat = {
+  --               modes = {
+  --                 n = "gf",
+  --               },
+  --               index = 12,
+  --               callback = "keymaps.previous_chat",
+  --               description = "Previous Chat",
+  --             },
+  --           },
+  --         },
+  --         inline = {
+  --           adapter = "copilot",
+  --           keymaps = {
+  --             reject_change = {
+  --               modes = {
+  --                 n = "gt",
+  --               },
+  --               index = 2,
+  --               callback = "keymaps.reject_change",
+  --               description = "Reject change",
+  --             },
+  --           },
+  --         },
+  --         agent = {
+  --           adapter = "copilot",
+  --         },
+  --       },
+  --       adapters = {
+  --         copilot = function()
+  --           return require("codecompanion.adapters").extend("copilot", {
+  --             schema = {
+  --               model = {
+  --                 default = "gpt-5",
+  --                 -- default = "gpt-4.1",
+  --                 -- default = "claude-sonnet-4",
+  --               },
+  --             },
+  --           })
+  --         end,
+  --       },
+  --       display = {
+  --         chat = {
+  --           window = {
+  --             width = 0.3,
+  --           },
+  --           show_header_separator = true,
+  --         },
+  --         diff = {
+  --           provider = "mini_diff",
+  --         },
+  --       },
+  --       auto_scoll = false,
+  --       prompt_library = {
+  --         ["planning-mode"] = {
+  --           strategy = "chat",
+  --           description = "planning-mode",
+  --           opts = {
+  --             short_name = "planning-mode",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             { role = "system", content = planning_mode, opts = { visible = false } },
+  --           },
+  --         },
+  --         ["tasks-mode"] = {
+  --           strategy = "chat",
+  --           description = "tasks-mode",
+  --           opts = {
+  --             short_name = "tasks-mode",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             { role = "system", content = tasks_mode, opts = { visible = false } },
+  --           },
+  --         },
+  --         ["skeleton-mode"] = {
+  --           strategy = "chat",
+  --           description = "skeleton-mode",
+  --           opts = {
+  --             short_name = "skeleton-mode",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             { role = "system", content = skeleton_mode, opts = { visible = false } },
+  --           },
+  --         },
+  --         ["implement-mode"] = {
+  --           strategy = "chat",
+  --           description = "implement-mode",
+  --           opts = {
+  --             short_name = "implement-mode",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             { role = "system", content = implement_mode, opts = { visible = false } },
+  --           },
+  --         },
+  --         ["core-rules"] = {
+  --           strategy = "chat",
+  --           description = "core-rules",
+  --           opts = {
+  --             short_name = "core-rules",
+  --             ignore_system_prompt = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "system",
+  --               content = core_rules,
+  --               opts = {
+  --                 visible = false,
+  --               },
+  --             },
+  --             {
+  --               role = "system",
+  --               content = core_rules,
+  --               opts = {
+  --                 visible = false,
+  --               },
+  --             },
+  --             {
+  --               role = "user",
+  --               content = "\n@{full_stack_dev} \n",
+  --             },
+  --           },
+  --         },
+  --         ["project-overview-mode"] = {
+  --           strategy = "chat",
+  --           description = "project-overview-mode",
+  --           opts = {
+  --             short_name = "project-overview-mode",
+  --             is_slash_cmd = true,
+  --           },
+  --           prompts = {
+  --             {
+  --               role = "sytem",
+  --               content = project_overview_mode,
+  --               opts = { visible = false },
+  --             },
+  --           },
+  --         },
+  --       },
+  --     })
+  --     -- vim.api.nvim_set_keymap("n", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     -- vim.api.nvim_set_keymap("v", "<leader>aa", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>ac", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ac", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("n", "<leader>an", "<cmd>CodeCompanionChat<cr>", { noremap = true, silent = true })
+  --     vim.api.nvim_set_keymap("v", "<leader>ai", "<cmd>CodeCompanion<cr>", { noremap = true, silent = true })
+  --     vim.keymap.set("n", "<leader>aw", function()
+  --       require("codecompanion").prompt("core-rules")
+  --     end, { noremap = true, silent = true })
+  --     -- vim.api.nvim_set_keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
+  --
+  --     -- Expand 'cc' into 'CodeCompanion' in the command line
+  --     -- vim.cmd([[cab cc CodeCompanion]])
+  --   end,
+  -- },
   {
     "coder/claudecode.nvim",
     dependencies = { "folke/snacks.nvim" },
     config = true,
     keys = {
       { "<leader>aC", "<cmd>ClaudeCode<cr><cmd>ClaudeCode<cr>", desc = "Connect Claude" },
+      { "<leader>a", nil, desc = "AI/Claude Code" },
+      { "<leader>at", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
+      { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
+      { "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
+      { "<leader>ac", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
+      { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
+      { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
+      { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
+      {
+        "<leader>as",
+        "<cmd>ClaudeCodeTreeAdd<cr>",
+        desc = "Add file",
+        ft = { "NvimTree", "neo-tree", "oil", "minifiles", "netrw", "snacks_picker_list" },
+      },
+      -- Diff management
+      { "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
+      { "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
     },
   },
 }
