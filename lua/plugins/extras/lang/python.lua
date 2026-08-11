@@ -7,6 +7,7 @@ return {
         "pyright",
         "black",
         "debugpy",
+        "ruff",
       })
     end,
   },
@@ -79,14 +80,25 @@ return {
     "mfussenegger/nvim-lint",
     event = { "BufWritePost", "InsertLeave" },
     config = function()
-      require("lint").linters_by_ft = {
-        python = {
-          "flake8",
-        },
-      }
+      -- Tu detect linter theo repo: pyproject.toml co [tool.ruff...] -> ruff, khong thi flake8.
+      local function py_linters()
+        local root = vim.fs.root(0, { "pyproject.toml", ".git" })
+        if root then
+          local f = io.open(root .. "/pyproject.toml")
+          if f then
+            local content = f:read("*a")
+            f:close()
+            if content:find("%[tool%.ruff") then
+              return { "ruff" }
+            end
+          end
+        end
+        return { "flake8" }
+      end
       vim.api.nvim_create_autocmd({ "InsertLeave", "BufWritePost" }, {
         pattern = { "*.py" },
         callback = function()
+          require("lint").linters_by_ft.python = py_linters()
           require("lint").try_lint()
         end,
       })
