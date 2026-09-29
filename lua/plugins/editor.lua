@@ -300,4 +300,40 @@ return {
       { "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
     },
   },
+  {
+    -- ]h/[h/]H/[H also jump through staged hunks (LazyVim default: unstaged only)
+    "lewis6991/gitsigns.nvim",
+    opts = function(_, opts)
+      local on_attach = opts.on_attach
+      opts.on_attach = function(buffer)
+        if on_attach then
+          on_attach(buffer)
+        end
+        local gs = package.loaded.gitsigns
+        local function map(l, r, desc)
+          vim.keymap.set("n", l, r, { buffer = buffer, desc = desc, silent = true })
+        end
+        map("]h", function()
+          if vim.wo.diff then
+            vim.cmd.normal({ "]c", bang = true })
+          else
+            gs.nav_hunk("next", { target = "all" })
+          end
+        end, "Next Hunk")
+        map("[h", function()
+          if vim.wo.diff then
+            vim.cmd.normal({ "[c", bang = true })
+          else
+            gs.nav_hunk("prev", { target = "all" })
+          end
+        end, "Prev Hunk")
+        map("]H", function()
+          gs.nav_hunk("last", { target = "all" })
+        end, "Last Hunk")
+        map("[H", function()
+          gs.nav_hunk("first", { target = "all" })
+        end, "First Hunk")
+      end
+    end,
+  },
 }
