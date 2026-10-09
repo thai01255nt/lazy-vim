@@ -13,19 +13,13 @@ return {
   },
   {
     "neovim/nvim-lspconfig",
-    ft = "python",
-    config = function()
-      local lspconfig = require("lspconfig")
-      -- local cmp_nvim_lsp = require("cmp_nvim_lsp")
-      -- local opts = { noremap = true, slient = true }
-      local on_attach = require("plugins/extras/lang/on_attach").on_attach
-
-      -- local capabilities = cmp_nvim_lsp.default_capabilities()
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = true
-      lspconfig["pyright"].setup({
-        capabilities = capabilities,
-        on_attach = on_attach,
+    opts = function(_, opts)
+      opts.servers = opts.servers or {}
+      opts.servers.pyright = {
+        on_attach = require("plugins/extras/lang/on_attach").on_attach,
+        capabilities = {
+          workspace = { didChangeWatchedFiles = { dynamicRegistration = true } },
+        },
         settings = {
           python = {
             analysis = {
@@ -38,29 +32,7 @@ return {
             },
           },
         },
-      })
-    end,
-    opts = function(_, opts)
-      vim.list_extend(opts.servers, {
-        pyright = {
-          enable = true,
-          -- capabilities=capabilities,
-          -- on_attach = on_attach_python,
-          -- settings = {
-          --   python = {
-          --     analysis = {
-          --       autoImportCompletions = true,
-          --       autoSearchPaths = true,
-          --       diagnosticMode = "workspace",
-          --       useLibraryCodeForTypes = true,
-          --       useLibrarySourceForTypes = true,
-          --       typeCheckingMode = "standard",
-          --     },
-          --   },
-          -- }
-        },
-      })
-      vim.diagnostic.config({ virtual_text = true })
+      }
     end,
   },
   {
