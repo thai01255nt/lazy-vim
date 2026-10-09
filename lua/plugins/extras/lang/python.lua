@@ -1,3 +1,96 @@
+-- File config gan nhat (tim nguoc len thu muc cha) co chua pattern khong
+local function has_section(bufnr, file, pattern)
+  local root = vim.fs.root(bufnr, { file })
+  if not root then
+    return false
+  end
+  local f = io.open(root .. "/" .. file)
+  if not f then
+    return false
+  end
+  local content = f:read("*a")
+  f:close()
+  return content:find(pattern) ~= nil
+end
+
+-- Detect linter theo config cua project: "ruff" | "flake8" | nil
+local function detect_py_linter(bufnr)
+  if vim.fs.root(bufnr, { "ruff.toml", ".ruff.toml" }) then
+    return "ruff"
+  end
+  if vim.fs.root(bufnr, { ".flake8" }) then
+    return "flake8"
+  end
+  if has_section(bufnr, "pyproject.toml", "%[tool%.ruff") then
+    return "ruff"
+  end
+  if has_section(bufnr, "setup.cfg", "%[flake8%]") or has_section(bufnr, "tox.ini", "%[flake8%]") then
+    return "flake8"
+  end
+  return nil
+end
+
+-- Config ruff cua project co bat rule isort ("I", "I001", "ALL") trong select/extend-select khong
+local function ruff_selects_isort(bufnr)
+  for _, file in ipairs({ "ruff.toml", ".ruff.toml", "pyproject.toml" }) do
+    local root = vim.fs.root(bufnr, { file })
+    local f = root and io.open(root .. "/" .. file)
+    if f then
+      local content = f:read("*a")
+      f:close()
+      if file ~= "pyproject.toml" or content:find("%[tool%.ruff") then
+        for list in content:gmatch("select%s*=%s*(%b[])") do
+          for rule in list:gmatch("[\"']([%w]+)[\"']") do
+            if rule == "ALL" or rule:match("^I%d*$") then
+              return true
+            end
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
+-- Detect formatter theo config cua project, mac dinh black
+local function detect_py_formatters(bufnr)
+  local fmts = {}
+  if
+    vim.fs.root(bufnr, { ".isort.cfg" })
+    or has_section(bufnr, "pyproject.toml", "%[tool%.isort%]")
+    or has_section(bufnr, "setup.cfg", "%[isort%]")
+  then
+    fmts[#fmts + 1] = "isort"
+  elseif detect_py_linter(bufnr) == "ruff" and ruff_selects_isort(bufnr) then
+    fmts[#fmts + 1] = "ruff_organize_imports"
+  end
+  if has_section(bufnr, "pyproject.toml", "%[tool%.black%]") then
+    fmts[#fmts + 1] = "black"
+  elseif detect_py_linter(bufnr) == "ruff" then
+    fmts[#fmts + 1] = "ruff_format"
+  elseif
+    vim.fs.root(bufnr, { ".style.yapf" })
+    or has_section(bufnr, "pyproject.toml", "%[tool%.yapf%]")
+    or has_section(bufnr, "setup.cfg", "%[yapf%]")
+  then
+    fmts[#fmts + 1] = "yapf"
+  elseif has_section(bufnr, "pyproject.toml", "%[tool%.autopep8%]") then
+    fmts[#fmts + 1] = "autopep8"
+  else
+    fmts[#fmts + 1] = "black"
+  end
+  return fmts
+end
+
+-- Uu tien binary trong venv cua project (.venv/venv hoac $VIRTUAL_ENV), khong co thi lay tu PATH/mason
+local function venv_cmd(cmd)
+  local paths = { ".venv/bin/" .. cmd, "venv/bin/" .. cmd }
+  if vim.env.VIRTUAL_ENV then
+    table.insert(paths, 1, vim.env.VIRTUAL_ENV .. "/bin/" .. cmd)
+  end
+  return require("conform.util").find_executable(paths, cmd)
+end
+
 return {
   {
     "mason-org/mason.nvim",
@@ -15,6 +108,14 @@ return {
     "neovim/nvim-lspconfig",
     opts = function(_, opts)
       opts.servers = opts.servers or {}
+      -- Ruff LSP chi attach khi project co config ruff
+      opts.servers.ruff = {
+        root_dir = function(bufnr, on_dir)
+          if detect_py_linter(bufnr) == "ruff" then
+            on_dir(vim.fs.root(bufnr, { "ruff.toml", ".ruff.toml", "pyproject.toml", ".git" }))
+          end
+        end,
+      }
       opts.servers.pyright = {
         on_attach = require("plugins/extras/lang/on_attach").on_attach,
         capabilities = {
@@ -36,34 +137,25 @@ return {
     end,
   },
   {
-    "psf/black",
-    ft = "python",
-    config = function()
-      vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-        pattern = "*.py",
-        callback = function()
-          local file_name = vim.api.nvim_buf_get_name(0)
-          vim.cmd("!python -m black -q " .. file_name)
-        end,
-      })
+    "stevearc/conform.nvim",
+    opts = function(_, opts)
+      opts.formatters_by_ft = opts.formatters_by_ft or {}
+      opts.formatters_by_ft.python = detect_py_formatters
+      opts.formatters = opts.formatters or {}
+      for name, cmd in pairs({ black = "black", isort = "isort", ruff_format = "ruff", ruff_organize_imports = "ruff", yapf = "yapf", autopep8 = "autopep8" }) do
+        opts.formatters[name] = vim.tbl_extend("force", opts.formatters[name] or {}, { command = venv_cmd(cmd) })
+      end
     end,
   },
   {
     "mfussenegger/nvim-lint",
-    event = { "BufWritePost", "InsertLeave" },
-    config = function()
-      -- Tu detect linter theo repo: pyproject.toml co [tool.ruff...] -> ruff, khong thi flake8.
+    -- Dung opts (khong dung config) vi golang.lua da khai bao config cho nvim-lint, config cua spec sau se ghi de.
+    opts = function()
+      -- Project dung ruff -> ruff LSP lo diagnostics, nvim-lint khong chay.
+      -- Project dung flake8 (hoac khong co config) -> flake8.
       local function py_linters()
-        local root = vim.fs.root(0, { "pyproject.toml", ".git" })
-        if root then
-          local f = io.open(root .. "/pyproject.toml")
-          if f then
-            local content = f:read("*a")
-            f:close()
-            if content:find("%[tool%.ruff") then
-              return { "ruff" }
-            end
-          end
+        if detect_py_linter(0) == "ruff" then
+          return {}
         end
         return { "flake8" }
       end
