@@ -22,7 +22,7 @@ return {
       vim.tbl_deep_extend("force", bufopts, { desc = "[g]oto implementation" })
     )
     vim.keymap.set(
-      "n",
+      "i",
       "<C-k>",
       vim.lsp.buf.signature_help,
       vim.tbl_deep_extend("force", bufopts, { desc = "signature help" })
