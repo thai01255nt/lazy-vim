@@ -339,4 +339,14 @@ return {
       end
     end,
   },
+  {
+    "sindrets/winshift.nvim",
+    commit = "37468ed6f385dfb50402368669766504c0e15583",
+    pin = true,
+    cmd = "WinShift",
+    keys = {
+      { "sm", "<cmd>WinShift<cr>", desc = "[m]ove window" },
+      { "sx", "<cmd>WinShift swap<cr>", desc = "swap window" },
+    },
+  },
 }
