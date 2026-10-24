@@ -1,24 +1,99 @@
+-- Outgoing calls listed per call site (jumps to the call, not the callee's definition).
+---@type snacks.picker.finder
+local function outgoing_call_sites(opts, ctx)
+  local Lsp = require("snacks.picker.source.lsp")
+  if not opts.sites then
+    return Lsp.outgoing_calls(opts, ctx)
+  end
+  local buf, win = ctx.filter.current_buf, ctx.filter.current_win
+
+  ---@async
+  return function(cb)
+    local prepared = {} ---@type {client: vim.lsp.Client, item: lsp.CallHierarchyItem}[]
+    Lsp.request(buf, "textDocument/prepareCallHierarchy", function(client)
+      return vim.lsp.util.make_position_params(win, client.offset_encoding)
+    end, function(client, result)
+      for _, item in ipairs(result or {}) do
+        prepared[#prepared + 1] = { client = client, item = item }
+      end
+    end)
+
+    local items = {} ---@type snacks.picker.finder.Item[]
+    for _, p in ipairs(prepared) do
+      Lsp.request(p.client, "callHierarchy/outgoingCalls", function()
+        return { item = p.item }
+      end, function(client, calls)
+        for _, call in ipairs(calls or {}) do
+          local sites = {} ---@type lsp.CallHierarchyItem[]
+          for _, range in ipairs(call.fromRanges or {}) do
+            local site = vim.deepcopy(call.to)
+            site.uri, site.range, site.selectionRange = p.item.uri, range, range
+            sites[#sites + 1] = site
+          end
+          for _, item in ipairs(Lsp.results_to_items(client, sites)) do
+            item.callee_file = vim.uri_to_fname(call.to.uri) -- filter on the callee, not the call site
+            items[#items + 1] = item
+          end
+        end
+      end)
+    end
+
+    table.sort(items, function(a, b)
+      return a.pos[1] < b.pos[1] or (a.pos[1] == b.pos[1] and a.pos[2] < b.pos[2])
+    end)
+    vim.tbl_map(cb, items)
+  end
+end
+
 -- Call hierarchy picker: one entry per caller/callee, and only files inside the
 -- workspace that are neither hidden nor gitignored.
--- <a-a> shows everything, <a-h> allows hidden, <a-i> allows gitignored.
+-- <a-a> shows everything, <a-h> allows hidden, <a-i> allows gitignored,
+-- <a-c> toggles listing every call site (default for outgoing calls, which also skip classes).
 local function call_hierarchy_opts()
   local root = LazyVim.root()
   local ignored_cache = {} ---@type table<string, boolean>
 
   local function is_ignored(file)
     if ignored_cache[file] == nil then
-      local res = vim.system({ "git", "-C", root, "check-ignore", "-q", file }):wait()
-      ignored_cache[file] = res.code == 0
+      local cmd = { "git", "-C", root, "check-ignore", "-q", file }
+      local async = require("snacks.picker.util.async").running()
+      if async then
+        -- transforms can run in a fast event (lsp callback) where :wait() is not allowed
+        local code ---@type integer?
+        vim.system(cmd, {}, function(res)
+          code = res.code
+          vim.schedule(function()
+            async:resume()
+          end)
+        end)
+        while code == nil do
+          async:suspend()
+        end
+        ignored_cache[file] = code == 0
+      elseif not vim.in_fast_event() then
+        ignored_cache[file] = vim.system(cmd):wait().code == 0
+      else
+        return false
+      end
     end
     return ignored_cache[file]
   end
 
   return {
-    toggles = { all = "a" },
-    win = { input = { keys = { ["<a-a>"] = { "toggle_all", mode = { "n", "i" } } } } },
+    toggles = { all = "a", sites = "c" },
+    win = {
+      input = {
+        keys = {
+          ["<a-a>"] = { "toggle_all", mode = { "n", "i" } },
+          ["<a-c>"] = { "toggle_sites", mode = { "n", "i" } },
+        },
+      },
+    },
     transform = function(item, ctx)
+      -- per caller/callee: key on its range; per call site: key on the call position
       local r = item.range and item.range.start or {}
-      local key = table.concat({ item.file or "", item.name or "", r.line or "", r.character or "" }, ":")
+      local at = ctx.picker.opts.sites and item.pos or { r.line, r.character }
+      local key = table.concat({ item.file or "", item.name or "", at[1] or "", at[2] or "" }, ":")
       ctx.meta.seen = ctx.meta.seen or {}
       if ctx.meta.seen[key] then
         return false
@@ -26,10 +101,14 @@ local function call_hierarchy_opts()
       ctx.meta.seen[key] = true
 
       local opts = ctx.picker.opts
-      if opts.all or not item.file then
+      if opts.outgoing and item.kind == "Class" then
+        return false -- constructor calls
+      end
+      local file = item.callee_file or item.file
+      if opts.all or not file then
         return true
       end
-      local file = vim.fs.normalize(item.file)
+      file = vim.fs.normalize(file)
       local rel = vim.fs.relpath(root, file)
       if not rel then
         return false
@@ -102,6 +181,11 @@ local function call_hierarchy(incoming)
   local orig = goto_enclosing_function()
   local moved = vim.api.nvim_win_get_cursor(win)
   local opts = call_hierarchy_opts()
+  if not incoming then
+    opts.finder = outgoing_call_sites
+    opts.outgoing = true
+    opts.sites = true
+  end
   opts.on_close = function()
     -- restore the cursor unless the picker jumped somewhere
     if orig and vim.api.nvim_win_is_valid(win) and vim.deep_equal(vim.api.nvim_win_get_cursor(win), moved) then
