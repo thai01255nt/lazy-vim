@@ -349,4 +349,24 @@ return {
       { "sx", "<cmd>WinShift swap<cr>", desc = "swap window" },
     },
   },
+  {
+    "s1n7ax/nvim-window-picker",
+    commit = "6382540b2ae5de6c793d4aa2e3fe6dbb518505ec",
+    pin = true,
+    opts = {
+      hint = "floating-big-letter",
+    },
+    keys = {
+      {
+        "sp",
+        function()
+          local win = require("window-picker").pick_window()
+          if win then
+            vim.api.nvim_set_current_win(win)
+          end
+        end,
+        desc = "[p]ick window",
+      },
+    },
+  },
 }
