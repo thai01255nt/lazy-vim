@@ -42,6 +42,75 @@ local function call_hierarchy_opts()
   }
 end
 
+local function_kinds = { [6] = true, [9] = true, [12] = true } -- Method, Constructor, Function
+
+-- When the cursor is not on a callable name, move it to the name of the
+-- innermost enclosing function. Returns the original cursor if it moved.
+local function goto_enclosing_function()
+  local buf = vim.api.nvim_get_current_buf()
+  local client = vim.lsp.get_clients({ bufnr = buf, method = "textDocument/prepareCallHierarchy" })[1]
+  if not client then
+    return
+  end
+  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+  local res = client:request_sync("textDocument/prepareCallHierarchy", params, 1000, buf)
+  if not res or res.err or (res.result and #res.result > 0) then
+    return
+  end
+  if not client:supports_method("textDocument/documentSymbol", buf) then
+    return
+  end
+  res = client:request_sync("textDocument/documentSymbol", { textDocument = params.textDocument }, 1000, buf)
+  if not res or res.err or not res.result then
+    return
+  end
+
+  local pos = params.position
+  local function contains(range)
+    local s, e = range.start, range["end"]
+    return (pos.line > s.line or (pos.line == s.line and pos.character >= s.character))
+      and (pos.line < e.line or (pos.line == e.line and pos.character <= e.character))
+  end
+
+  local best ---@type lsp.Position?
+  local function walk(symbols)
+    for _, sym in ipairs(symbols) do
+      local range = sym.range or sym.location.range
+      if contains(range) then
+        if function_kinds[sym.kind] then
+          best = (sym.selectionRange or range).start
+        end
+        walk(sym.children or {})
+      end
+    end
+  end
+  walk(res.result)
+  if not best then
+    return
+  end
+
+  local orig = vim.api.nvim_win_get_cursor(0)
+  local line = vim.api.nvim_buf_get_lines(buf, best.line, best.line + 1, false)[1] or ""
+  local col = vim.str_byteindex(line, client.offset_encoding, best.character, false)
+  vim.api.nvim_win_set_cursor(0, { best.line + 1, col })
+  return orig
+end
+
+---@param incoming boolean
+local function call_hierarchy(incoming)
+  local win = vim.api.nvim_get_current_win()
+  local orig = goto_enclosing_function()
+  local moved = vim.api.nvim_win_get_cursor(win)
+  local opts = call_hierarchy_opts()
+  opts.on_close = function()
+    -- restore the cursor unless the picker jumped somewhere
+    if orig and vim.api.nvim_win_is_valid(win) and vim.deep_equal(vim.api.nvim_win_get_cursor(win), moved) then
+      vim.api.nvim_win_set_cursor(win, orig)
+    end
+  end
+  Snacks.picker[incoming and "lsp_incoming_calls" or "lsp_outgoing_calls"](opts)
+end
+
 return {
   -- tools
   {
@@ -91,8 +160,8 @@ return {
           -- stylua: ignore
           keys = {
             -- telescope sends the request to every client (errors on ones without support); snacks targets the right client
-            { "gai", function() Snacks.picker.lsp_incoming_calls(call_hierarchy_opts()) end, desc = "C[a]lls Incoming", has = "callHierarchy/incomingCalls" },
-            { "gao", function() Snacks.picker.lsp_outgoing_calls(call_hierarchy_opts()) end, desc = "C[a]lls Outgoing", has = "callHierarchy/outgoingCalls" },
+            { "gai", function() call_hierarchy(true) end, desc = "C[a]lls Incoming", has = "callHierarchy/incomingCalls" },
+            { "gao", function() call_hierarchy(false) end, desc = "C[a]lls Outgoing", has = "callHierarchy/outgoingCalls" },
           },
         },
       },
