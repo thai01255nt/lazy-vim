@@ -157,7 +157,8 @@ return {
   },
   {
     "rcarriga/nvim-dap-ui",
-    dependencies = { "nvim-neotest/nvim-nio" },
+    pin = true,
+    dependencies = { { "nvim-neotest/nvim-nio", pin = true } },
     keys = {
       {
         "<leader>du",

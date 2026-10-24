@@ -33,8 +33,8 @@ return {
     dependencies = {
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-path",
-      "hrsh7th/cmp-vsnip",
-      "hrsh7th/vim-vsnip",
+      { "hrsh7th/cmp-vsnip", pin = true },
+      { "hrsh7th/vim-vsnip", pin = true },
     },
     opts = function(_, opts)
       local cmp = require("cmp")

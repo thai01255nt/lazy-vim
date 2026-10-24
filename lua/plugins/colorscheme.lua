@@ -20,6 +20,7 @@ return {
   },
   {
     "craftzdog/solarized-osaka.nvim",
+    pin = true,
     lazy = false,
     priority = 1000,
     config = function()
@@ -36,10 +37,11 @@ return {
         end,
       })
     end,
-    {
-      "nordtheme/vim",
-      lazy = false,
-      priority = 1000,
-    },
+  },
+  {
+    "nordtheme/vim",
+    pin = true,
+    lazy = false,
+    priority = 1000,
   },
 }

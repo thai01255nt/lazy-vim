@@ -53,6 +53,7 @@ return {
   },
   {
     "rcarriga/nvim-notify",
+    pin = true,
     opts = {
       timeout = 2000,
       background_colour = "#000000",

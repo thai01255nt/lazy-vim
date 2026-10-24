@@ -97,6 +97,7 @@ return {
   -- },
   {
     "supermaven-inc/supermaven-nvim",
+    pin = true,
     config = function()
       require("supermaven-nvim").setup({
         keymaps = {
@@ -285,6 +286,7 @@ return {
   },
   {
     "nvim-mini/mini.diff",
+    pin = true,
     config = function()
       local diff = require("mini.diff")
       diff.setup({
@@ -516,6 +518,7 @@ return {
   -- },
   {
     "coder/claudecode.nvim",
+    pin = true,
     dependencies = { "folke/snacks.nvim" },
     config = true,
     keys = {

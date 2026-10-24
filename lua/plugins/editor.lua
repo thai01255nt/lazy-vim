@@ -1,7 +1,8 @@
 return {
+  { "nvim-lua/plenary.nvim", lazy = true },
   {
-    { "nvim-lua/plenary.nvim", lazy = true },
     "nvim-mini/mini.hipatterns",
+    pin = true,
     event = "BufReadPre",
     opts = {
       highlighters = {
@@ -23,6 +24,7 @@ return {
   },
   {
     "LudoPinelli/comment-box.nvim",
+    pin = true,
     config = function()
       local keymap = vim.keymap.set
       local opts = { noremap = true, silent = true }
@@ -85,7 +87,7 @@ return {
         "nvim-telescope/telescope-fzf-native.nvim",
         build = "make",
       },
-      "nvim-telescope/telescope-file-browser.nvim",
+      { "nvim-telescope/telescope-file-browser.nvim", pin = true },
     },
     keys = {
       {
@@ -282,6 +284,7 @@ return {
   },
   {
     "kdheepak/lazygit.nvim",
+    pin = true,
     lazy = true,
     cmd = {
       "LazyGit",

@@ -170,6 +170,7 @@ return {
   },
   {
     "mfussenegger/nvim-dap-python",
+    pin = true,
     ft = "python",
     dependencies = {
       "mfussenegger/nvim-dap",
@@ -206,6 +207,7 @@ return {
   },
   {
     "linux-cultist/venv-selector.nvim",
+    pin = true,
     branch = "regexp",
     dependencies = {
       "mfussenegger/nvim-dap",
@@ -220,6 +222,7 @@ return {
   },
   {
     "Vigemus/iron.nvim",
+    pin = true,
     event = "VeryLazy",
     config = function()
       local iron = require("iron.core")

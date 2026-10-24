@@ -1,5 +1,5 @@
 return {
-  { "nvim-treesitter/playground", cmd = "TSPlaygroundToggle" },
+  { "nvim-treesitter/playground", pin = true, cmd = "TSPlaygroundToggle" },
 
   {
     "nvim-treesitter/nvim-treesitter",
