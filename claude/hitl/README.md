@@ -13,6 +13,8 @@ Người duyệt ở các cổng (⛔ GATE); agent chỉ làm phần được gi
 > (R → AC → test → symbol; blocks only on broken references), an "accept + amend spec" path in sync/review/implement/plan,
 > and an optional one-way Linear mirror (`/hitl:tickets`, one issue per task, fail-open, never a gate).
 
+> **Mới dùng? Đọc [HUONG-DAN.md](HUONG-DAN.md)** (một trang, từng lệnh theo thứ tự). Phần dưới là tài liệu tra cứu.
+
 ## 1. Cài đặt
 
 ```sh
