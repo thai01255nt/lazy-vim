@@ -1,0 +1,22 @@
+{
+  "schema": "hitl.tickets-results/1",
+  "kind": "init",
+  "init": {
+    "workspace": { "urlKey": "acme" },
+    "team": { "key": "ENG", "id": "team-uuid-eng", "name": "Engineering" },
+    "states": {
+      "backlog": { "id": "st-backlog", "name": "Backlog" },
+      "unstarted": { "id": "st-todo", "name": "Todo" },
+      "started": { "id": "st-progress", "name": "In Progress" },
+      "review": { "id": "st-review", "name": "In Review" },
+      "completed": { "id": "st-done", "name": "Done" },
+      "canceled": { "id": "st-canceled", "name": "Canceled" }
+    },
+    "labels": {
+      "risk:high": "lb-risk-high",
+      "impl:agent": "lb-impl-agent",
+      "impl:manual": "lb-impl-manual",
+      "impl:mixed": "lb-impl-mixed"
+    }
+  }
+}

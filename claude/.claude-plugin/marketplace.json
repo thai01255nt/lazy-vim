@@ -1,0 +1,12 @@
+{
+  "name": "thai-hitl",
+  "description": "Personal HITL skeleton-first workflow for Claude Code",
+  "owner": { "name": "Thai" },
+  "plugins": [
+    {
+      "name": "hitl",
+      "source": "./hitl",
+      "description": "Plan → tasks → skeleton → approve → test → implement → review, with an AST code index and drift checks"
+    }
+  ]
+}

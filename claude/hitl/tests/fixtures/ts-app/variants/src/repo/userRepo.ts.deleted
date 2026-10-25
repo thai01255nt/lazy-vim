@@ -1,0 +1,14 @@
+export interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+}
+
+export class UserRepo {
+  users: User[] = [];
+
+  save(user: User): User {
+    this.users.push(user);
+    return user;
+  }
+}

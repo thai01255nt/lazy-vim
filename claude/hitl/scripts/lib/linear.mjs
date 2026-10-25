@@ -1,0 +1,708 @@
+// Linear mirror (design v2 §A.5): desired state per task, plan / record / diff / status. Pure core + small IO loaders.
+// No network here, ever: the tickets skill executes the plan through the Linear MCP and hands results back as JSON.
+// Optional for every other command: status imports this module dynamically and treats any failure as "no Linear".
+import { promises as fsp, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { join, basename } from "node:path";
+import { h } from "./hash.mjs";
+import { stableJson, readJson, readText, writeJsonAtomic } from "./fsutil.mjs";
+import { deepMerge } from "./config.mjs";
+import { HITL_DIR, HITL_PREFIX, HITL_RE } from "./paths.mjs";
+
+export const MAP_SCHEMA = "hitl.linear-map/1";
+export const PLAN_SCHEMA = "hitl.tickets-plan/1";
+export const QUEUE_SCHEMA = "hitl.linear-queue/1";
+export const REMOTE_SCHEMA = "hitl.linear-remote/1";
+export const MAP_REL = `${HITL_PREFIX}linear.map.json`;
+
+/** Must deep-equal config.mjs DEFAULTS.linear (design A.7, interface I3). */
+export const LINEAR_DEFAULTS = {
+  enabled: false,
+  team: null,
+  planningAs: "project",
+  pushTodoAs: "unstarted",
+  pushQuick: true,
+  titlePrefix: false,
+  labels: { risk: true, impl: true, phase: false },
+  stateNames: {},
+  autoPush: { onTasksApproved: false, onApprove: false, onReview: false },
+  reviewComment: true,
+  maxCreatePerPush: 50,
+};
+
+export const linearCfg = (config) => deepMerge(LINEAR_DEFAULTS, (config && config.linear) || {});
+
+export function linearPaths(root) {
+  const custom = join(root, HITL_DIR);
+  const index = join(custom, "index");
+  return {
+    custom, index, inbox: join(custom, ".inbox"),
+    map: join(custom, "linear.map.json"), plan: join(index, "linear.plan.json"),
+    queue: join(index, "linear.queue.json"), remote: join(index, "linear.remote.json"),
+  };
+}
+
+const PRIO = { P0: 1, P1: 2, P2: 3, P3: 4 };
+const HITL_LABEL = /^(risk|impl|hitl):/;
+const taskNum = (id) => Number(/\d+/.exec(id || "")?.[0] ?? 0);
+const byTaskId = (a, b) => taskNum(a) - taskNum(b) || String(a).localeCompare(String(b));
+const shortFile = (f) => String(f || "").replace(new RegExp(`^${HITL_RE}`), "");
+
+export function emptyMap() {
+  return { schema: MAP_SCHEMA, workspace: null, team: null, states: {}, labels: {}, planning: {}, tasks: {}, updatedAt: null };
+}
+export function normalizeMap(m) {
+  const o = m && typeof m === "object" && !Array.isArray(m) ? m : {};
+  return { ...emptyMap(), ...o, schema: MAP_SCHEMA, states: o.states || {}, labels: o.labels || {}, planning: o.planning || {}, tasks: o.tasks || {} };
+}
+export const isConfigured = (map) => !!(map && map.team && map.team.id && map.states && map.states.started && map.states.started.id);
+
+export function slugify(s, max = 40) {
+  return String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, max).replace(/-+$/, "");
+}
+export function fallbackBranch(teamKey, issue, title) {
+  const n = /-(\d+)$/.exec(issue || "")?.[1] || "";
+  return [String(teamKey || "").toLowerCase(), n, slugify(title)].filter(Boolean).join("-");
+}
+
+// ---------------------------------------------------------------- desired state (A.5.4)
+export function stateTypeFor(status, cfg, map) {
+  const st = (map && map.states) || {};
+  let t;
+  if (status === "done") t = "completed";
+  else if (["green", "review", "verified"].includes(status)) t = "review";
+  else if (["skeleton", "approved", "red", "wip"].includes(status)) t = "started";
+  else t = cfg.pushTodoAs === "backlog" ? "backlog" : "unstarted";
+  if (t === "backlog" && !st.backlog) t = "unstarted";
+  if (t === "review" && !st.review) t = "started";
+  return t;
+}
+
+export function describeTask(task, planningKey) {
+  const acs = (task.acs || []).map((a) => {
+    const reqs = Array.isArray(a.reqs) && a.reqs.length ? ` (${a.reqs.join(", ")})` : "";
+    return `- [${a.done ? "x" : " "}] ${a.id}${reqs} ${a.text}`;
+  });
+  const risk = task.risk ? `${task.risk}${(task.riskReasons || []).length ? ` (${task.riskReasons.join(", ")})` : ""}` : "?";
+  return [
+    `<!-- hitl:task=${task.id} file=${task.file} -->`,
+    `**Why**: ${task.why || "—"}`,
+    "",
+    "### Acceptance criteria",
+    ...(acs.length ? acs : ["- (none)"]),
+    "",
+    `risk: ${risk} · impl: ${task.impl || "?"} · prio: ${task.prio || "?"} · planning: ${planningKey || "none"}`,
+    "_Managed by hitl. Edit the tasks file in the repo, not this description._",
+  ].join("\n");
+}
+
+/** Desired Linear fields for one task. extras: {planningKey, warnings:Set}. Pure. */
+export function desiredForTask(task, statusOfTask, cfg, map, extras = {}) {
+  const status = statusOfTask || "todo";
+  const title = cfg.titlePrefix ? `${task.id} · ${task.title}` : task.title;
+  const description = describeTask(task, extras.planningKey || null);
+  const priority = PRIO[task.prio] ?? 0;
+  const stateType = stateTypeFor(status, cfg, map);
+  const stateId = map?.states?.[stateType]?.id || null;
+  const names = [];
+  if (cfg.labels?.risk && task.risk === "high") names.push("risk:high");
+  if (cfg.labels?.impl && task.impl) names.push(`impl:${task.impl}`);
+  if (cfg.labels?.phase && !["todo", "done"].includes(status)) names.push(`hitl:${status}`);
+  const labels = [];
+  for (const n of names.sort()) {
+    if (map?.labels?.[n]) labels.push(n);
+    else if (extras.warnings) extras.warnings.add(`label ${n} has no id (run /hitl:tickets init)`);
+  }
+  const labelIds = labels.map((n) => map.labels[n]);
+  const mapped = (id) => { const e = map?.tasks?.[id]; return !!(e && e.id && !e.removed); };
+  const relations = (task.blockedBy || []).filter(mapped).sort(byTaskId);
+  const contentHash = h(stableJson({ title, description, priority }));
+  return { task: task.id, status, title, description, priority, stateType, stateId, labels, labelIds, relations, contentHash };
+}
+
+// ---------------------------------------------------------------- planning → project / parent issue
+export function goalOf(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const i = lines.findIndex((l) => /^## Goal\s*$/.test(l));
+  if (i < 0) return "";
+  const out = [];
+  for (const l of lines.slice(i + 1)) { if (/^## /.test(l)) break; out.push(l); }
+  return out.join("\n").replace(/<!--[\s\S]*?-->/g, "").trim();
+}
+export function planningTitleOf(text, file) {
+  const m = /^# (.+?)(?: - Planning)?\s*$/m.exec(String(text || ""));
+  return m ? m[1].trim() : basename(String(file || ""), ".md");
+}
+
+/** info: {file, title, goal, requirements?:[{id,priority,text,status}], decisions?:[{id,decision,status}]} */
+export function desiredPlanning(info, cfg) {
+  if (!info || cfg.planningAs === "none") return null;
+  const goal = info.goal || "";
+  const first = (goal.split(/(?<=[.!?])\s+/)[0] || goal).replace(/\s+/g, " ").trim();
+  const summary = first.length > 255 ? first.slice(0, 254) + "…" : first;
+  const parts = [goal || "—"];
+  const reqs = (info.requirements || []).filter((r) => r.status === "active");
+  if (reqs.length) parts.push("### Requirements\n" + reqs.map((r) => `- ${r.id} [${r.priority || "must"}] ${r.text}`).join("\n"));
+  const decs = (info.decisions || []).filter((d) => d.status === "accepted");
+  if (decs.length) parts.push("### Decisions\n" + decs.map((d) => `- ${d.id} ${d.decision}`).join("\n"));
+  parts.push(`Repo: ${info.file}`);
+  const content = parts.join("\n\n");
+  const obj = cfg.planningAs === "parent-issue" ? { title: info.title, description: content } : { name: info.title, summary, content };
+  return { kind: cfg.planningAs, obj, pushedHash: h(stableJson(obj)) };
+}
+
+// ---------------------------------------------------------------- review comment
+export function parseReviewLine(md) {
+  const line = String(md || "").split(/\r?\n/).find((l) => /^verdict: /.test(l)) || "";
+  const v = /^verdict: (.+?) \|/.exec(line)?.[1] || null;
+  const hr = /\| human required: ([^|]+?)\s*(?:\||$)/.exec(line)?.[1] || null;
+  const head = /\| head: (\S+)/.exec(line)?.[1] || null;
+  return { verdict: v, humanRequired: hr, head };
+}
+export function reviewBody(T, review) {
+  const r = review || {};
+  const report = r.report || `${HITL_PREFIX}reviews/${T}.review.md`;
+  return `hitl review: ${r.verdict || "?"} · human required: ${r.humanRequired ?? "?"} · head: ${r.head || "?"} · report: ${shortFile(report)}`;
+}
+
+// ---------------------------------------------------------------- shared per-task evaluation
+function taskRows(I, cfg) {
+  const rows = [];
+  for (const doc of I.docs || []) {
+    const quick = !doc.planning || doc.planning === "none";
+    const planningKey = quick ? null : basename(doc.planning);
+    for (const t of doc.tasks || []) {
+      let skip = null;
+      if (doc.status !== "approved") skip = "tasks file draft";
+      else if (quick && !cfg.pushQuick) skip = "quick task (pushQuick off)";
+      rows.push({ task: { ...t, file: t.file || doc.file }, doc, planningKey, quick, skip, status: I.statuses?.tasks?.[t.id]?.status || "todo" });
+    }
+  }
+  return rows;
+}
+
+/** What differs between desired and pushed (for status/summary). Returns [] when synced. */
+function diffReasons(d, entry, map) {
+  const p = entry.pushed || {};
+  const r = [];
+  if (p.contentHash !== d.contentHash) r.push("content");
+  if (p.priority !== d.priority) r.push(`priority ${p.priority ?? "—"}→${d.priority}`);
+  const conflictKept = p.stateConflict && p.stateConflict === d.stateType;
+  if (!conflictKept && (p.stateType !== d.stateType || (d.stateId && p.stateId !== d.stateId))) r.push(`state ${p.stateType || "—"}→${d.stateType}`);
+  const pl = [...(p.labels || [])].sort().join(","), dl = [...d.labels].sort().join(",");
+  if (pl !== dl) r.push("labels");
+  return r;
+}
+
+// ---------------------------------------------------------------- plan (A.5.5)
+/**
+ * I: {config, map, docs:[{file,status,planning,tasks}], statuses:{tasks}, reviews:{[T]:{verdict,humanRequired,head,report}},
+ *     plannings:{[key]: info|null}, scope:{kind:"all"}|{kind:"tasks",ids}|{kind:"file",file}}
+ */
+export function buildPlan(I) {
+  const cfg = linearCfg(I.config);
+  const map = normalizeMap(I.map);
+  const base = { schema: PLAN_SCHEMA, planId: null, enabled: cfg.enabled === true, configured: isConfigured(map),
+    team: map.team ? { key: map.team.key || null, id: map.team.id || null } : null, ops: [], skipped: [], warnings: [], counts: {} };
+  if (!base.enabled) return base;
+  if (!base.configured) { base.warnings.push("run /hitl:tickets init"); return base; }
+  const warnings = new Set();
+  const scope = I.scope || { kind: "all" };
+  const all = taskRows(I, cfg);
+  const inScope = all.filter((r) => scope.kind === "all" || (scope.kind === "tasks" && scope.ids.includes(r.task.id)) || (scope.kind === "file" && r.doc.file === scope.file));
+  const skipped = [];
+  const live = [];
+  for (const r of inScope) { if (r.skip) skipped.push({ task: r.task.id, reason: r.skip }); else live.push(r); }
+  for (const r of live) r.d = desiredForTask(r.task, r.status, cfg, map, { planningKey: r.planningKey, warnings });
+
+  const ensure = [], creates = [], updates = [], rels = [], notes = [], comments = [], cancels = [];
+  // plannings
+  const pkeys = [...new Set(live.map((r) => r.planningKey).filter(Boolean))].sort();
+  const ensured = new Set();
+  for (const key of pkeys) {
+    if (cfg.planningAs === "none") break;
+    const info = I.plannings?.[key];
+    if (!info) { warnings.add(`planning ${key} not found; its issues get no ${cfg.planningAs}`); continue; }
+    const dp = desiredPlanning(info, cfg);
+    const entry = map.planning[key];
+    if (entry && entry.pushedHash === dp.pushedHash) continue;
+    const kind = entry?.kind || dp.kind;
+    const op = kind === "parent-issue" ? "ensureParent" : "ensureProject";
+    ensured.add(key);
+    ensure.push({ op, planning: key, payload: { ...dp.obj, teamId: map.team.id, id: entry?.id || null }, needsGate: false,
+      reason: entry ? `${kind === "parent-issue" ? "parent issue" : "project"} content changed` : `new ${kind === "parent-issue" ? "parent issue" : "project"}`,
+      meta: { kind, pushedHash: dp.pushedHash } });
+  }
+  const anchorOf = (key) => {
+    const e = key ? map.planning[key] : null;
+    return { projectId: e && e.kind === "project" ? e.id : null, parentId: e && e.kind === "parent-issue" ? e.id : null };
+  };
+
+  // creates (unmapped), topological by blocked-by among the created set
+  const unmapped = live.filter((r) => !map.tasks[r.task.id]);
+  const order = topoOrder(unmapped.map((r) => r.task));
+  const byId = new Map(unmapped.map((r) => [r.task.id, r]));
+  const firstPush = new Set();
+  for (const r of unmapped) if (!Object.values(map.tasks).some((e) => e.tasksFile === r.doc.file)) firstPush.add(r.doc.file);
+  const tooMany = unmapped.length > (Number(cfg.maxCreatePerPush) || 50);
+  if (tooMany) warnings.add(`${unmapped.length} issues to create > maxCreatePerPush ${cfg.maxCreatePerPush}; every create needs a gate`);
+  let deferred = 0;
+  for (const id of order) {
+    const r = byId.get(id);
+    const a = anchorOf(r.planningKey);
+    const first = firstPush.has(r.doc.file);
+    creates.push({ op: "createIssue", task: id, ...(r.planningKey ? { planning: r.planningKey } : {}),
+      payload: { title: r.d.title, description: r.d.description, teamId: map.team.id, priority: r.d.priority, stateId: r.d.stateId,
+        stateType: r.d.stateType, labelIds: r.d.labelIds, projectId: a.projectId, parentId: a.parentId },
+      needsGate: first || tooMany, reason: first ? `first push of ${shortFile(r.doc.file)}` : "new task",
+      meta: metaOf(r, ensured.has(r.planningKey) ? r.planningKey : null) });
+    if ((r.task.blockedBy || []).length) deferred += r.task.blockedBy.length;
+    if (cfg.reviewComment && I.reviews?.[id]) deferred++;
+  }
+
+  // updates for mapped tasks
+  for (const r of live) {
+    const e = map.tasks[r.task.id];
+    if (!e) continue;
+    const d = r.d, p = e.pushed || {};
+    const a = anchorOf(r.planningKey);
+    if (e.removed) {
+      updates.push({ op: "updateIssue", task: r.task.id, issue: e.issue, id: e.id,
+        payload: { fields: { title: d.title, description: d.description, priority: d.priority, stateId: d.stateId, ...(a.projectId ? { projectId: a.projectId } : {}), ...(a.parentId ? { parentId: a.parentId } : {}) },
+          labels: { add: d.labelIds, remove: [] }, expect: { stateType: "canceled" } },
+        needsGate: true, reason: "re-added after cancel (un-cancel)", meta: { ...metaOf(r, null), uncancel: true } });
+      continue;
+    }
+    const fields = {}, why = [];
+    if (p.contentHash !== d.contentHash) { fields.title = d.title; fields.description = d.description; why.push("content"); }
+    if (p.priority !== d.priority) { fields.priority = d.priority; why.push(`priority ${p.priority ?? "—"}→${d.priority}`); }
+    const conflictKept = p.stateConflict && p.stateConflict === d.stateType;
+    const stateChange = !conflictKept && (p.stateType !== d.stateType || (d.stateId && p.stateId !== d.stateId));
+    let reopen = null;
+    if (stateChange) {
+      if (p.stateType === "completed" && d.stateType !== "completed") {
+        reopen = { op: "updateIssue", task: r.task.id, issue: e.issue, id: e.id,
+          payload: { fields: { stateId: d.stateId }, labels: { add: [], remove: [] }, expect: { stateType: "completed" } },
+          needsGate: true, reason: `reopen: Linear completed, hitl ${d.status}`, meta: { ...metaOf(r, null), reopen: true } };
+      } else { fields.stateId = d.stateId; why.push(`state ${p.stateType || "—"}→${d.stateType}`); }
+    }
+    const pushedIds = (p.labels || []).map((n) => map.labels[n]).filter(Boolean);
+    const add = d.labelIds.filter((x) => !pushedIds.includes(x)).sort();
+    const remove = pushedIds.filter((x) => !d.labelIds.includes(x)).sort();
+    if (add.length || remove.length) why.push("labels");
+    if (a.projectId && p.projectId !== a.projectId) { fields.projectId = a.projectId; why.push("project"); }
+    if (a.parentId && p.parentId !== a.parentId) { fields.parentId = a.parentId; why.push("parent"); }
+    if (Object.keys(fields).length || add.length || remove.length) {
+      updates.push({ op: "updateIssue", task: r.task.id, issue: e.issue, id: e.id,
+        payload: { fields, labels: { add, remove }, expect: { stateType: p.stateType ?? null } }, needsGate: false, reason: why.join(", "), meta: metaOf(r, null) });
+    }
+    if (reopen) updates.push(reopen);
+
+    // relations
+    const want = (r.task.blockedBy || []);
+    const have = p.relations || [];
+    const addRel = d.relations.filter((b) => !have.includes(b));
+    deferred += want.filter((b) => !d.relations.includes(b) && !have.includes(b) && byId.has(b)).length;
+    if (addRel.length) rels.push({ op: "addRelations", task: r.task.id, issue: e.issue, id: e.id,
+      payload: { blockedBy: addRel.map((b) => ({ task: b, id: map.tasks[b].id, issue: map.tasks[b].issue })) },
+      needsGate: false, reason: `blocked-by ${addRel.join(", ")}`, meta: { relations: addRel } });
+    const gone = have.filter((b) => !want.includes(b)).sort(byTaskId);
+    if (gone.length) {
+      const issues = gone.map((b) => map.tasks[b]?.issue || b).join(", ");
+      notes.push({ op: "manualNote", task: r.task.id, issue: e.issue,
+        payload: { message: `remove relation ${e.issue} blocked by ${issues} by hand (MCP cannot delete relations)` },
+        needsGate: false, reason: "relation removed locally", meta: { relations: gone } });
+    }
+    // review comment
+    if (cfg.reviewComment && I.reviews?.[r.task.id]) {
+      const body = reviewBody(r.task.id, I.reviews[r.task.id]);
+      const prev = e.comments?.review;
+      if (!prev || prev.hash !== h(body)) comments.push({ op: "upsertComment", task: r.task.id, issue: e.issue, id: e.id,
+        payload: { commentId: prev?.id || null, body, kind: "review" }, needsGate: false, reason: prev ? "review verdict changed" : "review verdict", meta: { hash: h(body) } });
+    }
+  }
+
+  // cancels: mapped, not in any tasks md (scope all only)
+  if (scope.kind === "all") {
+    const local = new Set(all.map((r) => r.task.id));
+    for (const T of Object.keys(map.tasks).sort(byTaskId)) {
+      const e = map.tasks[T];
+      if (e.removed || local.has(T)) continue;
+      const cid = map.states.canceled?.id;
+      if (!cid) { warnings.add(`no canceled state mapped; cannot cancel ${e.issue}`); continue; }
+      cancels.push({ op: "cancelIssue", task: T, issue: e.issue, id: e.id, payload: { stateId: cid }, needsGate: true, reason: "task removed from tasks md", meta: {} });
+    }
+  }
+
+  const ops = [...ensure, ...creates, ...updates, ...rels, ...notes, ...comments, ...cancels].map((o) => {
+    const opId = h(o.op + (o.task || o.planning || "") + stableJson(o.payload));
+    return { opId, ...o };
+  });
+  const counts = {};
+  for (const o of ops) counts[o.op] = (counts[o.op] || 0) + 1;
+  return { ...base, planId: h(ops.map((o) => o.opId).join(",")), ops, skipped, warnings: [...warnings].sort(), counts, deferred,
+    scope: scope.kind === "all" ? "all" : scope.kind === "file" ? scope.file : scope.ids.join(",") };
+}
+
+function metaOf(r, planningRef) {
+  return { contentHash: r.d.contentHash, labels: r.d.labels, status: r.d.status, stateType: r.d.stateType, stateId: r.d.stateId,
+    title: r.d.title, priority: r.d.priority, tasksFile: r.doc.file, planning: r.planningKey, ...(planningRef ? { planningRef } : {}) };
+}
+
+/** Blockers first; ties by prio then id. Blockers outside the set are ignored. */
+export function topoOrder(tasks) {
+  const ids = new Set(tasks.map((t) => t.id));
+  const prio = new Map(tasks.map((t) => [t.id, PRIO[t.prio] ?? 9]));
+  const deps = new Map(tasks.map((t) => [t.id, new Set((t.blockedBy || []).filter((b) => ids.has(b) && b !== t.id))]));
+  const cmp = (a, b) => prio.get(a) - prio.get(b) || byTaskId(a, b);
+  const out = [];
+  const left = new Set(ids);
+  while (left.size) {
+    let ready = [...left].filter((id) => [...deps.get(id)].every((b) => !left.has(b))).sort(cmp);
+    if (!ready.length) ready = [...left].sort(cmp).slice(0, 1); // cycle: break deterministically
+    const id = ready[0];
+    out.push(id);
+    left.delete(id);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- record (A.5.5)
+const err1 = (message) => Object.assign(new Error(message), { code: 1 });
+
+/** Pure: returns {map, queue, out}. Throws Error{code:1} on invalid input. */
+export function applyRecord({ map: map0, plan, queue: q0, input, now }) {
+  if (!input || typeof input !== "object" || input.schema !== "hitl.tickets-results/1") throw err1("input schema must be hitl.tickets-results/1");
+  const map = normalizeMap(structuredClone(map0 || emptyMap()));
+  const queue = { schema: QUEUE_SCHEMA, items: [...((q0 && Array.isArray(q0.items)) ? q0.items : [])] };
+  const out = { schema: "hitl.tickets-record/1", kind: input.kind, applied: 0, failed: 0, queued: 0, replan: false, map: MAP_REL };
+  if (input.kind === "init") {
+    const it = input.init;
+    if (!it || !it.team || !it.team.id || !it.team.key) throw err1("init.team {key,id,name} is required");
+    if (!it.states || !it.states.started || !it.states.started.id) throw err1("init.states.started {id,name} is required");
+    map.workspace = it.workspace || null;
+    map.team = { key: it.team.key, id: it.team.id, name: it.team.name || it.team.key };
+    const states = {};
+    for (const k of ["backlog", "unstarted", "started", "review", "completed", "canceled"]) {
+      const s = it.states[k];
+      states[k] = s && s.id ? { id: s.id, name: s.name || k } : null;
+    }
+    map.states = states;
+    map.labels = { ...(map.labels || {}), ...(it.labels || {}) };
+    map.updatedAt = now;
+    out.applied = 1;
+    out.queued = queue.items.length;
+    return { map, queue, out };
+  }
+  if (input.kind !== "push") throw err1(`unknown kind ${input.kind}`);
+  if (!plan || !plan.planId) throw err1("no plan found; run tickets plan first");
+  if (input.planId !== plan.planId) throw err1("plan changed; run tickets plan again");
+  const ops = new Map((plan.ops || []).map((o) => [o.opId, o]));
+  const key = (o) => `${o.op}|${o.task || o.planning || ""}`;
+  const enqueue = (o, error) => {
+    const k = key(o);
+    const i = queue.items.findIndex((x) => key(x) === k);
+    const item = { opId: o.opId, op: o.op, task: o.task || null, planning: o.planning || null, error: String(error || "unknown").slice(0, 300), queuedAt: now };
+    if (i >= 0) queue.items[i] = item; else queue.items.push(item);
+  };
+  const dequeue = (o) => { queue.items = queue.items.filter((x) => key(x) !== key(o)); };
+  if (input.unreachable) {
+    for (const o of plan.ops || []) { if (o.op !== "manualNote") { enqueue(o, `unreachable: ${input.unreachable.reason || "unknown"}`); out.failed++; } }
+  } else {
+    const results = Array.isArray(input.results) ? input.results : [];
+    const ensuredIds = {};
+    // ensure ops first so createIssue in the same batch can pick up the new project/parent id
+    const sorted = [...results].sort((a, b) => rank(ops.get(a.opId)) - rank(ops.get(b.opId)));
+    let created = 0;
+    for (const res of sorted) {
+      const o = ops.get(res && res.opId);
+      if (!o) continue; // unknown op id: ignore (stale result)
+      if (!res.ok) { enqueue(o, res.error); out.failed++; continue; }
+      applyOk(map, o, res, now, ensuredIds);
+      dequeue(o);
+      out.applied++;
+      if (o.op === "createIssue") created++;
+    }
+    if (plan.scope === "all") { // queue items no longer needed by the current plan are resolved
+      const live = new Set((plan.ops || []).map(key));
+      queue.items = queue.items.filter((x) => live.has(key(x)));
+    }
+    out.replan = created > 0 && (plan.deferred || 0) > 0;
+  }
+  map.updatedAt = now;
+  out.queued = queue.items.length;
+  return { map, queue, out };
+}
+
+const RANK = { ensureProject: 0, ensureParent: 0, createIssue: 1, updateIssue: 2, addRelations: 3, manualNote: 4, upsertComment: 5, cancelIssue: 6 };
+const rank = (o) => (o ? RANK[o.op] ?? 9 : 99);
+
+function applyOk(map, o, res, now, ensuredIds) {
+  const skipped = new Set(res.skippedFields || []);
+  const m = o.meta || {};
+  if (o.op === "ensureProject" || o.op === "ensureParent") {
+    const prev = map.planning[o.planning] || {};
+    const id = res.id || o.payload.id || prev.id;
+    map.planning[o.planning] = { kind: m.kind || (o.op === "ensureParent" ? "parent-issue" : "project"), id, key: res.issue || prev.key || null,
+      url: res.url || prev.url || null, pushedHash: m.pushedHash, at: now };
+    ensuredIds[o.planning] = { kind: map.planning[o.planning].kind, id };
+    return;
+  }
+  if (o.op === "createIssue") {
+    const p = o.payload;
+    let projectId = res.projectId ?? p.projectId ?? null, parentId = res.parentId ?? p.parentId ?? null;
+    const ref = m.planningRef && ensuredIds[m.planningRef];
+    if (ref && ref.kind === "project" && !projectId) projectId = ref.id;
+    if (ref && ref.kind === "parent-issue" && !parentId) parentId = ref.id;
+    const stateKept = skipped.has("stateId");
+    map.tasks[o.task] = {
+      issue: res.issue || null, id: res.id || null, url: res.url || null,
+      branch: res.branch || fallbackBranch(map.team?.key, res.issue, m.title || p.title),
+      tasksFile: m.tasksFile || null, planning: m.planning || null, removed: false,
+      pushed: { contentHash: m.contentHash, descHash: h(res.description ?? p.description), title: p.title, priority: p.priority,
+        stateType: stateKept ? null : m.stateType, stateId: stateKept ? null : p.stateId, status: m.status,
+        labels: skipped.has("labelIds") ? [] : m.labels || [], relations: [], projectId, parentId, at: now },
+      comments: {},
+    };
+    return;
+  }
+  const e = map.tasks[o.task];
+  if (!e) return;
+  e.pushed = e.pushed || {};
+  const P = e.pushed;
+  if (o.op === "updateIssue") {
+    const f = o.payload.fields || {};
+    const content = ("title" in f || "description" in f);
+    if (content && !skipped.has("title") && !skipped.has("description")) {
+      P.contentHash = m.contentHash; P.title = f.title; P.descHash = h(res.description ?? f.description);
+    }
+    if ("priority" in f && !skipped.has("priority")) P.priority = f.priority;
+    if ("stateId" in f) {
+      if (skipped.has("stateId")) P.stateConflict = m.stateType;
+      else { P.stateType = m.stateType; P.stateId = f.stateId; P.status = m.status; delete P.stateConflict; }
+    } else if (P.stateConflict && P.stateConflict !== m.stateType) delete P.stateConflict;
+    if (!skipped.has("labelIds") && !skipped.has("labels")) P.labels = m.labels || P.labels || [];
+    if ("projectId" in f && !skipped.has("projectId")) P.projectId = f.projectId;
+    if ("parentId" in f && !skipped.has("parentId")) P.parentId = f.parentId;
+    if (m.uncancel) { e.removed = false; P.relations = P.relations || []; }
+    if (res.url) e.url = res.url;
+    if (res.branch) e.branch = res.branch;
+    P.at = now;
+  } else if (o.op === "addRelations") {
+    P.relations = [...new Set([...(P.relations || []), ...(m.relations || [])])].sort(byTaskId);
+  } else if (o.op === "manualNote") {
+    P.relations = (P.relations || []).filter((b) => !(m.relations || []).includes(b));
+  } else if (o.op === "upsertComment") {
+    e.comments = e.comments || {};
+    e.comments.review = { id: res.commentId || o.payload.commentId || null, hash: m.hash };
+  } else if (o.op === "cancelIssue") {
+    e.removed = true; P.stateType = "canceled"; P.stateId = o.payload.stateId; P.at = now;
+  }
+}
+
+// ---------------------------------------------------------------- diff (A.5.5)
+const MARKER = /<!-- hitl:task=(T-\d+)\b/;
+
+/** Pure. I: {config, map, remote (hitl.tickets-remote/1), statuses, localTasks:[{id,file,planning,title}], relink:boolean} */
+export function buildDiff(I) {
+  const cfg = linearCfg(I.config);
+  const map = normalizeMap(structuredClone(I.map || emptyMap()));
+  const R = I.remote;
+  if (!R || R.schema !== "hitl.tickets-remote/1" || !Array.isArray(R.issues)) throw err1("input schema must be hitl.tickets-remote/1 with issues[]");
+  const items = [], relink = [], remote = {};
+  const byId = new Map(), byIdent = new Map();
+  for (const i of R.issues) { if (i && i.id) byId.set(i.id, i); if (i && i.identifier) byIdent.set(i.identifier, i); }
+  const local = new Map((I.localTasks || []).map((t) => [t.id, t]));
+  const mappedIds = new Set();
+  for (const T of Object.keys(map.tasks).sort(byTaskId)) {
+    const e = map.tasks[T];
+    if (e.id) mappedIds.add(e.id);
+    if (e.removed) continue;
+    const r = byId.get(e.id) || byIdent.get(e.issue);
+    if (!r) {
+      if (R.complete === true) items.push({ level: "warn", code: "LINEAR_MISSING", task: T, issue: e.issue, field: null, local: null, remote: null, message: `${e.issue} not found in Linear (deleted or moved team?)` });
+      continue;
+    }
+    remote[T] = { assignee: r.assignee ?? null, cycle: r.cycle ?? null, state: r.state?.name ?? null };
+    const p = e.pushed || {};
+    if (!p.contentHash) continue; // relinked, not pushed yet
+    const drift = (field, l, rv, message) => items.push({ level: "warn", code: "LINEAR_DRIFT", task: T, issue: e.issue, field, local: l, remote: rv, message });
+    if (p.title !== undefined && r.title !== undefined && r.title !== p.title) drift("title", p.title, r.title, `title edited in Linear`);
+    if (p.descHash && typeof r.description === "string" && h(r.description) !== p.descHash) drift("description", p.descHash, h(r.description), "description edited in Linear (hitl overwrites it on the next content change)");
+    if (p.priority !== undefined && r.priority !== undefined && r.priority !== p.priority) drift("priority", p.priority, r.priority, `priority ${p.priority} locally, ${r.priority} in Linear`);
+    const status = I.statuses?.tasks?.[T]?.status || p.status || null;
+    const rType = r.state?.type || null;
+    if (rType === "completed" && status !== "done") {
+      items.push({ level: "warn", code: "LINEAR_DONE_EARLY", task: T, issue: e.issue, field: "state", local: status, remote: r.state?.name || rType,
+        message: `${e.issue} is completed in Linear but ${T} is ${status} — run /hitl:review ${T}, or reopen in Linear` });
+    } else if (p.stateId && r.state?.id && r.state.id !== p.stateId && !(p.stateConflict)) {
+      drift("state", p.stateType, r.state.name || rType, `state moved in Linear (${r.state.name || rType})`);
+    }
+    if (Array.isArray(r.labels)) {
+      const rl = r.labels.map((x) => x && x.name).filter((n) => n && HITL_LABEL.test(n)).sort();
+      const pl = [...(p.labels || [])].sort();
+      if (rl.join(",") !== pl.join(",")) drift("labels", pl, rl, "hitl labels changed in Linear");
+    }
+  }
+  for (const r of R.issues) {
+    if (!r || mappedIds.has(r.id)) continue;
+    let T = MARKER.exec(r.description || "")?.[1] || null;
+    if (!T && cfg.titlePrefix) T = /^(T-\d+)\b/.exec(r.title || "")?.[1] || null;
+    if (!T) continue;
+    const e = map.tasks[T];
+    if (e && !e.removed && e.id) continue; // mapped to another issue already
+    items.push({ level: "info", code: "LINEAR_UNMAPPED", task: T, issue: r.identifier, field: null, local: null, remote: null,
+      message: `${r.identifier} carries the hitl marker for ${T} but is not mapped (tickets pull --relink)` });
+    if (local.has(T)) relink.push({ task: T, issue: r.identifier, id: r.id, url: r.url || null, branch: r.branchName || fallbackBranch(map.team?.key, r.identifier, r.title) });
+  }
+  const order = { warn: 0, info: 1 };
+  items.sort((a, b) => order[a.level] - order[b.level] || a.code.localeCompare(b.code) || byTaskId(a.task, b.task) || String(a.field).localeCompare(String(b.field)));
+  const seen = new Set();
+  const rl = relink.filter((x) => (seen.has(x.task) ? false : seen.add(x.task))).sort((a, b) => byTaskId(a.task, b.task));
+  const out = { schema: "hitl.tickets-diff/1", items, relink: rl, remote,
+    counts: { warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length } };
+  if (I.relink) {
+    for (const x of rl) {
+      const t = local.get(x.task);
+      map.tasks[x.task] = { issue: x.issue, id: x.id, url: x.url, branch: x.branch, tasksFile: t?.file || null,
+        planning: t?.planning && t.planning !== "none" ? basename(t.planning) : null, removed: false, pushed: {}, comments: {} };
+    }
+  }
+  return { out, map };
+}
+
+// ---------------------------------------------------------------- status (A.5.5)
+/** Pure. I: {config, map, docs, statuses, queue, branch} */
+export function buildStatus(I) {
+  const cfg = linearCfg(I.config);
+  const map = normalizeMap(I.map);
+  const rows = taskRows(I, cfg);
+  const tasks = [];
+  let mapped = 0, unmapped = 0, outOfSync = 0;
+  for (const r of rows) {
+    const e = map.tasks[r.task.id];
+    const live = e && !e.removed && e.id ? e : null;
+    let synced = false, reason = null;
+    if (r.skip) reason = r.skip;
+    else if (!live) { reason = "not pushed"; unmapped++; }
+    else {
+      mapped++;
+      const d = desiredForTask(r.task, r.status, cfg, map, { planningKey: r.planningKey });
+      const why = diffReasons(d, live, map);
+      synced = why.length === 0;
+      if (!synced) { reason = why.join(", "); outOfSync++; }
+    }
+    if (r.skip && live) mapped++;
+    const prLine = live ? (["verified", "done"].includes(r.status) ? `Fixes ${live.issue}` : `Part of ${live.issue}`) : null;
+    const onBranch = live && I.branch ? I.branch.toLowerCase().includes(String(live.issue || "").toLowerCase()) : false;
+    tasks.push({ task: r.task.id, title: r.task.title, status: r.status, issue: live?.issue || null, url: live?.url || null, branch: live?.branch || null,
+      synced, reason, prLine, onBranch });
+  }
+  tasks.sort((a, b) => byTaskId(a.task, b.task));
+  return { schema: "hitl.tickets-status/1", enabled: cfg.enabled === true, configured: isConfigured(map), team: map.team?.key || cfg.team || null,
+    planningAs: cfg.planningAs, autoPush: { ...cfg.autoPush }, tasks, mapped, unmapped, outOfSync,
+    queued: Array.isArray(I.queue?.items) ? I.queue.items.length : 0, mapFile: MAP_REL };
+}
+
+// ---------------------------------------------------------------- IO
+export async function readMap(root) { return normalizeMap(await readJson(linearPaths(root).map, null)); }
+export async function readQueue(root) {
+  const q = await readJson(linearPaths(root).queue, null);
+  return { schema: QUEUE_SCHEMA, items: q && Array.isArray(q.items) ? q.items : [] };
+}
+export const writeMap = (root, map) => writeJsonAtomic(linearPaths(root).map, normalizeMap(map));
+
+export function currentBranch(root) {
+  try {
+    const r = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: root, encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"] });
+    return r.status === 0 ? r.stdout.trim() || null : null;
+  } catch { return null; }
+}
+
+/** Planning info for desiredPlanning: planningmd.mjs when present (I2), else a local Goal/title fallback. */
+export async function loadPlanningInfo(root, rel) {
+  const file = rel.includes("/") ? rel : `${HITL_PREFIX}planning/${rel.endsWith(".md") ? rel : rel + ".md"}`;
+  const text = await readText(join(root, file), null);
+  if (text === null) return null;
+  const info = { file, title: planningTitleOf(text, file), goal: goalOf(text), requirements: [], decisions: [] };
+  try {
+    const m = await import("./planningmd.mjs");
+    const doc = m.parsePlanningMd(text, file);
+    if (doc) {
+      if (doc.title) info.title = doc.title;
+      info.requirements = (doc.requirements || []).map((r) => ({ id: r.id, priority: r.priority, text: r.text, status: r.status }));
+      info.decisions = (doc.decisions || []).map((d) => ({ id: d.id, decision: d.decision, status: d.status }));
+    }
+  } catch { /* planningmd not available: Goal text only */ }
+  return info;
+}
+
+export async function loadReviews(root, state) {
+  const out = {};
+  for (const [T, rv] of Object.entries(state?.reviews || {}).sort()) {
+    const report = rv.report || `${HITL_PREFIX}reviews/${T}.review.md`;
+    const md = await readText(join(root, report), "");
+    const p = parseReviewLine(md);
+    out[T] = { verdict: p.verdict || rv.verdict || null, humanRequired: p.humanRequired, head: p.head, report };
+  }
+  return out;
+}
+
+/** Local inputs for plan/status/diff (no network). reindex: changed files only, like status. */
+export async function loadLocal(root, config, { reindex = true } = {}) {
+  const { loadApi, readLock } = await import("./lock.mjs");
+  const { readState } = await import("./state.mjs");
+  const { computeStatuses } = await import("./status.mjs");
+  const { readTaskDocs } = await import("./tasksmd.mjs");
+  const api = await loadApi();
+  if (api && reindex) {
+    try {
+      const idx = await api.readIndex(root);
+      await api.updateIndex(root, null, idx ? { changedOnly: true, budgetMs: 4000 } : { full: true, budgetMs: 10000 });
+    } catch { /* stale index is still usable */ }
+  }
+  const index = (api && (await api.readIndex(root).catch(() => null))) || { symbols: {}, files: {} };
+  const lock = await readLock(root);
+  const state = await readState(root);
+  const docs = await readTaskDocs(root);
+  const tasks = docs.flatMap((d) => d.tasks);
+  const statuses = computeStatuses(index, lock, state, config, tasks);
+  return { docs, tasks, statuses, state };
+}
+
+/** Header status per tasks file, read synchronously (cheap; used by ticketsSummary). */
+function docsFromTasks(root, tasks) {
+  const files = new Map();
+  for (const t of tasks || []) {
+    if (!t || !t.file) continue;
+    if (!files.has(t.file)) {
+      let text = "";
+      try { text = readFileSync(join(root, t.file), "utf8"); } catch { /* missing */ }
+      files.set(t.file, { file: t.file, status: /^> status: (draft|approved)/m.exec(text)?.[1] || null, planning: t.planning || null, tasks: [] });
+    }
+    files.get(t.file).tasks.push(t);
+  }
+  return [...files.values()];
+}
+
+/** Interface I1 (status --json): null when disabled or on any error. */
+export async function ticketsSummary(root, config, tasks, statuses) {
+  try {
+    const cfg = linearCfg(config);
+    if (cfg.enabled !== true) return null;
+    const map = await readMap(root);
+    const queue = await readQueue(root);
+    const docs = docsFromTasks(root, tasks);
+    const anyMapped = Object.values(map.tasks).some((e) => e && e.id && !e.removed);
+    const branch = anyMapped ? currentBranch(root) : null;
+    const st = buildStatus({ config, map, docs, statuses, queue, branch });
+    const perTask = {};
+    for (const t of st.tasks) if (t.issue) perTask[t.task] = { issue: t.issue, url: t.url, branch: t.branch, synced: t.synced, onBranch: t.onBranch };
+    return { enabled: st.enabled, configured: st.configured, team: st.team, mapped: st.mapped, unmapped: st.unmapped, outOfSync: st.outOfSync, queued: st.queued, perTask };
+  } catch { return null; }
+}
+
+export async function removeInboxFile(root, file) {
+  const inbox = linearPaths(root).inbox;
+  if (file && (file === inbox || file.startsWith(inbox + "/") || file.startsWith(inbox + "\\"))) await fsp.rm(file, { force: true }).catch(() => {});
+}

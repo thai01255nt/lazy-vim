@@ -1,0 +1,34 @@
+{
+  "schema": "hitl.tickets-remote/1",
+  "complete": true,
+  "issues": [
+    {
+      "id": "issue-uuid-1",
+      "identifier": "ENG-1",
+      "url": "https://linear.app/acme/issue/ENG-1/register-user-with-unique-email",
+      "title": "Register user with unique email",
+      "description": "edited in Linear",
+      "priority": 1,
+      "state": { "id": "st-done", "name": "Done", "type": "completed" },
+      "labels": [ { "id": "lb-risk-high", "name": "risk:high" }, { "id": "lb-impl-mixed", "name": "impl:mixed" }, { "id": "lb-x", "name": "customer" } ],
+      "assignee": "Thai",
+      "cycle": "Cycle 12",
+      "branchName": "eng-1-register",
+      "updatedAt": "2026-10-25T10:00:00.000Z"
+    },
+    {
+      "id": "issue-uuid-9",
+      "identifier": "ENG-9",
+      "url": "https://linear.app/acme/issue/ENG-9/other",
+      "title": "Something else",
+      "description": "<!-- hitl:task=T-7 file=.hitl/tasks/other.md -->\n**Why**: —",
+      "priority": 3,
+      "state": { "id": "st-todo", "name": "Todo", "type": "unstarted" },
+      "labels": [],
+      "assignee": null,
+      "cycle": null,
+      "branchName": "eng-9-something-else",
+      "updatedAt": "2026-10-25T10:00:00.000Z"
+    }
+  ]
+}

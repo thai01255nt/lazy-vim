@@ -1,0 +1,36 @@
+from decimal import ROUND_HALF_UP, Decimal
+
+
+class Order:
+    def __init__(self, total: Decimal):
+        self.total = total
+        self.discounted = False
+
+
+def round_money(value: Decimal) -> Decimal:
+    """Round a money amount to 2 decimal places, half up.
+
+    @task T-2 @impl agent @status skeleton @prio 1
+    @concurrency none
+    """
+    # 1. quantize value to Decimal("0.01") with ROUND_HALF_UP
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def apply_discount(order: Order, pct: Decimal) -> Order:
+    """Apply pct% discount once; total never negative.
+
+    @task T-2 @impl manual @status skeleton @prio 2
+    @calls round_money
+    @concurrency none
+    """
+    # 1. validate 0 <= pct <= 100 else ValueError
+    if pct < 0 or pct > 100:
+        raise ValueError("pct must be between 0 and 100")
+    # 2. if order.discounted, return order unchanged
+    if order.discounted:
+        return order
+    # 3. set total to round_money(total * (100 - pct) / 100), mark discounted, return order
+    order.total = round_money(order.total * (100 - pct) / 100)
+    order.discounted = True
+    return order

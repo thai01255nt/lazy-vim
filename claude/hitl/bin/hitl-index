@@ -1,0 +1,17 @@
+#!/bin/sh
+# hitl-index shim: plugin bin/ is on the Bash PATH while the plugin is enabled.
+# Resolves its own location (following symlinks) and runs the Node CLI.
+SELF="$0"
+if command -v readlink >/dev/null 2>&1 && readlink -f "$SELF" >/dev/null 2>&1; then
+  SELF=$(readlink -f "$SELF")
+else
+  while [ -h "$SELF" ]; do
+    LINK=$(ls -ld "$SELF" | sed 's/.* -> //')
+    case "$LINK" in
+      /*) SELF="$LINK" ;;
+      *) SELF="$(dirname "$SELF")/$LINK" ;;
+    esac
+  done
+fi
+DIR=$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd)
+exec node "$DIR/../scripts/hitl-index.mjs" "$@"

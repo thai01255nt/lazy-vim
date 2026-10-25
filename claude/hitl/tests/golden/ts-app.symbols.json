@@ -1,0 +1,64 @@
+{
+  "schema": "hitl.golden/1",
+  "adapters": {
+    "py": "py-ast@1",
+    "ts": "ts-lite@1"
+  },
+  "symbols": {
+    "src/http/authController.ts#register": {
+      "sigHash": "c11b4d1ba931c9be",
+      "bodyHash": "7493a9319f090af5",
+      "intentHash": "20ab947beacb2d07"
+    },
+    "src/repo/userRepo.ts#User": {
+      "sigHash": "dcae9f848b83fd91",
+      "bodyHash": "490bc6c28ad66e47",
+      "intentHash": "230332cb143fc428"
+    },
+    "src/repo/userRepo.ts#UserRepo": {
+      "sigHash": "cff9433ea6e071ce",
+      "bodyHash": "25691e386576249a",
+      "intentHash": "230332cb143fc428"
+    },
+    "src/repo/userRepo.ts#UserRepo.findByEmail": {
+      "sigHash": "d1528677c303ae37",
+      "bodyHash": "13057ea3aeac5472",
+      "intentHash": "d7108233cddde766"
+    },
+    "src/repo/userRepo.ts#UserRepo.save": {
+      "sigHash": "95e9fe1ebda05bcb",
+      "bodyHash": "53ba837e776c4459",
+      "intentHash": "230332cb143fc428"
+    },
+    "src/services/userService.ts#UserService": {
+      "sigHash": "99eda3389f965f5d",
+      "bodyHash": "d0f202be080e74b9",
+      "intentHash": "230332cb143fc428"
+    },
+    "src/services/userService.ts#UserService.constructor": {
+      "sigHash": "3ae8107981162edc",
+      "bodyHash": "88d511c2b162e277",
+      "intentHash": "230332cb143fc428"
+    },
+    "src/services/userService.ts#UserService.createUser": {
+      "sigHash": "2b4d29ee89163af3",
+      "bodyHash": "90d23eace50a823c",
+      "intentHash": "c13486465f8c3098"
+    },
+    "tests/userService.test.ts#UserService.createUser": {
+      "sigHash": "77af4964bda625e5",
+      "bodyHash": "8d90ad173e6f67f8",
+      "intentHash": "230332cb143fc428"
+    },
+    "tests/userService.test.ts#UserService.createUser > T-1.AC1 rejects duplicate email in any case": {
+      "sigHash": "4b09e92c38e92b8c",
+      "bodyHash": "e3b0c44298fc1c14",
+      "intentHash": "230332cb143fc428"
+    },
+    "tests/userService.test.ts#UserService.createUser > T-1.AC2 returns the saved user": {
+      "sigHash": "d77952fd9dcab8c6",
+      "bodyHash": "e3b0c44298fc1c14",
+      "intentHash": "230332cb143fc428"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "hitl.golden/1",
+  "adapters": {
+    "py": "py-ast@1",
+    "ts": "ts-lite@1"
+  },
+  "symbols": {
+    "orders.py#Order": {
+      "sigHash": "e47c79369b3007c9",
+      "bodyHash": "63c148cd820c5a56",
+      "intentHash": "230332cb143fc428"
+    },
+    "orders.py#Order.__init__": {
+      "sigHash": "afbf96eb418d440e",
+      "bodyHash": "b6ada9851fdfed90",
+      "intentHash": "230332cb143fc428"
+    },
+    "orders.py#apply_discount": {
+      "sigHash": "ce6e020ce389868f",
+      "bodyHash": "8264757bad97fb6a",
+      "intentHash": "c3e77dff8c3f7582"
+    },
+    "orders.py#round_money": {
+      "sigHash": "4f994bb3b72c8bfe",
+      "bodyHash": "5507796f0e3c8df7",
+      "intentHash": "f9697b01d04833c5"
+    },
+    "tests/test_orders.py#TestOrders": {
+      "sigHash": "72b380e4d750b34f",
+      "bodyHash": "67ef3ee5732c696b",
+      "intentHash": "230332cb143fc428"
+    },
+    "tests/test_orders.py#TestOrders.test_T2_AC1_rejects_bad_pct": {
+      "sigHash": "dabe30ef98f3fb34",
+      "bodyHash": "d18f1da41e3183c3",
+      "intentHash": "230332cb143fc428"
+    },
+    "tests/test_orders.py#TestOrders.test_T2_AC2_rounds_half_up": {
+      "sigHash": "91b06e636e45abdd",
+      "bodyHash": "81230f2ad8459956",
+      "intentHash": "230332cb143fc428"
+    }
+  }
+}
