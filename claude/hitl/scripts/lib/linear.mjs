@@ -13,12 +13,18 @@ export const MAP_SCHEMA = "hitl.linear-map/1";
 export const PLAN_SCHEMA = "hitl.tickets-plan/1";
 export const QUEUE_SCHEMA = "hitl.linear-queue/1";
 export const REMOTE_SCHEMA = "hitl.linear-remote/1";
+export const IDENTITY_SCHEMA = "hitl.tickets-identity/1";
+export const VERIFY_SCHEMA = "hitl.tickets-verify/1";
+export const SERVER_SCHEMA = "hitl.tickets-server/1";
+export const LINEAR_MCP_URL = "https://mcp.linear.app/mcp";
 export const MAP_REL = `${HITL_PREFIX}linear.map.json`;
 
 /** Must deep-equal config.mjs DEFAULTS.linear (design A.7, interface I3). */
 export const LINEAR_DEFAULTS = {
   enabled: false,
+  server: null,
   team: null,
+  project: null,
   planningAs: "project",
   pushTodoAs: "unstarted",
   pushQuick: true,
@@ -49,13 +55,110 @@ const byTaskId = (a, b) => taskNum(a) - taskNum(b) || String(a).localeCompare(St
 const shortFile = (f) => String(f || "").replace(new RegExp(`^${HITL_RE}`), "");
 
 export function emptyMap() {
-  return { schema: MAP_SCHEMA, workspace: null, team: null, states: {}, labels: {}, planning: {}, tasks: {}, updatedAt: null };
+  return { schema: MAP_SCHEMA, repo: null, workspace: null, team: null, project: null, states: {}, labels: {}, planning: {}, tasks: {}, updatedAt: null };
 }
 export function normalizeMap(m) {
   const o = m && typeof m === "object" && !Array.isArray(m) ? m : {};
   return { ...emptyMap(), ...o, schema: MAP_SCHEMA, states: o.states || {}, labels: o.labels || {}, planning: o.planning || {}, tasks: o.tasks || {} };
 }
 export const isConfigured = (map) => !!(map && map.team && map.team.id && map.states && map.states.started && map.states.started.id);
+
+// ---------------------------------------------------------------- identity: server pin, workspace/team check, repo key
+/** "owner/name" from a git remote URL (https, ssh, scp-like); null when it does not look like one. Pure. */
+export function repoKeyFromRemote(url) {
+  const u = String(url || "").trim().replace(/\/+$/, "").replace(/\.git$/, "");
+  if (!u) return null;
+  const path = /^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]+\/?/i, "") : u.replace(/^[^@/]+@[^:/]+:/, "");
+  const parts = path.split(/[/:]/).filter(Boolean);
+  return parts.length >= 2 ? parts.slice(-2).join("/").toLowerCase() : parts.length === 1 ? parts[0].toLowerCase() : null;
+}
+/** Stable repo identity for the issue marker: git origin "owner/name", else the directory name. */
+export function repoKey(root) {
+  try {
+    const r = spawnSync("git", ["remote", "get-url", "origin"], { cwd: root, encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"] });
+    const k = r.status === 0 ? repoKeyFromRemote(r.stdout) : null;
+    if (k) return k;
+  } catch { /* no git */ }
+  return slugify(basename(root), 60) || null;
+}
+/** Linear workspace urlKey from any linear.app URL (https://linear.app/<urlKey>/…). Pure. */
+export function urlKeyFromUrl(url) {
+  return /^https?:\/\/linear\.app\/([^/?#]+)/i.exec(String(url || ""))?.[1]?.toLowerCase() || null;
+}
+/** Server name from an MCP tool name `mcp__<server>__<tool>` (server may contain single underscores). Pure. */
+export function serverOfTool(name) {
+  const m = /^mcp__(.+?)__[^_].*$/.exec(String(name || ""));
+  return m ? m[1] : null;
+}
+const addHint = (s) => `claude mcp add --transport http ${s} ${LINEAR_MCP_URL}, then /mcp to authenticate`;
+
+/**
+ * Which Linear MCP server prefix to use. visible: server names (or full tool names) that look like Linear.
+ * mode "init" | "run". Pure. action: use | missing | save | pick | legacy | none.
+ */
+export function pickServer(config, visible, mode = "run") {
+  const cfg = linearCfg(config);
+  const names = [...new Set((visible || []).map((v) => (String(v).startsWith("mcp__") ? serverOfTool(v) : String(v))).filter(Boolean))].sort();
+  const pinned = typeof cfg.server === "string" && cfg.server ? cfg.server : null;
+  const base = { schema: SERVER_SCHEMA, mode, pinned, visible: names, server: null, candidates: [], action: "none", message: "" };
+  if (pinned) {
+    if (names.includes(pinned)) return { ...base, server: pinned, action: "use", message: `using pinned Linear server ${pinned}` };
+    return { ...base, server: pinned, action: "missing",
+      message: `pinned Linear MCP server "${pinned}" is not available${names.length ? ` (visible: ${names.join(", ")})` : ""} — add it: ${addHint(pinned)}; or re-pin: /hitl:tickets init` };
+  }
+  if (!names.length) return { ...base, action: "none", message: `Linear MCP not found — ${addHint("linear-server")}` };
+  if (mode === "init") {
+    if (names.length === 1) return { ...base, server: names[0], action: "save", message: `only one Linear server (${names[0]}): pin it with hitl-index init --set linear.server=${names[0]}` };
+    return { ...base, candidates: names, action: "pick", message: `${names.length} Linear servers visible: pick one (one OAuth per workspace)` };
+  }
+  return { ...base, candidates: names, server: names.length === 1 ? names[0] : null, action: "legacy",
+    message: `linear.server is not pinned: use the server whose teams contain the mapped team id · 💡 pin it: /hitl:tickets init (or hitl-index init --set linear.server=<name>)` };
+}
+
+/**
+ * Compare the identity the skill observed through the MCP with linear.map.json (+ config.linear.server/project). Pure.
+ * observed: {schema:"hitl.tickets-identity/1", server, workspace:{urlKey|url}|null, team:{id,key}, project?:{id}|null}
+ * Returns {result, map}: map is a changed copy when something was learned (legacy null workspace, renamed team key), else null.
+ */
+export function verifyIdentity({ config, map: map0, observed }) {
+  if (!observed || typeof observed !== "object" || observed.schema !== IDENTITY_SCHEMA) throw err1(`input schema must be ${IDENTITY_SCHEMA}`);
+  const cfg = linearCfg(config);
+  const map = normalizeMap(structuredClone(map0 || emptyMap()));
+  const result = { schema: VERIFY_SCHEMA, ok: true, status: "match", expected: {}, observed: {}, mismatches: [], warnings: [], learned: [], fix: [] };
+  if (!isConfigured(map)) { result.status = "unconfigured"; result.warnings.push("run /hitl:tickets init"); return { result, map: null }; }
+  const oWs = observed.workspace ? (observed.workspace.urlKey ? String(observed.workspace.urlKey).toLowerCase() : urlKeyFromUrl(observed.workspace.url)) : null;
+  const eWs = map.workspace?.urlKey ? String(map.workspace.urlKey).toLowerCase() : null;
+  const oTeam = observed.team || {};
+  result.expected = { server: cfg.server || null, workspace: eWs, team: { id: map.team.id, key: map.team.key }, project: projectRef(cfg)?.id || null };
+  result.observed = { server: observed.server || null, workspace: oWs, team: { id: oTeam.id || null, key: oTeam.key || null }, project: observed.project?.id || null };
+  const mis = (field, expected, obs) => result.mismatches.push({ field, expected, observed: obs });
+  if (cfg.server && observed.server && observed.server !== cfg.server) mis("server", cfg.server, observed.server);
+  if (eWs && oWs && eWs !== oWs) mis("workspace", eWs, oWs);
+  if (!oTeam.id) mis("team.id", map.team.id, null);
+  else if (oTeam.id !== map.team.id) mis("team.id", map.team.id, oTeam.id);
+  const pid = projectRef(cfg)?.id;
+  if (pid && observed.project !== undefined && observed.project !== null && observed.project.id !== pid) mis("project", pid, observed.project.id || null);
+  if (pid && observed.project === null) mis("project", pid, null);
+  let changed = false;
+  if (result.mismatches.length) {
+    result.ok = false; result.status = "mismatch";
+    result.fix.push("wrong MCP server/workspace? pin the right one: hitl-index init --set linear.server=<name> (or /hitl:tickets init)");
+    result.fix.push("the repo really moved to another workspace/team? /hitl:tickets init --relink");
+    return { result, map: null };
+  }
+  if (!eWs && oWs) { map.workspace = { ...(map.workspace || {}), urlKey: oWs }; result.learned.push(`workspace ${oWs}`); changed = true; result.status = "learned"; }
+  else if (!oWs) result.warnings.push(eWs ? `workspace not observed (expected ${eWs}); team id matched` : "workspace unknown (map and MCP); team id matched");
+  if (oTeam.key && oTeam.key !== map.team.key) { result.warnings.push(`team key renamed in Linear: ${map.team.key} → ${oTeam.key}`); map.team = { ...map.team, key: oTeam.key }; result.learned.push(`team key ${oTeam.key}`); changed = true; }
+  return { result, map: changed ? map : null };
+}
+
+/** config.linear.project → {id, name} when resolved, {unresolved: <string>} when only a name/URL, else null. Pure. */
+export function projectRef(cfg) {
+  const p = cfg && cfg.project;
+  if (!p) return null;
+  if (typeof p === "object" && p.id) return { id: String(p.id), name: p.name || null, url: p.url || null };
+  return { id: null, unresolved: typeof p === "string" ? p : JSON.stringify(p) };
+}
 
 export function slugify(s, max = 40) {
   return String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, max).replace(/-+$/, "");
@@ -78,14 +181,14 @@ export function stateTypeFor(status, cfg, map) {
   return t;
 }
 
-export function describeTask(task, planningKey) {
+export function describeTask(task, planningKey, repo = null) {
   const acs = (task.acs || []).map((a) => {
     const reqs = Array.isArray(a.reqs) && a.reqs.length ? ` (${a.reqs.join(", ")})` : "";
     return `- [${a.done ? "x" : " "}] ${a.id}${reqs} ${a.text}`;
   });
   const risk = task.risk ? `${task.risk}${(task.riskReasons || []).length ? ` (${task.riskReasons.join(", ")})` : ""}` : "?";
   return [
-    `<!-- hitl:task=${task.id} file=${task.file} -->`,
+    `<!-- hitl:task=${task.id}${repo ? ` repo=${repo}` : ""} file=${task.file} -->`,
     `**Why**: ${task.why || "—"}`,
     "",
     "### Acceptance criteria",
@@ -100,7 +203,7 @@ export function describeTask(task, planningKey) {
 export function desiredForTask(task, statusOfTask, cfg, map, extras = {}) {
   const status = statusOfTask || "todo";
   const title = cfg.titlePrefix ? `${task.id} · ${task.title}` : task.title;
-  const description = describeTask(task, extras.planningKey || null);
+  const description = describeTask(task, extras.planningKey || null, extras.repo || map?.repo || null);
   const priority = PRIO[task.prio] ?? 0;
   const stateType = stateTypeFor(status, cfg, map);
   const stateId = map?.states?.[stateType]?.id || null;
@@ -202,11 +305,16 @@ function diffReasons(d, entry, map) {
 export function buildPlan(I) {
   const cfg = linearCfg(I.config);
   const map = normalizeMap(I.map);
+  const pref = projectRef(cfg);
   const base = { schema: PLAN_SCHEMA, planId: null, enabled: cfg.enabled === true, configured: isConfigured(map),
-    team: map.team ? { key: map.team.key || null, id: map.team.id || null } : null, ops: [], skipped: [], warnings: [], counts: {} };
+    team: map.team ? { key: map.team.key || null, id: map.team.id || null } : null,
+    server: cfg.server || null, workspace: map.workspace?.urlKey || null, repo: map.repo || null,
+    project: pref && pref.id ? { id: pref.id, name: pref.name } : null, ops: [], skipped: [], warnings: [], counts: {} };
   if (!base.enabled) return base;
   if (!base.configured) { base.warnings.push("run /hitl:tickets init"); return base; }
+  if (pref && !pref.id) { base.configured = false; base.warnings.push(`linear.project "${pref.unresolved}" is not resolved to an id — run /hitl:tickets init`); return base; }
   const warnings = new Set();
+  if (!cfg.server) warnings.add("linear.server not pinned — 💡 /hitl:tickets init (hitl-index init --set linear.server=<name>)");
   const scope = I.scope || { kind: "all" };
   const all = taskRows(I, cfg);
   const inScope = all.filter((r) => scope.kind === "all" || (scope.kind === "tasks" && scope.ids.includes(r.task.id)) || (scope.kind === "file" && r.doc.file === scope.file));
@@ -214,28 +322,30 @@ export function buildPlan(I) {
   const live = [];
   for (const r of inScope) { if (r.skip) skipped.push({ task: r.task.id, reason: r.skip }); else live.push(r); }
   for (const r of live) r.d = desiredForTask(r.task, r.status, cfg, map, { planningKey: r.planningKey, warnings });
+  // linear.project pinned: every issue goes into that existing project; planning files never become projects
+  const planningAs = pref && cfg.planningAs === "project" ? "none" : cfg.planningAs;
 
   const ensure = [], creates = [], updates = [], rels = [], notes = [], comments = [], cancels = [];
   // plannings
   const pkeys = [...new Set(live.map((r) => r.planningKey).filter(Boolean))].sort();
   const ensured = new Set();
   for (const key of pkeys) {
-    if (cfg.planningAs === "none") break;
+    if (planningAs === "none") break;
     const info = I.plannings?.[key];
-    if (!info) { warnings.add(`planning ${key} not found; its issues get no ${cfg.planningAs}`); continue; }
+    if (!info) { warnings.add(`planning ${key} not found; its issues get no ${planningAs}`); continue; }
     const dp = desiredPlanning(info, cfg);
     const entry = map.planning[key];
     if (entry && entry.pushedHash === dp.pushedHash) continue;
     const kind = entry?.kind || dp.kind;
     const op = kind === "parent-issue" ? "ensureParent" : "ensureProject";
     ensured.add(key);
-    ensure.push({ op, planning: key, payload: { ...dp.obj, teamId: map.team.id, id: entry?.id || null }, needsGate: false,
+    ensure.push({ op, planning: key, payload: { ...dp.obj, teamId: map.team.id, id: entry?.id || null, ...(op === "ensureParent" && pref ? { projectId: pref.id } : {}) }, needsGate: false,
       reason: entry ? `${kind === "parent-issue" ? "parent issue" : "project"} content changed` : `new ${kind === "parent-issue" ? "parent issue" : "project"}`,
       meta: { kind, pushedHash: dp.pushedHash } });
   }
   const anchorOf = (key) => {
     const e = key ? map.planning[key] : null;
-    return { projectId: e && e.kind === "project" ? e.id : null, parentId: e && e.kind === "parent-issue" ? e.id : null };
+    return { projectId: pref ? pref.id : e && e.kind === "project" ? e.id : null, parentId: e && e.kind === "parent-issue" ? e.id : null };
   };
 
   // creates (unmapped), topological by blocked-by among the created set
@@ -370,8 +480,12 @@ export function topoOrder(tasks) {
 // ---------------------------------------------------------------- record (A.5.5)
 const err1 = (message) => Object.assign(new Error(message), { code: 1 });
 
-/** Pure: returns {map, queue, out}. Throws Error{code:1} on invalid input. */
-export function applyRecord({ map: map0, plan, queue: q0, input, now }) {
+/**
+ * Pure: returns {map, queue, out}. Throws Error{code:1} on invalid input, Error{code:4, verify} on an identity mismatch
+ * (input.identity, or init into another workspace/team without input.relink): nothing is applied or queued then.
+ * repo: this repo's key (stored once at init for the issue marker); config: for the identity check.
+ */
+export function applyRecord({ map: map0, plan, queue: q0, input, now, repo = null, config = null }) {
   if (!input || typeof input !== "object" || input.schema !== "hitl.tickets-results/1") throw err1("input schema must be hitl.tickets-results/1");
   const map = normalizeMap(structuredClone(map0 || emptyMap()));
   const queue = { schema: QUEUE_SCHEMA, items: [...((q0 && Array.isArray(q0.items)) ? q0.items : [])] };
@@ -380,7 +494,20 @@ export function applyRecord({ map: map0, plan, queue: q0, input, now }) {
     const it = input.init;
     if (!it || !it.team || !it.team.id || !it.team.key) throw err1("init.team {key,id,name} is required");
     if (!it.states || !it.states.started || !it.states.started.id) throw err1("init.states.started {id,name} is required");
-    map.workspace = it.workspace || null;
+    const ws = it.workspace ? { urlKey: (it.workspace.urlKey || urlKeyFromUrl(it.workspace.url) || null) } : null;
+    const oldWs = map.workspace?.urlKey || null, newWs = ws?.urlKey || null;
+    const moved = (map.team?.id && map.team.id !== it.team.id) || (oldWs && newWs && oldWs.toLowerCase() !== newWs.toLowerCase());
+    if (moved && !input.relink) {
+      throw Object.assign(new Error(`map is linked to ${oldWs || "?"}/${map.team.key} (${map.team.id}); init observed ${newWs || "?"}/${it.team.key} (${it.team.id}) — wrong linear.server? To really move this repo: /hitl:tickets init --relink`),
+        { code: 4, verify: { expected: { workspace: oldWs, team: { id: map.team.id, key: map.team.key } }, observed: { workspace: newWs, team: { id: it.team.id, key: it.team.key } } } });
+    }
+    if (moved) { // relink to another workspace/team: old issue/project ids are meaningless there
+      out.reset = Object.keys(map.tasks).length;
+      map.tasks = {}; map.planning = {}; map.labels = {};
+    }
+    map.workspace = ws && ws.urlKey ? ws : (moved ? null : map.workspace || null);
+    map.repo = map.repo || it.repo || repo || null;
+    if ("project" in it) map.project = it.project && it.project.id ? { id: it.project.id, name: it.project.name || null, url: it.project.url || null } : null;
     map.team = { key: it.team.key, id: it.team.id, name: it.team.name || it.team.key };
     const states = {};
     for (const k of ["backlog", "unstarted", "started", "review", "completed", "canceled"]) {
@@ -397,6 +524,13 @@ export function applyRecord({ map: map0, plan, queue: q0, input, now }) {
   if (input.kind !== "push") throw err1(`unknown kind ${input.kind}`);
   if (!plan || !plan.planId) throw err1("no plan found; run tickets plan first");
   if (input.planId !== plan.planId) throw err1("plan changed; run tickets plan again");
+  out.learned = [];
+  if (input.identity) {
+    const v = verifyIdentity({ config, map, observed: input.identity });
+    if (!v.result.ok) throw Object.assign(new Error(identityMessage(v.result)), { code: 4, verify: v.result });
+    if (v.map) { Object.assign(map, { workspace: v.map.workspace, team: v.map.team }); out.learned = v.result.learned; }
+  }
+  if (plan.project) map.project = { ...(map.project || {}), id: plan.project.id, name: plan.project.name ?? map.project?.name ?? null };
   const ops = new Map((plan.ops || []).map((o) => [o.opId, o]));
   const key = (o) => `${o.op}|${o.task || o.planning || ""}`;
   const enqueue = (o, error) => {
@@ -500,16 +634,39 @@ function applyOk(map, o, res, now, ensuredIds) {
   }
 }
 
-// ---------------------------------------------------------------- diff (A.5.5)
-const MARKER = /<!-- hitl:task=(T-\d+)\b/;
+/** One-line human message for a failed identity check (also used by the CLI). */
+export function identityMessage(r) {
+  const parts = (r.mismatches || []).map((m) => `${m.field}: expected ${m.expected ?? "—"}, observed ${m.observed ?? "—"}`);
+  return `Linear identity mismatch (${parts.join("; ")}) — nothing applied. ${(r.fix || []).join(" · ")}`;
+}
 
-/** Pure. I: {config, map, remote (hitl.tickets-remote/1), statuses, localTasks:[{id,file,planning,title}], relink:boolean} */
+// ---------------------------------------------------------------- diff (A.5.5)
+const MARKER = /<!-- hitl:task=(T-\d+)\b(?:\s+repo=(\S+))?(?:\s+file=(\S+))?/;
+/** {task, repo|null, file|null} from an issue description marker, or null. Pure. */
+export function parseMarker(desc) {
+  const m = MARKER.exec(String(desc || ""));
+  return m ? { task: m[1], repo: m[2] || null, file: m[3] || null } : null;
+}
+
+/**
+ * Pure. I: {config, map, remote (hitl.tickets-remote/1), statuses, localTasks:[{id,file,planning,title}], relink:boolean, repo}
+ * Repos sharing a team/project: a marker with another repo= is foreign and ignored; a legacy marker (no repo=) only
+ * relinks when its file= equals the local task's file. Mapped issues are always matched by id, never by marker.
+ */
 export function buildDiff(I) {
   const cfg = linearCfg(I.config);
   const map = normalizeMap(structuredClone(I.map || emptyMap()));
   const R = I.remote;
   if (!R || R.schema !== "hitl.tickets-remote/1" || !Array.isArray(R.issues)) throw err1("input schema must be hitl.tickets-remote/1 with issues[]");
+  let learned = [];
+  if (R.identity) { // checked before anything is compared or relinked
+    const v = verifyIdentity({ config: I.config, map, observed: R.identity });
+    if (!v.result.ok) throw Object.assign(new Error(identityMessage(v.result)), { code: 4, verify: v.result });
+    if (v.map) { map.workspace = v.map.workspace; map.team = v.map.team; learned = v.result.learned; }
+  }
   const items = [], relink = [], remote = {};
+  const ours = map.repo || I.repo || null;
+  let foreign = 0;
   const byId = new Map(), byIdent = new Map();
   for (const i of R.issues) { if (i && i.id) byId.set(i.id, i); if (i && i.identifier) byIdent.set(i.identifier, i); }
   const local = new Map((I.localTasks || []).map((t) => [t.id, t]));
@@ -546,21 +703,34 @@ export function buildDiff(I) {
   }
   for (const r of R.issues) {
     if (!r || mappedIds.has(r.id)) continue;
-    let T = MARKER.exec(r.description || "")?.[1] || null;
+    const mk = parseMarker(r.description);
+    let T = mk?.task || null;
     if (!T && cfg.titlePrefix) T = /^(T-\d+)\b/.exec(r.title || "")?.[1] || null;
     if (!T) continue;
+    if (mk && mk.repo && ours && mk.repo.toLowerCase() !== String(ours).toLowerCase()) { foreign++; continue; } // another repo's T-n
     const e = map.tasks[T];
     if (e && !e.removed && e.id) continue; // mapped to another issue already
+    const lt = local.get(T);
+    const sameFile = !mk || mk.repo || !mk.file || !lt || !lt.file || mk.file === lt.file;
     items.push({ level: "info", code: "LINEAR_UNMAPPED", task: T, issue: r.identifier, field: null, local: null, remote: null,
-      message: `${r.identifier} carries the hitl marker for ${T} but is not mapped (tickets pull --relink)` });
-    if (local.has(T)) relink.push({ task: T, issue: r.identifier, id: r.id, url: r.url || null, branch: r.branchName || fallbackBranch(map.team?.key, r.identifier, r.title) });
+      message: sameFile ? `${r.identifier} carries the hitl marker for ${T} but is not mapped (tickets pull --relink)`
+        : `${r.identifier} carries a legacy hitl marker for ${T} from ${mk.file} (another repo?) — not relinked` });
+    if (lt && sameFile) relink.push({ task: T, issue: r.identifier, id: r.id, url: r.url || null, branch: r.branchName || fallbackBranch(map.team?.key, r.identifier, r.title) });
   }
   const order = { warn: 0, info: 1 };
+  // two candidates for one T-n (e.g. two pre-0.5 repos with the same tasks file name): ambiguous → never relink either
+  const per = new Map();
+  for (const x of relink) per.set(x.task, [...(per.get(x.task) || []), x]);
+  const rl = [];
+  for (const [T, xs] of per) {
+    if (xs.length === 1) { rl.push(xs[0]); continue; }
+    items.push({ level: "warn", code: "LINEAR_AMBIGUOUS", task: T, issue: xs.map((x) => x.issue).join(", "), field: null, local: null, remote: null,
+      message: `${xs.length} issues carry the hitl marker for ${T} (${xs.map((x) => x.issue).join(", ")}) — not relinked; map it by hand or re-push` });
+  }
+  rl.sort((a, b) => byTaskId(a.task, b.task));
   items.sort((a, b) => order[a.level] - order[b.level] || a.code.localeCompare(b.code) || byTaskId(a.task, b.task) || String(a.field).localeCompare(String(b.field)));
-  const seen = new Set();
-  const rl = relink.filter((x) => (seen.has(x.task) ? false : seen.add(x.task))).sort((a, b) => byTaskId(a.task, b.task));
   const out = { schema: "hitl.tickets-diff/1", items, relink: rl, remote,
-    counts: { warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length } };
+    counts: { warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length }, foreign, learned };
   if (I.relink) {
     for (const x of rl) {
       const t = local.get(x.task);
@@ -599,7 +769,10 @@ export function buildStatus(I) {
       synced, reason, prLine, onBranch });
   }
   tasks.sort((a, b) => byTaskId(a.task, b.task));
+  const pref = projectRef(cfg);
   return { schema: "hitl.tickets-status/1", enabled: cfg.enabled === true, configured: isConfigured(map), team: map.team?.key || cfg.team || null,
+    teamId: map.team?.id || null, server: cfg.server || null, workspace: map.workspace?.urlKey || null, repo: map.repo || null,
+    project: pref ? (pref.id ? { id: pref.id, name: pref.name } : { id: null, unresolved: pref.unresolved }) : null,
     planningAs: cfg.planningAs, autoPush: { ...cfg.autoPush }, tasks, mapped, unmapped, outOfSync,
     queued: Array.isArray(I.queue?.items) ? I.queue.items.length : 0, mapFile: MAP_REL };
 }

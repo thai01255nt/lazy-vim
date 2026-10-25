@@ -32,7 +32,9 @@ export const DEFAULTS = Object.freeze({
   trace: { precommit: false, mdOut: `${HITL_PREFIX}index/trace.md` },
   linear: {
     enabled: false,
+    server: null, // MCP server name: the <server> in mcp__<server>__<tool> (one OAuth per Linear workspace)
     team: null,
+    project: null, // null = one project per planning file; {id, name} = put every issue into that existing project
     planningAs: "project",
     pushTodoAs: "unstarted",
     pushQuick: true,

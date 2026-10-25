@@ -98,7 +98,7 @@ Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip
 | `/hitl:tickets init\|push\|pull\|status` | (Tuỳ chọn) mirror task sang Linear: một issue mỗi task, push một chiều, pull chỉ đọc (báo drift), in branch + `Fixes ENG-n` | ⛔ lần push đầu / op cần duyệt | bạn / Claude (skill khác gọi khi bật `autoPush`) |
 
 CLI mới (gọi trực tiếp được): `hitl-index trace [T-id|planning] [--check] [--md] [--json]` (ma trận truy vết),
-`hitl-index tickets status|plan|record|diff` (do `/hitl:tickets` dùng),
+`hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
 `hitl-index feature <planning|tasks file> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit).
 
 "Chỉ bạn" = skill có `disable-model-invocation: true`; Claude không tự gọi được.
@@ -142,10 +142,25 @@ implementer báo `specConflict`, skill đề xuất cập nhật **plan** thay v
 Mặc định tắt; tắt thì không có gì thay đổi. Cài đặt:
 ```sh
 claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # hoặc plugin "linear" của Anthropic
-# trong session: /mcp để đăng nhập, rồi
-/hitl:tickets init        # chọn team, planning → project, nhóm label (risk + impl)
+# nhiều workspace? mỗi workspace một server (mỗi server một OAuth), tên khác nhau:
+#   claude mcp add --transport http linear-work https://mcp.linear.app/mcp
+#   claude mcp add --transport http linear-personal https://mcp.linear.app/mcp
+# trong session: /mcp để đăng nhập (từng server), rồi
+/hitl:tickets init        # chọn server, team, project, nhóm label (risk + impl)
 ```
+- **Ghim server MCP** (`linear.server`, tên `<server>` trong `mcp__<server>__<tool>`): `init` thấy nhiều server Linear →
+  ⛔ gate liệt kê server (kèm workspace/team mỗi server thấy); chỉ một → tự lưu. Từ đó mọi lần chạy **chỉ** dùng server
+  đó; server đã ghim không có → `❌` kèm lệnh `claude mcp add …`/`/mcp`, op được xếp hàng (không chặn gate). Config cũ
+  chưa có `linear.server` → dùng server có team đã map, kèm 💡 gợi ý ghim.
+- **Kiểm tra danh tính trước mỗi push/pull**: skill lấy urlKey workspace + team (theo id) qua MCP, CLI
+  (`hitl-index tickets verify`) so với `linear.map.json` (`workspace.urlKey`, `team.id`/`key`) và `linear.server`/
+  `linear.project`. Lệch → từ chối cả lượt (không gửi gì, không xếp hàng), in expected/observed và cách sửa: ghim lại
+  server (`hitl-index init --set linear.server=<tên>`) hoặc `/hitl:tickets init --relink` nếu repo thật sự chuyển
+  workspace/team (xoá map task cũ, push sau tạo issue mới). Map cũ chưa có workspace → cho qua một lần và ghi lại (💡).
 - **Một issue Linear cho mỗi task** (không bao giờ theo AC/symbol); planning file → project (hoặc parent issue / không gì).
+- **Project có sẵn** (`linear.project = {"id","name"}`, chọn ở gate `init` từ `list_projects`): mọi issue vào project đó,
+  planning file không thành project nữa (`parent-issue` vẫn dùng được, parent nằm trong project). hitl không bao giờ đổi
+  tên/mô tả project có sẵn, chỉ gắn issue vào.
   Gói Free giới hạn **250 issue** → giữ mỗi task một issue; `maxCreatePerPush` (50) bắt duyệt khi tạo nhiều.
 - **Push một chiều** (repo là nguồn sự thật cho title, Why, AC, prio, label risk/impl, state, comment review) và
   **pull chỉ đọc** (báo `LINEAR_DRIFT`, `LINEAR_DONE_EARLY`…; không bao giờ sửa tasks/planning md). Linear giữ assignee,
@@ -170,7 +185,13 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
 - **Không dùng Linear coding-agent delegation** (giao issue cho agent trong Linear): agent đó bỏ qua mọi gate của hitl
   (lock skeleton, test-author cô lập, approve token). hitl không bao giờ set `delegate`/`assignee`.
 - `linear.map.json` (T-n ↔ ENG-n) do CLI ghi, commit lên repo; mất/conflict → `/hitl:tickets pull --relink` dựng lại từ
-  marker `<!-- hitl:task=T-1 … -->` trong description.
+  marker `<!-- hitl:task=T-1 repo=<owner/name> file=… -->` trong description.
+- **Nhiều repo**: config và map theo từng repo, đều commit; mỗi repo chạy `/hitl:tickets init` một lần (đồng đội dùng
+  cùng tên server, hoặc tự `--set linear.server`). Hai repo dùng chung team/project vẫn an toàn dù cùng có `T-1`: push
+  chỉ khớp theo id trong map, marker có `repo=` (git `origin` owner/name, không có thì tên thư mục) nên pull/relink bỏ
+  qua issue của repo khác; marker cũ (không `repo=`) chỉ relink khi `file=` trùng, hai issue cùng nhận một task →
+  `LINEAR_AMBIGUOUS`, không relink. Map tạo trước 0.5.0 giữ marker cũ cho đến khi `init` lại (lúc đó mô tả issue được
+  cập nhật một lần).
 
 ## 5. Risk routing
 

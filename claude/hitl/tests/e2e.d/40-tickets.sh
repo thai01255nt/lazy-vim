@@ -119,3 +119,19 @@ sL8() {
   [ -f .hitl/.inbox/tickets-push.json ] || { echo "inbox file must be kept on a failed record"; return 1; }
 }
 step L8 "tickets record with a wrong planId: exit 1" sL8
+
+sL9() {
+  cd "$LIN"
+  afile "$LMAP" 'd.repo === "lin-app" && d.workspace.urlKey === "acme"'
+  mkdir -p .hitl/.inbox
+  printf '%s' '{"schema":"hitl.tickets-identity/1","server":"linear-personal","workspace":{"urlKey":"personal"},"team":{"id":"team-uuid-me","key":"ME"}}' > .hitl/.inbox/tickets-identity.json
+  cp "$LMAP" "$W/l9-map-before.json"
+  expect_exit 4 CLI tickets verify --in .hitl/.inbox/tickets-identity.json --json
+  cmp "$LMAP" "$W/l9-map-before.json"
+  printf '%s' '{"schema":"hitl.tickets-identity/1","server":"linear-work","workspace":{"url":"https://linear.app/acme/team/ENG"},"team":{"id":"team-uuid-eng","key":"ENG"}}' > .hitl/.inbox/tickets-identity.json
+  CLI tickets verify --in .hitl/.inbox/tickets-identity.json --json > "$W/l9v.json"
+  afile "$W/l9v.json" 'd.ok === true && d.status === "match"'
+  CLI tickets server linear-work linear-personal --init --json > "$W/l9s.json"
+  afile "$W/l9s.json" 'd.action === "pick" && d.candidates.length === 2'
+}
+step L9 "tickets verify: wrong workspace/team → exit 4, map unchanged; match → ok; server pick with 2 servers" sL9

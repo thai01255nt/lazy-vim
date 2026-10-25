@@ -7,7 +7,10 @@ Verified 2026-10-25. Linear's official docs (https://linear.app/docs/mcp) docume
   `Authorization: Bearer <token>` header with an OAuth token or a Linear API key. A read-only key or the `read` scope gives
   read-only tools: then every write fails → hitl queues the ops (fail-open).
 - Claude Code: `claude mcp add --transport http linear-server https://mcp.linear.app/mcp`, or the official `linear`
-  plugin (it only contains that `.mcp.json`). Do not configure both: duplicate servers give duplicate tool names.
+  plugin (it only contains that `.mcp.json`). Do not configure both for the same workspace: duplicate servers give
+  duplicate tool names. Several workspaces → one server per workspace with distinct names
+  (`claude mcp add --transport http linear-work https://mcp.linear.app/mcp`, `… linear-personal …`), each authenticated
+  in `/mcp`; each repo pins one with `linear.server`.
 - **Tool names are published at runtime only** (`tools/list`) and have changed over time: older servers had
   `create_issue`/`update_issue`; the 2026 server uses upserts such as `save_issue` (create without `id`, update with
   `id`). Third-party listings (not authoritative) show `list_issues, get_issue, save_issue, list_teams, list_cycles,
@@ -19,7 +22,13 @@ Verified 2026-10-25. Linear's official docs (https://linear.app/docs/mcp) docume
    (case-insensitive): `mcp__linear-server__…`, `mcp__linear__…`, `mcp__plugin_linear_linear__…`, `mcp__claude_ai_Linear__…`.
 2. Deferred tools (only names visible): `ToolSearch` query `+linear issue`, then `+linear team`, `+linear label`,
    `+linear comment`, `+linear project` as needed; load the chosen ones with `select:<full name>,…`.
-3. Several Linear servers → prefer the one whose `list_teams` succeeds first; use only that prefix for the whole run.
+3. Server choice is the CLI's (`hitl-index tickets server <server>… [--init] --json`, SKILL.md §1): a pinned
+   `linear.server` is the only prefix used; it is missing → `❌` + `claude mcp add --transport http <name>
+   https://mcp.linear.app/mcp` + `/mcp`, queue (push) — never another server. Several servers are normal: one per
+   workspace (one OAuth each), e.g. `linear-work`, `linear-personal`. Legacy configs without `linear.server` only: use
+   the server whose `list_teams` contains the mapped team id, and suggest pinning. Use only that prefix for the whole run.
+   Then verify the identity (SKILL.md §1b) before any write: team ids are workspace-unique uuids, the workspace urlKey
+   is the first path segment of any `https://linear.app/<urlKey>/…` URL.
 4. Pick per capability the first existing suffix (table in SKILL.md §1). Note which one you chose in the final report
    only when it was a fallback (e.g. `create_issue` instead of `save_issue`).
 5. Before the first call of each tool, read its input schema (it is in the loaded definition). Never guess a parameter
@@ -38,6 +47,7 @@ Match by meaning; names below are the usual ones. If the schema lists a differen
 | `projectId` | `projectId`, `project` | |
 | `parentId` | `parentId`, `parent` | some servers want the uuid, not `ENG-7` |
 | `blockedBy` (addRelations) | `blockedBy` (array of issue ids/identifiers) | append-only; MCP cannot remove relations |
+| `projectId` from a pinned `linear.project` | `projectId`, `project` | attach only; never call save/update project for it |
 | project `name`, `summary`, `content` | `name`, `summary`/`description`, `content`/`description` | if only `description` exists, send `content` there and drop `summary` (report `skippedFields: ["summary"]`) |
 | comment `body` | `body` + `issueId` (create) / `id` (update) | no update tool → create a new comment, report `commentId` of the new one |
 

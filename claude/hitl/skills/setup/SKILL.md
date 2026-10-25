@@ -78,7 +78,8 @@ Reply e.g. "Y", "2 test.py = …", "1 3".
    - Run `git ls-files -ci --exclude-standard .hitl` (ignore failure / not a repo). Lists files →
      `💡 Already tracked generated files: <n>. Untrack with: git rm -r --cached <paths>`. Never run it yourself.
    - Last line: `💡 Linear (optional): install the official Linear MCP (claude mcp add --transport http linear-server
-     https://mcp.linear.app/mcp, or the "linear" plugin), then /hitl:tickets init.`
+     https://mcp.linear.app/mcp, or the "linear" plugin; one server per workspace, e.g. linear-work / linear-personal),
+     then /hitl:tickets init once per repo (pins the server, team and optionally one existing project).`
 
 ## Notes
 - Never edit `hitl.config.json` by hand; always `init --set`.
