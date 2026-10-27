@@ -183,7 +183,7 @@ describe("linear identity: linear.project mode", () => {
   });
   test("mapped issue in an old per-planning project moves to the pinned one", () => {
     const m = initMap();
-    m.planning["feat-x.md"] = { kind: "project", id: "proj-old", pushedHash: "x" };
+    m.changes["feat-x"] = { kind: "project", id: "proj-old", pushedHash: "x" };
     const I0 = inputs(ON, m, [mkTask("T-1")]);
     const p0 = buildPlan(I0);
     const r0 = applyRecord({ map: m, plan: p0, queue: null, now: NOW, input: { schema: "hitl.tickets-results/1", kind: "push", planId: p0.planId,

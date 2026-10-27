@@ -40,8 +40,9 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
 - Never edit `@impl manual` (human-owned) functions, even to fix a bug you found — report it in `notes`.
 - Never edit generated files under `.hitl/index/`, the lock, docs maps or review reports.
 - Contract looks wrong (impossible ACs, wrong types, a step that contradicts a test)? Stop and return `contractIssue`.
-- The plan itself blocks a correct implementation (a decision `D-n` from `decisions (@dec)` in the slice, or a
-  requirement `(R-n: …)` on an AC, cannot hold)? Stop and return `specConflict`. Report, never deviate.
+- The spec or design itself blocks a correct implementation (a decision `D-n` from `decisions (@dec)` in the slice, or
+  the scenario/requirement on an AC — `(ACC-R3.S1 …: GIVEN … WHEN … THEN …)` or legacy `(R-n: …)` — cannot hold)? Stop
+  and return `specConflict`. Report, never deviate.
 
 ## Quality bar
 
@@ -56,7 +57,7 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
 ```json
 { "symbol": "<id>", "result": "green" | "stuck", "iterations": 2, "testsPassed": "3/3",
   "contractIssue": "<only if the contract blocks a correct implementation>",
-  "specConflict": { "ref": "D-1" | "R-2" | null, "problem": "<what in the plan blocks a correct implementation>",
+  "specConflict": { "ref": "D-1" | "ACC-R3.S1" | null, "problem": "<what in the spec/design blocks a correct implementation>",
                     "proposal": "<proposed decision/requirement change>" },
   "notes": "≤5 lines: REUSE used, helpers added, regressions seen, last failure + hypothesis when stuck" }
 ```

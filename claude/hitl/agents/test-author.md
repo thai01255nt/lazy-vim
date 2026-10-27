@@ -31,7 +31,8 @@ test-kinds reference path, the test command. Optionally: mutation survivors to k
 
 ## What you may touch (hook-enforced; do not try to work around it)
 
-- Read: test files, `.hitl/index/contracts/`, `.hitl/tasks/`, `.hitl/planning/`,
+- Read: test files, `.hitl/index/contracts/`, `.hitl/tasks/`, `.hitl/specs/`, `.hitl/changes/`, `.hitl/archive/`
+  (business specs: scenarios are a second oracle), legacy `.hitl/planning/`,
   `.hitl/docs/PATTERNS-CONVENTIONS.md`, manifests and non-source files (package.json, pyproject, fixtures, md).
   **Not** source files: a denied Read is expected, not a problem. Everything you need about the code is in the contract pack.
 - Write/Edit: test files only.

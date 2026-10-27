@@ -2,7 +2,7 @@
 
 Adapted from mattpocock/skills (MIT) — see NOTICE.md
 Source: `skills/engineering/to-tickets/SKILL.md` @ 5c2cbbd5c3342a9ff4a80b7d8530759ca6a98c22 (vertical slices, blocking edges,
-expand–contract, quiz). Changes: one tasks md per planning file instead of one file per ticket; adds HITL priority,
+expand–contract, quiz). Changes: one tasks md per change instead of one file per ticket; adds HITL priority,
 risk rules, symbol rows, impl owners, AC ids and test plan; consistency check idea from github/spec-kit `/analyze` (ideas only).
 
 ## Contents
@@ -51,8 +51,10 @@ Low-risk tasks may use the ⚡ fast lane (auto skeleton/tests approval). Never l
 ## 5. Acceptance criteria
 - 2–6 per task, id `T-n.ACk` (k from 1), Given/When/Then, one observable behaviour each, testable at a seam.
 - Include at least one failure/edge AC when the task validates input or handles errors.
-- Every active `must`/`should` R has ≥1 AC `(R-n)`; an AC instantiates one behaviour of its R concretely (Given/When/Then).
-  `could` R may stay without AC. Never reference a deferred/dropped/superseded R. Quick tasks: no `(R-n)`.
+- Every ADDED/MODIFIED scenario of the change has ≥1 AC that references it `(ACC-R3.S1)`; an AC instantiates its
+  scenario concretely (same GIVEN/WHEN/THEN, concrete values). `MAY` requirements may stay without AC. Never reference
+  a REMOVED or retired id. A living (untouched) scenario may be referenced for a regression AC (`## Unchanged behaviour`).
+  Quick tasks: no spec refs.
 
 ## 6. Symbols and owners
 - Row: `` n. [ ] `Ref` | new|modify | `path/file.ext` | impl: agent|manual | purpose ``. Order = implement order (callees first).
@@ -68,15 +70,17 @@ One row per AC (more rows allowed): `| AC1 | kind | oracle | seam | author |`.
 - kind: `example` (default) · `property` (an invariant over many inputs) · `concurrency` (symbol has @concurrency ≠ none)
   · `golden` (stable output snapshot) · `metamorphic` (relation between two runs).
 - oracle: where the expected value comes from — `spec` (the AC text), `invariant: <expr>`, `golden file`, `relation: <r>`. Never "the implementation".
-- seam: the public symbol or endpoint the test calls (from the planning `## Test seams`).
+- seam: the public symbol or endpoint the test calls (from design.md `## Test strategy`; design skipped → the
+  highest existing public seam).
 - author: `test-author` (default) or `human`.
 
 ## 8. Consistency check (before the gate)
-Structural checks (unknown/inactive R-n or D-n, R without AC, AC without R, unused D, R without serving D) come from
-`hitl-index trace <planning> --json`; block items are fixed before the gate, warn/info items are listed there.
-Add these semantic checks yourself, one line each, only when non-empty:
-- planning `## Risks` items with no high-risk task covering them
-- tasks touching items listed in `## Out of scope`
+Structural checks (unknown/removed scenario, requirement, rule or D-n; scenario without AC; AC without ref; unused D;
+requirement without a serving D) come from `hitl-index trace <change-id> --json`; block items are fixed before the
+gate, warn/info items are listed there. Add these semantic checks yourself, one line each, only when non-empty:
+- design.md `## Risks` items with no high-risk task covering them
+- tasks touching items listed in the proposal `## Out of scope` or `## Deferred`
+- proposal `## Unchanged behaviour` items with no regression AC (fix/refactor/perf changes)
 - symbols listed in two tasks (choose one owner task; the other is blocked-by it)
 
 ## 9. Quiz (the gate)

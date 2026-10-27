@@ -1,20 +1,20 @@
 ---
 name: review
-description: Reviews a task's implementation against its approved skeleton with layered checks — L0 deterministic gates (tests, lint, typecheck, drift vs lock, requirement trace, mutation), L1 fresh-context reviewer subagents per risk lens with a confidence filter, and a one-screen report in .hitl/reviews — routing only high-risk items to the human and driving the fix loop. `--security-audit` runs the full Cloudflare six-phase security audit for a feature or the repo. Use when the user says "review T-12", "kiểm tra", after implementation turns green, to apply findings ("fix F-2", "amend F-2"), or a full security audit of a hitl feature ("security audit feat-x").
-argument-hint: "<T-id> [fix F-n|amend F-n|recheck] [--in-feature] | --security-audit [<feature-file>|repo] [--out <dir>]"
+description: Reviews a hitl task's implementation against its approved skeleton (L0 gates, lens reviewer subagents, report, fix loop "fix/amend F-2"); "--security-audit" audits a change or the repo. Use for "review T-12", "kiểm tra", after implementation turns green, or "security audit feat-x".
+argument-hint: "<T-id> [fix F-n|amend F-n|recheck] [--in-feature] | --security-audit [<change-id>|repo] [--out <dir>]"
 allowed-tools: Read Glob Grep Edit Write Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *) Bash(git diff *) Bash(git log *) Bash(git rev-parse *) Bash(git status *) Bash(mkdir *) Bash(node *validate-findings.cjs *) Bash(node *validate-coverage-ledger.cjs *)
 ---
 
 # /hitl:review
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`. Reply in the user's language.
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md`. Reply in the user's language.
 Lens checklists: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/lenses.md`.
 Fix loop: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/fix-loop.md` (read before `fix`).
 Amend spec: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (read before `amend`).
 Security lens + full audit: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/security.md` (read before a security lens or `--security-audit`).
 
 Arguments: `$ARGUMENTS` → `<T-id>` (full review) · `<T-id> fix F-n[,F-m]` · `<T-id> recheck` ·
-`--security-audit [<planning|tasks file>|repo] [--out <dir>] [--profile quick|standard|deep]` (section "Full security audit").
+`--security-audit [<change-id>|repo] [--out <dir>] [--profile quick|standard|deep]` (section "Full security audit").
 `--in-feature` (from `/hitl:implement --feature`): run the full review but skip step 8's gate question and the
 "next frontier" line; the feature run asks once for all tasks. Low-risk PASS still auto-approves `done`.
 A bare reply `accept F-1` / `reject F-2 <reason>` / `defer F-3` / `amend F-4` after a review gate is a decision (see Decisions).
@@ -37,8 +37,13 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    ⚠️ say so and continue anyway (the report will say FAIL); suggest `/hitl:implement <T>` at the end.
 2. **L0**: `hitl-index l0 <T> --json` (writes `R/l0.json`). Note failing gates.
    If tests fail or drift has a `block` item → L1 runs **only the contract lens**.
-   The `trace` gate (R → AC → test → symbol) is `fail` only on broken references (unknown R-/D-/AC ids, unresolved
-   `@covers`); gaps (`AC_NOT_PROVEN`, `REQ_NO_AC`, …) make it `warn` — list them, never block on them.
+   The `trace` gate (`hitl.trace/2`: requirement → scenario → AC → test → symbol) is `fail` only on block items —
+   broken references: `CHANGE_MISSING`, `REQ_UNKNOWN`, `SCN_UNKNOWN`, `RULE_UNKNOWN`, `REQ_INACTIVE` (the task's own
+   change removes it), `SPEC_STALE` (an archived task refs an id a later change removed; block only while the task is
+   not done), `DEC_UNKNOWN`, `AC_UNKNOWN`, `COVERS_UNRESOLVED` (legacy plannings: `PLANNING_MISSING`, `R-n` codes).
+   Gaps (`AC_NOT_PROVEN`, `SCN_NO_AC`, `REQ_NO_AC`, `AC_REQ_LEVEL`, …) make it `warn` — list them, never block on them.
+   `l0.trace.spec[<symbol>]` gives each symbol's spec block (`change`, `archived`, `capability`, `design`, decisions,
+   requirements with `scenario`) — the reviewers and `amend F-n` use it.
 3. **Lens selection**: `hitl-index risk <T> --json` (`lenses`, per-symbol reasons) and the task risk.
    - always `contract`, `tests`
    - `concurrency` if any symbol has `@concurrency` ≠ none or features ∩ {async, lock, thread, timer} or a task risk reason starts with `concurrency`
@@ -65,7 +70,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    and continue with the others.
 7. **Report**: `hitl-index report <T> --json` (writes `.hitl/reviews/<T>.review.md`, records the review).
    Print the report's top block: verdict line (and the `⚠️ human-override` line when present), Gates table, the `## Trace` block, Functions table, and the
-   "Findings needing a decision" cards (a card may carry `spec: D-1 · R-1` and the `amend F-n` hint).
+   "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:
    - `human required > 0` → run the Linear block (step 9) first, then ⛔ GATE
@@ -91,7 +96,7 @@ user said "fix").
 `amend F-n` = accept + amend the spec:
 1. `hitl-index review-decide <T> F-n accept --note "amend spec"`.
 2. Follow `shared/amend-spec.md` with `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing → the task's
-   planning and the finding text): 📐 Spec delta, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN.
+   change and the finding text): 📐 Spec delta, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN.
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
    `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
 Also offer `amend F-n` when the human accepts a contract finding that implies a different design.
@@ -124,9 +129,9 @@ Follow `references/fix-loop.md`. Summary:
 
 ## Full security audit (`--security-audit`)
 
-Follow `references/security.md` §4: scope (feature tasks' files, or the repo) → output dir (upstream default outside
+Follow `references/security.md` §4: scope (the change's task files, or the repo) → output dir (upstream default outside
 the project unless `--out`) → invoke the Skill `hitl:security-audit` in full audit mode → in a feature context record
-the link with `hitl-index feature <file> --report --security-audit <dir> --json` → print verdict counts and the
+the link with `hitl-index feature <change-id> --report --security-audit <dir> --json` → print verdict counts and the
 `REPORT.md` path. `Write` is only for the audit output dir. It never edits target source and never changes a task's
 review verdict.
 
@@ -134,4 +139,4 @@ review verdict.
 
 - Built-in `/code-review` on the diff as an extra lens (it does not know the skeleton/lock, so it never replaces the contract lens).
 - `/security-review` when the security lens ran and the task touches auth/crypto/money.
-- `/hitl:review --security-audit <feature-file>` (full six-phase audit) when several tasks of a feature had the security lens.
+- `/hitl:review --security-audit <change-id>` (full six-phase audit) when several tasks of a change had the security lens.

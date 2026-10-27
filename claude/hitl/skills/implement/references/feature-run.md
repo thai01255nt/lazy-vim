@@ -1,19 +1,20 @@
-# Feature run (`/hitl:implement --feature <planning-or-tasks-file> [--lane fast]`)
+# Feature run (`/hitl:implement --feature <change-id> [--lane fast]`)
 
-Runs every task of one tasks file in order, each through its own lane, and stops **once** at the end with a combined
+The **build-then-review** mode: the whole change is built, then reviewed once. Runs every task of one change
+(`.hitl/changes/<id>/tasks.md`; a v0.5 tasks/planning file name still resolves) in order, each through its own lane, and stops **once** at the end with a combined
 review. Same iron rules as SKILL.md for every task (implementer for agent bodies, human for manual bodies, fresh
 evidence before any claim). Resume = the same command: already-implemented tasks are skipped.
 
 ## 1. Plan
 
-`hitl-index feature <file> [--lane fast] --json` (pass `--lane fast` only if the user typed it). Exit 1 → ❌ print its
+`hitl-index feature <change-id> [--lane fast] --json` (pass `--lane fast` only if the user typed it). Exit 1 → ❌ print its
 `error` and `candidates`, stop. It returns `items[]` in run order (topological by blocked-by, then prio, then id) with
 `lane` (`fast` low risk · `override` high risk + `--lane fast` · `normal` high risk), `action`, `status`, `drift`,
 plus `current`, `phase`, `stop`, `cycle`, `overrideTasks`.
 
 Print once:
 ```
-🎯 Feature feat-auth — 4 tasks (.hitl/tasks/feat-auth.md)
+🎯 Feature feat-auth — 4 tasks (.hitl/changes/feat-auth/tasks.md)
 | # | task | risk | lane | status | action |
 |---|------|------|------|--------|--------|
 | 1 | T-11 Hash passwords | low | ⚡ fast | done | skip |
@@ -21,14 +22,14 @@ Print once:
 ```
 `overrideTasks` not empty → print the ⚠️ HUMAN OVERRIDE block of SKILL.md **once** for the whole run, listing each
 override task with its risk reasons. The user's `--feature … --lane fast` prompt issued one override token bound to
-this feature's tasks; it covers `--by human-override` for any of them during this run.
+this change's tasks; it covers `--by human-override` for any of them during this run.
 `cycle` not empty → ⚠️ name the tasks (they run last, in prio order).
 
 ## 2. Loop (one task at a time, in `items` order)
 
-Before each task, re-run `hitl-index feature <file> [--lane fast] --json` and take `current`:
+Before each task, re-run `hitl-index feature <change-id> [--lane fast] --json` and take `current`:
 - `phase: "review"` → step 3.
-- `stop` set → 🛑 print it and `🎯 resume: /hitl:implement --feature <file>[ --lane fast]` (after the human step). End.
+- `stop` set → 🛑 print it and `🎯 resume: /hitl:implement --feature <change-id>[ --lane fast]` (after the human step). End.
   (`stop` covers block-level drift, a human approval a normal-lane task waits for, and a task blocked outside the feature.)
 - `current.action`:
   - `implement` → run SKILL.md steps 1–5 for `current.id` as if the user typed `/hitl:implement <T> --all`
@@ -51,7 +52,7 @@ Stop early (🛑 + resume line, end the turn) when:
 
 1. For every task in run order whose status is `green` or `review` (or `verified`/`done` without a review on record):
    invoke the `hitl:review` skill with `<T> --in-feature` (full review, no per-task gate). Run them one after another.
-2. `hitl-index feature <file> --report --json` → writes `.hitl/reviews/feature-<name>.md`
+2. `hitl-index feature <change-id> --report --json` → writes `.hitl/reviews/feature-<name>.md`
    (per-task verdict, risk, override, trace ⛔/⚠️, pending findings). Print the report body (one screen) and its path.
 3. ⛔ GATE — one question for the whole feature:
    ```
@@ -59,10 +60,10 @@ Stop early (🛑 + resume line, end the turn) when:
    ⚠️ Override tasks need your review of every function: T-12 (.hitl/reviews/T-12.review.md)
    Then per task: /hitl:approve <T> done
    ```
-   No pending findings and no override task → ✅ `Feature <name>: all tasks PASS` and the next frontier task
-   (`hitl-index status --json` `.next`). End the turn.
+   No pending findings and no override task → ✅ `Feature <name>: all tasks PASS` and the next step
+   (`hitl-index status --json` `.next`; usually `/hitl:archive <change-id>` once every task is done). End the turn.
    `--report --json` `securityLensTasks` not empty (and the report has no `full audit:` line) → add one line, suggest
-   only, never run it: `💡 Security lens ran on T-12, T-13 — full audit: /hitl:review --security-audit <file>`.
+   only, never run it: `💡 Security lens ran on T-12, T-13 — full audit: /hitl:review --security-audit <change-id>`.
 
 Replies like `fix T-12 F-1` or `accept T-12 F-1` → run the matching `/hitl:review <T> …` decision/fix path, then
 re-run step 3.2 and print the new summary.

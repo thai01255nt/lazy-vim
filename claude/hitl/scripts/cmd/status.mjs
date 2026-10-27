@@ -23,6 +23,29 @@ async function planningInfo(root) {
   return out;
 }
 
+/**
+ * Active changes with their computed phase (design v3 §6.4), using the already computed task statuses:
+ * [{id, title, phase, next, tasks:{total, done}}]. [] when there are no changes.
+ */
+export async function changesInfo(root, statuses) {
+  let ch; try { ch = await import("../lib/changes.mjs"); } catch { return []; }
+  const out = [];
+  for (const e of await ch.listChanges(root, { archived: false }).catch(() => [])) {
+    const c = await ch.readChange(root, e).catch(() => null);
+    if (!c) continue;
+    const ts = c.tasksDoc?.tasks || [];
+    const done = ts.filter((t) => statuses?.tasks?.[t.id]?.status === "done").length;
+    const proposal = c.proposal ? c.proposal.status || "draft" : "missing";
+    const design = ch.designState(c);
+    const tasks = c.tasksDoc ? c.tasksDoc.status || "draft" : "missing";
+    const { artifactDecision } = await import("../lib/specmd.mjs");
+    const tasksSkipped = artifactDecision(c.proposal, "tasks") === "skipped" || (!!c.proposal?.noBehaviourChange && !c.deltas.length);
+    const phase = ch.changePhase({ archived: false, proposal, design, tasks, tasksSkipped, taskCounts: { total: ts.length, done } });
+    out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done } });
+  }
+  return out;
+}
+
 /** Gather everything status needs. Exported for l0/precommit reuse. */
 export async function gather(root, config, { reindex = true, drift = true } = {}) {
   const api = await loadApi();
@@ -91,7 +114,8 @@ export async function run(argv, ctx) {
     }
     const g = await gather(ctx.root, ctx.config, { reindex: !sync });
     const { index, tasks, statuses, drift, lock } = g;
-    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root) });
+    const changes = await changesInfo(ctx.root, statuses);
+    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes });
     const ld = lockedDrift(drift, lock);
     if (T && !statuses.tasks[T]) {
       const msg = `task ${T} not found`;
@@ -108,8 +132,8 @@ export async function run(argv, ctx) {
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
           trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
-      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, drift: drift ? drift.summary : null, lockedDrift: ld.length,
-        trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, plannings: trace.plannings.length } : null,
+      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc })), drift: drift ? drift.summary : null, lockedDrift: ld.length,
+        trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
         tickets,
         ...(sync ? { syncTags: { files: sync.files, tags: sync.tags, tasksFiles: sync.tasksFiles } } : {}) }, null, 2));
       return 0;

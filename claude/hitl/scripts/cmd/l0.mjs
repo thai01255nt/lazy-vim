@@ -47,7 +47,9 @@ export async function computeL0(root, config, T) {
     const spec = {};
     for (const id of symIds) {
       const sp = specLinksFor(inputs, id);
-      if (sp && (sp.decisions.length || sp.requirements.length)) spec[id] = { decisions: sp.decisions.map((d) => d.id), requirements: sp.requirements.map((r) => r.id) };
+      // design v3 §5.5: change tasks carry {change, archived, capability, design}; requirements list scenario ids when the AC refs one
+      if (sp && (sp.decisions.length || sp.requirements.length)) spec[id] = { ...(sp.change ? { change: sp.change, archived: sp.archived, capability: sp.capability, design: sp.design } : {}),
+        decisions: sp.decisions.map((d) => d.id), requirements: sp.requirements.map((r) => r.scenario || r.id) };
     }
     trace = { counts: tr.counts, items: tr.items, acs, spec };
     const bw = tr.items.filter((i) => i.level !== "info");

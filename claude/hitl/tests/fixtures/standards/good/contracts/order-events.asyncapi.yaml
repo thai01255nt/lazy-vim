@@ -1,0 +1,13 @@
+asyncapi: 3.0.0
+info:
+  title: Order events
+  version: 1.0.0
+channels:
+  orderPaid:
+    address: orders.paid
+    messages:
+      orderPaid: { payload: { $ref: "order.schema.json" } }
+operations:
+  publishOrderPaid:
+    action: send
+    channel: { $ref: "#/channels/orderPaid" }

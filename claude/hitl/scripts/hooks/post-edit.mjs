@@ -34,7 +34,7 @@ async function main(input) {
   if (!rel) silent();
   const a = await api();
   const config = await a.loadConfig(root);
-  const isTasksMd = new RegExp(`^${HITL_RE}tasks/[^/]+\\.md$`).test(rel);
+  const isTasksMd = new RegExp(`^${HITL_RE}(?:tasks/[^/]+|changes/[^/]+/tasks)\\.md$`).test(rel);
   if (!a.langOf(rel, config) && !isTasksMd) silent();
 
   const R = role(input);

@@ -1,0 +1,9 @@
+{
+  "schema": "hitl.lock/1",
+  "symbols": {},
+  "tasks": {
+    "T-10": { "doneAt": "2026-10-19T10:00:00Z", "doneBodyHashes": {}, "file": ".hitl/archive/2026-10-20-feat-2fa/tasks.md", "risk": "high", "skeletonAt": "2026-10-15T10:00:00Z", "testsAt": "2026-10-16T10:00:00Z" },
+    "T-12": { "doneAt": "2026-10-28T10:00:00Z", "doneBodyHashes": {}, "file": ".hitl/changes/feat-password-reset/tasks.md", "risk": "high", "skeletonAt": "2026-10-27T10:00:00Z", "testsAt": "2026-10-27T11:00:00Z" }
+  },
+  "tests": {}
+}

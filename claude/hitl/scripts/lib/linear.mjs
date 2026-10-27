@@ -25,7 +25,7 @@ export const LINEAR_DEFAULTS = {
   server: null,
   team: null,
   project: null,
-  planningAs: "project",
+  changeAs: null,
   pushTodoAs: "unstarted",
   pushQuick: true,
   titlePrefix: false,
@@ -36,7 +36,14 @@ export const LINEAR_DEFAULTS = {
   maxCreatePerPush: 50,
 };
 
-export const linearCfg = (config) => deepMerge(LINEAR_DEFAULTS, (config && config.linear) || {});
+/** Effective Linear config. `changeAs` (design v3 §5.7) falls back to the legacy alias `planningAs`, then "project";
+ *  `planningAs` is kept equal to it for older readers. */
+export const linearCfg = (config) => {
+  const c = deepMerge(LINEAR_DEFAULTS, (config && config.linear) || {});
+  c.changeAs = c.changeAs || c.planningAs || "project";
+  c.planningAs = c.changeAs;
+  return c;
+};
 
 export function linearPaths(root) {
   const custom = join(root, HITL_DIR);
@@ -54,12 +61,27 @@ const taskNum = (id) => Number(/\d+/.exec(id || "")?.[0] ?? 0);
 const byTaskId = (a, b) => taskNum(a) - taskNum(b) || String(a).localeCompare(String(b));
 const shortFile = (f) => String(f || "").replace(new RegExp(`^${HITL_RE}`), "");
 
+/** Change key of a legacy planning reference: `.hitl/planning/feat-x.md` / `feat-x.md` → `feat-x`. */
+export const changeKeyOf = (p) => (!p || p === "none" ? null : basename(String(p)).replace(/\.md$/, ""));
+
 export function emptyMap() {
-  return { schema: MAP_SCHEMA, repo: null, workspace: null, team: null, project: null, states: {}, labels: {}, planning: {}, tasks: {}, updatedAt: null };
+  return { schema: MAP_SCHEMA, repo: null, workspace: null, team: null, project: null, states: {}, labels: {}, changes: {}, tasks: {}, updatedAt: null };
 }
+/** Normalized map. v0.5 `planning["feat-x.md"]` entries are read as `changes["feat-x"]` (an existing `changes` entry wins);
+ *  the next write stores `changes` only, so no duplicate project is created. */
 export function normalizeMap(m) {
   const o = m && typeof m === "object" && !Array.isArray(m) ? m : {};
-  return { ...emptyMap(), ...o, schema: MAP_SCHEMA, states: o.states || {}, labels: o.labels || {}, planning: o.planning || {}, tasks: o.tasks || {} };
+  const changes = {};
+  for (const [k, v] of Object.entries(o.planning || {})) changes[changeKeyOf(k)] = v;
+  Object.assign(changes, o.changes || {});
+  const tasks = {};
+  for (const [T, e] of Object.entries(o.tasks || {})) {
+    if (!e || typeof e !== "object" || !("planning" in e)) { tasks[T] = e; continue; }
+    const { planning, ...rest } = e;
+    tasks[T] = { ...rest, change: rest.change ?? changeKeyOf(planning) };
+  }
+  const { planning: _legacy, ...base } = o;
+  return { ...emptyMap(), ...base, schema: MAP_SCHEMA, states: o.states || {}, labels: o.labels || {}, changes, tasks };
 }
 export const isConfigured = (map) => !!(map && map.team && map.team.id && map.states && map.states.started && map.states.started.id);
 
@@ -181,7 +203,7 @@ export function stateTypeFor(status, cfg, map) {
   return t;
 }
 
-export function describeTask(task, planningKey, repo = null) {
+export function describeTask(task, changeKey, repo = null) {
   const acs = (task.acs || []).map((a) => {
     const reqs = Array.isArray(a.reqs) && a.reqs.length ? ` (${a.reqs.join(", ")})` : "";
     return `- [${a.done ? "x" : " "}] ${a.id}${reqs} ${a.text}`;
@@ -194,16 +216,16 @@ export function describeTask(task, planningKey, repo = null) {
     "### Acceptance criteria",
     ...(acs.length ? acs : ["- (none)"]),
     "",
-    `risk: ${risk} · impl: ${task.impl || "?"} · prio: ${task.prio || "?"} · planning: ${planningKey || "none"}`,
+    `risk: ${risk} · impl: ${task.impl || "?"} · prio: ${task.prio || "?"} · change: ${changeKey || "none"}`,
     "_Managed by hitl. Edit the tasks file in the repo, not this description._",
   ].join("\n");
 }
 
-/** Desired Linear fields for one task. extras: {planningKey, warnings:Set}. Pure. */
+/** Desired Linear fields for one task. extras: {changeKey (alias planningKey), warnings:Set}. Pure. */
 export function desiredForTask(task, statusOfTask, cfg, map, extras = {}) {
   const status = statusOfTask || "todo";
   const title = cfg.titlePrefix ? `${task.id} · ${task.title}` : task.title;
-  const description = describeTask(task, extras.planningKey || null, extras.repo || map?.repo || null);
+  const description = describeTask(task, extras.changeKey || changeKeyOf(extras.planningKey) || null, extras.repo || map?.repo || null);
   const priority = PRIO[task.prio] ?? 0;
   const stateType = stateTypeFor(status, cfg, map);
   const stateId = map?.states?.[stateType]?.id || null;
@@ -223,7 +245,7 @@ export function desiredForTask(task, statusOfTask, cfg, map, extras = {}) {
   return { task: task.id, status, title, description, priority, stateType, stateId, labels, labelIds, relations, contentHash };
 }
 
-// ---------------------------------------------------------------- planning → project / parent issue
+// ---------------------------------------------------------------- change (or v0.5 planning) → project / parent issue
 export function goalOf(text) {
   const lines = String(text || "").split(/\r?\n/);
   const i = lines.findIndex((l) => /^## Goal\s*$/.test(l));
@@ -237,7 +259,29 @@ export function planningTitleOf(text, file) {
   return m ? m[1].trim() : basename(String(file || ""), ".md");
 }
 
-/** info: {file, title, goal, requirements?:[{id,priority,text,status}], decisions?:[{id,decision,status}]} */
+/**
+ * Desired project / parent issue of a change (design v3 §5.7): title = proposal title; content = `## Why` + `## What changes`
+ * + `### Requirements` (ADDED/MODIFIED ids and titles) + `Repo: .hitl/changes/<id>` — all business-readable.
+ * info (change): {kind:"change", file, title, why, whatChanges, requirements:[{id,title}]}
+ * info (v0.5 planning): {file, title, goal, requirements?:[{id,priority,text,status}], decisions?:[{id,decision,status}]}
+ */
+export function desiredChange(info, cfg) {
+  const as = cfg.changeAs || cfg.planningAs || "project";
+  if (!info || as === "none") return null;
+  if (info.kind !== "change") return desiredPlanning(info, { ...cfg, planningAs: as });
+  const why = String(info.why || "").trim();
+  const first = (why.split(/(?<=[.!?])\s+/)[0] || why).replace(/\s+/g, " ").trim();
+  const summary = first.length > 255 ? first.slice(0, 254) + "…" : first;
+  const parts = [why || "—"];
+  if (String(info.whatChanges || "").trim()) parts.push("### What changes\n" + info.whatChanges.trim());
+  if ((info.requirements || []).length) parts.push("### Requirements\n" + info.requirements.map((r) => `- ${r.id} ${r.title || ""}`.trimEnd()).join("\n"));
+  parts.push(`Repo: ${info.file}`);
+  const content = parts.join("\n\n");
+  const obj = as === "parent-issue" ? { title: info.title, description: content } : { name: info.title, summary, content };
+  return { kind: as, obj, pushedHash: h(stableJson(obj)) };
+}
+
+/** v0.5 planning file → project content (Goal, active R-n, accepted D-n). */
 export function desiredPlanning(info, cfg) {
   if (!info || cfg.planningAs === "none") return null;
   const goal = info.goal || "";
@@ -272,13 +316,13 @@ export function reviewBody(T, review) {
 function taskRows(I, cfg) {
   const rows = [];
   for (const doc of I.docs || []) {
-    const quick = !doc.planning || doc.planning === "none";
-    const planningKey = quick ? null : basename(doc.planning);
+    const changeKey = doc.change || changeKeyOf(doc.planning);
+    const quick = !changeKey;
     for (const t of doc.tasks || []) {
       let skip = null;
       if (doc.status !== "approved") skip = "tasks file draft";
       else if (quick && !cfg.pushQuick) skip = "quick task (pushQuick off)";
-      rows.push({ task: { ...t, file: t.file || doc.file }, doc, planningKey, quick, skip, status: I.statuses?.tasks?.[t.id]?.status || "todo" });
+      rows.push({ task: { ...t, file: t.file || doc.file }, doc, changeKey, quick, skip, status: I.statuses?.tasks?.[t.id]?.status || "todo" });
     }
   }
   return rows;
@@ -299,8 +343,9 @@ function diffReasons(d, entry, map) {
 
 // ---------------------------------------------------------------- plan (A.5.5)
 /**
- * I: {config, map, docs:[{file,status,planning,tasks}], statuses:{tasks}, reviews:{[T]:{verdict,humanRequired,head,report}},
- *     plannings:{[key]: info|null}, scope:{kind:"all"}|{kind:"tasks",ids}|{kind:"file",file}}
+ * I: {config, map, docs:[{file,status,change,planning,tasks}], statuses:{tasks}, reviews:{[T]:{verdict,humanRequired,head,report}},
+ *     changes:{[change id]: info|null}, plannings (legacy alias, keyed "feat-x.md" or "feat-x"),
+ *     scope:{kind:"all"}|{kind:"tasks",ids}|{kind:"file",file}}
  */
 export function buildPlan(I) {
   const cfg = linearCfg(I.config);
@@ -321,30 +366,31 @@ export function buildPlan(I) {
   const skipped = [];
   const live = [];
   for (const r of inScope) { if (r.skip) skipped.push({ task: r.task.id, reason: r.skip }); else live.push(r); }
-  for (const r of live) r.d = desiredForTask(r.task, r.status, cfg, map, { planningKey: r.planningKey, warnings });
-  // linear.project pinned: every issue goes into that existing project; planning files never become projects
-  const planningAs = pref && cfg.planningAs === "project" ? "none" : cfg.planningAs;
+  for (const r of live) r.d = desiredForTask(r.task, r.status, cfg, map, { changeKey: r.changeKey, warnings });
+  // linear.project pinned: every issue goes into that existing project; changes never become projects
+  const changeAs = pref && cfg.changeAs === "project" ? "none" : cfg.changeAs;
+  const infoOf = (key) => I.changes?.[key] ?? I.plannings?.[key] ?? I.plannings?.[`${key}.md`] ?? null;
 
   const ensure = [], creates = [], updates = [], rels = [], notes = [], comments = [], cancels = [];
-  // plannings
-  const pkeys = [...new Set(live.map((r) => r.planningKey).filter(Boolean))].sort();
+  // changes (and v0.5 plannings)
+  const pkeys = [...new Set(live.map((r) => r.changeKey).filter(Boolean))].sort();
   const ensured = new Set();
   for (const key of pkeys) {
-    if (planningAs === "none") break;
-    const info = I.plannings?.[key];
-    if (!info) { warnings.add(`planning ${key} not found; its issues get no ${planningAs}`); continue; }
-    const dp = desiredPlanning(info, cfg);
-    const entry = map.planning[key];
+    if (changeAs === "none") break;
+    const info = infoOf(key);
+    if (!info) { warnings.add(`change ${key} not found; its issues get no ${changeAs}`); continue; }
+    const dp = desiredChange(info, { ...cfg, changeAs });
+    const entry = map.changes[key];
     if (entry && entry.pushedHash === dp.pushedHash) continue;
     const kind = entry?.kind || dp.kind;
     const op = kind === "parent-issue" ? "ensureParent" : "ensureProject";
     ensured.add(key);
-    ensure.push({ op, planning: key, payload: { ...dp.obj, teamId: map.team.id, id: entry?.id || null, ...(op === "ensureParent" && pref ? { projectId: pref.id } : {}) }, needsGate: false,
+    ensure.push({ op, change: key, payload: { ...dp.obj, teamId: map.team.id, id: entry?.id || null, ...(op === "ensureParent" && pref ? { projectId: pref.id } : {}) }, needsGate: false,
       reason: entry ? `${kind === "parent-issue" ? "parent issue" : "project"} content changed` : `new ${kind === "parent-issue" ? "parent issue" : "project"}`,
       meta: { kind, pushedHash: dp.pushedHash } });
   }
   const anchorOf = (key) => {
-    const e = key ? map.planning[key] : null;
+    const e = key ? map.changes[key] : null;
     return { projectId: pref ? pref.id : e && e.kind === "project" ? e.id : null, parentId: e && e.kind === "parent-issue" ? e.id : null };
   };
 
@@ -359,13 +405,13 @@ export function buildPlan(I) {
   let deferred = 0;
   for (const id of order) {
     const r = byId.get(id);
-    const a = anchorOf(r.planningKey);
+    const a = anchorOf(r.changeKey);
     const first = firstPush.has(r.doc.file);
-    creates.push({ op: "createIssue", task: id, ...(r.planningKey ? { planning: r.planningKey } : {}),
+    creates.push({ op: "createIssue", task: id, ...(r.changeKey ? { change: r.changeKey } : {}),
       payload: { title: r.d.title, description: r.d.description, teamId: map.team.id, priority: r.d.priority, stateId: r.d.stateId,
         stateType: r.d.stateType, labelIds: r.d.labelIds, projectId: a.projectId, parentId: a.parentId },
       needsGate: first || tooMany, reason: first ? `first push of ${shortFile(r.doc.file)}` : "new task",
-      meta: metaOf(r, ensured.has(r.planningKey) ? r.planningKey : null) });
+      meta: metaOf(r, ensured.has(r.changeKey) ? r.changeKey : null) });
     if ((r.task.blockedBy || []).length) deferred += r.task.blockedBy.length;
     if (cfg.reviewComment && I.reviews?.[id]) deferred++;
   }
@@ -375,7 +421,7 @@ export function buildPlan(I) {
     const e = map.tasks[r.task.id];
     if (!e) continue;
     const d = r.d, p = e.pushed || {};
-    const a = anchorOf(r.planningKey);
+    const a = anchorOf(r.changeKey);
     if (e.removed) {
       updates.push({ op: "updateIssue", task: r.task.id, issue: e.issue, id: e.id,
         payload: { fields: { title: d.title, description: d.description, priority: d.priority, stateId: d.stateId, ...(a.projectId ? { projectId: a.projectId } : {}), ...(a.parentId ? { parentId: a.parentId } : {}) },
@@ -445,7 +491,7 @@ export function buildPlan(I) {
   }
 
   const ops = [...ensure, ...creates, ...updates, ...rels, ...notes, ...comments, ...cancels].map((o) => {
-    const opId = h(o.op + (o.task || o.planning || "") + stableJson(o.payload));
+    const opId = h(o.op + (o.task || o.change || "") + stableJson(o.payload));
     return { opId, ...o };
   });
   const counts = {};
@@ -454,9 +500,9 @@ export function buildPlan(I) {
     scope: scope.kind === "all" ? "all" : scope.kind === "file" ? scope.file : scope.ids.join(",") };
 }
 
-function metaOf(r, planningRef) {
+function metaOf(r, changeRef) {
   return { contentHash: r.d.contentHash, labels: r.d.labels, status: r.d.status, stateType: r.d.stateType, stateId: r.d.stateId,
-    title: r.d.title, priority: r.d.priority, tasksFile: r.doc.file, planning: r.planningKey, ...(planningRef ? { planningRef } : {}) };
+    title: r.d.title, priority: r.d.priority, tasksFile: r.doc.file, change: r.changeKey, ...(changeRef ? { changeRef } : {}) };
 }
 
 /** Blockers first; ties by prio then id. Blockers outside the set are ignored. */
@@ -503,7 +549,7 @@ export function applyRecord({ map: map0, plan, queue: q0, input, now, repo = nul
     }
     if (moved) { // relink to another workspace/team: old issue/project ids are meaningless there
       out.reset = Object.keys(map.tasks).length;
-      map.tasks = {}; map.planning = {}; map.labels = {};
+      map.tasks = {}; map.changes = {}; map.labels = {};
     }
     map.workspace = ws && ws.urlKey ? ws : (moved ? null : map.workspace || null);
     map.repo = map.repo || it.repo || repo || null;
@@ -532,11 +578,11 @@ export function applyRecord({ map: map0, plan, queue: q0, input, now, repo = nul
   }
   if (plan.project) map.project = { ...(map.project || {}), id: plan.project.id, name: plan.project.name ?? map.project?.name ?? null };
   const ops = new Map((plan.ops || []).map((o) => [o.opId, o]));
-  const key = (o) => `${o.op}|${o.task || o.planning || ""}`;
+  const key = (o) => `${o.op}|${o.task || o.change || changeKeyOf(o.planning) || ""}`;
   const enqueue = (o, error) => {
     const k = key(o);
     const i = queue.items.findIndex((x) => key(x) === k);
-    const item = { opId: o.opId, op: o.op, task: o.task || null, planning: o.planning || null, error: String(error || "unknown").slice(0, 300), queuedAt: now };
+    const item = { opId: o.opId, op: o.op, task: o.task || null, change: o.change || null, error: String(error || "unknown").slice(0, 300), queuedAt: now };
     if (i >= 0) queue.items[i] = item; else queue.items.push(item);
   };
   const dequeue = (o) => { queue.items = queue.items.filter((x) => key(x) !== key(o)); };
@@ -575,24 +621,26 @@ function applyOk(map, o, res, now, ensuredIds) {
   const skipped = new Set(res.skippedFields || []);
   const m = o.meta || {};
   if (o.op === "ensureProject" || o.op === "ensureParent") {
-    const prev = map.planning[o.planning] || {};
+    const ck = o.change || changeKeyOf(o.planning);
+    const prev = map.changes[ck] || {};
     const id = res.id || o.payload.id || prev.id;
-    map.planning[o.planning] = { kind: m.kind || (o.op === "ensureParent" ? "parent-issue" : "project"), id, key: res.issue || prev.key || null,
+    map.changes[ck] = { kind: m.kind || (o.op === "ensureParent" ? "parent-issue" : "project"), id, key: res.issue || prev.key || null,
       url: res.url || prev.url || null, pushedHash: m.pushedHash, at: now };
-    ensuredIds[o.planning] = { kind: map.planning[o.planning].kind, id };
+    ensuredIds[ck] = { kind: map.changes[ck].kind, id };
     return;
   }
   if (o.op === "createIssue") {
     const p = o.payload;
     let projectId = res.projectId ?? p.projectId ?? null, parentId = res.parentId ?? p.parentId ?? null;
-    const ref = m.planningRef && ensuredIds[m.planningRef];
+    const refKey = m.changeRef || changeKeyOf(m.planningRef);
+    const ref = refKey && ensuredIds[refKey];
     if (ref && ref.kind === "project" && !projectId) projectId = ref.id;
     if (ref && ref.kind === "parent-issue" && !parentId) parentId = ref.id;
     const stateKept = skipped.has("stateId");
     map.tasks[o.task] = {
       issue: res.issue || null, id: res.id || null, url: res.url || null,
       branch: res.branch || fallbackBranch(map.team?.key, res.issue, m.title || p.title),
-      tasksFile: m.tasksFile || null, planning: m.planning || null, removed: false,
+      tasksFile: m.tasksFile || null, change: m.change || changeKeyOf(m.planning) || null, removed: false,
       pushed: { contentHash: m.contentHash, descHash: h(res.description ?? p.description), title: p.title, priority: p.priority,
         stateType: stateKept ? null : m.stateType, stateId: stateKept ? null : p.stateId, status: m.status,
         labels: skipped.has("labelIds") ? [] : m.labels || [], relations: [], projectId, parentId, at: now },
@@ -649,7 +697,7 @@ export function parseMarker(desc) {
 }
 
 /**
- * Pure. I: {config, map, remote (hitl.tickets-remote/1), statuses, localTasks:[{id,file,planning,title}], relink:boolean, repo}
+ * Pure. I: {config, map, remote (hitl.tickets-remote/1), statuses, localTasks:[{id,file,change,planning,title}], relink:boolean, repo}
  * Repos sharing a team/project: a marker with another repo= is foreign and ignored; a legacy marker (no repo=) only
  * relinks when its file= equals the local task's file. Mapped issues are always matched by id, never by marker.
  */
@@ -735,7 +783,7 @@ export function buildDiff(I) {
     for (const x of rl) {
       const t = local.get(x.task);
       map.tasks[x.task] = { issue: x.issue, id: x.id, url: x.url, branch: x.branch, tasksFile: t?.file || null,
-        planning: t?.planning && t.planning !== "none" ? basename(t.planning) : null, removed: false, pushed: {}, comments: {} };
+        change: t?.change || changeKeyOf(t?.planning), removed: false, pushed: {}, comments: {} };
     }
   }
   return { out, map };
@@ -757,7 +805,7 @@ export function buildStatus(I) {
     else if (!live) { reason = "not pushed"; unmapped++; }
     else {
       mapped++;
-      const d = desiredForTask(r.task, r.status, cfg, map, { planningKey: r.planningKey });
+      const d = desiredForTask(r.task, r.status, cfg, map, { changeKey: r.changeKey });
       const why = diffReasons(d, live, map);
       synced = why.length === 0;
       if (!synced) { reason = why.join(", "); outOfSync++; }
@@ -773,7 +821,7 @@ export function buildStatus(I) {
   return { schema: "hitl.tickets-status/1", enabled: cfg.enabled === true, configured: isConfigured(map), team: map.team?.key || cfg.team || null,
     teamId: map.team?.id || null, server: cfg.server || null, workspace: map.workspace?.urlKey || null, repo: map.repo || null,
     project: pref ? (pref.id ? { id: pref.id, name: pref.name } : { id: null, unresolved: pref.unresolved }) : null,
-    planningAs: cfg.planningAs, autoPush: { ...cfg.autoPush }, tasks, mapped, unmapped, outOfSync,
+    changeAs: cfg.changeAs, planningAs: cfg.changeAs, autoPush: { ...cfg.autoPush }, tasks, mapped, unmapped, outOfSync,
     queued: Array.isArray(I.queue?.items) ? I.queue.items.length : 0, mapFile: MAP_REL };
 }
 
@@ -789,6 +837,21 @@ export function currentBranch(root) {
   try {
     const r = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: root, encoding: "utf8", timeout: 2000, stdio: ["ignore", "pipe", "ignore"] });
     return r.status === 0 ? r.stdout.trim() || null : null;
+  } catch { return null; }
+}
+
+/** Change info for desiredChange (design v3 §5.7): proposal title, Why, What changes, ADDED/MODIFIED requirements.
+ *  null when the change is not found. */
+export async function loadChangeInfo(root, id) {
+  try {
+    const ch = await import("./changes.mjs");
+    const e = await ch.findChange(root, id);
+    if (!e) return null;
+    const c = await ch.readChange(root, e);
+    const reqs = [];
+    for (const d of c.deltas) for (const b of d.blocks) if (b.kind === "requirement" && (b.op === "ADDED" || b.op === "MODIFIED")) reqs.push({ id: b.id, title: b.title });
+    return { kind: "change", file: c.dir, title: c.proposal?.title || id, why: c.proposal?.sections?.["Why"] || "",
+      whatChanges: c.proposal?.sections?.["What changes"] || "", requirements: reqs };
   } catch { return null; }
 }
 
@@ -851,7 +914,7 @@ function docsFromTasks(root, tasks) {
     if (!files.has(t.file)) {
       let text = "";
       try { text = readFileSync(join(root, t.file), "utf8"); } catch { /* missing */ }
-      files.set(t.file, { file: t.file, status: /^> status: (draft|approved)/m.exec(text)?.[1] || null, planning: t.planning || null, tasks: [] });
+      files.set(t.file, { file: t.file, status: /^> status: (draft|approved)/m.exec(text)?.[1] || null, change: t.change || null, planning: t.planning || null, tasks: [] });
     }
     files.get(t.file).tasks.push(t);
   }

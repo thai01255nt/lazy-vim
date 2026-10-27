@@ -38,7 +38,8 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
 - `@status` is written by tooling only (`hitl-index status --sync-tags`). Skeletons start at `skeleton`.
 - `@dec` is a list tag (items `D-n`; anything else → `BAD_TAG`). Optional, code symbols only (ignored on tests), typically
   0–3 per task. Adding/removing it never changes the intent hash and never needs re-approval. It resolves via the
-  symbol's `@task` → the task's `← Planning:` file → the `D-n` row; an unknown D-n is a `DEC_UNKNOWN` block in `hitl-index trace`.
+  symbol's `@task` → the task's change (`← Change: <id>`) → that change's `design.md` `## Decisions` row (legacy v0.5
+  tasks: the `← Planning:` file); an unknown D-n is a `DEC_UNKNOWN` block in `hitl-index trace`.
 - Upgrade note: a docstring line that starts with `@dec …` used to be prose; it is now a tag (one-time `INTENT_CHANGED`).
 - Refs: prefer the short form `UserRepo.findByEmail`; use `src/repo/userRepo.ts#UserRepo.findByEmail` only when ambiguous.
 
@@ -56,7 +57,7 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
 | `@kind` | test | example / property / concurrency / golden / metamorphic |
 | `@origin` | test | who wrote it: skeleton (stub) / test-author / human / agent-posthoc |
 | `@risk` | code | rare per-symbol override of task risk |
-| `@dec` | code | planning decision(s) `D-n` this symbol embodies (spec link; not hashed) |
+| `@dec` | code | design decision(s) `D-n` of the task's change this symbol embodies (spec link; not hashed) |
 
 ## 4. Examples
 

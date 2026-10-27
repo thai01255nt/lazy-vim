@@ -19,7 +19,8 @@ Read **Common rules** plus the section for your lens only.
 **Inputs**: the review context (task, ACs, per-symbol approved contract vs current source, callers, declared callees,
 tests), `l0.json` (lint/typecheck/tests/drift/mutation already checked mechanically).
 
-**Requirements**: ACs arrive with their requirement text `(R-n: …)`. Code that passes the AC but violates the R is a
+**Requirements**: ACs arrive with their scenario `(ACC-R3.S1 <title>: GIVEN … WHEN … THEN …)` (legacy: `(R-n: …)`).
+Code that passes the AC but violates the scenario or its requirement is a
 finding (category intent).
 
 **Scope**: only code this task created or changed (symbols tagged `@task <T>`, their tests, helpers they added).

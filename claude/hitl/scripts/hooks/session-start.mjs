@@ -1,4 +1,4 @@
-// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤4 plain-stdout lines (brief, drift, linear queue, commands).
+// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤5 plain-stdout lines (brief, drift, linear queue, v0.5 planning notice, commands).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -36,6 +36,14 @@ function linearQueueLine(root) {
   } catch { return ""; }
 }
 
+/** design v3 §5.3: one line while v0.5 planning files remain (plain readdir, no module import). */
+function legacyPlanningLine(root) {
+  try {
+    return fs.readdirSync(path.join(root, HITL_DIR, "planning")).some((n) => n.endsWith(".md"))
+      ? "⚠️ HITL: v0.5 planning files — run hitl-index migrate --specs" : "";
+  } catch { return ""; }
+}
+
 async function main(input) {
   const root = projectRootOrExit(input, { useToolPath: false, legacyNotice: true });
   housekeeping(root);
@@ -63,6 +71,8 @@ async function main(input) {
   }
   const lq = linearQueueLine(root);
   if (lq) lines.push(lq);
+  const lp = legacyPlanningLine(root);
+  if (lp) lines.push(lp);
   lines.push("HITL commands: /hitl:flow");
   emit(lines.join("\n"));
 }

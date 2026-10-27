@@ -1,13 +1,13 @@
 ---
 name: test
-description: Turns a task's approved test stubs into real failing tests through the isolated test-author subagent (sees only the contract pack, never implementation bodies), verifies they fail for the right reason, records results in the index, and optionally runs mutation testing on changed functions. Use when the user says "test T-12", "viết test", "run tests", after skeleton approval, or when review asks for tests that kill surviving mutants.
+description: Turns a hitl task's approved test stubs into real failing tests via the isolated test-author subagent; optional mutation testing. Use for "test T-12", "viết test", "run tests", after skeleton approval, or when review asks for tests that kill surviving mutants.
 argument-hint: "<T-id> [fill|run|mutate] [symbol] [--override]"
 allowed-tools: Read Glob Grep Agent Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
 # /hitl:test
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`. Reply in the user's language.
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md`. Reply in the user's language.
 TDD rules: `${CLAUDE_PLUGIN_ROOT}/skills/test/references/tdd-rules.md` (read once per session before `fill`/`mutate`).
 Test kinds and edge checklist: `${CLAUDE_PLUGIN_ROOT}/skills/test/references/test-kinds.md` (passed to the test-author).
 

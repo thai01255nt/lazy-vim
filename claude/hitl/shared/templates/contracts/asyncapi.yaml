@@ -1,0 +1,17 @@
+# audience: dev — event/queue contract skeleton. AsyncAPI 3.0.0: https://www.asyncapi.com/docs/reference/specification/v3.0.0
+# Only the channels/operations this change adds or changes. Payloads: $ref to contracts/<name>.schema.json.
+asyncapi: 3.0.0
+info:
+  title: {Event API name}
+  version: {0.1.0}
+channels:
+  {channelId}:
+    address: {topic.or.queue.name}
+    messages:
+      {messageId}:
+        payload: { $ref: "{event}.schema.json" }
+operations:
+  {sendMessageId}:
+    action: send                            # send | receive (from this application's view)
+    channel: { $ref: "#/channels/{channelId}" }
+    summary: {when it is sent}              # serves {KEY}-R{n}

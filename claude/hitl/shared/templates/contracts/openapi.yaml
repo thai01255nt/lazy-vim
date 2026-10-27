@@ -1,0 +1,25 @@
+# audience: dev — HTTP contract skeleton. OpenAPI 3.1.1: https://spec.openapis.org/oas/v3.1.1.html (see shared/formats/contracts.md)
+# Only the operations this change adds or changes. Payloads: $ref to contracts/<name>.schema.json (JSON Schema 2020-12).
+openapi: 3.1.1
+info:
+  title: {API name}
+  version: {0.1.0}
+paths:
+  /{resource}/{id}:
+    get:
+      operationId: {getResource}
+      summary: {what it returns}            # serves {KEY}-R{n}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: {the resource}
+          content:
+            application/json:
+              schema: { $ref: "{resource}.schema.json" }
+        "404":
+          description: {not found}
+components: {}

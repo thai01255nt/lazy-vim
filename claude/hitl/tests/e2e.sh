@@ -190,7 +190,7 @@ step 5 "tasks --check: exit 0" s5
 s5a() {
   cd "$TS"
   CLI trace --json > "$W/trace5.json"
-  afile "$W/trace5.json" 'd.schema === "hitl.trace/1" && d.counts.block === 0 && d.rows.some((r) => r.req && r.req.id === "R-1" && r.acs.some((a) => a.id === "T-1.AC1"))'
+  afile "$W/trace5.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.rows.some((r) => r.req && r.req.id === "R-1" && r.acs.some((a) => a.id === "T-1.AC1"))'
   local md=.hitl/tasks/feat-user-register.md
   sed -i 's/T-1.AC1 (R-1)/T-1.AC1 (R-9)/' "$md"
   expect_exit 1 CLI trace --check

@@ -1,4 +1,4 @@
-// `hitl-index feature <planning-or-tasks-file> [--lane fast] [--report] [--json]`
+// `hitl-index feature <change-id | legacy tasks-or-planning-file> [--lane fast] [--report] [--json]`
 // Plan of a feature run (task order, lane and next action per task, early-stop reason) or, with --report, the
 // one-screen summary .hitl/reviews/feature-<name>.md built from each task's review artifacts.
 // `--report --security-audit <dir>` records a finished full security audit (<dir>/REPORT.md) in
@@ -11,7 +11,7 @@ import { resolveFeature, planFeature, buildFeatureReport } from "../lib/feature.
 import { gather } from "./status.mjs";
 
 const OPTS = { lane: { type: "string" }, report: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" }, "security-audit": { type: "string" } };
-const USAGE = "usage: hitl-index feature <planning-or-tasks-file> [--lane fast] [--report [--security-audit <audit-dir>]] [--json]";
+const USAGE = "usage: hitl-index feature <change-id> [--lane fast] [--report [--security-audit <audit-dir>]] [--json]";
 
 const ACTION_TEXT = {
   implement: (i) => (i.lane === "normal" ? `/hitl:implement ${i.id}` : `${i.lane === "override" ? "⚠️ override" : "⚡ fast"} lane: skeleton → tests → implement`),
@@ -72,7 +72,7 @@ export async function run(argv, ctx) {
   plan.items.forEach((i, n) => console.log(`| ${n + 1} | ${i.id} ${i.title} | ${i.risk}${i.riskReasons.length ? ` (${i.riskReasons.join(", ")})` : ""} | ${i.lane} | ${i.status} | ${ACTION_TEXT[i.action](i)} |`));
   if (plan.cycle.length) console.log(`⚠️ blocked-by cycle: ${plan.cycle.join(", ")}`);
   if (plan.stop) console.log(`🛑 ${plan.stop}`);
-  else if (plan.phase === "review") console.log(`🎯 next: review every task, then hitl-index feature ${plan.file} --report`);
+  else if (plan.phase === "review") console.log(`🎯 next: review every task, then hitl-index feature ${feature.change || plan.file} --report`);
   else console.log(`🎯 next: ${plan.current.id}`);
   return 0;
 }

@@ -1,6 +1,6 @@
 ---
 name: sync
-description: Reconciles manual edits with the HITL index — reindexes the project, shows the full drift report against approved skeletons (signature/intent changes with affected callers, orphan symbols, deleted-but-referenced symbols, edited locked tests, stale @status tags), flags broken requirement/decision links (trace), walks the user through re-reviewing each change (accept, revert, defer, or accept + amend the planning spec), regenerates CODEBASE-MAP, and offers approval. Run by the user after editing code outside Claude.
+description: Reconciles manual edits with the HITL index — reindexes the project, shows the full drift report against approved skeletons (signature/intent changes with affected callers, orphan symbols, deleted-but-referenced symbols, edited locked tests, stale @status tags), flags broken requirement/decision links (trace), walks the user through re-reviewing each change (accept, revert, defer, or accept + amend the change's spec delta / design decision), regenerates CODEBASE-MAP, and offers approval. Run by the user after editing code outside Claude.
 argument-hint: "[--files <paths...>] [<T-id>]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
@@ -8,7 +8,7 @@ allowed-tools: Read Glob Grep Edit Bash(hitl-index *) Bash(node *hitl-index.mjs 
 
 # /hitl:sync
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`. Reply in the user's language.
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-spec.md`. Reply in the user's language.
 
 Arguments: `$ARGUMENTS` → `[--files <paths...>] [<T-id>]`, or `context <T-id|ref>`.
 - `context <ref>` → run `hitl-index context <ref>` and print its markdown as-is. Done (no gate).
@@ -38,12 +38,13 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 ⚠️ SIG_CHANGED UserService.createUser — src/services/userService.ts — callers: AuthController.register
    approved: createUser(email: string, passwordHash: string): User
    current : createUser(email: string, passwordHash: string, role: string): User
-   spec: D-1 (Duplicate check in UserService.createUser) · R-1, R-2
+   spec: D-1 (Duplicate check before saving) · ACC-R1.S1, ACC-R1.S2 (change feat-user-register)
 ⚠️ INTENT_CHANGED …   approved: "<intent>"  →  current: "<intent>"
 ⚠️ TEST_CHANGED tests/userService.test.ts "T-12.AC2 …"
 ⚠️ ORPHAN UserService.helper — no @task
 ℹ️ STATUS_TAG_STALE UserService.createUser — source says green, computed red
-⛔ DEC_UNKNOWN D-9 — UserService.createUser @dec D-9 not in planning/feat-user-register.md   (trace)
+⛔ DEC_UNKNOWN D-9 — UserService.createUser @dec D-9 not in changes/feat-user-register/design.md   (trace)
+⛔ SCN_UNKNOWN ACC-R1.S4 — T-12.AC3 refs a scenario not in the change's spec view               (trace)
 ⚠️ DEC_SUPERSEDED_REF D-1 — superseded by D-4                                                  (trace)
 ## (no task)
 ⚠️ ORPHAN src/util/email.ts#normalize
@@ -51,7 +52,7 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 - Order: ⛔ block, ⚠️ warn, ℹ️ info. Collapse info rows into one count line per task unless there are ≤5.
 - For SIG_CHANGED / INTENT_CHANGED show `approved → current` from the drift item's `approved`/`current` fields.
 - For DELETED_LOCKED with a MOVED info item, say where it moved.
-- Items with `spec` → one extra line `   spec: D-1 (<decision text, ≤60 chars>) · R-1, R-2`.
+- Items with `spec` → one extra line `   spec: D-1 (<decision text, ≤60 chars>) · <scenario/requirement ids> (change <id>)`.
 - Trace items go under their `task` group (no task → `## (no task)`), marked `(trace)`.
 
 No drift warn/block items and no trace block items → `✅ in sync` plus `hitl-index status --brief` output, then run `hitl-index status --sync-tags`
@@ -63,7 +64,7 @@ No drift warn/block items and no trace block items → `✅ in sync` plus `hitl-
 For each changed contract: 1. accept (re-approve)  2. revert (I restore the approved signature/doc)  3. defer
                             4. accept + amend spec (only items with spec: <symbols>)
 Orphans: tag with task? (T-id / ignore). Locked tests changed: accept (re-lock) / revert by hand / defer.
-Trace ⛔ items: I fix the reference (R-/D-/@dec/@ac/@covers) unless you say otherwise.
+Trace ⛔ items: I fix the reference (spec id / D-n / @dec / @ac / @covers) unless you say otherwise.
 Reply e.g. "1 all", "2 UserService.createUser", "4 UserService.createUser", "orphans T-12".
 ```
 💡 Recommend per item in one line (e.g. revert when callers would break and no caller was updated; accept when the user
@@ -81,7 +82,7 @@ decision or requirement). End turn.
 | defer | Leave it; it stays in drift and in `/hitl:flow`. |
 | orphan → T-id | Add `@task <T> @impl <agent|manual> @status skeleton` to the symbol's docstring (create a minimal docstring if none; ask nothing — default `@impl manual` because the human wrote it). Reindex. Tell the user it joins the task at the next `/hitl:approve <T> skeleton <symbol>`. |
 | orphan → ignore | Nothing (orphans are warnings only). |
-| trace ⛔ (DEC_UNKNOWN, REQ_UNKNOWN, AC_UNKNOWN, …) | Fix the dangling reference: Edit the `@dec`/`@ac`/`@covers` tag line or the tasks md `(R-n)`/Why text to an existing id (never status or boxes). `@dec` is not hashed. Reindex, re-run `hitl-index trace --json`; if drift now shows TEST_CHANGED/INTENT_CHANGED for it, print the matching `/hitl:approve` command. |
+| trace ⛔ (DEC_UNKNOWN, REQ_UNKNOWN, SCN_UNKNOWN, RULE_UNKNOWN, REQ_INACTIVE, SPEC_STALE, AC_UNKNOWN, …) | Fix the dangling reference: Edit the `@dec`/`@ac`/`@covers` tag line or the tasks md AC ref group `(ACC-R3.S1)`/Why text to an id in the change's spec view (never status or boxes; never `.hitl/specs/**` — a missing behaviour goes through accept + amend spec). `@dec` is not hashed. Reindex, re-run `hitl-index trace --json`; if drift now shows TEST_CHANGED/INTENT_CHANGED for it, print the matching `/hitl:approve` command. |
 | DELETED_REFERENCED | Not auto-fixable. Show the referencing symbols; the user restores the symbol or updates the callers/@calls/@covers. |
 
 Finally: `hitl-index status --sync-tags`, re-run `hitl-index drift --json [--task <T>]` and print the remaining counts

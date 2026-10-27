@@ -1,8 +1,19 @@
 {
   "name": "hitl",
-  "version": "0.5.0",
-  "description": "Human-in-the-loop skeleton-first workflow: plan, tasks, reviewed code skeletons, locked failing tests, per-function human/agent implementation, layered review (security lens + full audit via the vendored Cloudflare security-audit skill), with a deterministic AST index, drift checks, requirement/decision traceability, and optional one-way Linear sync.",
-  "author": { "name": "Thai" },
+  "version": "0.6.2",
+  "description": "Human-in-the-loop SDD workflow: spec-only planning (proposal + spec deltas, grill-style interview), developer design, tasks, then reviewed code skeletons, locked failing tests, per-function human/agent implementation and layered review (or build-then-review), with living specs + archive, a deterministic AST index, drift checks, requirement→scenario→test traceability, and optional one-way Linear sync.",
+  "author": {
+    "name": "Thai"
+  },
   "license": "MIT",
-  "keywords": ["hitl", "tdd", "skeleton", "review", "sdd", "linear", "security"]
+  "keywords": [
+    "hitl",
+    "sdd",
+    "spec",
+    "tdd",
+    "skeleton",
+    "review",
+    "linear",
+    "security"
+  ]
 }

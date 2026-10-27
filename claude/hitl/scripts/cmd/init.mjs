@@ -6,8 +6,9 @@ import { exists, readJson, readText, writeJsonAtomic, writeTextAtomic } from "..
 import { CONFIG_REL, HITL_PREFIX } from "../lib/paths.mjs";
 
 // Canonical .hitl/.gitignore (v2 §A.6.2): generated files ignored; lock, decisions.json, review md, linear.map.json committed.
+// design v3 §4.5: the spec-scout / spec-reviewer scratch files in change folders are never committed (archive removes them).
 export const GITIGNORE_HEADER = "# hitl: generated files (rebuildable) — do not commit";
-export const GITIGNORE = ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/"];
+export const GITIGNORE = ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/", ".scout.json", ".spec-review.json"];
 
 /** Pure: existing .gitignore text (or null) -> {text, added[]}. Appends missing canonical lines; never removes or reorders. */
 export function mergeGitignore(existing) {
@@ -26,7 +27,8 @@ export async function run(argv, ctx) {
   const root = ctx.root;
   const P = paths(root);
   const created = [];
-  for (const d of [P.custom, P.docs, P.planning, P.tasks, P.index, P.reviews]) {
+  // specs/, changes/, archive/ are created lazily by the spec commands; v0.5 planning/ is no longer created (design v3 §8)
+  for (const d of [P.custom, P.docs, P.tasks, P.index, P.reviews]) {
     if (!(await exists(d))) { await fs.mkdir(d, { recursive: true }); created.push(d.slice(root.length + 1) + "/"); }
   }
   const det = await detectCommands(root);

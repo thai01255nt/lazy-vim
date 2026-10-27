@@ -33,7 +33,7 @@ export function readStdin() {
  * plus agent_id; on the main thread both are absent.
  * Returns "main" | one of HITL_ROLES | "other" (a subagent that is not ours).
  */
-export const HITL_ROLES = ["test-author", "implementer", "reviewer", "finding-verifier", "codebase-mapper"];
+export const HITL_ROLES = ["test-author", "implementer", "reviewer", "finding-verifier", "codebase-mapper", "spec-scout", "spec-reviewer"];
 export function role(input) {
   const t = typeof input.agent_type === "string" ? input.agent_type.trim() : "";
   if (!t) return "main";

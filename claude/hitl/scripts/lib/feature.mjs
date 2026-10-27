@@ -1,4 +1,4 @@
-// Feature-level run (`/hitl:implement --feature <planning-or-tasks-file>`): resolve the tasks file, order its tasks,
+// Feature-level run (`/hitl:implement --feature <change-id>`; legacy tasks/planning files still accepted): resolve the tasks file, order its tasks,
 // pick each task's lane and the next action, and build the one-screen feature summary report. Pure except resolve().
 import { basename } from "node:path";
 import { isKept, confOf, assignFNumbers } from "./report.mjs";
@@ -10,24 +10,43 @@ const stem = (f) => basename(String(f || "")).replace(/\.md$/, "");
 /** Statuses that count as "implemented" in a feature run (skipped on resume; reviewed at the end). */
 export const IMPLEMENTED = new Set(["green", "review", "verified", "done"]);
 
+/** Feature key of an argument: change id for `.hitl/changes/<id>[/tasks.md]` / `.hitl/archive/<date>-<id>[/…]`, else the file stem. */
+function featureKey(arg) {
+  const a = String(arg).trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  const m = /(?:^|\/)(changes|archive)\/([^/]+)(?:\/tasks\.md)?$/.exec(a);
+  if (m) return m[1] === "archive" ? m[2].replace(/^\d{4}-\d{2}-\d{2}-/, "") : m[2];
+  return stem(a);
+}
+
 /**
- * Tasks of one feature. `arg` may be a tasks or planning path (absolute, project-relative, `.hitl/…`) or a bare
- * name (`feat-x`, `feat-x.md`). Matches the tasks file by name, or tasks whose `← Planning:` link has that name.
- * @returns {{name, file, tasks:Task[]} | {error, candidates?:string[]}}
+ * Tasks of one feature (design v3 §5.3). `arg` is a change id (the documented form: `--feature <change-id>`), a change
+ * folder or tasks path, or a legacy tasks/planning path or bare name (`feat-x`, `feat-x.md`). Matches, in order: tasks
+ * whose change is that id (the active change first, else its archived copy), the tasks file stem, then tasks whose
+ * legacy `← Planning:` link has that name.
+ * @returns {{name, file, change?, tasks:Task[]} | {error, candidates?:string[]}}
  */
 export function resolveFeature(tasks, arg) {
   if (!arg || typeof arg !== "string") return { error: "missing feature file" };
-  const want = stem(arg.trim());
+  const want = featureKey(arg);
   if (!want) return { error: "missing feature file" };
-  const files = [...new Set((tasks || []).map((t) => t.file).filter(Boolean))].sort();
-  let file = files.find((f) => stem(f) === want);
+  const all = tasks || [];
+  const viaChange = all.filter((t) => t.change === want);
+  if (viaChange.length) {
+    const active = viaChange.filter((t) => !t.archived);
+    const pick = active.length ? active : viaChange;
+    const files = [...new Set(pick.map((t) => t.file))].sort();
+    const file = files.at(-1);
+    return { name: want, file, change: want, tasks: all.filter((t) => t.file === file) };
+  }
+  const files = [...new Set(all.map((t) => t.file).filter(Boolean))].sort();
+  let file = files.find((f) => stem(f) === want && !all.some((t) => t.file === f && t.change));
   if (!file) {
-    const viaPlanning = [...new Set((tasks || []).filter((t) => t.planning && stem(t.planning) === want).map((t) => t.file))];
+    const viaPlanning = [...new Set(all.filter((t) => t.planning && stem(t.planning) === want).map((t) => t.file))];
     if (viaPlanning.length === 1) file = viaPlanning[0];
     else if (viaPlanning.length > 1) return { error: `planning ${want} has several tasks files`, candidates: viaPlanning };
   }
-  if (!file) return { error: `no tasks file for ${arg} (run /hitl:tasks first)`, candidates: files };
-  return { name: stem(file), file, tasks: tasks.filter((t) => t.file === file) };
+  if (!file) return { error: `no tasks file for ${arg} (run /hitl:tasks <change-id> first)`, candidates: files };
+  return { name: stem(file), file, tasks: all.filter((t) => t.file === file) };
 }
 
 /**

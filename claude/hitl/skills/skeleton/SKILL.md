@@ -1,13 +1,13 @@
 ---
 name: skeleton
-description: Drafts code skeletons for one task in implement-priority order — exact file, signature, intent docstring with @task/@impl/@status/@calls tags, TODO(impl) step flow and a failing sentinel — plus tagged test stubs (@covers/@ac/@kind) for every acceptance criterion, then stops for human review. Use when the user says "skeleton", "stub", "draft functions", "tạo skeleton" for a task, or after tasks are approved.
+description: Drafts code skeletons for one hitl task (signatures, intent docstrings, TODO flow, failing sentinel) plus test stubs per acceptance criterion, then stops for human review. Use for "skeleton", "stub", "draft functions", "tạo skeleton", or after tasks are approved.
 argument-hint: "<T-id> [--quick [--override]]"
 allowed-tools: Read Glob Grep Write Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
 # /hitl:skeleton — stubs + intent + test stubs
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`.
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md`.
 Patterns (read the one per language before writing): `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-ts.md`,
 `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`. Tags: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`.
 
@@ -25,7 +25,8 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 - Already locked (`hitl-index status <T> --json` shows approved or later) → `⚠️ <T> skeleton is locked. Signature/intent changes will need /hitl:approve <T> again.` and continue.
 
 ## 2. Load (no questions)
-- The task section (ACs, Symbols, Test plan, Notes) and the planning decisions it links (`D-n`).
+- The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`D-n` in the change's
+  `design.md`; `hitl-index context <T> --json` shows them with the AC scenarios).
 - `docs/PATTERNS-CONVENTIONS.md`; `hitl.config.json` (`commands.test`, `commands.typecheck`, `testGlobs`).
 - `hitl-index context <T> --json` → existing targets, callers, neighbours, public types.
 - The skeleton pattern file(s) for the languages involved and `tag-grammar.md`.
@@ -40,8 +41,8 @@ For each row (`@prio` = row number):
   - intent docstring: what + business rule, params/returns/throws (prose lines);
   - `@task <T> @impl <row owner> @status skeleton @prio <n>` on one line;
   - `@calls <short refs>` (declared collaborators; omit if none) and `@concurrency none|shared-state|async|locks|io`;
-  - `@dec D-n` on its own line only on the symbols named in a D row's **Approach** whose *cost if wrong* matters
-    (typically 0–3 per task; never required; not hashed). Ids must exist in the task's planning file;
+  - `@dec D-n` on its own line only on the symbols that embody a D-n cited in the task's `**Why**` whose *cost if
+    wrong* matters (typically 0–3 per task; never required; not hashed). Ids must exist in the change's `design.md`;
   - numbered `TODO(impl): 1. …` steps (the flow a reviewer will map), then the sentinel
     (TS `throw new Error("TODO(impl): <ref>")`, Py `raise NotImplementedError("TODO(impl): <ref>")`).
 - New classes that host the stubs: intent + `@task <T> @impl agent @status skeleton` (avoids ORPHAN), no sentinel.

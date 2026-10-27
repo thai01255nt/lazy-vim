@@ -48,3 +48,34 @@ sM3() {
   [ -f .claude/custom/tasks/x.md ] && grep -qx b .hitl/tasks/x.md || { echo "conflicting migrate moved files"; return 1; }
 }
 step M3 "migrate refuses when .hitl/ already has conflicting content (nothing moved)" sM3
+
+sM4() {
+  local d="$W/specs-migrate"
+  cp -R "$FIX/ts-app" "$d"
+  rm -rf "$d/.hitl/index"
+  cd "$d"
+  CLI init --quiet
+  CLI index --all --quiet
+  hook session-start "$(P="$PWD" js '{session_id:"m4",cwd:process.env.P,hook_event_name:"SessionStart"}')" "$W/m4a.out"
+  contains "$W/m4a.out" "v0.5 planning files — run hitl-index migrate --specs"
+  CLI migrate --specs --dry-run --json > "$W/m4b.json"
+  afile "$W/m4b.json" 'd.dryRun === true && d.plan[0].change === "feat-user-register" && d.plan[0].key === "UR" && d.plan[0].ids["R-1"] === "UR-R1"'
+  [ -f .hitl/planning/feat-user-register.md ] && [ ! -e .hitl/changes ] || { echo "dry-run changed files"; return 1; }
+  CLI migrate --specs > "$W/m4c.out"
+  [ -f .hitl/changes/feat-user-register/.legacy/planning.md ] && [ ! -e .hitl/planning/feat-user-register.md ] || { echo "planning not moved"; return 1; }
+  contains .hitl/changes/feat-user-register/tasks.md "← Change: feat-user-register"
+  contains .hitl/.gitignore ".spec-review.json"
+  CLI spec validate --quiet
+  CLI tasks --check --quiet
+  CLI trace --check --json > "$W/m4d.json"
+  afile "$W/m4d.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.changes[0].id === "feat-user-register" && d.rows.some((r) => r.req && r.req.id === "UR-R1" && r.scenarios[0].acs.some((a) => a.id === "T-1.AC1"))'
+  CLI feature feat-user-register --json > "$W/m4e.json"
+  afile "$W/m4e.json" 'd.name === "feat-user-register" && d.file === ".hitl/changes/feat-user-register/tasks.md"'
+  hook session-start "$(P="$PWD" js '{session_id:"m4b",cwd:process.env.P,hook_event_name:"SessionStart"}')" "$W/m4f.out"
+  ! grep -q "migrate --specs" "$W/m4f.out" || { echo "legacy notice after migration"; return 1; }
+  CLI migrate --specs --json > "$W/m4h.json"; afile "$W/m4h.json" 'd.status === "nothing"'
+  in=$(P="$PWD" js '{session_id:"m4",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:process.env.P+"/.hitl/specs/user-register/spec.md",content:"x"}}')
+  hook pre-tool "$in" "$W/m4g.out"
+  is_deny "$W/m4g.out"
+}
+step M4 "migrate --specs: dry-run no-op; change folder + moved files; validate/tasks/trace clean; feature by change id; living specs hook-protected" sM4

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "order.schema.json",
+  "title": "Order",
+  "type": "object",
+  "required": ["id", "state"],
+  "properties": {
+    "id": { "type": "string" },
+    "state": { "enum": ["placed", "paid", "cancelled", "shipped", "delivered"] }
+  },
+  "additionalProperties": false
+}

@@ -78,21 +78,35 @@ export async function buildContext(root, target, { contract = false, budget = 12
   const testState = (t) => `${lock.tests[t.id]?.stage || "unlocked"}, ${state.runs?.[t.id]?.outcome || (t.test.mode === "active" ? "not run" : t.test.mode)}`;
   const label = (id) => `${S[id].name} (${S[id].file})`;
 
-  // spec (planning R-/D- rows) for AC lines and decisions
-  const planning = task?.planning && task.planning !== "none" ? await readPlanning(root, task.planning).catch(() => null) : null;
+  // spec for AC lines and decisions: the change's effective view + design.md, or (v0.5) the planning file's R-/D- rows
+  let changeCtx = null;
+  if (task && (task.change || task.changeDir)) {
+    const ch = await import("./changes.mjs");
+    changeCtx = ch.changeForTask(await ch.loadSpecContext(root).catch(() => null), task);
+    if (changeCtx) changeCtx.find = (r) => ch.findInView(changeCtx.view, r);
+  }
+  const planning = !changeCtx && task?.planning && task.planning !== "none" ? await readPlanning(root, task.planning).catch(() => null) : null;
+  const decisionsDoc = changeCtx ? changeCtx.change.design : planning;
   const reqOf = (r) => planning?.requirements.find((x) => x.id === r);
-  const decOf = (d) => planning?.decisions.find((x) => x.id === d);
-  const acLine = (a) => (a.reqs || []).length
-    ? `- ${a.id} (${a.reqs.map((r) => `${r}: ${reqOf(r)?.text ?? "unknown"}`).join("; ")}) ${a.text}` : `- ${a.id} ${a.text}`;
+  const decOf = (d) => decisionsDoc?.decisions.find((x) => x.id === d);
+  const specText = (r) => {
+    const hit = changeCtx.find(r);
+    if (!hit) return `${r} unknown`;
+    if (hit.scenario) return `${r} ${hit.scenario.title}: ${hit.scenario.steps.map((x) => `${x.kw} ${x.text}`).join(" ")}`;
+    return `${r} ${hit.block.title}: ${hit.block.statement || ""}`.trim();
+  };
+  const acLine = (a) => !(a.reqs || []).length ? `- ${a.id} ${a.text}`
+    : changeCtx ? `- ${a.id} (${a.reqs.map(specText).join("; ")}) ${a.text}`
+    : `- ${a.id} (${a.reqs.map((r) => `${r}: ${reqOf(r)?.text ?? "unknown"}`).join("; ")}) ${a.text}`;
 
   const sections = []; // {text, drop: "siblings"|"testBodies"|null}
   const head = [];
   if (task) {
     const tst = st?.tasks?.[task.id]?.status || task.status;
     head.push(`# Context ${task.id} — ${task.title}  (risk: ${task.risk} | prio: ${task.prio} | status: ${tst})`);
-    head.push(`task file: ${task.file}${task.planning ? ` · planning: ${task.planning}` : ""}`);
+    head.push(`task file: ${task.file}${task.change ? ` · change: ${task.change}` : task.planning ? ` · planning: ${task.planning}` : ""}`);
     head.push("", "## Acceptance criteria", ...(task.acs.length ? task.acs.map(acLine) : ["- (none)"]));
-    if (!contract && planning) {
+    if (!contract && decisionsDoc) {
       const ids = [...new Set([...(task.decisions || []), ...Object.values(S).filter((s) => (s.tags?.task || []).includes(task.id)).flatMap((s) => s.tags?.dec || [])])];
       if (ids.length) head.push("", "## Decisions", ...ids.map((d) => { const x = decOf(d); return x ? `- ${d} (${statusText(x)}): ${x.decision}` : `- ${d} (unknown)`; }));
     }

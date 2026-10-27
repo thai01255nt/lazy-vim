@@ -289,6 +289,36 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       assertSilent(pre(root, "Write", { file_path: path.join(root, p), content: "x" }));
   });
 
+  test("design v3: living specs, archived changes and .base.json are CLI-only; deltas, archive tasks.md stay editable", async () => {
+    const { root } = await mkProject();
+    const W = (rel, agent) => pre(root, "Write", { file_path: path.join(root, rel), content: "x" }, agent);
+    assertDeny(W(".hitl/specs/accounts/spec.md"), /Living specs are written only by hitl-index spec merge/);
+    assertDeny(W(".hitl/specs/GLOSSARY.md"), /Living specs/);
+    assertDeny(W(".hitl/archive/2026-10-20-feat-2fa/proposal.md"), /Archived changes are frozen/);
+    assertDeny(W(".hitl/archive/2026-10-20-feat-2fa/specs/accounts/spec.md", "hitl:implementer"), /Archived changes are frozen/);
+    assertDeny(W(".hitl/changes/feat-x/.base.json"), /\.base\.json is written only by hitl-index/);
+    assertSilent(W(".hitl/archive/2026-10-20-feat-2fa/tasks.md"));
+    assertSilent(W(".hitl/changes/feat-x/specs/accounts/spec.md"));
+    assertSilent(W(".hitl/changes/feat-x/proposal.md"));
+    assertSilent(W(".hitl/changes/feat-x/.scout.json"));
+    assertSilent(W("src/.base.json"));
+    const TA = "hitl:test-author";
+    for (const rel of [".hitl/changes/feat-x/tasks.md", ".hitl/specs/accounts/spec.md", ".hitl/archive/2026-10-20-feat-2fa/tasks.md", ".hitl/planning/feat-x.md"])
+      assertSilent(pre(root, "Read", { file_path: path.join(root, rel) }, TA));
+  });
+
+  test("session-start: one migrate --specs line while v0.5 planning files exist", async () => {
+    const { root } = await mkProject();
+    fs.mkdirSync(path.join(root, ".hitl/planning"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".hitl/planning/feat-x.md"), "# X - Planning\n");
+    const r = hook("session-start.mjs", { session_id: "lp", cwd: root, hook_event_name: "SessionStart", source: "startup" });
+    assert.equal(r.code, 0, r.err);
+    assert.ok(r.out.includes("⚠️ HITL: v0.5 planning files — run hitl-index migrate --specs"), r.out);
+    fs.rmSync(path.join(root, ".hitl/planning/feat-x.md"));
+    const r2 = hook("session-start.mjs", { session_id: "lp2", cwd: root, hook_event_name: "SessionStart", source: "startup" });
+    assert.ok(!r2.out.includes("migrate --specs"), r2.out);
+  });
+
   test("legacy .claude/custom/ project: SessionStart prints one migrate notice; other hooks stay silent", () => {
     const legacy = fs.mkdtempSync(path.join(TMP, "legacy-"));
     fs.mkdirSync(path.join(legacy, ".claude/custom"), { recursive: true });
@@ -377,6 +407,37 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: "rm -rf src" }, "hitl:finding-verifier"));
     assertSilent(pre(root, "Write", { file_path: path.join(root, ".hitl/reviews/T-1/findings-contract.json"), content: "{}" }, RV));
     assertDeny(pre(root, "Write", { file_path: path.join(root, "src/svc.ts"), content: "x" }, RV), /reviews/);
+  });
+
+  test("spec-scout / spec-reviewer: one scratch file each, read-only CLI, reviewer reads only .hitl/", async () => {
+    const { root } = await mkProject();
+    const SC = "hitl:spec-scout", SR = "hitl:spec-reviewer";
+    const W = (rel, agent) => pre(root, "Write", { file_path: path.join(root, rel), content: "{}" }, agent);
+    assertSilent(W(".hitl/changes/feat-x/.scout.json", SC));
+    assertSilent(W(".hitl/changes/feat-x/.spec-review.json", SR));
+    assertDeny(W(".hitl/changes/feat-x/.spec-review.json", SC), /spec-scout may write only/);
+    assertDeny(W(".hitl/changes/feat-x/proposal.md", SC), /spec-scout may write only/);
+    assertDeny(W(".hitl/changes/feat-x/specs/accounts/spec.md", SR), /spec-reviewer may write only/);
+    assertDeny(W(".hitl/changes/feat-x/.scout.json", SR), /spec-reviewer may write only/);
+    assertDeny(W("src/svc.ts", SC), /spec-scout may write only/);
+    assertDeny(W(".hitl/specs/accounts/spec.md", SR), /Living specs/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index spec list --json" }, SC));
+    assertSilent(pre(root, "Bash", { command: "hitl-index spec show ACC-R1 --change feat-x --json" }, SC));
+    assertSilent(pre(root, "Bash", { command: `node "/p/scripts/hitl-index.mjs" change --json` }, SC));
+    assertSilent(pre(root, "Bash", { command: "hitl-index context src/svc.ts --json" }, SC));
+    assertDeny(pre(root, "Bash", { command: "hitl-index spec validate feat-x --json" }, SC), /spec-scout may run only/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index spec merge feat-x" }, SC), /spec-scout may run only/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index spec list --json > x.json" }, SC), /spec-scout may run only/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index spec validate feat-x --json" }, SR));
+    assertDeny(pre(root, "Bash", { command: "hitl-index spec archive feat-x" }, SR), /spec-reviewer may run only/);
+    assertDeny(pre(root, "Bash", { command: "cat src/svc.ts" }, SR), /spec-reviewer may run only/);
+    // reads: the scout reads code; the reviewer reads only .hitl/ (plus files outside the project)
+    assertSilent(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, SC));
+    assertSilent(pre(root, "Read", { file_path: path.join(root, ".hitl/changes/feat-x/proposal.md") }, SR));
+    assertSilent(pre(root, "Read", { file_path: path.join(PLUGIN, "shared/formats/requirement-quality.md") }, SR));
+    assertDeny(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, SR), /spec-reviewer reads only/);
+    assertDeny(pre(root, "Grep", { pattern: "x" }, SR), /Grep needs a path/);
+    assertSilent(pre(root, "Grep", { pattern: "x", path: path.join(root, ".hitl/changes") }, SR));
   });
 
   test("approve token: human-only, consumed once, dry-run and --by auto exempt", async () => {

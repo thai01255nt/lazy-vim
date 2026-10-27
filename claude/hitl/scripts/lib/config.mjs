@@ -29,13 +29,17 @@ export const DEFAULTS = Object.freeze({
   mutationThreshold: 0.8,
   orphanScope: "tracked-files",
   stopGate: true,
+  // spec layer (design v3): spec-reviewer on plan close, business-language lint level, archive needs every task done
+  // qualityLint: ISO 29148 / INCOSE requirement-quality warnings ("warn" | "off"); vagueTerms: null = built-in EN+VI list
+  // (scripts/lib/speclint.mjs DEFAULT_VAGUE_TERMS) or an array that replaces it; vagueTermsExtra: terms added to it
+  spec: { reviewOnClose: true, businessLint: "warn", archiveRequiresDone: true, qualityLint: "warn", vagueTerms: null, vagueTermsExtra: [] },
   trace: { precommit: false, mdOut: `${HITL_PREFIX}index/trace.md` },
   linear: {
     enabled: false,
     server: null, // MCP server name: the <server> in mcp__<server>__<tool> (one OAuth per Linear workspace)
     team: null,
-    project: null, // null = one project per planning file; {id, name} = put every issue into that existing project
-    planningAs: "project",
+    project: null, // null = one project per change; {id, name} = put every issue into that existing project
+    changeAs: null, // project | parent-issue | none; null = the legacy alias planningAs when set, else "project"
     pushTodoAs: "unstarted",
     pushQuick: true,
     titlePrefix: false,

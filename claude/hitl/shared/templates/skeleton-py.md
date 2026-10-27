@@ -18,7 +18,7 @@ def apply_discount(order: Order, pct: Decimal) -> Order:
     # TODO(impl): 2. if order.discounted, return order unchanged
     raise NotImplementedError("TODO(impl): apply_discount")
 ```
-`@dec D-n` (optional, 0–3 per task): only on symbols that embody a planning decision whose *cost if wrong* matters.
+`@dec D-n` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
 Not hashed; adding it never needs re-approval.
 Method: same inside the class; ref is `Class.method` (e.g. `"TODO(impl): Order.apply"`).
 Async: `async def …`, `@concurrency async`.

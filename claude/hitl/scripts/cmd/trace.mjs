@@ -1,4 +1,5 @@
-// `hitl-index trace [<T-id> | <planning-file>] [--check] [--fail-on block|warn] [--md] [--out <path>] [--json]` (hitl.trace/1).
+// `hitl-index trace [<T-id> | <change-id> | --capability <cap> | <legacy-planning-file>] [--check] [--fail-on block|warn]
+//   [--md] [--out <path>] [--json]` (hitl.trace/2, design v3 §5.2).
 // Never reindexes, never runs tests; writes only the --md file.
 import { resolve, relative, sep } from "node:path";
 import { parseArgv, toRel } from "../lib/project.mjs";
@@ -17,19 +18,28 @@ async function findPlanning(root, x) {
 }
 
 export async function run(argv, ctx) {
-  const a = parseArgv(argv, { flags: ["check", "md"], values: ["fail-on", "out"] });
+  const a = parseArgv(argv, { flags: ["check", "md"], values: ["fail-on", "out", "capability"] });
   const failOn = a["fail-on"] ?? (a.check ? "block" : null);
   if (failOn && !["block", "warn"].includes(failOn)) throw Object.assign(new Error("--fail-on block|warn"), { usage: true });
   const root = ctx.root;
   const inputs = await loadTraceInputs(root, ctx.config);
   const pos = a._[0];
   let scope = { kind: "all" };
-  if (pos && /^T-\d+$/.test(pos)) {
+  const findEntry = (id) => inputs.spec.entries.find((x) => x.entry.id === id || x.entry.dir.endsWith(`/${id}`));
+  if (a.capability !== undefined) {
+    if (pos) throw Object.assign(new Error("--capability takes no positional scope"), { usage: true });
+    const cap = String(a.capability || "");
+    const known = inputs.spec.living.specs.has(cap) || inputs.spec.entries.some((x) => x.change.deltas.some((d) => (d.capability || d.folder) === cap));
+    if (!known) { console.error(`capability ${cap} not found`); return 1; }
+    scope = { kind: "capability", id: cap };
+  } else if (pos && /^T-\d+$/.test(pos)) {
     if (!inputs.tasks.some((t) => t.id === pos)) { console.error(`task ${pos} not found`); return 1; }
     scope = { kind: "task", id: pos };
+  } else if (pos && !pos.includes("/") && !pos.endsWith(".md") && findEntry(pos)) {
+    scope = { kind: "change", id: pos };
   } else if (pos) {
     const file = await findPlanning(root, pos);
-    if (!file) { console.error(`planning file ${pos} not found`); return 1; }
+    if (!file) { console.error(`change or planning file ${pos} not found`); return 1; }
     if (!inputs.plannings.has(file)) inputs.plannings.set(file, await readPlanning(root, file));
     scope = { kind: "planning", file };
   }

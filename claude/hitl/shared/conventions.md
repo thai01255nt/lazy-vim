@@ -1,8 +1,12 @@
-# HITL conventions (shared by every hitl skill)
+# HITL conventions (core, shared by every hitl skill)
+
+Parts read only by the skills that need them: `conventions-spec.md` (names, ids, `.hitl/` layout, audience,
+anti-hallucination — plan, design, tasks, archive, sync, overview) and `conventions-code.md` (anti-hallucination,
+quality checklist — skeleton, test, implement, review).
 
 ## Language
 - Reply in the user's language (Vietnamese if the user writes Vietnamese). Mixed VN/EN is fine.
-- Code, tags, identifiers, file names and CLI flags stay English. Planning/tasks prose may follow the user's language mix.
+- Code, tags, identifiers, file names and CLI flags stay English. Spec/design/tasks prose may follow the user's language mix.
 
 ## CLI
 - Call `hitl-index <cmd>`. If it is not on PATH, use `node ${CLAUDE_PLUGIN_ROOT}/scripts/hitl-index.mjs <cmd>`
@@ -28,30 +32,13 @@ A step marked `⛔ GATE` is a real stop:
 🔍 searching · 📝 writing · ✅ done/ok · ❌ failed/missing · ⚠️ drift/warning · 🛑 blocked ·
 ⚡ fast-lane/auto step · 💡 recommendation/assumption · 🎯 next step · ⛔ gate
 
-## File confirm
-- New file: `Save as \`feat-x.md\`? (Y/n) or enter different name:`
-- Existing name conflict: `\`feat-x.md\` exists. (update/new/overwrite)` — 💡 update.
-
-## Naming
-- `[type]-[feature].md`, type ∈ feat|fix|refactor|perf|docs|test|chore; feature = short kebab-case slug.
-- The tasks file mirrors the planning file name. Quick tasks: `tasks/quick-<slug>.md`.
-- Project dir: `.hitl/` → `docs/ planning/ tasks/ index/ reviews/ .inbox/`, `hitl.config.json`, `linear.map.json`.
-- Spec ids: `R-n` (requirement) and `D-n` (decision) are numbered max+1 within their planning file; `hitl-index next-id`
-  is for task ids only. Decisions are never edited after approval: supersede them (see `amend-spec.md`).
-
-## Anti-hallucination (kept from v2)
-- Prefer proven tech (3+ years in production). Verify before suggesting; research if unsure.
-- If still unverifiable, write "unknown". Never fabricate APIs, files, versions, metrics or quality scores.
-- Link official docs when recommending a library or pattern.
-
-## Quality checklist (kept from v2)
-- Structure: single responsibility, clear separation, consistent naming.
-- Security: validate input, no secrets in code, parameterized queries, safe paths/shell.
-- Async/resources: await everything, cleanup on every path (finally / context managers).
-- Errors: structured, typed errors; no swallowed exceptions; structured logging.
-- Integration: follow existing patterns (PATTERNS-CONVENTIONS), reuse before creating.
+## Ids (details: `conventions-spec.md`)
+Change id `[type]-[slug]`; spec ids `ACC-R3`, `ACC-R3.S1`, `ACC-BR1`, `ACC-UC1`; decisions `D-n` per change; tasks `T-n`.
+Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered or reused.
 
 ## Never
+- Edit `.hitl/specs/**`, `.hitl/archive/**` (except tooling-written status in archived `tasks.md`) or `**/.base.json`:
+  only `hitl-index spec merge|archive` writes them; behaviour changes go through a change (`amend-spec.md`).
 - Edit generated files: `index/**` (incl. `index/linear.*.json`), `docs/CODEBASE-MAP.md`, `reviews/*.review.md`,
   `reviews/feature-*.md`, `reviews/feature-*.security.json`,
   `skeleton.lock.json`, `state.json`, `linear.map.json` (only `hitl-index tickets record|diff --relink` writes it).
@@ -59,10 +46,5 @@ A step marked `⛔ GATE` is a real stop:
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or
-  `--feature <file> --lane fast`) for that task. Never suggest `--lane fast` to get past a gate.
+  `--feature <change-id> --lane fast`) for that task. Never suggest `--lane fast` to get past a gate.
 - Use line numbers in ids, docs or tasks. Refer to symbols as `Class.method` or `path#Class.method`.
-
-## References
-- Tag grammar: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`
-- Templates: `${CLAUDE_PLUGIN_ROOT}/shared/templates/`
-- Accept + amend spec: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md`

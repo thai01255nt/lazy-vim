@@ -1,17 +1,18 @@
 ---
 name: overview
-description: Generates or updates the project foundation docs in .hitl/docs — BUSINESS-CONTEXT, ARCHITECTURE and PATTERNS-CONVENTIONS via parallel codebase-mapper subagents, and CODEBASE-MAP generated deterministically from the AST index (never LLM-written signatures). Use when starting HITL on a codebase, when the user says "project overview", "map the codebase", "update docs", or when a hitl skill reports missing docs.
+description: Generates or refreshes the hitl foundation docs in .hitl/docs (business, architecture, conventions, CODEBASE-MAP). Use when starting hitl on a codebase, for "project overview", "map the codebase", "update docs", or when a hitl skill reports missing docs.
 argument-hint: "[project description | refresh]"
 allowed-tools: Read Glob Grep Write Edit Agent Bash(hitl-index *) Bash(node *hitl-index.mjs *) Bash(git ls-files *)
 ---
 
 # /hitl:overview — project foundation docs
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`.
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-spec.md`.
 
 Arguments: `$ARGUMENTS` — a project description, `refresh` (= option 1 below, no gate), or empty.
 
-Docs dir: `.hitl/docs/`. Templates: `${CLAUDE_PLUGIN_ROOT}/shared/templates/{BUSINESS-CONTEXT,ARCHITECTURE,PATTERNS-CONVENTIONS}.md`.
+Docs dir: `.hitl/docs/`. They are the project's steering docs (product, tech, structure); `/hitl:plan` reads
+BUSINESS-CONTEXT, `/hitl:design` reads ARCHITECTURE, PATTERNS-CONVENTIONS, CODEBASE-MAP and CONSTITUTION. Templates: `${CLAUDE_PLUGIN_ROOT}/shared/templates/{BUSINESS-CONTEXT,ARCHITECTURE,PATTERNS-CONVENTIONS}.md`.
 Every generated section sits inside `<!-- AUTO-GENERATED:BEGIN <name> -->…<!-- AUTO-GENERATED:END <name> -->`.
 Text outside those blocks is MANUAL and must stay byte-identical.
 
@@ -49,6 +50,14 @@ config: <abs project root>/.hitl/hitl.config.json         (conventions focus: co
 ```
 Focus → doc: business → BUSINESS-CONTEXT.md, architecture → ARCHITECTURE.md, conventions → PATTERNS-CONVENTIONS.md.
 Mode 3 ("only missing") → spawn mappers only for missing docs.
+Business mapper: add the line `glossary: the living glossary is .hitl/specs/GLOSSARY.md (written by hitl-index spec merge);
+if it exists, the "glossary" AUTO block lists only "See specs/GLOSSARY.md" plus up to 10 of its terms — never edit
+GLOSSARY.md`.
+
+**CONSTITUTION.md (optional, MANUAL only).** Never generated. If `.hitl/docs/CONSTITUTION.md` is missing, mention once
+in the report: `💡 Optional: .hitl/docs/CONSTITUTION.md — your non-negotiable engineering principles (one "- P-n <rule>"
+line each); /hitl:design checks every design against it.` Never create or edit it unless the user asks; then write only
+what they dictate.
 
 Each returns JSON `{doc, sections:[{name, marker}], notes, testing?}`. Do not re-read the docs they wrote.
 
@@ -64,6 +73,7 @@ Legend: ✅ unchanged  ❌ new  🗑️ removed  ⚠️ changed
 - Add the mappers' `notes` (max 3 lines each) — e.g. unknowns marked "unknown".
 - Conventions mapper `testing` vs `hitl.config.json` `commands.test` mismatch (e.g. docs say jest, config uses node --test)
   → `⚠️ Test setup differs from config: <detail>. Run /hitl:setup --reconfigure`.
+- `CONSTITUTION.md` row: `present (MANUAL)` or `— (optional)`.
 - 🎯 next: `/hitl:plan <what you want to build>`.
 
 ## Rules

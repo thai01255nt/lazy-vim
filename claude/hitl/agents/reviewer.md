@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Fresh-context, read-only HITL reviewer that checks one lens (contract, tests, concurrency, or security) of a task's implementation against its approved skeleton and writes confidence-scored findings JSON.
+description: Fresh-context, read-only hitl reviewer for one lens (contract, tests, concurrency, security) of a task's implementation against its approved skeleton; writes confidence-scored findings JSON.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 color: purple

@@ -9,12 +9,12 @@ import { withLock, nowIso } from "../lib/lock.mjs";
 import { HITL_PREFIX } from "../lib/paths.mjs";
 import {
   linearPaths, readMap, readQueue, writeMap, buildPlan, applyRecord, buildDiff, buildStatus, loadLocal,
-  loadPlanningInfo, loadReviews, currentBranch, removeInboxFile, REMOTE_SCHEMA, QUEUE_SCHEMA,
+  loadPlanningInfo, loadChangeInfo, changeKeyOf, loadReviews, currentBranch, removeInboxFile, REMOTE_SCHEMA, QUEUE_SCHEMA,
   verifyIdentity, identityMessage, pickServer, repoKey,
 } from "../lib/linear.mjs";
 
 const USAGE = `usage: hitl-index tickets status [--json]
-       hitl-index tickets plan [T-id… | <tasks-file>] [--json]
+       hitl-index tickets plan [T-id… | <change-id> | <tasks-file>] [--json]
        hitl-index tickets record --in <file|-> [--json]
        hitl-index tickets diff --in <file|-> [--relink] [--json]
        hitl-index tickets verify --in <file|-> [--json]
@@ -32,8 +32,10 @@ async function readInput(root, p) {
 async function resolveScope(root, docs, args) {
   if (!args.length) return { kind: "all" };
   if (args.every((a) => /^T-\d+$/.test(a))) return { kind: "tasks", ids: args };
-  if (args.length > 1) throw usage("give T-ids or one tasks file");
+  if (args.length > 1) throw usage("give T-ids, one change id or one tasks file");
   const a = args[0];
+  const viaChange = docs.filter((d) => d.change === a);
+  if (viaChange.length) return { kind: "file", file: (viaChange.find((d) => !d.archived) || viaChange.at(-1)).file };
   const name = basename(a).endsWith(".md") ? basename(a) : basename(a) + ".md";
   const rel = `${HITL_PREFIX}tasks/${name}`;
   if (!docs.some((d) => d.file === rel) && !(await exists(join(root, rel)))) throw Object.assign(new Error(`tasks file ${a} not found`), { code: 1 });
@@ -42,14 +44,14 @@ async function resolveScope(root, docs, args) {
 
 async function planInputs(root, config, scopeArgs) {
   const local = await loadLocal(root, config);
-  const plannings = {};
+  const changes = {};
   for (const d of local.docs) {
-    if (!d.planning || d.planning === "none") continue;
-    const key = basename(d.planning);
-    if (!(key in plannings)) plannings[key] = await loadPlanningInfo(root, d.planning);
+    const key = d.change || changeKeyOf(d.planning);
+    if (!key || key in changes) continue;
+    changes[key] = d.change ? await loadChangeInfo(root, d.change) : await loadPlanningInfo(root, d.planning);
   }
   const scope = await resolveScope(root, local.docs, scopeArgs);
-  return { config, map: await readMap(root), repo: repoKey(root), docs: local.docs, statuses: local.statuses, reviews: await loadReviews(root, local.state), plannings, scope };
+  return { config, map: await readMap(root), repo: repoKey(root), docs: local.docs, statuses: local.statuses, reviews: await loadReviews(root, local.state), changes, scope };
 }
 
 function printPlan(p) {
@@ -58,7 +60,7 @@ function printPlan(p) {
   if (!p.ops.length) console.log("✅ Linear in sync (no ops)");
   else {
     console.log("| # | op | task | issue | gate | reason |\n|---|---|---|---|---|---|");
-    p.ops.forEach((o, i) => console.log(`| ${i + 1} | ${o.op} | ${o.task || o.planning || ""} | ${o.issue || "—"} | ${o.needsGate ? "⛔" : ""} | ${o.reason} |`));
+    p.ops.forEach((o, i) => console.log(`| ${i + 1} | ${o.op} | ${o.task || o.change || ""} | ${o.issue || "—"} | ${o.needsGate ? "⛔" : ""} | ${o.reason} |`));
   }
   for (const s of p.skipped) console.log(`skipped ${s.task}: ${s.reason}`);
   for (const w of p.warnings) console.log(`⚠️ ${w}`);

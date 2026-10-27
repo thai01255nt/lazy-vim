@@ -13,6 +13,7 @@ export function paths(root) {
   return {
     custom, index,
     docs: join(custom, "docs"), planning: join(custom, "planning"), tasks: join(custom, "tasks"), reviews: join(custom, "reviews"),
+    specs: join(custom, "specs"), changes: join(custom, "changes"), archive: join(custom, "archive"),
     indexJson: join(index, "index.json"), indexMd: join(index, "index.md"), cache: join(index, ".cache.json"),
     lock: join(index, "skeleton.lock.json"), state: join(index, "state.json"), session: join(index, ".session"),
     contracts: join(index, "contracts"), config: join(root, CONFIG_REL), codebaseMap: join(custom, "docs/CODEBASE-MAP.md"),

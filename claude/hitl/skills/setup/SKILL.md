@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Initializes or reconfigures the HITL workflow in the current project, creating .hitl (config, docs, planning, tasks, index, reviews), detecting test/lint/typecheck commands, building the first code index, and optionally installing the git pre-commit drift check. Use when the user says "setup hitl", "init", or when another hitl skill reports the project is not initialized.
+description: Initializes or reconfigures the HITL workflow in the current project, creating .hitl (config, docs, index, reviews; specs/changes/archive on first use), detecting test/lint/typecheck commands, building the first code index, and optionally installing the git pre-commit drift check. Use when the user says "setup hitl", "init", or when another hitl skill reports the project is not initialized.
 argument-hint: "[--reconfigure]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Bash(hitl-index *) Bash(node *hitl-index.mjs *) Bash(git rev-parse *) Bash(git ls-files *)
@@ -20,6 +20,12 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
    `1. 💡 Migrate .claude/custom/ → .hitl/ (Y)  2. Keep the old dir (hitl stays inactive)  3. Start an empty .hitl/ (init --fresh)`.
    END THE TURN. On 1: 📝 `hitl-index migrate`, print its output (incl. the `git add -A` hint and files left in place),
    then continue with step 3. On 3: `hitl-index init --fresh --json`. Never move the dir by hand.
+2b. v0.5 planning check: if `.hitl/planning/*.md` exists, run 🔍 `hitl-index migrate --specs --dry-run --json` and add its
+   `plan[]` table (`planning → change | capability | key | target`) + `warnings` to the gate of step 5 as option 4
+   `Migrate v0.5 planning to changes (Y/rename "4 1 accounts ACC"/skip)` — 💡 recommend business-area names
+   (`accounts`/`ACC`) over the derived slug. On yes: `hitl-index migrate --specs --map '<json>' --json`
+   (`{"<name>":{"capability","key"}}` per row); exit 1 → print its conflicts. Crude migrated titles are polished later
+   by the rename round of `/hitl:plan` (mention it in one line).
 3. 📝 `hitl-index init --json`. It is idempotent: creates missing dirs, config and `.gitignore`, never overwrites md files.
    Output: `{created:[…], config:{…}, detected:{ts:{runner,confidence}, py:{runner,confidence}}}`.
    - Exit ≠ 0 → print ❌ with stderr and stop.
@@ -54,7 +60,8 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
 1. 💡 Keep commands (Y)
 2. Edit — type e.g. `test.ts = npx jest --ci …` or `typecheck = npx tsc --noEmit -p .`
 3. Install git pre-commit drift check? (y/N)
-Reply e.g. "Y", "2 test.py = …", "1 3".
+<4. Migrate v0.5 planning … (only when step 2b found files)>
+Reply e.g. "Y", "2 test.py = …", "1 3", "1 4".
 ```
    Mark low-confidence or missing commands ⚠️ and give the one-line reason (e.g. `jest-junit not installed`).
    Placeholders `{junit}` and `{files}` must stay in test commands; tell the user if their edit drops them.
@@ -71,9 +78,9 @@ Reply e.g. "Y", "2 test.py = …", "1 3".
 8. 🎯 Next:
    - Any of `docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
    - Else → `/hitl:plan <what you want to build>`
-   - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, planning/, tasks/, index/skeleton.lock.json,
-     linear.map.json, reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored (.hitl/.gitignore): the
-     rest of index/ and reviews/<T>/, .inbox/.` (`init --json` `gitignore.added` non-empty → also
+   - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
+     index/skeleton.lock.json, linear.map.json, reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored
+     (.hitl/.gitignore): the rest of index/ and reviews/<T>/, .inbox/, .scout.json, .spec-review.json.` (`init --json` `gitignore.added` non-empty → also
      `📝 updated .hitl/.gitignore (+<n> lines)`.)
    - Run `git ls-files -ci --exclude-standard .hitl` (ignore failure / not a repo). Lists files →
      `💡 Already tracked generated files: <n>. Untrack with: git rm -r --cached <paths>`. Never run it yourself.

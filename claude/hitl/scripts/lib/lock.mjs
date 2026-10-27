@@ -20,6 +20,9 @@ export function p2paths(root) {
     idxLock: join(index, ".lock"),
     tasks: join(custom, "tasks"),
     planning: join(custom, "planning"),
+    specs: join(custom, "specs"),
+    changes: join(custom, "changes"),
+    archive: join(custom, "archive"),
     reviews: join(custom, "reviews"),
     config: join(custom, "hitl.config.json"),
   };

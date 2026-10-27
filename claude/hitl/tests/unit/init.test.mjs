@@ -21,7 +21,7 @@ test("fresh init writes the canonical .gitignore", async () => {
   assert.ok(r.created.includes(GI));
   assert.deepEqual(r.gitignore, { path: GI, added: GITIGNORE });
   assert.equal(readFileSync(join(root, GI), "utf8"),
-    "# hitl: generated files (rebuildable) — do not commit\nindex/*\n!index/skeleton.lock.json\nreviews/*/*\n!reviews/*/decisions.json\n.inbox/\n");
+    "# hitl: generated files (rebuildable) — do not commit\nindex/*\n!index/skeleton.lock.json\nreviews/*/*\n!reviews/*/decisions.json\n.inbox/\n.scout.json\n.spec-review.json\n");
   const again = await init(root);
   assert.deepEqual(again.gitignore.added, []);
   assert.ok(!again.created.includes(GI));
@@ -32,16 +32,16 @@ test("existing v1 .gitignore: canonical lines appended once, old lines kept", as
   mkdirSync(join(root, ".hitl"), { recursive: true });
   writeFileSync(join(root, GI), V1.join("\n") + "\n.inbox/\n");
   const r = await init(root);
-  assert.deepEqual(r.gitignore.added, ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json"]);
+  assert.deepEqual(r.gitignore.added, ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".scout.json", ".spec-review.json"]);
   assert.ok(!r.created.includes(GI));
   const text = readFileSync(join(root, GI), "utf8");
-  assert.equal(text, [...V1, ".inbox/", "# hitl v2", "index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json"].join("\n") + "\n");
+  assert.equal(text, [...V1, ".inbox/", "# hitl v2", "index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".scout.json", ".spec-review.json"].join("\n") + "\n");
   assert.deepEqual((await init(root)).gitignore.added, []);
   assert.equal(readFileSync(join(root, GI), "utf8"), text, "second run appends nothing");
 });
 
 test("mergeGitignore handles a missing trailing newline and trimmed matches", () => {
   const r = mergeGitignore("foo\n  index/*  ");
-  assert.equal(r.text, "foo\n  index/*  \n# hitl v2\n!index/skeleton.lock.json\nreviews/*/*\n!reviews/*/decisions.json\n.inbox/\n");
+  assert.equal(r.text, "foo\n  index/*  \n# hitl v2\n!index/skeleton.lock.json\nreviews/*/*\n!reviews/*/decisions.json\n.inbox/\n.scout.json\n.spec-review.json\n");
   assert.deepEqual(mergeGitignore(r.text).added, []);
 });

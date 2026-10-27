@@ -1,20 +1,21 @@
 ---
 name: implement
-description: Implements an approved task function by function in priority order. Agent-owned (@impl agent) functions go to the implementer subagent with a precise context slice and must turn their locked failing tests green; human-owned (@impl manual) functions are handed to the user with their context and verified after the user writes them. Low-risk tasks run the fast lane (auto skeleton, tests, implementation); the user may force it on a high-risk task with --lane fast (human override, flagged for human review). --feature <file> runs every task of a tasks file in order and ends with one combined review. Use when the user says "implement T-12", "làm T-12", "fill <function>", "implement the whole feature".
-argument-hint: "<T-id> [symbol] [--all] [--lane fast] | --feature <planning-or-tasks-file> [--lane fast]"
+description: Implements an approved task function by function in priority order. Agent-owned (@impl agent) functions go to the implementer subagent with a precise context slice and must turn their locked failing tests green; human-owned (@impl manual) functions are handed to the user with their context and verified after the user writes them. Low-risk tasks run the fast lane (auto skeleton, tests, implementation); the user may force it on a high-risk task with --lane fast (human override, flagged for human review). --feature <change-id> builds every task of a change in order and ends with one combined review (build-then-review). Use when the user says "implement T-12", "làm T-12", "fill <function>", "implement the whole feature".
+argument-hint: "<T-id> [symbol] [--all] [--lane fast] | --feature <change-id> [--lane fast]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
 # /hitl:implement
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` (language, CLI invocation, gate protocol, emoji, quality checklist).
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md` (language, CLI invocation, gate protocol, emoji, quality checklist).
 Reply in the user's language. Code, tags and identifiers stay English.
 
-Arguments: `$ARGUMENTS` → `<T-id> [symbol] [--all] [--lane fast]` or `--feature <file> [--lane fast]`.
+Arguments: `$ARGUMENTS` → `<T-id> [symbol] [--all] [--lane fast]` or `--feature <change-id> [--lane fast]`
+(a v0.5 tasks/planning file name still works).
 No T-id → take the first frontier task from `hitl-index status --json` (`.next`), say `💡 Assumed: T-n`, continue
 (`--lane fast` without a T-id or `--feature` → 🛑 `--lane fast needs an explicit task: /hitl:implement <T> --lane fast`).
-`--feature <file>` → follow `references/feature-run.md` instead of the steps below (it calls them per task).
+`--feature <change-id>` → follow `references/feature-run.md` instead of the steps below (it calls them per task).
 
 ## Iron rules
 
@@ -22,7 +23,8 @@ No T-id → take the first frontier task from `hitl-index status --json` (`.next
 - **You never edit an `@impl manual` function body.** The human does (a hook denies it anyway).
 - **You never edit tests, `@`-tags, locked signatures or docstrings.** If the contract or the plan looks wrong, stop and print
   the spec change proposal card (step 3). Only exception: after the user picks option 1 there and answers Y to the
-  📐 Spec delta, edit per `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (planning md, AC text, `@dec` lines — nothing else).
+  📐 Spec delta, edit per `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (the change's spec delta / design.md, AC text,
+  `@dec` lines — nothing else).
 - **No completion claim without a fresh `hitl-index test` run in this turn** (verification-before-completion).
   "Implementer said green" is a claim, not evidence. Re-run.
 - One function at a time. Each function ends with a fresh test result printed to the user.
@@ -110,7 +112,7 @@ messages (if any), then continue with the next symbol.
      `hitl-index context <ref> --json` / `hitl-index trace <T> --json`; omit the `conflicts with` line when none):
      ```
      📐 Spec change proposal — T-12 UserService.createUser
-     conflicts with: D-1 "<text>" (planning/feat-auth.md) · R-3 "<text>"
+     conflicts with: D-1 "<text>" (changes/feat-auth/design.md) · ACC-R3.S1 "<text>"
      problem: <…>   proposal: <…>
      1. 💡 amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve T-12)
      2. you implement it (flip @impl manual)   3. stop

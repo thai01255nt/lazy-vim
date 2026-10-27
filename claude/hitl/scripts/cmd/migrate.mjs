@@ -1,4 +1,7 @@
 // `hitl-index migrate [--dry-run] [--json]` — move a ≤ 0.3 project state dir `.claude/custom/` to `.hitl/` (0.4+).
+// `hitl-index migrate --specs [<planning-name>…] [--dry-run] [--map <json|file>] [--archive-done] [--json]` — convert v0.5
+// planning/tasks files into v3 change folders (design v3 §8; lib/migratespecs.mjs). Refuses (exit 1, nothing written) on
+// any conflict.
 // Moves only hitl's own entries; unknown files stay where they are and are listed. Refuses (exit 1, nothing moved)
 // when `.hitl/` already holds a conflicting entry. Rewrites `.claude/custom/` path references inside the moved
 // .md/.json files (config customAdapters + trace.mdOut, tasks/planning headers, state report paths, …).
@@ -11,8 +14,9 @@ import { join } from "node:path";
 import { parseArgv } from "../lib/project.mjs";
 import { HITL_DIR, LEGACY_DIR } from "../lib/paths.mjs";
 import { mergeGitignore } from "./init.mjs";
+import { readText, writeTextAtomic } from "../lib/fsutil.mjs";
 
-export const KNOWN_DIRS = ["docs", "planning", "tasks", "index", "reviews", ".inbox", "adapters"];
+export const KNOWN_DIRS = ["docs", "planning", "tasks", "index", "reviews", ".inbox", "adapters", "specs", "changes", "archive"];
 export const KNOWN_FILES = ["hitl.config.json", "linear.map.json"];
 const REWRITE_EXT = /\.(?:md|json)$/;
 const MAX_REWRITE = 4 << 20;
@@ -71,8 +75,48 @@ function gitInfo(root) {
   return { tracked: ls.status === 0 ? ls.stdout.split("\0").filter(Boolean) : [] };
 }
 
+/** `migrate --specs`: v0.5 planning/tasks → change folders (design v3 §8). */
+async function runSpecs(a, ctx) {
+  const json = ctx.json || a.json, dry = !!a["dry-run"];
+  if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
+  const m = await import("../lib/migratespecs.mjs");
+  const map = await m.readMapArg(ctx.root, a.map);
+  const plan = await m.planMigrateSpecs(ctx.root, ctx.config, { names: a._, map, archiveDone: !!a["archive-done"] });
+  const res = { ...plan, dryRun: dry };
+  const say = (s) => { if (!json && !ctx.quiet) console.log(s); };
+  if (plan.conflicts.length) {
+    res.status = "conflict";
+    if (json) console.log(JSON.stringify(res, null, 2));
+    else for (const c of plan.conflicts) console.error(`❌ ${c.code} ${c.ref}: ${c.message}`);
+    if (!json) console.error("hitl migrate --specs: refused — nothing was written");
+    return 1;
+  }
+  if (!plan.plan.length) { res.status = "nothing"; if (json) console.log(JSON.stringify(res, null, 2)); else say(`hitl migrate --specs: no ${HITL_DIR}/planning/*.md to migrate`); return 0; }
+  for (const p of plan.plan) {
+    say(`${dry ? "would migrate" : "migrating"} ${p.planning} → ${p.target === "archive" ? `${HITL_DIR}/archive/<today>-${p.change}` : `${HITL_DIR}/changes/${p.change}`} · capability ${p.capability} (key ${p.key})`);
+    say(`  ids: ${Object.entries(p.ids).map(([o, n]) => `${o}→${n}`).join(", ") || "—"} · scenarios: ${Object.values(p.scenarios).flat().length}`);
+  }
+  for (const w of plan.warnings) say(`⚠️ ${w}`);
+  if (!dry) {
+    const out = await m.applyMigrateSpecs(ctx.root, ctx.config, plan);
+    res.written = out.written; res.archived = out.archived;
+    // scratch files of the spec agents stay out of git (design v3 §4.5)
+    const gi = join(ctx.root, HITL_DIR, ".gitignore");
+    const giOld = await readText(gi, null);
+    if (giOld !== null) { const g = mergeGitignore(giOld); if (g.added.length) await writeTextAtomic(gi, g.text); res.gitignore = { path: `${HITL_DIR}/.gitignore`, added: g.added }; }
+    for (const x of out.archived) say(x.ok ? `📦 archived ${x.change} → ${x.to}` : `⚠️ ${x.change} stays in changes/ (archive refused: ${x.error || [...(x.conflicts || []).map((c) => c.code), ...(x.errors || []).map((e) => e.code)].join(", ") || "tasks not done"})`);
+    say(`migrated ${plan.plan.length} planning file(s); git is not run — stage the moves with git add -A -- ${HITL_DIR}`);
+    say(`🎯 next: hitl-index spec validate --json, then review the capability names/keys (/hitl:plan <change-id> amend)`);
+  }
+  res.status = "ok";
+  if (json) console.log(JSON.stringify(res, null, 2));
+  return 0;
+}
+
 export async function run(argv, ctx) {
-  const a = parseArgv(argv, { flags: ["dry-run", "json"] });
+  const a = parseArgv(argv, { flags: ["dry-run", "json", "specs", "archive-done"], values: ["map"] });
+  if (a.specs) return runSpecs(a, ctx);
+  if (a.map !== undefined || a["archive-done"] || a._.length) throw Object.assign(new Error("--map, --archive-done and planning names need --specs"), { usage: true });
   const json = ctx.json || a.json, dry = !!a["dry-run"];
   const root = ctx.root || process.cwd();
   const plan = await planMigration(root);

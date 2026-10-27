@@ -1,0 +1,149 @@
+{
+ "about": "Suite B: one slash-command turn per case on a fresh fixture (evals/fixtures/build.sh <fixture>), graded by evals/grade.mjs checks.",
+ "cases": [
+  {
+   "id": "plan-vi",
+   "fixture": "plan",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-deactivate-account Cho phép admin (nhân viên hỗ trợ) vô hiệu hoá tài khoản người dùng; tài khoản bị vô hiệu hoá thì không đăng nhập được nữa.",
+   "checks": [
+    "plan_change_created",
+    "plan_delta_written",
+    "plan_validate_0_errors",
+    "plan_no_code_names",
+    "plan_coverage_line",
+    "plan_coverage_table",
+    "plan_hotspot",
+    "plan_questions",
+    "plan_round_header",
+    "plan_reply_line",
+    "grilling_loaded",
+    "scout_spawned",
+    "no_main_source_reads"
+   ]
+  },
+  {
+   "id": "plan-en",
+   "fixture": "plan",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-login-lockout Lock an account after too many failed sign-in attempts so attackers cannot guess passwords.",
+   "checks": [
+    "plan_change_created",
+    "plan_delta_written",
+    "plan_validate_0_errors",
+    "plan_no_code_names",
+    "plan_coverage_line",
+    "plan_coverage_table",
+    "plan_hotspot",
+    "plan_questions",
+    "plan_round_header",
+    "plan_reply_line",
+    "grilling_loaded",
+    "scout_spawned",
+    "no_main_source_reads"
+   ]
+  },
+  {
+   "id": "plan-amend",
+   "fixture": "plan",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-password-reset amend — the reset link must stay valid for 60 minutes instead of 30.",
+   "checks": [
+    "amend_gate",
+    "amend_no_write",
+    "amend_mentions_rule"
+   ]
+  },
+  {
+   "id": "design-auto",
+   "fixture": "design",
+   "runs": 2,
+   "prompt": "/hitl:design feat-password-reset --auto",
+   "checks": [
+    "design_written",
+    "design_validate_0_errors",
+    "design_madr",
+    "design_serves",
+    "design_no_signatures",
+    "design_contracts",
+    "design_test_strategy",
+    "design_risk_security",
+    "design_gate"
+   ]
+  },
+  {
+   "id": "tasks",
+   "fixture": "tasks",
+   "runs": 2,
+   "prompt": "/hitl:tasks feat-password-reset",
+   "checks": [
+    "tasks_written",
+    "tasks_check",
+    "tasks_trace_no_block",
+    "tasks_ac_scenarios",
+    "tasks_all_scenarios",
+    "tasks_why_decisions",
+    "tasks_quiz_gate",
+    "tasks_not_approved"
+   ]
+  },
+  {
+   "id": "review",
+   "fixture": "review",
+   "runs": 1,
+   "prompt": "/hitl:review T-1",
+   "checks": [
+    "review_l0",
+    "review_report",
+    "review_no_self_approve",
+    "review_verdict",
+    "review_lens_agents"
+   ]
+  },
+  {
+   "id": "flow",
+   "fixture": "flow",
+   "runs": 2,
+   "maxTurns": 12,
+   "prompt": "/hitl:flow",
+   "checks": [
+    "flow_next_design",
+    "flow_no_edits"
+   ]
+  },
+  {
+   "id": "tickets-status",
+   "fixture": "tasks",
+   "runs": 2,
+   "maxTurns": 12,
+   "prompt": "/hitl:tickets status",
+   "checks": [
+    "tickets_off",
+    "tickets_no_linear_calls",
+    "tickets_no_inbox_write"
+   ]
+  },
+  {
+   "id": "flow-help",
+   "fixture": "flow",
+   "runs": 1,
+   "maxTurns": 8,
+   "prompt": "/hitl:flow help",
+   "checks": [
+    "flow_help_table",
+    "flow_no_edits"
+   ]
+  },
+  {
+   "id": "flow-newwork",
+   "fixture": "flow",
+   "runs": 1,
+   "maxTurns": 10,
+   "prompt": "/hitl:flow I want admins to export all users as a CSV file",
+   "checks": [
+    "flow_next_plan",
+    "flow_no_edits"
+   ]
+  }
+ ]
+}

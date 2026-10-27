@@ -64,7 +64,7 @@ sL4() {
   lin_results .hitl/.inbox/tickets-push.json
   CLI tickets record --in .hitl/.inbox/tickets-push.json --json > "$W/l4r.json"
   afile "$W/l4r.json" 'd.applied === 2 && d.failed === 0'
-  afile "$LMAP" 'd.tasks["T-1"].issue === "ENG-1" && d.tasks["T-1"].branch === "eng-1-register" && d.planning["feat-user-register.md"].id === "proj-uuid-1"'
+  afile "$LMAP" 'd.tasks["T-1"].issue === "ENG-1" && d.tasks["T-1"].branch === "eng-1-register" && d.changes["feat-user-register"].id === "proj-uuid-1" && !("planning" in d)'
   CLI tickets plan --json > "$W/l4p.json"
   afile "$W/l4p.json" 'd.ops.length === 0'
   CLI status --json > "$W/l4s.json"

@@ -1,0 +1,11 @@
+{
+  "adapters": {
+    "py": "py-ast@1",
+    "ts": "ts-lite@1"
+  },
+  "files": {},
+  "schema": "hitl.index/1",
+  "symbols": {},
+  "tool": "hitl-index@1.0.0",
+  "warnings": []
+}

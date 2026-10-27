@@ -39,13 +39,13 @@ const all = (b) => buildTrace(b, { kind: "all" });
 
 test("clean fully proven task: no items, proven ACs, summary and counts", () => {
   const tr = all(base());
-  assert.equal(tr.schema, "hitl.trace/1");
+  assert.equal(tr.schema, "hitl.trace/2");
   assert.deepEqual(codes(tr), []);
   assert.deepEqual(tr.counts, { block: 0, warn: 0, info: 0 });
   assert.deepEqual(tr.rows.map((r) => [r.req?.id ?? null, r.acs.map((a) => [a.id, a.proven])]), [["R-1", [["T-1.AC1", true]]], ["R-2", [["T-1.AC2", true]]]]);
-  assert.deepEqual(tr.summary, { reqs: { total: 2, active: 2, covered: 2 }, acs: { total: 2, tested: 2, proven: 2 }, tasks: 1 });
+  assert.deepEqual(tr.summary, { reqs: { total: 2, active: 2, covered: 2 }, scenarios: { total: 0, withAc: 0, tested: 0, proven: 0 }, acs: { total: 2, tested: 2, proven: 2 }, tasks: 1 });
   assert.deepEqual(tr.plannings, [{ file: P, status: "approved", hasRequirements: true, requirements: 2, decisions: 1, exists: true }]);
-  assert.deepEqual(tr.decisions, [{ planning: P, id: "D-1", status: "accepted", text: "Check in createUser", serves: ["R-1", "R-2"], tasks: ["T-1"], symbols: [CU] }]);
+  assert.deepEqual(tr.decisions, [{ planning: P, change: null, id: "D-1", status: "accepted", text: "Check in createUser", serves: ["R-1", "R-2"], tasks: ["T-1"], symbols: [CU] }]);
   const t = tr.rows[0].acs[0].tests[0];
   assert.deepEqual(t, { id: T1, title: "T-1.AC1 rejects", mode: "active", outcome: "pass", fresh: true, locked: true });
   assert.deepEqual(tr.rows[0].acs[0].symbols, [{ id: CU, name: "UserService.createUser", status: "green" }]);

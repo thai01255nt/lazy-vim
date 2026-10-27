@@ -17,6 +17,7 @@
 
 # Glossary
 <!-- AUTO-GENERATED:BEGIN glossary -->
+<!-- When .hitl/specs/GLOSSARY.md exists, this block only points to it (it is the living glossary). -->
 - [Term] → [meaning in this domain]
 <!-- AUTO-GENERATED:END glossary -->
 

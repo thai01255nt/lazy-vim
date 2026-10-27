@@ -16,7 +16,7 @@ unmodified — see its `UPSTREAM.md`). This file only maps it onto hitl; never e
 risk reason `security…` such as `risk: high (security)`, or a human override, which selects all four lenses), **or**
 the task crosses a trust boundary the index cannot see: authN/authZ, parsing untrusted input, crypto, secrets, file /
 IPC / network I/O, LLM prompts or tool calls, deserialization, multi-tenant data. Judge the second case from the task
-title, ACs, risk reasons and planning `## Risks` (a `security:` line names the boundaries) and say
+title, ACs, risk reasons and the change's `design.md` `## Risks` (a `security:` line names the boundaries) and say
 `💡 Assumed: security lens (trust boundary: <x>)`.
 
 ## 2. Lens method (guidance mode, per task)
@@ -68,12 +68,12 @@ context (review context, l0.json, these files) and the task's code.
 
 `evidence` for security findings: `principal → input → control → boundary → result`, with file:line per hop.
 
-## 4. Full audit (`/hitl:review --security-audit [<planning|tasks file>|repo] [--out <dir>] [--profile quick|standard|deep]`)
+## 4. Full audit (`/hitl:review --security-audit [<change-id>|repo] [--out <dir>] [--profile quick|standard|deep]`)
 
 Runs the complete upstream six-phase workflow (full audit mode). Suggest-only from other skills; never auto-run.
 
 1. **Scope.**
-   - feature file → `hitl-index feature <file> --json` for the task ids, then `hitl-index risk <T> --json` per task:
+   - change → `hitl-index feature <change-id> --json` for the task ids, then `hitl-index risk <T> --json` per task:
      the files of the symbol ids (`path#…`) are `scope_paths` (an upstream *scoped run*; it reports partial coverage).
    - `repo` or empty → the whole project root.
 2. **Output dir**: `--out <dir>` if given, else upstream's default `~/security-audit-skill/<repo-name>/run-<N>` (outside the
@@ -86,7 +86,7 @@ Runs the complete upstream six-phase workflow (full audit mode). Suggest-only fr
    `node ${CLAUDE_PLUGIN_ROOT}/skills/security-audit/validate-findings.cjs <dir>/findings.json` and
    `node ${CLAUDE_PLUGIN_ROOT}/skills/security-audit/validate-coverage-ledger.cjs <dir>/coverage-ledger.json`.
    No OS sandbox available → upstream keeps every lead that would need a run as `needs_validation`; say so in one line.
-4. **Link** (feature context only): `hitl-index feature <file> --report --security-audit <dir> --json` records
+4. **Link** (change context only): `hitl-index feature <change-id> --report --security-audit <dir> --json` records
    `<dir>/REPORT.md` and regenerates `reviews/feature-<name>.md` with a `## Security audit` section.
 5. **Print**: the counts by verdict from `<dir>/findings.json`, the REPORT.md path, and for each `confirmed` record the
    file and the one-line title. The audit never edits target source; fixes go through `/hitl:review <T> fix` or a new

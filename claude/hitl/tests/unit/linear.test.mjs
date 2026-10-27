@@ -76,7 +76,7 @@ describe("linear: defaults and desired state", () => {
     assert.equal(d1.stateId, "st-progress");
     assert.ok(d1.description.startsWith(`<!-- hitl:task=T-1 file=${TF} -->\n**Why**: because (D-1)\n`));
     assert.ok(d1.description.includes("- [ ] T-1.AC1 (R-1) Given a When b Then c"));
-    assert.ok(d1.description.includes("risk: high (security) · impl: mixed · prio: P1 · planning: feat-x.md"));
+    assert.ok(d1.description.includes("risk: high (security) · impl: mixed · prio: P1 · change: feat-x"));
     assert.ok(!/src\//.test(d1.description));
     const d2 = desiredForTask(structuredClone(task), "red", linearCfg(ON), map, { planningKey: "feat-x.md" });
     assert.equal(d1.description, d2.description);

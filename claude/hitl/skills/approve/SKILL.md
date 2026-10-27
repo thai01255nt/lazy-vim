@@ -43,7 +43,7 @@ On success: `hitl-index status <T> --sync-tags`.
 ✅ Approved <T> — stage: <stage> (by human)
 🔒 Locked: <n> symbols (<new> new, <changed> re-approved) · <m> tests (<stage: stub|locked>)
 <re-approved items: Symbol — sig ⚠️→✅ / intent ⚠️→✅>
-📐 <symbol> linked D-1, R-1 — if the decision changed, amend the plan (/hitl:sync offers it)
+📐 <symbol> linked D-1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
 ```
 The `📐` line: one per entry of the JSON `specLinks` (skeleton re-approvals only); no `specLinks` → no line.
 🎯 next:

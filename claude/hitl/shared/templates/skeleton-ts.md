@@ -23,7 +23,7 @@ async createUser(email: string, password: string): Promise<User> {
   throw new Error("TODO(impl): UserService.createUser");
 }
 ```
-`@dec D-n` (optional, 0–3 per task): only on symbols that embody a planning decision whose *cost if wrong* matters.
+`@dec D-n` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
 Not hashed; adding it never needs re-approval.
 Top-level function: same, `export function name(...)` / `export const name = (...) => { … }`.
 
