@@ -283,24 +283,10 @@ return {
     end,
   },
   {
-    "kdheepak/lazygit.nvim",
-    pin = true,
-    lazy = true,
-    cmd = {
-      "LazyGit",
-      "LazyGitConfig",
-      "LazyGitCurrentFile",
-      "LazyGitFilter",
-      "LazyGitFilterCurrentFile",
-    },
-    -- optional for floating window border decoration
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-    },
-    -- setting the keybinding for LazyGit with 'keys' is recommended in
-    -- order to load the plugin when the command is run for the first time
+    -- Snacks.lazygit sets editPreset nvim-remote, so `e` opens files in this nvim
+    "folke/snacks.nvim",
     keys = {
-      { "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
+      { "<leader>lg", function() Snacks.lazygit() end, desc = "LazyGit" },
     },
   },
   {
