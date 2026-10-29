@@ -36,6 +36,8 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
   are hashed into the locked contract; `@status`, `@prio`, `@impl`, `@task`, `@dec` are not.
 - Invalid value → index warning `BAD_TAG`. Repeated list tags merge; a repeated scalar keeps the last value.
 - `@status` is written by tooling only (`hitl-index status --sync-tags`). Skeletons start at `skeleton`.
+- `hitl-index strip <T|change>` removes the unhashed tags (`@task @impl @status @prio @dec @risk`) from done tasks' code
+  docs; membership then comes from the task's `### Symbols` rows. Re-approving such a symbol needs its `@task` back.
 - `@dec` is a list tag (items `D-n`; anything else → `BAD_TAG`). Optional, code symbols only (ignored on tests), typically
   0–3 per task. Adding/removing it never changes the intent hash and never needs re-approval. It resolves via the
   symbol's `@task` → the task's change (`← Change: <id>`) → that change's `design.md` `## Decisions` row (legacy v0.5

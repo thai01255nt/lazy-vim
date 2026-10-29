@@ -1,4 +1,4 @@
-// P2 — `hitl-index status [T] [--brief] [--json] [--sync-tags]` (§E.6)
+// P2 — `hitl-index status [T] [--brief] [--json] [--sync-tags] [--by-prio]` (§E.6)
 import { parseArgs } from "node:util";
 import { promises as fsp } from "node:fs";
 import { join, basename } from "node:path";
@@ -9,7 +9,7 @@ import { computeNext, lockedDrift } from "../lib/nextstep.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
 
-export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
+export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, "by-prio": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
 
 async function planningInfo(root) {
   const P = p2paths(root); const out = [];
@@ -21,6 +21,24 @@ async function planningInfo(root) {
     out.push({ file: f, status: m ? m[1] : "draft", hasTasks });
   }
   return out;
+}
+
+/**
+ * Symbol ids of one task in `@prio` order (no `@prio` last, then by name). Other orders keep the task's own order.
+ * @param {string[]} ids
+ * @param {{symbols:{[id]:{name?:string, tags?:{prio?:number}}}}} index
+ */
+export function byPrio(ids, index) {
+  const key = (id) => index.symbols[id]?.tags?.prio ?? Infinity;
+  const name = (id) => index.symbols[id]?.name || id;
+  return [...ids].sort((a, b) => key(a) - key(b) || name(a).localeCompare(name(b)));
+}
+
+/** Task ids by number (T-2 before T-10); with `prioOf`, by priority first (P0, P1, …; none last). */
+export function sortTaskIds(ids, prioOf) {
+  const num = (id) => Number(/^T-(\d+)$/.exec(id)?.[1] ?? Infinity);
+  const pr = (id) => { const m = /^P(\d+)$/.exec(prioOf?.(id) || ""); return m ? Number(m[1]) : Infinity; };
+  return [...ids].sort((a, b) => (prioOf ? pr(a) - pr(b) : 0) || num(a) - num(b) || a.localeCompare(b));
 }
 
 /**
@@ -151,10 +169,18 @@ export async function run(argv, ctx) {
       if (ld.length) console.log(`⚠️ HITL: ${ld.length} drift item(s) on locked symbols — run /hitl:sync`);
       return 0;
     }
-    const rows = Object.entries(statuses.tasks).filter(([id]) => !T || id === T);
+    const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), v["by-prio"] ? (id) => tmeta(id).prio : null);
+    const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
     for (const [id, s] of rows) { const m = tmeta(id); console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status} | ${s.next || "—"} |`); }
-    if (T) {
+    if (v["by-prio"]) {
+      for (const [id] of rows) {
+        const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
+        if (!syms.length) continue;
+        console.log(`\n${T ? "" : `### ${id}\n`}| prio | symbol | impl | status | reasons |\n|---|---|---|---|---|`);
+        for (const sid of byPrio(syms, index)) { const S = index.symbols[sid]; const st = statuses.symbols[sid]; console.log(`| ${S?.tags?.prio ?? "?"} | ${S?.name || sid} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
+      }
+    } else if (T) {
       console.log("\n| symbol | impl | status | reasons |\n|---|---|---|---|");
       for (const id of statuses.tasks[T].symbols) { const S = index.symbols[id]; const st = statuses.symbols[id]; console.log(`| ${S?.name || id} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
     }

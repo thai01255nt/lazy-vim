@@ -56,6 +56,8 @@ On Y (or the chosen option):
   `🔗 <cap>: R <covered>/<total> covered · scenarios <withAc>/<total> with AC` (no percentages).
 - Ticket tracker: archive never pushes and never closes the change's container (project, epic or milestone). Mapped tasks get their new `file=` marker on the next
   `/hitl:tickets push` (say so in one line only when `hitl-index tickets status --json` shows `enabled`).
+- One line: `💡 Clean code (optional, yours to run): hitl-index strip <id> --dry-run, then hitl-index strip <id>` (removes
+  @task/@impl/@status/@prio/@dec/@risk from the change's done functions; lock, drift and statuses unchanged). Never run it yourself.
 - 🎯 next: `hitl-index status --json` `.next` (another change, or `/hitl:plan <description>`).
 
 ## Rules

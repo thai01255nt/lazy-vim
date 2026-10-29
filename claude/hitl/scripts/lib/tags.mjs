@@ -20,7 +20,7 @@ export const emptyTags = () => ({ task: [], impl: null, status: null, prio: null
 const AT = /(^|\s)@([A-Za-z][\w-]*)/g;
 
 /** Returns [[tag, value]…] when every @word on the line is reserved, else null (the line is prose). */
-function tagLine(line) {
+export function tagLine(line) {
   const hits = [...line.matchAll(AT)];
   if (!hits.length || hits.some((m) => !RESERVED.includes(m[2]))) return null;
   return hits.map((m, i) => {

@@ -211,6 +211,9 @@ Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|conflicts|merge|archive`, `hitl-index change [<id>]`
 (trạng thái/phase của change), `hitl-index migrate --specs` (v0.5 → 0.6),
+`hitl-index status [T-id] --by-prio` (bảng hàm của task có cột `prio`, sắp theo `@prio`; không có T-id → mọi task),
+`hitl-index strip <T-id|change-id> [--dry-run]` (task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
+code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại để kiểm tra, có thay đổi hash/status thì tự khôi phục),
 `hitl-index trace [T-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),
 `hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
 `hitl-index feature <change-id> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit).

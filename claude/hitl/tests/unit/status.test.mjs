@@ -166,3 +166,44 @@ test("status --brief: trace and Linear hints go on line 2, never a new line", as
   assert.ok(out.length <= 3, out.join("\n"));
   assert.match(out[1], /^tasks: 1 \(done 0\).* · trace: AC 0\/1 proven/);
 });
+
+test("byPrio: @prio ascending, untagged last, ties by name", async () => {
+  const { byPrio } = await import("../../scripts/cmd/status.mjs");
+  const index = { symbols: { a: { name: "zeta", tags: { prio: 2 } }, b: { name: "beta", tags: {} }, c: { name: "alpha", tags: { prio: 1 } }, d: { name: "alpha2" }, e: { name: "eta", tags: { prio: 1 } } } };
+  assert.deepEqual(byPrio(["a", "b", "c", "d", "e"], index), ["c", "e", "a", "d", "b"]);
+});
+
+test("status <T> --by-prio: prio column, rows sorted by @prio", async () => {
+  const { run } = await import("../../scripts/cmd/status.mjs");
+  const { makeProject } = await import("./_project.mjs");
+  const { loadConfig } = await import("../../scripts/lib/config.mjs");
+  const root = makeProject();
+  const out = []; const log = console.log; console.log = (s) => out.push(...String(s).split("\n"));
+  try { await run(["T-1", "--by-prio"], { root, config: await loadConfig(root), json: false }); } finally { console.log = log; }
+  const head = out.findIndex((l) => l.startsWith("| prio | symbol |"));
+  assert.ok(head >= 0, out.join("\n"));
+  const prios = out.slice(head + 2).filter((l) => l.startsWith("| ")).map((l) => l.split("|")[1].trim());
+  assert.deepEqual(prios, [...prios].sort((a, b) => (a === "?" ? Infinity : +a) - (b === "?" ? Infinity : +b)));
+  assert.equal(prios[0], "1", out.join("\n"));
+});
+
+test("sortTaskIds: numeric ids; with prio, P0 first and no prio last", async () => {
+  const { sortTaskIds } = await import("../../scripts/cmd/status.mjs");
+  const prio = { "T-1": "P0", "T-2": "P0", "T-3": "P1", "T-9": "P2", "T-10": "P2", "T-11": "P1" };
+  assert.deepEqual(sortTaskIds(["T-1", "T-10", "T-11", "T-2", "T-9"]), ["T-1", "T-2", "T-9", "T-10", "T-11"]);
+  assert.deepEqual(sortTaskIds(["T-10", "T-11", "T-2", "T-9", "T-3", "T-1", "T-4"], (id) => prio[id]),
+    ["T-1", "T-2", "T-3", "T-11", "T-9", "T-10", "T-4"]);
+});
+
+test("class task targets without tracked members (enum rows) get a status and appear in targets, not symbols", () => {
+  const E = "src/consts.py#Consts.StatusEnum", F = "src/svc.py#svc";
+  const index = { symbols: {
+    [E]: { id: E, name: "Consts.StatusEnum", kind: "class", file: "src/consts.py", tags: { task: ["T-1"], prio: 1 } },
+    [F]: { id: F, name: "svc", kind: "function", file: "src/svc.py", tags: { task: ["T-1"], prio: 2 }, stub: true },
+  } };
+  const st = computeStatuses(index, null, null, {}, [{ id: "T-1", symbols: [] }]);
+  assert.equal(st.symbols[E].status, "wip");
+  assert.deepEqual(st.tasks["T-1"].symbols, [F]);
+  assert.deepEqual(st.tasks["T-1"].targets, [E, F]);
+  assert.equal(st.tasks["T-1"].status, "skeleton");
+});

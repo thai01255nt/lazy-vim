@@ -107,7 +107,7 @@ function symbolStatus(index, lock, state, config, id, cov) {
 }
 
 /**
- * @returns {{symbols:{[id]:{status,stale,reasons}}, tasks:{[T]:{status,next,symbols:[ids],testsLocked:boolean,risk,override:boolean}}}}
+ * @returns {{symbols:{[id]:{status,stale,reasons}}, tasks:{[T]:{status,next,symbols:[ids],targets:[ids],testsLocked:boolean,risk,override:boolean}}}}
  */
 export function computeStatuses(index, lock, state, config, tasks) {
   index = index || { symbols: {} };
@@ -141,6 +141,10 @@ export function computeStatuses(index, lock, state, config, tasks) {
       .filter((m) => symbols[m.id]).map((m) => symbols[m.id]); // tracked members only
     if (mem.length) symbols[id] = { status: minStatus(mem.map((m) => m.status)), stale: mem.some((m) => m.stale), reasons: ["min of members"] };
   }
+  // a task target that is a class without tracked members (e.g. an enum row): its own status, shown in `targets` only
+  for (const T of taskIds) for (const id of perTaskSyms[T]) {
+    if (!symbols[id] && index.symbols[id]?.kind === "class") symbols[id] = symbolStatus(index, lock, state, config, id, cov);
+  }
 
   const out = {};
   for (const T of [...taskIds].sort()) {
@@ -163,7 +167,9 @@ export function computeStatuses(index, lock, state, config, tasks) {
       } else status = m;
     }
     const risk = taskRisk(task, lock, T);
-    out[T] = { status, next: nextForTask(T, status, { risk, testsLocked }), symbols: syms, testsLocked, risk, override: isOverride(lock, T) };
+    // targets: every task symbol with a status, classes included (display); `symbols` (code kinds) drives the task status
+    const targets = perTaskSyms[T].filter((id) => symbols[id]);
+    out[T] = { status, next: nextForTask(T, status, { risk, testsLocked }), symbols: syms, targets, testsLocked, risk, override: isOverride(lock, T) };
   }
   return { symbols, tasks: out };
 }
