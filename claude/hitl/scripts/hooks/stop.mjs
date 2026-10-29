@@ -14,6 +14,8 @@ async function main(input) {
   const R = role(input);
   if (ev === "SubagentStop" && R !== "implementer" && R !== "main") silent();
   const sid = input.session_id;
+  // Separate streaks: a SubagentStop that sees no offenders of its own role must not reset the main Stop streak.
+  const counter = ev === "Stop" ? "stopBlocks" : "subagentStopBlocks";
 
   // Main Stop: catch Bash-made edits first (cheap changed-only reindex).
   if (ev === "Stop") { try { await a.updateIndex(root, null, { changedOnly: true, budgetMs: 4000 }); } catch {} }
@@ -62,13 +64,13 @@ async function main(input) {
     const tasks = [...new Set(offenders.flatMap((S) => (S.tags && S.tags.task) || []))];
     const T = tasks.length ? tasks.join(", ") : "<T>";
     let blocks = 0;
-    await updateSession(root, sid, (s) => { s.stopBlocks = (s.stopBlocks || 0) + 1; blocks = s.stopBlocks; return s; });
+    await updateSession(root, sid, (s) => { s[counter] = (s[counter] || 0) + 1; blocks = s[counter]; return s; });
     if (blocks <= MAX_BLOCKS) {
       emit(JSON.stringify({ decision: "block", reason: `Fresh passing tests required before finishing: ${refs}. Run hitl-index test --task ${T} and fix, or report the failure to the user.` }));
     }
     warnings.unshift(`${refs} implemented without fresh passing tests`);
-  } else if (session.stopBlocks) {
-    await updateSession(root, sid, (s) => { s.stopBlocks = 0; return s; });
+  } else if (session[counter]) {
+    await updateSession(root, sid, (s) => { s[counter] = 0; return s; });
   }
 
   if (warnings.length) emit(JSON.stringify({ systemMessage: `⚠️ HITL: ${warnings.join("; ")}.` }));

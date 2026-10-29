@@ -592,6 +592,8 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       assert.equal(o.decision, "block");
       assert.match(o.reason, /Fresh passing tests required before finishing: .*createUser/);
       assert.match(o.reason, /T-1/);
+      // a SubagentStop seen as main (no agent_type) has no offenders of its role; it must not reset the Stop streak
+      hook("stop.mjs", { session_id: "st", cwd: root, hook_event_name: "SubagentStop", agent_id: "bg" });
     }
     const third = json(hook("stop.mjs", stop));
     assert.equal(third.decision, undefined);
