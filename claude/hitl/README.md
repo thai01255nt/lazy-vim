@@ -258,7 +258,7 @@ Mặc định tắt; tắt thì không có gì thay đổi. Mỗi repo mirror sa
 | `jira` | `github`); config theo provider (`linear.*`, `jira.*`, `github.*`, cùng khung khoá), map riêng
 (`.hitl/<provider>.map.json`), queue riêng (`index/<provider>.queue.json`), mã drift có tiền tố (`LINEAR_*`, `JIRA_*`,
 `GITHUB_*`). CLI (`scripts/lib/tickets.mjs` + `providers.mjs`) dựng plan trung lập; skill đọc tài liệu theo provider ở
-`skills/tickets/references/providers/<provider>/` (connect · init · push-ops · pull · mcp).
+`skills/tickets/references/common/connect.md` (chọn server, kiểm tra identity, lỗi) + `skills/tickets/references/providers/<provider>/` (connect · init · push-ops · pull · mcp).
 
 | | Linear | Jira | GitHub Issues |
 |---|---|---|---|

@@ -1,33 +1,27 @@
-# GitHub — connect: tool discovery, server pick and identity check (`/hitl:tickets` init, push, pull)
+# GitHub — tools and identity (with `references/common/connect.md`)
 
-Read by SKILL.md before the first GitHub call of `init`, `push` and `pull`. `status` never needs it.
+- Tool pattern: `mcp__<server>__…` where `<server>` contains `github` (case-insensitive). One server = one GitHub
+  account. Deferred → `ToolSearch` `+github issue`, `+github label`.
+- `legacy`: the candidate that can read the repository status `team` (`owner/repo`).
+- **Ids** (one form everywhere, as strings): the REST numeric ids — repository `id` (init `team.id`, identity), issue
+  `id` (results, relations, sub-issues; not the `#number`, not a node id `I_…`), milestone **number** (`projectId`).
+  A tool that returns only a node id → read the REST id with `gh api repos/<o>/<r> --jq .id` /
+  `gh api repos/<o>/<r>/issues/<n> --jq .id`.
+- **`gh`** (allowed: `Bash(gh *)`) only for what the MCP lacks (milestones, dependencies, issue fields, REST ids) and
+  only after `gh auth status` shows the same host and the same account as `get_me`; otherwise do not use `gh` (that
+  field → `skippedFields`). A push without the MCP is not possible (`none` → fail-open).
 
-## 1. Discover the GitHub MCP tools (runtime, never hardcoded)
-Details and the payload → parameter mapping: `mcp.md` (this folder).
-- Look for tools `mcp__*github*__*`; deferred → `ToolSearch` (`+github issue`).
-- **Pick the server**: `hitl-index tickets server <server>… --json` (`--init` during init). `use` → only that server ·
-  `missing` → `❌ <message>`, push → fail-open SKILL.md §4 step 5, pull → stop · `none` → init: init.md step 1, push:
-  fail-open `GitHub MCP not connected` (the `gh` fallback alone is not enough for a push: it needs the MCP identity),
-  pull: stop · `save` / `pick` → init.md step 1 · `legacy` → the server that can read the mapped repository.
-- Capabilities → **first existing** tool:
+| capability | candidates (first that exists) |
+|---|---|
+| who am I | `get_me` |
+| create / update issue | `issue_write` (method `create` / `update`), else `create_issue` + `update_issue` |
+| get / list issues | `issue_read` (method `get`), `get_issue` / `list_issues`, `search_issues` |
+| labels | `list_label`, `get_label`; create: `label_write`, else `gh label create` |
+| sub-issues | `sub_issue_write` (method `add`), `add_sub_issue` |
+| comment | `add_issue_comment` |
+| repository, milestones, dependencies, issue fields | `gh api` (see `mcp.md`) |
 
-  | capability | candidates |
-  |---|---|
-  | who am I | `get_me` |
-  | create / update issue | `issue_write` (method create/update), else `create_issue` + `update_issue` |
-  | get / list issues | `issue_read`, `get_issue` / `list_issues`, `search_issues` |
-  | labels | `list_label`, `get_label` (creating labels: `label_write` when present, else `gh label create`) |
-  | sub-issues | `sub_issue_write`, `add_sub_issue` |
-  | comment | `add_issue_comment` |
-  | milestones, dependencies, issue fields | `gh api` (see `mcp.md` §2) |
-
-## 1b. Identity check (before every push and pull, also with `--auto`)
-1. `get_me` (or the repo read) → the account; the mapped repository (`hitl-index tickets status --json` → `team` =
-   `owner/repo`, `teamId` = its id): read it → `team: {"id": "<repo node id or id as mapped>", "key": "<owner/repo>"}`,
-   absent → `null`; `workspace: {"urlKey": "<owner>"}`. Pinned milestone (`github.project`): read it → `project: {"id"}` or `null`.
-2. Write `.hitl/.inbox/tickets-identity.json`
-   `{"schema":"hitl.tickets-identity/1","server":"<server>","workspace":{"urlKey":"<owner>"},"team":{"id","key"}|null,"project":…}`
-   → `hitl-index tickets verify --in .hitl/.inbox/tickets-identity.json --json`; keep the object for the results file.
-3. Exit 4 / `ok: false` → refuse the run; print `❌ GitHub identity mismatch` + mismatches + `fix`. `--auto`: one line.
-4. Using `gh` in this run: `gh auth status` must show the same host and an account with access to `owner/repo`;
-   otherwise do not use `gh` (report the capability as skipped).
+Identity (common §2 step 1): read the repository status `team` (`owner/repo`) — an MCP repository read / search tool,
+else `gh api repos/<o>/<r>` — → `team: {"id":"<repo REST id>","key":"<full_name>"}`, `workspace: {"urlKey":"<owner
+login>"}` (not found / no access → `team: null`). `project` (status `project.id` set: a pinned milestone) =
+`gh api repos/<o>/<r>/milestones/<project.id>` → `{"id":"<number>"}`, not found → `null`.

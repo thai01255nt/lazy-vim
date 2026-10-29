@@ -1,10 +1,8 @@
 # Linear — `init [--relink]` (`/hitl:tickets init`, only when the user typed it)
 
-1. Discover tools (`connect.md` §1) and run `hitl-index tickets server <server>… --init --json`.
+1. Server (`references/common/connect.md` §1, with `--init`):
    - `none` → print `❌ Linear MCP not found. Install it: claude mcp add --transport http linear-server
      https://mcp.linear.app/mcp (or the "linear" plugin), run /mcp to authenticate, then /hitl:tickets init`. Stop.
-   - `use` → keep the pinned server (to switch: the user names another one; then save it as below).
-   - `save` → exactly one Linear server: `hitl-index init --set linear.server=<server>` and say so in one line.
    - `pick` → ⛔ GATE: table `# | server | workspace | teams` (call list teams on each candidate if cheap; workspace
      urlKey from a returned URL, `?` when unknown; a server that fails auth → `not authenticated (/mcp)`), 💡 none
      preselected unless only one is authenticated. END TURN. On reply: `hitl-index init --set linear.server=<server>`.

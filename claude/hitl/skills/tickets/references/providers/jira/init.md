@@ -1,10 +1,9 @@
 # Jira — `init [--relink]` (`/hitl:tickets init`, only when the user typed it)
 
-1. Discover tools (`connect.md` §1) and run `hitl-index tickets server <server>… --init --json`.
+1. Server (`references/common/connect.md` §1, `--init`):
    - `none` → print `❌ Atlassian MCP not found. Install it: claude mcp add --transport http atlassian
      https://mcp.atlassian.com/v1/mcp, run /mcp to authenticate, then /hitl:tickets init`. Stop.
-   - `use` → keep the pinned server · `save` → `hitl-index init --set jira.server=<server>` (one line) · `pick` →
-     ⛔ GATE table `# | server | site` (site from `getAccessibleAtlassianResources`), END TURN; on reply save it.
+   - `pick` → ⛔ GATE table `# | server | site` (site from `getAccessibleAtlassianResources`), END TURN; on reply save it.
 2. Site (cloudId + host) and the visible projects. ⛔ GATE: table of projects (key, name, type) and the choices with
    defaults: project (💡 the only one, else none preselected) · a change becomes: `one epic per change` 💡 /
    `existing epic <key>` (all issues under it) / `parent-issue per change` / `none` · issue type for tasks (💡 `Task`;
@@ -25,7 +24,8 @@
 7. Write `.hitl/.inbox/tickets-init.json`
    `{"schema":"hitl.tickets-results/1","kind":"init","relink":<true only with --relink>,"init":{"workspace":{"urlKey":"<site host>"},
    "team":{"key":"<KEY>","id":"<project id>","name"},"project":{"id","name","url"}|null,"states":{"backlog":{"id","name"}|null,…},
-   "labels":{…}}}` → `hitl-index tickets record --in .hitl/.inbox/tickets-init.json --json`. Exit 4 → as Linear init.md step 6.
+   "labels":{…}}}` → `hitl-index tickets record --in .hitl/.inbox/tickets-init.json --json`. Exit 4 → print the message: wrong server picked
+   (fix `jira.server`) or the repo really moves (`/hitl:tickets init --relink`; clears the old task mappings). Never add `relink` without the flag.
 8. Print `✅ Jira linked: <site>/<KEY> via <server> · epic <per change|KEY-n> · statuses … · labels …`, the
    commit hint (`jira.map.json` + `hitl.config.json` per repo), and 💡 keep Jira automation that closes issues on PR
    merge off, or accept that a merge after `/hitl:approve … done` marks them Done. 🎯 next: `/hitl:tickets push`.

@@ -8,7 +8,7 @@ const BASE_DEFAULTS = {
   enabled: false,
   server: null, // MCP server name: the <server> in mcp__<server>__<tool> (one OAuth per workspace / site / account)
   team: null, // Linear team key · Jira project key · GitHub "owner/repo"
-  project: null, // Linear: pinned existing project {id,name} · Jira: pinned epic {id,key} · GitHub: pinned milestone {id,name}
+  project: null, // Linear: pinned existing project {id,name} · Jira: pinned epic {id,name} (name = the epic key) · GitHub: pinned milestone {id,name}
   changeAs: null, // provider-specific container kind for a change, or "none"; null = the provider default
   pushTodoAs: "unstarted",
   pushQuick: true,
