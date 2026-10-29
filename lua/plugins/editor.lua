@@ -283,8 +283,20 @@ return {
     end,
   },
   {
-    -- Snacks.lazygit sets editPreset nvim-remote, so `e` opens files in this nvim
+    -- Snacks.lazygit sets editPreset nvim-remote, so `e` opens files in this nvim.
+    -- The preset uses --remote-tab; override to open in the current tab instead.
     "folke/snacks.nvim",
+    opts = {
+      lazygit = {
+        config = {
+          os = {
+            edit = 'nvim --server "$NVIM" --remote-send "q"; nvim --server "$NVIM" --remote {{filename}}',
+            editAtLine = 'nvim --server "$NVIM" --remote-send "q"; nvim --server "$NVIM" --remote {{filename}}; nvim --server "$NVIM" --remote-send ":{{line}}<CR>"',
+            openDirInEditor = 'nvim --server "$NVIM" --remote-send "q"; nvim --server "$NVIM" --remote {{dir}}',
+          },
+        },
+      },
+    },
     keys = {
       { "<leader>lg", function() Snacks.lazygit() end, desc = "LazyGit" },
     },
