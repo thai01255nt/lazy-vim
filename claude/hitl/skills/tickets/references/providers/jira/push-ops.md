@@ -17,7 +17,7 @@ op: `{"opId","ok":true,…}` or `{"opId","ok":false,"error":"<message>"}`. Ignor
   when add or remove is non-empty; never drop other labels) together with the other `payload.fields` (`title` →
   summary, `description`, `priorityName` → priority, `parentId` / `projectId` → parent); skip the edit when there is
   nothing to send;
-  (b) `payload.fields.stateId` present: `payload.expect.stateType` is `null` → no guard, transition; else the remote
+  (b) `payload.fields.stateId` present: `payload.expect.stateType` is `null` → no guard, transition (remote already in the Done category → still transition, and print `⚠️ <issue> was <status> in Jira; hitl moved it to <new status>`); else the remote
   status category ≠ the expected one (`unstarted` → To Do, `started` / `review` → In Progress, `completed` /
   `canceled` → Done) → no transition, `skippedFields: ["stateId"]`, print `⚠️ <issue> status changed in Jira
   (<status>) — kept`; else transition.

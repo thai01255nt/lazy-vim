@@ -19,7 +19,7 @@ each op's `meta`. Ids per `connect.md` (REST numeric, strings; `#n` addresses an
   labels), and when `fields.priorityName` is present and `github.priorityLabels` is on: minus every other `priority:*`
   label, plus `priority:<priorityName>`; send labels only when something changed;
   (b) state guard, only when `fields.stateId` is present: `payload.expect.stateType` is `null` → no guard, send the
-  state; else the remote state ≠ the expected one (`completed` ↔ closed/completed, `canceled` ↔ closed/not_planned,
+  state (remote already closed → still send, and print `⚠️ <issue> was closed in GitHub; hitl reopened it`); else the remote state ≠ the expected one (`completed` ↔ closed/completed, `canceled` ↔ closed/not_planned,
   any other type ↔ open) → keep it, `skippedFields: ["stateId"]`, print `⚠️ <issue> state changed in GitHub
   (<state>) — kept`;
   (c) `title`, `body`, `milestone` (`projectId`). Then `priorityName` → the issue field per `mcp.md`; `parentId` →

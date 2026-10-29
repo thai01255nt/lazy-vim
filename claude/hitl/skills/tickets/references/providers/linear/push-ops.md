@@ -17,7 +17,7 @@ carry `change` (the change id; legacy queue items may say `planning`, same meani
   (a) labels: the remote label ids **minus** `payload.labels.remove` **plus** `payload.labels.add` (never drop
   non-hitl labels); send them only when add or remove is non-empty;
   (b) state guard, only when `payload.fields.stateId` is present: `payload.expect.stateType` is `null` → no guard, send
-  `stateId`; else the remote state's type ≠ `expect.stateType` (`review` means a `started`-type state) → do not send
+  `stateId` (remote type already completed/canceled → still send, and print `⚠️ <issue> was <state> in Linear; hitl moved it to <new state>`); else the remote state's type ≠ `expect.stateType` (`review` means a `started`-type state) → do not send
   `stateId`, add `"stateId"` to `skippedFields`, print `⚠️ <issue> state changed in Linear (<remote state>) — kept`;
   (c) the other `payload.fields` (`title`, `description`, `priority`, `projectId`, `parentId`).
   Result: `ok`, `description` (as returned, when returned), `skippedFields`.
