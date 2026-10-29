@@ -1,6 +1,6 @@
-# Push: executing the plan ops (`/hitl:tickets push`, SKILL.md §4 step 4)
+# Linear — push: executing the plan ops (`/hitl:tickets push`, SKILL.md §4 step 4)
 
-The tools are the ones chosen in `connect.md` §1 (one server only); parameter names per `linear-mcp.md` §2.
+The tools are the ones chosen in `connect.md` §1 (one server only); parameter names per `mcp.md` §2.
 
 Execute the chosen ops **in plan order**; one result per executed op: `{"opId","ok":true,…}` or
    `{"opId","ok":false,"error":"<message>"}`. Ignore each op's `meta` (CLI-internal). Per op:

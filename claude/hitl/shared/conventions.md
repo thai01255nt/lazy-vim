@@ -39,9 +39,9 @@ Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered 
 ## Never
 - Edit `.hitl/specs/**`, `.hitl/archive/**` (except tooling-written status in archived `tasks.md`) or `**/.base.json`:
   only `hitl-index spec merge|archive` writes them; behaviour changes go through a change (`amend-spec.md`).
-- Edit generated files: `index/**` (incl. `index/linear.*.json`), `docs/CODEBASE-MAP.md`, `reviews/*.review.md`,
+- Edit generated files: `index/**` (incl. `index/<provider>.*.json`), `docs/CODEBASE-MAP.md`, `reviews/*.review.md`,
   `reviews/feature-*.md`, `reviews/feature-*.security.json`,
-  `skeleton.lock.json`, `state.json`, `linear.map.json` (only `hitl-index tickets record|diff --relink` writes it).
+  `skeleton.lock.json`, `state.json`, `<provider>.map.json` — linear|jira|github (only `hitl-index tickets record|diff --relink` writes it).
 - Edit an `@status` tag or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status --sync-tags` does).
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.

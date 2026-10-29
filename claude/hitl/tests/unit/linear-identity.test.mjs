@@ -205,7 +205,7 @@ describe("linear identity: two repos sharing a team/project", () => {
     assert.equal(repoKeyFromRemote("ssh://git@gitlab.example.com:2222/grp/sub/app.git"), "sub/app");
     assert.equal(repoKeyFromRemote(""), null);
     const d = describeTask(mkTask("T-1"), null, "thai/app-a");
-    assert.ok(d.startsWith(`<!-- hitl:task=T-1 repo=thai/app-a file=${TF} -->`));
+    assert.ok(d.includes(`\n<!-- hitl:task=T-1 repo=thai/app-a file=${TF} -->\n`));
     assert.deepEqual(parseMarker(d), { task: "T-1", repo: "thai/app-a", file: TF });
     assert.deepEqual(parseMarker(`<!-- hitl:task=T-3 file=${TF} -->`), { task: "T-3", repo: null, file: TF });
     const p = buildPlan(inputs(ON, initMap("thai/app-a"), [mkTask("T-1")]));

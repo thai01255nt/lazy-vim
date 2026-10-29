@@ -54,7 +54,7 @@ On Y (or the chosen option):
   ```
   then `hitl-index trace --capability <cap> --json` per capability and one line
   `🔗 <cap>: R <covered>/<total> covered · scenarios <withAc>/<total> with AC` (no percentages).
-- Linear: archive never pushes and never closes the Linear project. Mapped tasks get their new `file=` marker on the next
+- Ticket tracker: archive never pushes and never closes the change's container (project, epic or milestone). Mapped tasks get their new `file=` marker on the next
   `/hitl:tickets push` (say so in one line only when `hitl-index tickets status --json` shows `enabled`).
 - 🎯 next: `hitl-index status --json` `.next` (another change, or `/hitl:plan <description>`).
 

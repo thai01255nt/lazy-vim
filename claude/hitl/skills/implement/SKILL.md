@@ -67,7 +67,7 @@ High risk **with** `--lane fast` (Lane override above): use the low-risk column 
 Blocked by unfinished tasks → ⚠️ list them, ⛔ GATE `Continue anyway? (y/N)`, end turn.
 When unsure, trust `tasks[T].next` from the CLI over your own reading.
 
-Linear (optional, fail-open): if `status --json` `tasks[T].linear` exists and `onBranch` is false → print
+Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` exists and `onBranch` is false → print
 `🎯 branch: git switch -c <branch>` once. Run no git command yourself; `linear` null or missing → print nothing.
 
 ## Step 2 — Work list

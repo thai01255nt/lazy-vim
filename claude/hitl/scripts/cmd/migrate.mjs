@@ -17,7 +17,7 @@ import { mergeGitignore } from "./init.mjs";
 import { readText, writeTextAtomic } from "../lib/fsutil.mjs";
 
 export const KNOWN_DIRS = ["docs", "planning", "tasks", "index", "reviews", ".inbox", "adapters", "specs", "changes", "archive"];
-export const KNOWN_FILES = ["hitl.config.json", "linear.map.json"];
+export const KNOWN_FILES = ["hitl.config.json", "linear.map.json", "jira.map.json", "github.map.json"];
 const REWRITE_EXT = /\.(?:md|json)$/;
 const MAX_REWRITE = 4 << 20;
 const LEGACY_PREFIX = `${LEGACY_DIR}/`;

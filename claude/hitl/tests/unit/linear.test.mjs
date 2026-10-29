@@ -74,9 +74,12 @@ describe("linear: defaults and desired state", () => {
     assert.deepEqual(d1.labels, ["impl:mixed", "risk:high"]);
     assert.deepEqual(d1.labelIds, ["lb-impl-mixed", "lb-risk-high"]);
     assert.equal(d1.stateId, "st-progress");
-    assert.ok(d1.description.startsWith(`<!-- hitl:task=T-1 file=${TF} -->\n**Why**: because (D-1)\n`));
-    assert.ok(d1.description.includes("- [ ] T-1.AC1 (R-1) Given a When b Then c"));
-    assert.ok(d1.description.includes("risk: high (security) · impl: mixed · prio: P1 · change: feat-x"));
+    // v4 ticket format: Why + risk reasons, ACs as plain bullets, marker + footer last; no prio/impl/change text line
+    assert.ok(d1.description.startsWith("**Why**: because (D-1)\nRisk reasons: security\n\n### Acceptance criteria\n"));
+    assert.ok(d1.description.includes("\n- T-1.AC1 (R-1) Given a When b Then c\n"));
+    assert.ok(!d1.description.includes("- [ ]"));
+    assert.ok(!/prio: |impl: |change: /.test(d1.description));
+    assert.ok(d1.description.includes(`\n<!-- hitl:task=T-1 file=${TF} -->\n_Managed by hitl — edit ${TF} in the repo, not this issue._`));
     assert.ok(!/src\//.test(d1.description));
     const d2 = desiredForTask(structuredClone(task), "red", linearCfg(ON), map, { planningKey: "feat-x.md" });
     assert.equal(d1.description, d2.description);
@@ -88,7 +91,8 @@ describe("linear: defaults and desired state", () => {
     assert.ok([...warnings][0].includes("hitl:red"));
     const pre = desiredForTask(task, "red", linearCfg({ linear: { enabled: true, titlePrefix: true } }), map);
     assert.equal(pre.title, "T-1 · Task T-1");
-    assert.equal(describeTask({ ...task, why: null, acs: [] }, null).split("\n")[1], "**Why**: —");
+    assert.equal(describeTask({ ...task, why: null, acs: [] }, null).split("\n")[0], "**Why**: —");
+    assert.ok(!describeTask({ ...task, risk: "low" }, null).includes("Risk reasons"));
   });
 
   test("topological order: blockers first, ties by prio then id", () => {
@@ -370,7 +374,7 @@ describe("linear: status and summary", () => {
     assert.equal(await ticketsSummary(root, {}, [mkTask("T-1")], { tasks: {} }), null);
     fs.writeFileSync(path.join(root, ".hitl/linear.map.json"), "{corrupt");
     const s = await ticketsSummary(root, ON, [mkTask("T-1")], { tasks: { "T-1": { status: "red" } } });
-    assert.deepEqual(s, { enabled: true, configured: false, team: "ENG", mapped: 0, unmapped: 1, outOfSync: 0, queued: 0, perTask: {} });
+    assert.deepEqual(s, { provider: "linear", label: "Linear", enabled: true, configured: false, team: "ENG", mapped: 0, unmapped: 1, outOfSync: 0, queued: 0, perTask: {} });
     assert.equal(await ticketsSummary(root, ON, null, null) !== undefined, true);
     const I = inputs([mkTask("T-1")]);
     fs.writeFileSync(path.join(root, ".hitl/linear.map.json"), JSON.stringify(pushAll(I, buildPlan(I)).map));

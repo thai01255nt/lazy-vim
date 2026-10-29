@@ -89,6 +89,14 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.6
+
+0.7 tách kênh ticket theo provider (Linear, Jira, GitHub Issues — mục 4b).
+- Không cần làm gì với Linear: `tickets.provider` mặc định `linear`, `linear.*` và `linear.map.json` giữ nguyên.
+- Định dạng issue mới: bỏ dòng `risk · impl · prio · change` và checkbox AC; marker chuyển xuống cuối. Lần push kế tiếp
+  cập nhật mô tả mọi issue đã map một lần (content hash đổi).
+- Dùng Jira/GitHub: `/hitl:tickets init jira` hoặc `/hitl:tickets init github`.
+
 ### Nâng cấp từ 0.5
 
 0.6 thay file `.hitl/planning/<x>.md` (Part A/B, cây component Level 1/2) bằng **change** theo kiểu SDD:
@@ -139,7 +147,7 @@ một dòng `⚠️ HITL: legacy dir .claude/custom/ — run hitl-index migrate`
  Build rồi review   ─► /hitl:implement --feature <change-id> [--lane fast]  (một report gộp ở cuối)
  Sửa code ngoài Claude ─► /hitl:sync  (drift + trace report, re-approve / revert / defer / accept + amend spec)
  Không biết làm gì tiếp ─► /hitl:flow
- Kênh phụ (tuỳ chọn)   ─► /hitl:tickets push  (mirror task sang Linear; không bao giờ là gate)
+ Kênh phụ (tuỳ chọn)   ─► /hitl:tickets push  (mirror task sang Linear / Jira / GitHub; không bao giờ là gate)
 ```
 
 **Plan = WHAT/WHY (cho BA/PO đọc).** `/hitl:plan` phỏng vấn kiểu grill (tự nạp skill `hitl:grilling`, bạn không cần gọi)
@@ -199,7 +207,7 @@ Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip
 | `/hitl:review --security-audit [<change-id>\|repo] [--out <dir>]` | Audit bảo mật đầy đủ 6 phase (Cloudflare `security-audit`) cho một feature hoặc cả repo; link `REPORT.md` vào `reviews/feature-<name>.md` (xem 6a) | — | bạn / Claude |
 | `/hitl:security-audit …` | Skill upstream nguyên bản: hỏi đáp/review bảo mật (guidance mode) hoặc audit đầy đủ khi bạn yêu cầu rõ | — | bạn / Claude |
 | `/hitl:sync [--files …] [T]` | Đồng bộ sửa tay: reindex, drift + trace report, re-approve / revert / defer / accept + amend spec, cập nhật CODEBASE-MAP | ⛔ | **chỉ bạn** |
-| `/hitl:tickets init\|push\|pull\|status` | (Tuỳ chọn) mirror task sang Linear: một issue mỗi task, push một chiều, pull chỉ đọc (báo drift), in branch + `Fixes ENG-n` | ⛔ lần push đầu / op cần duyệt | bạn / Claude (skill khác gọi khi bật `autoPush`) |
+| `/hitl:tickets init\|push\|pull\|status` | (Tuỳ chọn) mirror task sang Linear, Jira hoặc GitHub Issues: một issue mỗi task, push một chiều, pull chỉ đọc (báo drift), in branch + `Fixes ENG-n` / `Fixes #n` | ⛔ lần push đầu / op cần duyệt | bạn / Claude (skill khác gọi khi bật `autoPush`) |
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|conflicts|merge|archive`, `hitl-index change [<id>]`
 (trạng thái/phase của change), `hitl-index migrate --specs` (v0.5 → 0.6),
@@ -244,9 +252,32 @@ implementer báo `specConflict`, skill đề xuất cập nhật **spec/design**
 - Decision không bao giờ sửa tại chỗ (chỉ supersede); thêm requirement/capability → proposal về `draft`, chạy lại `/hitl:tasks`.
 - Amend không duyệt gì cả: sau đó bạn vẫn gõ `/hitl:approve <T> skeleton <symbols>` như cũ.
 
-### 4b. Linear (tuỳ chọn)
+### 4b. Ticket tracker: Linear, Jira, GitHub Issues (tuỳ chọn)
 
-Mặc định tắt; tắt thì không có gì thay đổi. Cài đặt:
+Mặc định tắt; tắt thì không có gì thay đổi. Mỗi repo mirror sang **một** provider (`tickets.provider`: `linear` mặc định
+| `jira` | `github`); config theo provider (`linear.*`, `jira.*`, `github.*`, cùng khung khoá), map riêng
+(`.hitl/<provider>.map.json`), queue riêng (`index/<provider>.queue.json`), mã drift có tiền tố (`LINEAR_*`, `JIRA_*`,
+`GITHUB_*`). CLI (`scripts/lib/tickets.mjs` + `providers.mjs`) dựng plan trung lập; skill đọc tài liệu theo provider ở
+`skills/tickets/references/providers/<provider>/` (connect · init · push-ops · pull · mcp).
+
+| | Linear | Jira | GitHub Issues |
+|---|---|---|---|
+| MCP | `https://mcp.linear.app/mcp` | `https://mcp.atlassian.com/v1/mcp` | `https://api.githubcopilot.com/mcp/` (+ `gh api` cho milestone, dependency) |
+| `team` | team key | project key | `owner/repo` |
+| một change → (`changeAs`) | `project` · `parent-issue` · `none` | `epic` · `parent-issue` · `none` | `milestone` · `parent-issue` (sub-issues) · `none` |
+| container có sẵn (`project`) | project | epic | milestone |
+| prio P0–P3 | Urgent…Low | Highest…Low (`jira.priorityNames`) | issue field `Priority` hoặc label `priority:*` |
+| trạng thái | state type | status qua transition | open / closed (completed · not planned) |
+| blocked-by | relation | link "Blocks" | issue dependency |
+
+Định dạng issue (mọi provider, theo Linear Method): `**Why**` + `Risk reasons` (task high) + AC dạng bullet thường (không
+checkbox — mirror một chiều sẽ ghi đè ô người tick) + marker + footer; prio/risk/impl/change nằm ở field gốc, label và
+container, không lặp lại trong mô tả. Chi tiết: `skills/tickets/references/ticket-format.md`, label: `…/labels.md`.
+Đổi provider: `/hitl:tickets init jira` (đặt `tickets.provider`, rồi init như dưới).
+
+#### Linear
+
+Cài đặt:
 ```sh
 claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # hoặc plugin "linear" của Anthropic
 # nhiều workspace? mỗi workspace một server (mỗi server một OAuth), tên khác nhau:
@@ -301,6 +332,18 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
   qua issue của repo khác; marker cũ (không `repo=`) chỉ relink khi `file=` trùng, hai issue cùng nhận một task →
   `LINEAR_AMBIGUOUS`, không relink. Map tạo trước 0.5.0 giữ marker cũ cho đến khi `init` lại (lúc đó mô tả issue được
   cập nhật một lần).
+- Không tạo được label (403, gói Free / không phải admin) → `init` in bảng label (tên, màu, mô tả) để bạn tạo tay, hoặc
+  tắt nhóm label.
+
+#### Jira và GitHub Issues
+
+Cùng mô hình (ghim server, kiểm tra danh tính, push một chiều, pull chỉ đọc, fail-open, `autoPush`). Khác biệt:
+- **Jira**: danh tính = site (`<tên>.atlassian.net`) + project; change → **epic** (issue type `jira.epicType`), task →
+  `jira.issueType`; trạng thái chuyển bằng transition tới status id đã map theo status category; label là text tự do
+  (không cần tạo); không có tool link → `📌` ghi chú tay. Không có tên branch: CLI dựng `<project>-<n>-<slug>`.
+- **GitHub**: danh tính = owner + repo; change → **milestone** (tạo bằng `gh api`), hoặc parent issue + sub-issues;
+  trạng thái chỉ có open/closed (pha hitl thấy qua label `hitl:*`); blocked-by = issue dependency (`gh api`); issue là
+  `#n`, PR line `Fixes #n` / `Part of #n`. `gh` chỉ được dùng khi `gh auth status` cùng tài khoản/host với MCP.
 
 ## 5. Risk routing
 
@@ -388,12 +431,12 @@ validator của upstream). Phần nối với hitl nằm riêng ở `skills/revi
 | `changes/<id>/.scout.json`, `.spec-review.json` | ignore | file nháp của subagent `spec-scout` / `spec-reviewer` |
 | `planning/*.md` (v0.5) | commit đến khi migrate | chỉ đọc |
 | `index/skeleton.lock.json` | commit | bản ghi phê duyệt (chỉ `hitl-index approve` ghi) |
-| `linear.map.json` | commit | đồng đội cần T-n ↔ ENG-n (chỉ `hitl-index tickets` ghi) |
+| `<provider>.map.json` (linear/jira/github) | commit | đồng đội cần T-n ↔ issue (chỉ `hitl-index tickets` ghi) |
 | `reviews/<T>.review.md` | commit | bằng chứng review |
 | `reviews/feature-<name>.md` | commit | report gộp của `/hitl:implement --feature` (do `hitl-index feature --report` sinh) |
 | `reviews/feature-<name>.security.json` | commit | link tới `REPORT.md` của audit bảo mật đầy đủ (do `hitl-index feature --report --security-audit <dir>` ghi) |
 | `reviews/<T>/decisions.json` | commit | quyết định accept/reject/defer của người; giữ số F-n ổn định |
-| `index/*` còn lại (index.json, index.md, .cache.json, state.json, .lock, .session/, contracts/, trace.md, linear.*.json) | ignore | sinh lại được / theo máy |
+| `index/*` còn lại (index.json, index.md, .cache.json, state.json, .lock, .session/, contracts/, trace.md, `<provider>`.*.json) | ignore | sinh lại được / theo máy |
 | `reviews/<T>/*` còn lại (l0.json, findings*.json, review-context.md) | ignore | `/hitl:review` sinh lại |
 | `.inbox/` | ignore | file trung chuyển kết quả MCP |
 
@@ -408,7 +451,7 @@ reviews/*/*
 .spec-review.json
 ```
 File đã lỡ commit không tự bị untrack: `/hitl:setup` in gợi ý `git rm -r --cached <paths>` (không tự chạy).
-File sinh ra (index, lock, CODEBASE-MAP AUTO, review md, `linear.map.json`) **không sửa tay**; hook PreToolUse chặn agent sửa chúng.
+File sinh ra (index, lock, CODEBASE-MAP AUTO, review md, `<provider>.map.json`) **không sửa tay**; hook PreToolUse chặn agent sửa chúng.
 Symbol id = `<relpath>#<QualName>` (vd. `src/services/userService.ts#UserService.createUser`), không có số dòng.
 
 Tag trong docstring (chi tiết: `shared/tag-grammar.md`):

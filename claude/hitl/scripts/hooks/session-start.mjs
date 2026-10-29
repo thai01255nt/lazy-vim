@@ -1,4 +1,4 @@
-// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤5 plain-stdout lines (brief, drift, linear queue, v0.5 planning notice, commands).
+// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤5 plain-stdout lines (brief, drift, tickets queue, v0.5 planning notice, commands).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -27,13 +27,18 @@ function briefLine(root) {
   } catch { return ""; }
 }
 
-/** One line when Linear updates are queued (design v2 §A.5.6): a plain file read, no module import, no network. */
-function linearQueueLine(root) {
-  try {
-    const q = JSON.parse(fs.readFileSync(path.join(root, HITL_DIR, "index", "linear.queue.json"), "utf8"));
-    const n = q && Array.isArray(q.items) ? q.items.length : 0;
-    return n > 0 ? `⚠️ HITL: ${n} Linear update(s) queued — /hitl:tickets push` : "";
-  } catch { return ""; }
+/** One line when tracker updates are queued (design v2 §A.5.6, v4 providers): plain file reads, no module import, no network. */
+const QUEUE_LABELS = { linear: "Linear", jira: "Jira", github: "GitHub" };
+function ticketsQueueLine(root) {
+  const parts = [];
+  for (const [name, label] of Object.entries(QUEUE_LABELS)) {
+    try {
+      const q = JSON.parse(fs.readFileSync(path.join(root, HITL_DIR, "index", `${name}.queue.json`), "utf8"));
+      const n = q && Array.isArray(q.items) ? q.items.length : 0;
+      if (n > 0) parts.push(`${n} ${label}`);
+    } catch { /* no queue for this provider */ }
+  }
+  return parts.length ? `⚠️ HITL: ${parts.join(", ")} update(s) queued — /hitl:tickets push` : "";
 }
 
 /** design v3 §5.3: one line while v0.5 planning files remain (plain readdir, no module import). */
@@ -69,7 +74,7 @@ async function main(input) {
       if (fresh.length) lines.push(driftLine(fresh));
     } catch {}
   }
-  const lq = linearQueueLine(root);
+  const lq = ticketsQueueLine(root);
   if (lq) lines.push(lq);
   const lp = legacyPlanningLine(root);
   if (lp) lines.push(lp);

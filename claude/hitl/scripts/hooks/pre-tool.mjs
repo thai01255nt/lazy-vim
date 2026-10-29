@@ -40,7 +40,7 @@ const BASE_JSON_RE = new RegExp(`^${HITL_RE}(?:.+/)?\\.base\\.json$`);
 function isGenerated(rel) {
   return rel.startsWith(CUSTOM + "index/") ||
     rel === CUSTOM + "docs/CODEBASE-MAP.md" ||
-    rel === CUSTOM + "linear.map.json" ||
+    (rel.startsWith(CUSTOM) && /^(?:linear|jira|github)\.map\.json$/.test(rel.slice(CUSTOM.length))) ||
     rel.startsWith(CUSTOM + "specs/") ||
     (rel.startsWith(CUSTOM + "archive/") && !ARCHIVE_TASKS_RE.test(rel)) ||
     BASE_JSON_RE.test(rel) ||

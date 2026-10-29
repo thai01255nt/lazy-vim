@@ -79,14 +79,15 @@ Reply e.g. "Y", "2 test.py = …", "1 3", "1 4".
    - Any of `docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
    - Else → `/hitl:plan <what you want to build>`
    - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
-     index/skeleton.lock.json, linear.map.json, reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored
+     index/skeleton.lock.json, <provider>.map.json (linear|jira|github), reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored
      (.hitl/.gitignore): the rest of index/ and reviews/<T>/, .inbox/, .scout.json, .spec-review.json.` (`init --json` `gitignore.added` non-empty → also
      `📝 updated .hitl/.gitignore (+<n> lines)`.)
    - Run `git ls-files -ci --exclude-standard .hitl` (ignore failure / not a repo). Lists files →
      `💡 Already tracked generated files: <n>. Untrack with: git rm -r --cached <paths>`. Never run it yourself.
-   - Last line: `💡 Linear (optional): install the official Linear MCP (claude mcp add --transport http linear-server
-     https://mcp.linear.app/mcp, or the "linear" plugin; one server per workspace, e.g. linear-work / linear-personal),
-     then /hitl:tickets init once per repo (pins the server, team and optionally one existing project).`
+   - Last line: `💡 Ticket tracker (optional): Linear, Jira or GitHub Issues — install its MCP (Linear: claude mcp add
+     --transport http linear-server https://mcp.linear.app/mcp · Jira: … atlassian https://mcp.atlassian.com/v1/mcp ·
+     GitHub: … github https://api.githubcopilot.com/mcp/; one server per workspace/site/account), then
+     /hitl:tickets init [linear|jira|github] once per repo (pins the provider, server, team/project/repo and container).`
 
 ## Notes
 - Never edit `hitl.config.json` by hand; always `init --set`.

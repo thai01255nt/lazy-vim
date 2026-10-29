@@ -1,4 +1,4 @@
-# `pull [--relink]` (read-only)
+# Linear — `pull [--relink]` (read-only)
 
 1. Discover tools and pick the server (`connect.md` §1). None / pinned server missing → `⚠️ Linear MCP not connected` (or the `❌`
    message); stop. Identity check (`connect.md` §1b); mismatch → stop.

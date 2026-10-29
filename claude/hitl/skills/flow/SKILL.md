@@ -37,7 +37,8 @@ Arguments: `$ARGUMENTS`
 | T-12 | Register user (unique email)| P1   | high | red      | ⚠️ 1  | /hitl:implement T-12    |
 | T-13 | Login                       | P2   | low  | todo     | —     | /hitl:implement T-13    |
 ```
-   - Any `tasks[T].linear` non-null → add a `linear` column after `status`: the issue id (`ENG-123`), plus ` ⏳` when
+   - Any `tasks[T].linear` non-null (the tracker entry of any provider; the field keeps its old name) → add an `issue`
+     column after `status`: the issue id (`ENG-123`, `PAY-7`, `#12`), plus ` ⏳` when
      `synced` is false; `—` for unmapped tasks. All null → no column.
    - With a `T-id`: also list its symbols (`symbol | impl | status | reasons`) from the same JSON.
    - `tasks[T].override` true → append ` ⚠️ override` to its risk cell (the user forced the fast lane; review goes to the human).
@@ -45,7 +46,7 @@ Arguments: `$ARGUMENTS`
    - `.trace` non-null and `.trace.acs.total > 0` → one line
      `🔗 trace: R <reqs.covered>/<reqs.active> covered · scenarios <scenarios.withAc>/<scenarios.total> with AC ·
      AC <acs.proven>/<acs.total> proven · ⛔ <block> · ⚠️ <warn>` (no percentages; omit missing parts).
-   - `.tickets.queued > 0` → `⚠️ <n> Linear update(s) queued → /hitl:tickets push`.
+   - `.tickets.queued > 0` → `⚠️ <n> <.tickets.label> update(s) queued → /hitl:tickets push`.
    - Any drift on locked symbols → `⚠️ Drift on approved skeleton → /hitl:sync` (this overrides next).
    - Else `.trace.block > 0` → `🎯 next: hitl-index trace --json and fix the references` (this overrides next).
    - End with `🎯 next: <.next from status --json>` and one line why.

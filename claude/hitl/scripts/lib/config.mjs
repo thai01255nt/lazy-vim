@@ -34,6 +34,8 @@ export const DEFAULTS = Object.freeze({
   // (scripts/lib/speclint.mjs DEFAULT_VAGUE_TERMS) or an array that replaces it; vagueTermsExtra: terms added to it
   spec: { reviewOnClose: true, businessLint: "warn", archiveRequiresDone: true, qualityLint: "warn", vagueTerms: null, vagueTermsExtra: [] },
   trace: { precommit: false, mdOut: `${HITL_PREFIX}index/trace.md` },
+  // tickets mirror (design v4): provider = linear | jira | github; its section below holds the provider's settings
+  tickets: { provider: "linear" },
   linear: {
     enabled: false,
     server: null, // MCP server name: the <server> in mcp__<server>__<tool> (one OAuth per Linear workspace)
@@ -48,6 +50,43 @@ export const DEFAULTS = Object.freeze({
     autoPush: { onTasksApproved: false, onApprove: false, onReview: false },
     reviewComment: true,
     maxCreatePerPush: 50,
+  },
+  // Jira: team = project key; project = pinned epic {id,key}; changeAs epic | parent-issue | none (default epic)
+  jira: {
+    enabled: false,
+    server: null,
+    team: null,
+    project: null,
+    changeAs: null,
+    pushTodoAs: "unstarted",
+    pushQuick: true,
+    titlePrefix: false,
+    labels: { risk: true, impl: true, phase: false },
+    stateNames: {},
+    autoPush: { onTasksApproved: false, onApprove: false, onReview: false },
+    reviewComment: true,
+    maxCreatePerPush: 50,
+    issueType: "Task",
+    epicType: "Epic",
+    priorityNames: null, // {1:"Highest",2:"High",3:"Medium",4:"Low"} by default; override when the site renamed them
+  },
+  // GitHub Issues: team = "owner/repo"; project = pinned milestone {id,name}; changeAs milestone | parent-issue | none
+  github: {
+    enabled: false,
+    server: null,
+    team: null,
+    project: null,
+    changeAs: null,
+    pushTodoAs: "unstarted",
+    pushQuick: true,
+    titlePrefix: false,
+    labels: { risk: true, impl: true, phase: false },
+    stateNames: {},
+    autoPush: { onTasksApproved: false, onApprove: false, onReview: false },
+    reviewComment: true,
+    maxCreatePerPush: 50,
+    priorityField: "Priority", // issue field set when the tool supports issue fields
+    priorityLabels: false, // true: also push priority:<urgent|high|medium|low> labels
   },
 });
 

@@ -22,14 +22,14 @@ Verified 2026-10-25. Linear's official docs (https://linear.app/docs/mcp) docume
    (case-insensitive): `mcp__linear-server__…`, `mcp__linear__…`, `mcp__plugin_linear_linear__…`, `mcp__claude_ai_Linear__…`.
 2. Deferred tools (only names visible): `ToolSearch` query `+linear issue`, then `+linear team`, `+linear label`,
    `+linear comment`, `+linear project` as needed; load the chosen ones with `select:<full name>,…`.
-3. Server choice is the CLI's (`hitl-index tickets server <server>… [--init] --json`, SKILL.md §1): a pinned
+3. Server choice is the CLI's (`hitl-index tickets server <server>… [--init] --json`, `connect.md` §1): a pinned
    `linear.server` is the only prefix used; it is missing → `❌` + `claude mcp add --transport http <name>
    https://mcp.linear.app/mcp` + `/mcp`, queue (push) — never another server. Several servers are normal: one per
    workspace (one OAuth each), e.g. `linear-work`, `linear-personal`. Legacy configs without `linear.server` only: use
    the server whose `list_teams` contains the mapped team id, and suggest pinning. Use only that prefix for the whole run.
-   Then verify the identity (SKILL.md §1b) before any write: team ids are workspace-unique uuids, the workspace urlKey
+   Then verify the identity (`connect.md` §1b) before any write: team ids are workspace-unique uuids, the workspace urlKey
    is the first path segment of any `https://linear.app/<urlKey>/…` URL.
-4. Pick per capability the first existing suffix (table in SKILL.md §1). Note which one you chose in the final report
+4. Pick per capability the first existing suffix (table in `connect.md` §1). Note which one you chose in the final report
    only when it was a fallback (e.g. `create_issue` instead of `save_issue`).
 5. Before the first call of each tool, read its input schema (it is in the loaded definition). Never guess a parameter
    that the schema does not list.

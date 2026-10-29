@@ -26,7 +26,7 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
    /hitl:review T ⛔ → /hitl:approve T done                       /hitl:review T → auto done on PASS
    all tasks done → /hitl:archive <change-id> ⛔  (deltas → living specs .hitl/specs/, change → .hitl/archive/)
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
-   Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear; never a gate)
+   Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
 ```
 
 | command | purpose | gate |
@@ -44,6 +44,6 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
 | `/hitl:review T` | L0 gates + lens reviewers + report | ⛔ if human needed |
 | `/hitl:archive <id>` | merge spec deltas into living specs, move the change to archive | ⛔ diff |
 | `/hitl:sync` | reconcile manual edits, drift + trace report, amend spec | ⛔ user-only |
-| `/hitl:tickets` | mirror tasks to Linear (optional) | ⛔ first push |
+| `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
 | `/hitl:flow` | this status / router | — |

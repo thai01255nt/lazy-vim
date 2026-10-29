@@ -5,7 +5,7 @@ import { DEFAULTS, deepMerge, setDotted, detectCommands } from "../lib/config.mj
 import { exists, readJson, readText, writeJsonAtomic, writeTextAtomic } from "../lib/fsutil.mjs";
 import { CONFIG_REL, HITL_PREFIX } from "../lib/paths.mjs";
 
-// Canonical .hitl/.gitignore (v2 §A.6.2): generated files ignored; lock, decisions.json, review md, linear.map.json committed.
+// Canonical .hitl/.gitignore (v2 §A.6.2): generated files ignored; lock, decisions.json, review md, <provider>.map.json (linear|jira|github) committed.
 // design v3 §4.5: the spec-scout / spec-reviewer scratch files in change folders are never committed (archive removes them).
 export const GITIGNORE_HEADER = "# hitl: generated files (rebuildable) — do not commit";
 export const GITIGNORE = ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/", ".scout.json", ".spec-review.json"];

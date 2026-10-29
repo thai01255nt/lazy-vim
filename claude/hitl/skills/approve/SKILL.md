@@ -51,11 +51,11 @@ The `📐` line: one per entry of the JSON `specLinks` (skeleton re-approvals on
 - tests → `/hitl:implement <T>`
 - done → the next frontier task from `hitl-index status --json` (`.next`), e.g. `/hitl:skeleton T-13`
 
-## 5. Linear (optional, fail-open)
+## 5. Ticket tracker (optional, fail-open; Linear, Jira or GitHub)
 `hitl-index tickets status --json`. If `enabled && configured && autoPush.onApprove` → invoke the Skill `hitl:tickets`
 with `push <T> --auto`. Its output is informational; any error or missing command → skip silently. It never changes
 this skill's result.
 
-Do not edit any file in this skill. Do not run anything else except the optional Linear push above.
+Do not edit any file in this skill. Do not run anything else except the optional tickets push above.
 `--by human-override` is not this skill: it belongs to `/hitl:implement <T> --lane fast` (separate token). An override
 task's `done` still comes here, after its review.

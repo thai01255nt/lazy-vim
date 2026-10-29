@@ -59,7 +59,7 @@ Apply? (Y/n/edit)
 1. 📝 Edit the delta, design.md (Decisions, Changelog, `updated:`), the proposal (`updated:`, Capabilities row ids), the
    tasks md AC text, and `@dec` tag lines on the affected code symbols. `@dec` is not hashed → no re-approval.
 2. Never write `.hitl/specs/**`, `.hitl/archive/**`, `.base.json`, the lock, `index/**`, `state.json`, review md,
-   `linear.map.json`, `status:` fields or boxes.
+   `<provider>.map.json` (linear|jira|github), `status:` fields or boxes.
 3. Validate: `hitl-index spec validate <id> --json`, `hitl-index tasks --check --json` and `hitl-index trace <id> --json`.
    Any error or `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `AC_UNKNOWN`, …) → fix it in
    the same turn (max 3 loops), then report what is left.

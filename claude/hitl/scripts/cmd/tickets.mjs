@@ -1,6 +1,7 @@
-// `hitl-index tickets status|plan|record|diff` — Linear mirror, local side only (design v2 §A.5.5). No network.
-// Exit: 0 ok (also when Linear is disabled/unconfigured: fail-open) · 1 invalid record/diff input or planId mismatch · 2 usage · 3 not initialized
-//       · 4 Linear identity mismatch (wrong MCP server / workspace / team / project): nothing applied, nothing queued.
+// `hitl-index tickets status|plan|record|diff|verify|server` — tickets mirror (Linear, Jira or GitHub: config.tickets.provider),
+// local side only (design v2 §A.5.5, v4 providers). No network.
+// Exit: 0 ok (also when the provider is disabled/unconfigured: fail-open) · 1 invalid record/diff input or planId mismatch · 2 usage
+//       · 3 not initialized · 4 identity mismatch (wrong MCP server / workspace / team / project): nothing applied, nothing queued.
 import { promises as fsp, readFileSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
 import { parseArgv } from "../lib/project.mjs";
@@ -8,10 +9,10 @@ import { exists, readJson, writeJsonAtomic } from "../lib/fsutil.mjs";
 import { withLock, nowIso } from "../lib/lock.mjs";
 import { HITL_PREFIX } from "../lib/paths.mjs";
 import {
-  linearPaths, readMap, readQueue, writeMap, buildPlan, applyRecord, buildDiff, buildStatus, loadLocal,
-  loadPlanningInfo, loadChangeInfo, changeKeyOf, loadReviews, currentBranch, removeInboxFile, REMOTE_SCHEMA, QUEUE_SCHEMA,
-  verifyIdentity, identityMessage, pickServer, repoKey,
-} from "../lib/linear.mjs";
+  ticketsPaths, ticketsCfg, readMap, readQueue, writeMap, buildPlan, applyRecord, buildDiff, buildStatus, loadLocal,
+  loadPlanningInfo, loadChangeInfo, changeKeyOf, loadReviews, currentBranch, removeInboxFile, remoteSchema, queueSchema,
+  verifyIdentity, identityMessage, pickServer, repoKey, mapRel,
+} from "../lib/tickets.mjs";
 
 const USAGE = `usage: hitl-index tickets status [--json]
        hitl-index tickets plan [T-id… | <change-id> | <tasks-file>] [--json]
@@ -51,13 +52,13 @@ async function planInputs(root, config, scopeArgs) {
     changes[key] = d.change ? await loadChangeInfo(root, d.change) : await loadPlanningInfo(root, d.planning);
   }
   const scope = await resolveScope(root, local.docs, scopeArgs);
-  return { config, map: await readMap(root), repo: repoKey(root), docs: local.docs, statuses: local.statuses, reviews: await loadReviews(root, local.state), changes, scope };
+  return { config, map: await readMap(root, config), repo: repoKey(root), docs: local.docs, statuses: local.statuses, reviews: await loadReviews(root, local.state), changes, scope };
 }
 
-function printPlan(p) {
-  if (!p.enabled) return console.log("ℹ️ Linear sync is off (/hitl:tickets init)");
-  if (!p.configured) return console.log("💡 Linear not configured — run /hitl:tickets init");
-  if (!p.ops.length) console.log("✅ Linear in sync (no ops)");
+function printPlan(p, L) {
+  if (!p.enabled) return console.log(`ℹ️ ${L} sync is off (/hitl:tickets init)`);
+  if (!p.configured) return console.log(`💡 ${L} not configured — run /hitl:tickets init`);
+  if (!p.ops.length) console.log(`✅ ${L} in sync (no ops)`);
   else {
     console.log("| # | op | task | issue | gate | reason |\n|---|---|---|---|---|---|");
     p.ops.forEach((o, i) => console.log(`| ${i + 1} | ${o.op} | ${o.task || o.change || ""} | ${o.issue || "—"} | ${o.needsGate ? "⛔" : ""} | ${o.reason} |`));
@@ -73,7 +74,9 @@ export async function run(argv, ctx) {
   if (!sub || !["status", "plan", "record", "diff", "verify", "server"].includes(sub)) throw usage(sub ? `unknown subcommand ${sub}` : "");
   if (!ctx.root) { console.error("hitl: not initialized here — run /hitl:setup (hitl-index init)"); return 3; }
   const root = ctx.root, config = ctx.config || {};
-  const P = linearPaths(root);
+  const cfg = ticketsCfg(config); // throws a usage error for an unknown tickets.provider
+  const L = cfg.P.label, MAP = mapRel(cfg.P).replace(/^.*\//, "");
+  const P = ticketsPaths(root, config);
   const mismatch = (e) => { // identity mismatch: report expected vs observed, exit 4, nothing written
     const r = e.verify || {};
     if (json) console.log(JSON.stringify({ schema: "hitl.tickets-verify/1", ok: false, status: "mismatch", ...r, message: e.message }, null, 2));
@@ -92,16 +95,16 @@ export async function run(argv, ctx) {
     if (a._.length) throw usage("verify takes no positional arguments");
     const { data, file } = await readInput(root, a.in);
     const res = await withLock(root, async () => {
-      const v = verifyIdentity({ config, map: await readMap(root), observed: data });
-      if (v.map) await writeMap(root, { ...v.map, updatedAt: nowIso() });
+      const v = verifyIdentity({ config, map: await readMap(root, config), observed: data });
+      if (v.map) await writeMap(root, { ...v.map, updatedAt: nowIso() }, config);
       return v.result;
     });
     await removeInboxFile(root, file);
     if (json) console.log(JSON.stringify(res, null, 2));
     else if (!res.ok) console.log(`❌ ${identityMessage(res)}`);
     else {
-      console.log(`✅ Linear identity: ${res.status} · workspace ${res.observed.workspace || res.expected.workspace || "?"} · team ${res.observed.team?.key || res.expected.team?.key}${res.observed.server ? ` · server ${res.observed.server}` : ""}`);
-      for (const l of res.learned) console.log(`💡 recorded ${l} in linear.map.json`);
+      console.log(`✅ ${L} identity: ${res.status} · ${cfg.P.workspace.what} ${res.observed.workspace || res.expected.workspace || "?"} · ${cfg.P.team} ${res.observed.team?.key || res.expected.team?.key}${res.observed.server ? ` · server ${res.observed.server}` : ""}`);
+      for (const l of res.learned) console.log(`💡 recorded ${l} in ${MAP}`);
       for (const w of res.warnings) console.log(`⚠️ ${w}`);
     }
     return res.ok ? 0 : 4;
@@ -110,12 +113,12 @@ export async function run(argv, ctx) {
   if (sub === "status") {
     if (a._.length) throw usage("status takes no positional arguments");
     const local = await loadLocal(root, config);
-    const map = await readMap(root);
+    const map = await readMap(root, config);
     const anyMapped = Object.values(map.tasks).some((e) => e && e.id && !e.removed);
-    const st = buildStatus({ config, map, docs: local.docs, statuses: local.statuses, queue: await readQueue(root), branch: anyMapped ? currentBranch(root) : null });
+    const st = buildStatus({ config, map, docs: local.docs, statuses: local.statuses, queue: await readQueue(root, config), branch: anyMapped ? currentBranch(root) : null });
     for (const t of st.tasks) delete t.onBranch;
     if (json) { console.log(JSON.stringify(st, null, 2)); return 0; }
-    console.log(`Linear: ${st.enabled ? "on" : "off"} · ${st.configured ? `${st.workspace ? `${st.workspace}/` : ""}team ${st.team}` : "not configured"}${st.server ? ` · server ${st.server}` : ""}${st.project ? ` · project ${st.project.name || st.project.id || st.project.unresolved}` : ""} · mapped ${st.mapped} · unmapped ${st.unmapped} · out of sync ${st.outOfSync} · queued ${st.queued}`);
+    console.log(`${L}: ${st.enabled ? "on" : "off"} · ${st.configured ? `${st.workspace ? `${st.workspace}/` : ""}${cfg.P.team} ${st.team}` : "not configured"}${st.server ? ` · server ${st.server}` : ""}${st.project ? ` · project ${st.project.name || st.project.id || st.project.unresolved}` : ""} · mapped ${st.mapped} · unmapped ${st.unmapped} · out of sync ${st.outOfSync} · queued ${st.queued}`);
     console.log("| task | title | status | issue | synced | link |\n|---|---|---|---|---|---|");
     for (const t of st.tasks) console.log(`| ${t.task} | ${t.title} | ${t.status} | ${t.issue || "—"} | ${t.synced ? "✅" : t.reason || "—"} | ${t.url || ""} |`);
     for (const t of st.tasks) if (t.prLine) console.log(`${t.task}: branch ${t.branch} · PR: ${t.prLine}`);
@@ -126,7 +129,7 @@ export async function run(argv, ctx) {
     const I = await planInputs(root, config, a._);
     const p = buildPlan(I);
     if (p.enabled && p.configured) await writeJsonAtomic(P.plan, p);
-    if (json) console.log(JSON.stringify(p, null, 2)); else printPlan(p);
+    if (json) console.log(JSON.stringify(p, null, 2)); else printPlan(p, L);
     return 0;
   }
 
@@ -136,18 +139,18 @@ export async function run(argv, ctx) {
     let out;
     try {
       out = await withLock(root, async () => {
-        const r = applyRecord({ map: await readMap(root), plan: await readJson(P.plan, null), queue: await readQueue(root), input: data, now: nowIso(), repo: repoKey(root), config });
-        if (r.out.applied > 0 || data.kind === "init" || (r.out.learned || []).length) await writeMap(root, r.map);
-        if (r.queue.items.length || (await exists(P.queue))) await writeJsonAtomic(P.queue, { schema: QUEUE_SCHEMA, items: r.queue.items });
+        const r = applyRecord({ map: await readMap(root, config), plan: await readJson(P.plan, null), queue: await readQueue(root, config), input: data, now: nowIso(), repo: repoKey(root), config });
+        if (r.out.applied > 0 || data.kind === "init" || (r.out.learned || []).length) await writeMap(root, r.map, config);
+        if (r.queue.items.length || (await exists(P.queue))) await writeJsonAtomic(P.queue, { schema: queueSchema(cfg.P), items: r.queue.items });
         return r.out;
       });
     } catch (e) { if (e.code === 4) return mismatch(e); throw e; }
     await removeInboxFile(root, file);
     if (json) console.log(JSON.stringify(out, null, 2));
     else {
-      console.log(`${out.kind === "init" ? "✅ Linear map initialized" : `✅ recorded: ${out.applied} applied, ${out.failed} failed`} · queued ${out.queued}${out.replan ? " · replan: run tickets plan again" : ""}`);
-      if (out.reset) console.log(`⚠️ relinked to another workspace/team: ${out.reset} task mapping(s) cleared (next push creates new issues)`);
-      for (const l of out.learned || []) console.log(`💡 recorded ${l} in linear.map.json`);
+      console.log(`${out.kind === "init" ? `✅ ${L} map initialized` : `✅ recorded: ${out.applied} applied, ${out.failed} failed`} · queued ${out.queued}${out.replan ? " · replan: run tickets plan again" : ""}`);
+      if (out.reset) console.log(`⚠️ relinked to another ${cfg.P.workspace.what}/${cfg.P.team}: ${out.reset} task mapping(s) cleared (next push creates new issues)`);
+      for (const l of out.learned || []) console.log(`💡 recorded ${l} in ${MAP}`);
     }
     return 0;
   }
@@ -159,18 +162,18 @@ export async function run(argv, ctx) {
   let out;
   try {
     out = await withLock(root, async () => {
-      const r = buildDiff({ config, map: await readMap(root), remote: data, statuses: local.statuses, localTasks: local.tasks, relink: !!a.relink, repo: repoKey(root) });
-      await writeJsonAtomic(P.remote, { schema: REMOTE_SCHEMA, at: nowIso(), complete: data.complete === true, tasks: r.out.remote });
-      if ((a.relink && r.out.relink.length) || r.out.learned.length) await writeMap(root, r.map);
+      const r = buildDiff({ config, map: await readMap(root, config), remote: data, statuses: local.statuses, localTasks: local.tasks, relink: !!a.relink, repo: repoKey(root) });
+      await writeJsonAtomic(P.remote, { schema: remoteSchema(cfg.P), at: nowIso(), complete: data.complete === true, tasks: r.out.remote });
+      if ((a.relink && r.out.relink.length) || r.out.learned.length) await writeMap(root, r.map, config);
       return r.out;
     });
   } catch (e) { if (e.code === 4) return mismatch(e); throw e; }
   await removeInboxFile(root, file);
   if (json) { console.log(JSON.stringify(out, null, 2)); return 0; }
-  if (!out.items.length) console.log("✅ no Linear drift");
+  if (!out.items.length) console.log(`✅ no ${L} drift`);
   for (const i of out.items) console.log(`${i.level === "warn" ? "⚠️" : "ℹ️"} ${i.code} ${i.task} ${i.issue}${i.field ? ` ${i.field}` : ""} — ${i.message}`);
   for (const [T, r] of Object.entries(out.remote)) console.log(`${T}: ${r.state || "?"} · assignee ${r.assignee || "—"} · cycle ${r.cycle || "—"}`);
   if (a.relink) console.log(`relinked ${out.relink.length} task(s)`);
-  if (out.foreign) console.log(`ℹ️ ${out.foreign} issue(s) of other repos sharing this team ignored`);
+  if (out.foreign) console.log(`ℹ️ ${out.foreign} issue(s) of other repos sharing this ${cfg.P.team} ignored`);
   return 0;
 }

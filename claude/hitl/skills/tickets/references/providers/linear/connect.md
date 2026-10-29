@@ -1,9 +1,9 @@
-# Connect: tool discovery, server pick and identity check (`/hitl:tickets` init, push, pull)
+# Linear — connect: tool discovery, server pick and identity check (`/hitl:tickets` init, push, pull)
 
 Read by SKILL.md before the first Linear call of `init`, `push` and `pull`. `status` never needs it.
 
 ## 1. Discover the Linear MCP tools (runtime, never hardcoded)
-Details and the payload → parameter mapping: `${CLAUDE_PLUGIN_ROOT}/skills/tickets/references/linear-mcp.md`.
+Details and the payload → parameter mapping: `mcp.md` (this folder).
 - Look at your available tools for names matching `mcp__*linear*__*` (e.g. `mcp__linear-server__…`,
   `mcp__plugin_linear_linear__…`, `mcp__claude_ai_Linear__…`). If they are deferred, `ToolSearch` with
   `+linear issue` and `+linear team` (then `select:` the ones you need) to load their schemas.
@@ -14,8 +14,8 @@ Details and the payload → parameter mapping: `${CLAUDE_PLUGIN_ROOT}/skills/tic
   - `missing` → the pinned `linear.server` is not available: print `❌ <message>` (it contains
     `claude mcp add --transport http <name> https://mcp.linear.app/mcp` and `/mcp`); push → fail-open SKILL.md §4 step 5 with reason
     `pinned Linear server <name> not available`; pull → stop. Never fall back to another server.
-  - `none` → no Linear server at all (init: SKILL `init` (references/init.md step 1) message; push: SKILL.md §4 step 5 `Linear MCP not connected`; pull: stop).
-  - `save` / `pick` (init only) → SKILL `init` (references/init.md step 1).
+  - `none` → no Linear server at all (init: SKILL `init` (init.md step 1) message; push: SKILL.md §4 step 5 `Linear MCP not connected`; pull: stop).
+  - `save` / `pick` (init only) → SKILL `init` (init.md step 1).
   - `legacy` (no `linear.server` in config) → use the server whose list teams contains the `team.id` of
     `hitl-index tickets status --json` (`teamId`); none contains it → treat as an identity mismatch (§1b). Print the
     `💡` pin hint once (not with `--auto`).

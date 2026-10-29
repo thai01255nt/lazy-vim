@@ -77,7 +77,7 @@ END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: set th
 (this header line only; never task `status:` fields or boxes) and print:
 - `✅ Tasks approved.`
 - `🎯 next:` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (⚡ fast lane).
-- Linear (optional, fail-open): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onTasksApproved`
+- Ticket tracker (optional, fail-open): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onTasksApproved`
   → invoke the Skill `hitl:tickets` with `push <change-id> --auto`. Its output is informational; never change this
   skill's result because of it (error or missing command → skip silently).
 

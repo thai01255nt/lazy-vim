@@ -92,7 +92,7 @@ Claude so code với khung đã duyệt: duyệt lại / hoàn tác / để sau 
 
 | Muốn | Gõ |
 |---|---|
-| Đẩy task lên Linear | `/hitl:tickets init` (một lần), sau đó `/hitl:tickets push` |
+| Đẩy task lên Linear / Jira / GitHub | `/hitl:tickets init [linear\|jira\|github]` (một lần), sau đó `/hitl:tickets push` |
 | Audit bảo mật cả change | `/hitl:review --security-audit feat-xxx` |
 | "Grill" một ý tưởng bất kỳ | `/hitl:grilling` |
 

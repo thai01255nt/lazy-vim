@@ -85,7 +85,7 @@ Open in your editor:
 Review/edit in your editor (you may change signatures, intents, @impl owners, add/remove stubs).
 Then: /hitl:approve <T>  •  or tell me what to change.
 ```
-Linear (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` exists and `onBranch` is false, add one
+Ticket tracker (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` exists and `onBranch` is false, add one
 line `🎯 branch: git switch -c <branch>` above `Then:` (run no git command; `linear` null → nothing).
 END THE TURN. Never self-approve. On change requests: apply them, redo step 5, show the gate again.
 

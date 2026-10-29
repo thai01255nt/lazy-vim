@@ -64,13 +64,13 @@ export async function gather(root, config, { reindex = true, drift = true } = {}
   return { api, index, lock, state, tasks, statuses, drift: d };
 }
 
-/** All-scope trace (null on failure) and the optional Linear summary (null when the module is absent or disabled). */
+/** All-scope trace (null on failure) and the optional tickets summary (null when the module is absent or disabled). */
 export async function traceAndTickets(ctx, g) {
   let trace = null;
   try { trace = buildTrace(await loadTraceInputs(ctx.root, ctx.config, { index: g.index, lock: g.lock, state: g.state, tasks: g.tasks, statuses: g.statuses }), { kind: "all" }); }
   catch { trace = null; }
   let linear = null;
-  try { const m = await import("../lib/linear.mjs"); linear = await m.ticketsSummary(ctx.root, ctx.config, g.tasks, g.statuses); } catch { linear = null; }
+  try { const m = await import("../lib/tickets.mjs"); linear = await m.ticketsSummary(ctx.root, ctx.config, g.tasks, g.statuses); } catch { linear = null; }
   return { trace, linear };
 }
 
@@ -83,7 +83,7 @@ export function taskTrace(trace, T) {
     acs: { total: acs.length, proven: acs.filter((a) => a.proven).length } };
 }
 
-/** Line-2 suffix of `status --brief`: trace and Linear hints (no new lines). */
+/** Line-2 suffix of `status --brief`: trace and tickets hints (no new lines). */
 export function briefSuffix(trace, tickets) {
   let out = "";
   const acs = trace?.summary?.acs;
@@ -93,7 +93,7 @@ export function briefSuffix(trace, tickets) {
     if (trace.counts.warn) out += `, ⚠️ ${trace.counts.warn}`;
   }
   if (tickets?.enabled && tickets.configured && (tickets.outOfSync || tickets.queued))
-    out += ` · linear: ${tickets.outOfSync || 0} out of sync${tickets.queued ? `, ${tickets.queued} queued` : ""}`;
+    out += ` · ${tickets.provider || "linear"}: ${tickets.outOfSync || 0} out of sync${tickets.queued ? `, ${tickets.queued} queued` : ""}`;
   return out;
 }
 

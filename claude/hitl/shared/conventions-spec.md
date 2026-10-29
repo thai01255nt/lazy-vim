@@ -17,7 +17,7 @@ Read with `conventions.md` (core).
   `specs/<capability>/spec.md` + `specs/GLOSSARY.md` (living specs) ·
   `changes/<id>/` (proposal, spec deltas, glossary, design, data-model, contracts, tasks.md) ·
   `archive/<date>-<id>/` (finished changes) · `tasks/quick-<slug>.md` · `index/ reviews/ .inbox/` ·
-  `hitl.config.json`, `linear.map.json`. A v0.5 `planning/` dir is legacy, read-only (migrate: `hitl-index migrate --specs`).
+  `hitl.config.json`, `<provider>.map.json` (linear|jira|github). A v0.5 `planning/` dir is legacy, read-only (migrate: `hitl-index migrate --specs`).
 - Audience: proposal, spec deltas and glossary are business-readable (no code names); design, data-model, contracts and
   tasks are for developers. Prose may follow the user's language; spec keywords stay English.
 

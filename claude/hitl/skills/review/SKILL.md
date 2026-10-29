@@ -73,17 +73,17 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:
-   - `human required > 0` → run the Linear block (step 9) first, then ⛔ GATE
+   - `human required > 0` → run the tickets block (step 9) first, then ⛔ GATE
      `Decide: F-1 (accept/reject/defer/amend), F-2 … — or "fix F-1". HUMAN-routed functions: open <file> beside the report.`
      End turn. (`amend` is offered for findings with a `spec:` line and category intent, scope or todo-flow.)
    - else, verdict PASS: risk low → `hitl-index approve <T> --stage done --by auto`, print ✅ and the next frontier task
      (`hitl-index status --json` `.next`). Risk high → ✅ and `🎯 next: /hitl:approve <T> done`.
    - verdict FAIL (tests/drift/trace block) with nothing for the human to decide → 🛑 print the failing gates and
      `🎯 next: /hitl:implement <T>` (red tests), `/hitl:sync` (drift or trace references).
-9. **Linear (optional, fail-open)** — once per full review or recheck, as the last step (before the gate question when
+9. **Ticket tracker (optional, fail-open; Linear, Jira or GitHub)** — once per full review or recheck, as the last step (before the gate question when
    there is one): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onReview` → invoke the Skill
    `hitl:tickets` with `push <T> --auto` (upserts the verdict comment and state). If the task is mapped and the verdict is
-   PASS, print its `prLine` (e.g. `PR: Fixes ENG-123`). Command missing, error, or anything else → skip silently; it never
+   PASS, print its `prLine` (e.g. `PR: Fixes ENG-123`, `PR: Fixes #12`). Command missing, error, or anything else → skip silently; it never
    changes the verdict, the gate or this skill's result.
 
 ## Decisions (reply to the gate)

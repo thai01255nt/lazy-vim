@@ -1,4 +1,4 @@
-# `init [--relink]` (`/hitl:tickets init`, only when the user typed it)
+# Linear — `init [--relink]` (`/hitl:tickets init`, only when the user typed it)
 
 1. Discover tools (`connect.md` §1) and run `hitl-index tickets server <server>… --init --json`.
    - `none` → print `❌ Linear MCP not found. Install it: claude mcp add --transport http linear-server
@@ -26,6 +26,10 @@
    state of each type by position); `review` = a `started`-type state whose name matches `/review/i`, or the state named
    in config `linear.stateNames.review`; none → `null` (hitl then uses `started` for green/review/verified).
 5. List the team's labels; create the missing enabled hitl labels (names exactly as above). Collect `{name: id}`.
+   Creating a label is denied (403 "not allowed to create labels", common on the free plan or for non-admins) → stop
+   creating, print the missing labels as a table `name | color | description` (`${CLAUDE_SKILL_DIR}/references/labels.md`) for the user
+   to create in Linear (Settings → Labels, workspace or team level both work), and offer `labels off`
+   (`--set linear.labels.risk=false --set linear.labels.impl=false`). END TURN; on "created" list the labels again.
 6. Write `.hitl/.inbox/tickets-init.json`:
    `{"schema":"hitl.tickets-results/1","kind":"init","relink":<true only with --relink>,"init":{"workspace":{"urlKey":"<from
    a team/issue/project URL>"}|null,"team":{"key","id","name"},"project":{"id","name","url"}|null,

@@ -183,8 +183,8 @@ test("Linear: change = project (proposal Why/What changes/requirements), change 
   assert.match(ens.payload.content, /### Requirements\n- ACC-R5 Reset password by email\n- ACC-R6 Set a new password\n- ACC-R1 Sign in/);
   assert.match(ens.payload.content, /Repo: \.hitl\/changes\/feat-password-reset$/);
   const cr = p.ops.find((o) => o.op === "createIssue" && o.task === "T-12");
-  assert.match(cr.payload.description, /· change: feat-password-reset\n/);
-  assert.match(cr.payload.description, /- \[x\] T-12\.AC1 \(ACC-R5\.S1\)/);
+  assert.doesNotMatch(cr.payload.description, /change: /); // the change is the container, not body text (v4 format)
+  assert.match(cr.payload.description, /\n- T-12\.AC1 \(ACC-R5\.S1\)/);
   const m = normalizeMap({ planning: { "feat-x.md": { kind: "project", id: "p1" } }, tasks: { "T-1": { issue: "ENG-1", id: "i1", planning: "feat-x.md" } } });
   assert.deepEqual([m.changes, m.tasks["T-1"].change, "planning" in m, "planning" in m.tasks["T-1"]], [{ "feat-x": { kind: "project", id: "p1" } }, "feat-x", false, false]);
   assert.equal(linearCfg({ linear: { planningAs: "parent-issue" } }).changeAs, "parent-issue");
