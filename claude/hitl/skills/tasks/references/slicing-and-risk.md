@@ -23,6 +23,10 @@ risk rules, symbol rows, impl owners, AC ids and test plan; consistency check id
 - Prefactor first: "make the change easy, then make the easy change". A prefactor task has no new behaviour, its ACs say
   "existing tests stay green" plus one AC for the seam it opens.
 - Titles use the domain glossary (BUSINESS-CONTEXT) and say the behaviour, not the layer ("Register user with unique email", not "UserService").
+- Titles are short and direct (Linear Method: "short and simple issue titles that directly state what the task is"):
+  verb first, ≤ 60 characters, one behaviour; no layer or class names, no lists of every case ("Refuse settle when context
+  ended or reservation missing", not "Settle script refuses an ended context, a missing reservation and an unknown lease").
+  The cases go in the ACs. The title becomes the tracker issue title (`/hitl:tickets`).
 
 ## 2. Wide refactors (expand–contract)
 One mechanical change with a wide blast radius (rename a column, retype a shared symbol) is not a vertical slice.

@@ -5,6 +5,10 @@ byte-for-byte. Sources: Linear Method "Write issues not user stories" (short tit
 description), Linear docs (labels, priority, sub-issues, relations), Atlassian issue types / links, GitHub issue
 types, sub-issues and dependencies (research 2026-10-29).
 
+## Title
+The task title from tasks.md, as is: verb first, ≤ 60 characters, one behaviour (rule in the `/hitl:tasks` skill,
+`references/slicing-and-risk.md` §1). A long title is fixed in tasks.md; the next push updates the issue.
+
 ## Body (description)
 ```
 **Why**: <1–2 lines> (D-1, D-3)
