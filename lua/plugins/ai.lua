@@ -497,7 +497,11 @@ return {
     "coder/claudecode.nvim",
     pin = true,
     dependencies = { "folke/snacks.nvim" },
-    config = true,
+    opts = {
+      terminal = {
+        split_width_percentage = 0.45,
+      },
+    },
     keys = {
       { "<leader>aC", "<cmd>ClaudeCode<cr><cmd>ClaudeCode<cr>", desc = "Connect Claude" },
       { "<leader>a", nil, desc = "AI/Claude Code" },
