@@ -43,8 +43,12 @@ On success: `hitl-index status <T> --sync-tags`.
 ✅ Approved <T> — stage: <stage> (by human)
 🔒 Locked: <n> symbols (<new> new, <changed> re-approved) · <m> tests (<stage: stub|locked>)
 <re-approved items: Symbol — sig ⚠️→✅ / intent ⚠️→✅>
+🗑️ Removed from lock: <ids>
+✏️ Renamed in lock: <old → new>
 📐 <symbol> linked D-1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
 ```
+The `🗑️` line: only when the JSON `changes.symbols.removed` / `changes.tests.removed` is non-empty (locked items of the task deleted or renamed in code).
+The `✏️` line: one entry per JSON `changes.symbols.renamed` item (`from → to`); empty → no line.
 The `📐` line: one per entry of the JSON `specLinks` (skeleton re-approvals only); no `specLinks` → no line.
 🎯 next:
 - skeleton → `/hitl:test <T>`

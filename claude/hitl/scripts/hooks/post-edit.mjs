@@ -9,6 +9,7 @@ const HINT = {
   ORPHAN: (it) => `add @task ${it.task || "T-n"} @impl agent @status skeleton.`,
   DELETED_REFERENCED: () => "Restore it or update the referencing symbols.",
   DELETED_LOCKED: () => "Locked symbol removed; the user must re-approve or restore it.",
+  RENAMED: (it) => `Locked symbol renamed to ${it.affected?.[0]?.split("#")[1] || "?"}; update the tasks md ### Symbols row and @covers, then the user re-approves (/hitl:approve ${it.task || "<T>"} skeleton).`,
   TEST_CHANGED: () => "Locked test changed; tests change only via /hitl:test + /hitl:approve <T> tests.",
   TEST_DELETED: () => "Locked test removed.",
   TEST_SKIPPED: () => "Locked test is now skipped/todo.",

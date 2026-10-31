@@ -40,6 +40,7 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
    current : createUser(email: string, passwordHash: string, role: string): User
    spec: D-1 (Duplicate check before saving) · ACC-R1.S1, ACC-R1.S2 (change feat-user-register)
 ⚠️ INTENT_CHANGED …   approved: "<intent>"  →  current: "<intent>"
+⚠️ RENAMED UserService.createUser → UserService.registerUser (sig changed) — update the tasks md Symbols row + @covers
 ⚠️ TEST_CHANGED tests/userService.test.ts "T-12.AC2 …"
 ⚠️ ORPHAN UserService.helper — no @task
 ℹ️ STATUS_TAG_STALE UserService.createUser — source says green, computed red
@@ -77,6 +78,8 @@ decision or requirement). End turn.
 |---|---|
 | accept (contract) | Print the exact command for the user to type: `/hitl:approve <T> skeleton <symbols…>`. Mention affected callers that may need updating first. |
 | accept (locked test) | Print `/hitl:approve <T> tests` for the user to type. |
+| accept (RENAMED) | Update the tasks md `### Symbols` row and any `@covers`/`@calls` naming the old ref first, then print `/hitl:approve <T> skeleton <new>` for the user to type: approve moves the lock entry to the new id. |
+| accept (DELETED_LOCKED / TEST_DELETED) | Same commands: `/hitl:approve <T> skeleton [<symbols…>]` / `/hitl:approve <T> tests`. Approve prunes the task's locked items that no longer exist in the index (refused while a deleted symbol is still referenced — see DELETED_REFERENCED). |
 | revert | For each symbol: show a compact diff `current → approved` of the signature/docstring (from the lock's `signature`/`intent`), then Edit only those lines back (no second gate). Keep the body and the `@task/@impl/@status/@prio` tags. Then `hitl-index index <file> --json` and confirm the item disappeared from `hitl-index drift --files <file> --json`. If the body no longer fits the old signature, say so (it will show as red tests). |
 | accept + amend spec | Follow `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` with the item's `spec` block: show the 📐 Spec delta, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN. On Y apply it, then print `/hitl:approve <T> skeleton <symbols…>` for the user to type. |
 | defer | Leave it; it stays in drift and in `/hitl:flow`. |

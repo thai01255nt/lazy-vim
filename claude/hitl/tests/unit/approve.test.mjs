@@ -185,3 +185,74 @@ test("B8: recorded done/verified tag after a body-only edit is not forged; a han
   assert.equal(forgedStatuses(idx, statuses, lock, {}).length, 1);
   assert.deepEqual(forgedStatuses(idx, statuses, lock, { reviews: { [T]: { bodyHashes: { [CU]: "old" } } } }), []);
 });
+
+// ---------------------------------------------------------------- pruning locked items gone from the code
+const OLD = "src/old.ts#Old.gone";
+const dropFE = (idx) => { delete idx.symbols[FE]; idx.symbols[CU].tags.calls = ["UserRepo.save"]; return idx; };
+const taskNoFE = { ...TASKS[0], symbols: TASKS[0].symbols.filter((s) => s.ref !== "UserRepo.findByEmail") };
+
+test("prune tests: re-locking T-1 tests drops a renamed locked test of T-1, keeps other tasks' entries; drift clears", async () => {
+  const { computeDriftFrom } = await import("../../scripts/lib/drift.mjs");
+  const idx = fixtureIndex({ mode: "active" });
+  const locked = planApproval(base({ index: idx, lock: planApproval(base()).lock, state: runs(idx, "fail") })).lock;
+  locked.tests["tests/other.test.ts#gone of T-9"] = { ...locked.tests[T1], task: "T-9" };
+  const idx2 = fixtureIndex({ mode: "active" });
+  const T2b = T2.replace("returns user", "returns the new user");
+  idx2.symbols[T2b] = { ...idx2.symbols[T2], id: T2b, name: "T-1.AC2 returns the new user" };
+  delete idx2.symbols[T2];
+  const st = applyRuns(emptyState(), buildRunRecords(idx2, [T1, T2b].map((testId) => ({ testId, outcome: "fail" }))));
+  const r = planApproval(base({ index: idx2, lock: locked, stage: "tests", state: st }));
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.deepEqual(r.changes.tests.removed, [T2]);
+  assert.deepEqual(r.changes.tests.new, [T2b]);
+  assert.deepEqual(r.changes.symbols.removed, []);
+  assert.equal(r.lock.tests[T2], undefined);
+  assert.ok(r.lock.tests["tests/other.test.ts#gone of T-9"], "T-9's entry is not T-1's to prune");
+  const root = mkdtempSync(join(tmpdir(), "hitl-prune-"));
+  try {
+    const before = await computeDriftFrom(root, idx2, { lock: locked, state: st, config: {}, task: "T-1" });
+    assert.ok(before.items.some((i) => i.code === "TEST_DELETED" && i.symbol === T2));
+    const after = await computeDriftFrom(root, idx2, { lock: r.lock, state: st, config: {}, task: "T-1" });
+    assert.ok(!after.items.some((i) => i.code === "TEST_DELETED"), JSON.stringify(after.items.map((i) => i.code)));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("prune skeleton: deleted, unreferenced locked symbols of T-1 are removed; done stage never prunes", () => {
+  const lock = planApproval(base()).lock;
+  lock.symbols[OLD] = { ...lock.symbols[CU], sigHash: "sigOLD", intentHash: "intOLD" };
+  lock.symbols["src/old.ts#Other.gone"] = { ...lock.symbols[CU], task: "T-9", sigHash: "x", intentHash: "y" };
+  const r = planApproval(base({ index: dropFE(fixtureIndex()), lock, task: taskNoFE, stage: "skeleton" }));
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.deepEqual(r.changes.symbols.removed.sort(), [FE, OLD].sort());
+  assert.deepEqual(Object.keys(r.lock.symbols).sort(), [CU, "src/old.ts#Other.gone"].sort());
+  assert.deepEqual(r.changes.tests.removed, [], "skeleton stage does not prune tests");
+  const done = planApproval(base({ index: dropFE(fixtureIndex()), lock, task: taskNoFE, stage: "done", force: true }));
+  assert.deepEqual(done.changes.symbols.removed, []);
+  assert.ok(done.lock.symbols[OLD]);
+});
+
+test("prune skeleton: a deleted symbol still referenced (@calls) is refused, not pruned", () => {
+  const lock = planApproval(base()).lock;
+  const idx = fixtureIndex(); delete idx.symbols[FE]; // CU still has @calls UserRepo.findByEmail
+  const r = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton" }));
+  assert.equal(r.ok, false);
+  assert.match(r.reasons.join("\n"), /UserRepo\.findByEmail was removed but is still referenced by UserService\.createUser/);
+  const scoped = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton", symbols: ["UserRepo.findByEmail"] }));
+  assert.equal(scoped.ok, false);
+  assert.match(scoped.reasons.join("\n"), /still referenced/);
+});
+
+test("prune skeleton with --symbols: only the listed missing refs are removed", () => {
+  const lock = planApproval(base()).lock;
+  lock.symbols[OLD] = { ...lock.symbols[CU], sigHash: "sigOLD", intentHash: "intOLD" };
+  const idx = dropFE(fixtureIndex());
+  let r = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton", symbols: ["UserRepo.findByEmail"] }));
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.deepEqual(r.changes.symbols.removed, [FE]);
+  assert.ok(r.lock.symbols[OLD], "unlisted missing symbol stays");
+  r = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton", symbols: ["UserService.createUser"] }));
+  assert.deepEqual(r.changes.symbols.removed, []);
+  assert.ok(r.lock.symbols[FE] && r.lock.symbols[OLD]);
+  r = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton", symbols: ["Nope.fn"] }));
+  assert.equal(r.ok, false); assert.match(r.reasons[0], /--symbols: Nope\.fn not resolvable/);
+});

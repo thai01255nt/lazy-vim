@@ -44,10 +44,13 @@ export async function run(argv, ctx) {
     else {
       const c = plan.changes; const nm = (id) => g.index.symbols[id]?.name || id;
       console.log(`approve ${T} --stage ${plan.stage} (dry run, by ${by}):`);
-      console.log(`  symbols: new ${c.symbols.new.length}, changed ${c.symbols.changed.length}, unchanged ${c.symbols.unchanged.length}`);
+      console.log(`  symbols: new ${c.symbols.new.length}, changed ${c.symbols.changed.length}, unchanged ${c.symbols.unchanged.length}, removed ${c.symbols.removed.length}, renamed ${c.symbols.renamed.length}`);
       for (const id of c.symbols.new) console.log(`    + ${nm(id)}`);
       for (const x of c.symbols.changed) console.log(`    ~ ${nm(x.id)} (${x.what.join(",")})`);
-      console.log(`  tests: new ${c.tests.new.length}, changed ${c.tests.changed.length}, unchanged ${c.tests.unchanged.length}`);
+      for (const id of c.symbols.removed) console.log(`    - ${id} (removed from lock)`);
+      for (const x of c.symbols.renamed) console.log(`    ✏️ ${x.from} → ${x.to} (renamed in lock)`);
+      console.log(`  tests: new ${c.tests.new.length}, changed ${c.tests.changed.length}, unchanged ${c.tests.unchanged.length}, removed ${c.tests.removed.length}`);
+      for (const id of c.tests.removed) console.log(`    - ${id} (removed from lock)`);
       for (const [ac, ts] of Object.entries(c.acCoverage)) console.log(`    ${ac}: ${ts.length} test(s)`);
     }
     return 0;
@@ -75,6 +78,9 @@ export async function run(argv, ctx) {
   else {
     const k = counts(plan.lock);
     console.log(`✅ ${T} ${plan.stage} approved by ${by}: ${k.symbols} symbol(s), ${k.tests} test(s) (${k.testsLocked} locked)`);
+    const removed = [...plan.changes.symbols.removed, ...plan.changes.tests.removed];
+    if (removed.length) console.log(`🗑️ removed from lock: ${removed.join(", ")}`);
+    if (plan.changes.symbols.renamed.length) console.log(`✏️ renamed in lock: ${plan.changes.symbols.renamed.map((x) => `${x.from} → ${x.to}`).join(", ")}`);
     if (by === "human-override") console.log(`⚠️ ${T} is marked human-override: its review routes every function to the human (L2)`);
     if (hasLinks) {
       const ids = [...new Set(specLinks.flatMap((l) => [...l.decisions.map((d) => d.id), ...l.requirements.map((r) => r.id)]))];

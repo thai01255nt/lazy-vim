@@ -5,12 +5,13 @@ import { loadConfig } from "./config.mjs";
 import { paths } from "./project.mjs";
 import { readJson } from "./fsutil.mjs";
 import { resolveRef, fileOfId, nameOfId } from "./graph.mjs";
+import { referencesTo, renamePairs } from "./lock.mjs";
 
 export const SCHEMA = "hitl.drift/1";
 const LEVEL = { block: 0, warn: 1, info: 2 };
 const ORDER = ["skeleton", "red", "wip", "green", "verified", "done"];
 const FN = new Set(["function", "method", "class"]);
-const SPEC_CODES = new Set(["SIG_CHANGED", "INTENT_CHANGED", "DELETED_LOCKED", "TODO_FLOW_CHANGED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED"]);
+const SPEC_CODES = new Set(["SIG_CHANGED", "INTENT_CHANGED", "DELETED_LOCKED", "RENAMED", "TODO_FLOW_CHANGED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED"]);
 
 async function loadStatus() {
   const p = new URL("./status.mjs", import.meta.url);
@@ -45,8 +46,17 @@ export async function computeDriftFrom(root, index, opts = {}) {
   // locked symbols
   const bySigIntent = new Map();
   for (const [id, s] of Object.entries(S)) bySigIntent.set(`${s.sigHash}:${s.intentHash}`, id);
+  const renamed = new Map(renamePairs(index, L).map((p) => [p.from, p.to]));
   for (const [id, l] of Object.entries(L.symbols)) {
     const s = S[id];
+    const to = renamed.get(id);
+    if (!s && to) {
+      const n = S[to];
+      const what = [l.sigHash !== n.sigHash && "sig", l.intentHash !== n.intentHash && "intent", l.todoHash !== n.todoHash && "todo"].filter(Boolean);
+      const diff = what.length ? { changed: what, approved: { signature: l.signature, intent: l.intent }, current: cur(n) } : {};
+      add("warn", "RENAMED", id, `${nameOfId(id)} → ${ref(to)} (locked ${l.task}) renamed${what.length ? `, ${what.join("/")} changed` : ""}. Update the tasks md ### Symbols row and any @covers/@calls naming the old ref, then re-approve (/hitl:approve ${l.task} skeleton ${ref(to)}).`, { affected: [to], ...diff });
+      continue;
+    }
     if (!s) {
       const moved = bySigIntent.get(`${l.sigHash}:${l.intentHash}`);
       if (moved) add("info", "MOVED", id, `${nameOfId(id)} (locked ${l.task}) moved to ${moved}`, { affected: [moved] });
@@ -82,15 +92,8 @@ export async function computeDriftFrom(root, index, opts = {}) {
   const removed = new Set(Object.keys(L.symbols).filter((id) => !S[id]));
   if (opts.prevIndex) for (const id of Object.keys(opts.prevIndex.symbols || {})) if (!S[id] && !["test", "suite"].includes(opts.prevIndex.symbols[id].kind)) removed.add(id);
   for (const r of removed) {
-    const name = nameOfId(r), last = name.split(".").at(-1);
-    const refs = new Set();
-    for (const [id, s] of Object.entries(S)) {
-      const tagRefs = [...(s.tags?.calls || []), ...(s.tags?.covers || [])];
-      const hitTag = tagRefs.some((t) => !resolveRef(index, t, s.file) && (t === r || t === name || name.endsWith("." + t)));
-      const hitCall = (s.unresolvedCalls || []).some((u) => u.split(".").at(-1) === last);
-      if (hitTag || hitCall) refs.add(id);
-    }
-    if (refs.size) add("block", "DELETED_REFERENCED", r, `${name} was removed but is still referenced by ${[...refs].map(ref).join(", ")}`, { affected: [...refs].sort(), task: L.symbols[r]?.task ?? null });
+    const refs = referencesTo(index, r, (t, f) => resolveRef(index, t, f));
+    if (refs.length) add("block", "DELETED_REFERENCED", r, `${nameOfId(r)} was removed but is still referenced by ${refs.map(ref).join(", ")}`, { affected: refs, task: L.symbols[r]?.task ?? null });
   }
 
   // locked tests

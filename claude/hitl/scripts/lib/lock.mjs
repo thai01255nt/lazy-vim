@@ -155,6 +155,45 @@ export function taskTestIds(index, taskId, symIds) {
   return out.sort();
 }
 
+/**
+ * Index symbols that still point at removed symbol id `r` (an unresolved @calls/@covers tag naming it, or an unresolved
+ * call to its last name segment). Drift reports these as DELETED_REFERENCED; approve refuses to prune such a symbol.
+ * `resolve(ref, fromFile)` defaults to the local resolver; drift passes P1 graph.resolveRef.
+ */
+export function referencesTo(index, r, resolve = (ref, file) => resolveRefLocal(index, ref, file)) {
+  const name = r.slice(r.indexOf("#") + 1), last = name.split(".").at(-1);
+  const refs = [];
+  for (const [id, s] of Object.entries(index?.symbols || {})) {
+    const tagRefs = [...(s.tags?.calls || []), ...(s.tags?.covers || [])];
+    const hitTag = tagRefs.some((t) => !resolve(t, s.file) && (t === r || t === name || name.endsWith("." + t)));
+    const hitCall = (s.unresolvedCalls || []).some((u) => u.split(".").at(-1) === last);
+    if (hitTag || hitCall) refs.push(id);
+  }
+  return refs.sort();
+}
+
+/**
+ * Tag-based rename detection: a locked symbol L missing from the index and an unlocked index symbol N form a pair when
+ * N is in L's file, tagged `@task <L.task>`, and its `@prio` equals L's locked `prio` (entries locked without prio never
+ * match). One-to-one only: L with 0 or >1 candidates, or N matching >1 L, yields no pair (delete + add instead).
+ * Returns [{from, to, task}] sorted by `from`.
+ */
+export function renamePairs(index, lock) {
+  const S = index?.symbols || {}, L = lock?.symbols || {};
+  const cand = new Map(), back = new Map();
+  for (const [old, l] of Object.entries(L)) {
+    if (S[old] || l.prio == null) continue;
+    const file = old.slice(0, old.indexOf("#"));
+    const ns = Object.values(S).filter((s) => s.file === file && !L[s.id] && !isTest(s) && s.kind !== "suite"
+      && (s.tags?.task || []).includes(l.task) && s.tags?.prio === l.prio).map((s) => s.id);
+    cand.set(old, ns);
+    for (const n of ns) back.set(n, (back.get(n) || 0) + 1);
+  }
+  const out = [];
+  for (const [from, ns] of cand) if (ns.length === 1 && back.get(ns[0]) === 1) out.push({ from, to: ns[0], task: L[from].task });
+  return out.sort((a, b) => a.from.localeCompare(b.from));
+}
+
 export function taskRisk(task, lock, taskId) { return task?.risk || lock?.tasks?.[taskId]?.risk || "high"; }
 
 /** `--by` values. "human-override" = the user forced the fast lane (`/hitl:implement <T> --lane fast`, hook token). */
@@ -192,7 +231,7 @@ export function planApproval(opts) {
   const lock = normalizeLock(JSON.parse(JSON.stringify(opts.lock || emptyLock())));
   const stage = opts.stage || defaultStage(lock, taskId);
   const reasons = [];
-  const changes = { symbols: { new: [], changed: [], unchanged: [] }, tests: { new: [], changed: [], unchanged: [] }, acCoverage: {} };
+  const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
   const res = (ok) => ({ ok, stage, task: taskId, by, reasons, changes, lock });
 
   if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done)`); return res(false); }
@@ -212,10 +251,15 @@ export function planApproval(opts) {
   lt.risk = risk;
 
   if (stage === "skeleton") {
+    const nm = (id) => id.slice(id.indexOf("#") + 1);
+    const pairs = renamePairs(index, lock).filter((p) => p.task === taskId);
+    const pairOf = (ref) => pairs.find((p) => p.from === ref || nm(p.from) === ref);
     if (task?.parseErrors?.length) reasons.push(`tasks file parse errors: ${task.parseErrors.map((e) => e.message || e).join("; ")}`);
     for (const sym of task?.symbols || []) {
       const r = resolveWith(api, index, sym.ref, sym.file);
-      if (!r) reasons.push(`symbol ${sym.ref} not found in index (expected in ${sym.file})`);
+      const rn = !r && pairOf(sym.ref);
+      if (rn) reasons.push(`symbol ${sym.ref} was renamed to ${nm(rn.to)}: update its ### Symbols row in ${task.file || "the tasks md"} (and any @covers/@calls naming it)`);
+      else if (!r) reasons.push(`symbol ${sym.ref} not found in index (expected in ${sym.file})`);
       else if (r.ambiguous) reasons.push(`symbol ${sym.ref} is ambiguous: ${r.ambiguous.join(", ")}`);
       else if (!(index.symbols[r.id].tags?.task || []).includes(taskId)) reasons.push(`symbol ${sym.ref} has no @task ${taskId} tag`);
     }
@@ -227,22 +271,58 @@ export function planApproval(opts) {
     if (!symIds.length) reasons.push(`no indexed symbols tagged @task ${taskId}`);
     if (reasons.length && !opts.force) return res(false);
 
-    let pick = allIds;
+    // Locked symbols of T gone from the index are pruned (all of them, or only the listed ones with --symbols).
+    // Rename pairs (renamePairs) move their entry to the new id instead; in scope when either old or new ref is listed.
+    const renamedFrom = new Set(pairs.map((p) => p.from));
+    const gone = Object.keys(lock.symbols).filter((id) => lock.symbols[id].task === taskId && !index.symbols[id] && !renamedFrom.has(id));
+    let pick = allIds, prune = gone, renames = pairs;
     if (opts.symbols?.length) {
-      pick = [];
+      pick = []; prune = []; renames = [];
       for (const ref of opts.symbols) {
         const r = resolveWith(api, index, ref);
-        if (!r?.id) { reasons.push(`--symbols: ${ref} not resolvable`); continue; }
-        pick.push(r.id);
+        if (r?.id) { pick.push(r.id); const p = pairs.find((x) => x.to === r.id); if (p) renames.push(p); continue; }
+        const p = pairOf(ref);
+        if (p) { renames.push(p); pick.push(p.to); continue; }
+        const g = gone.filter((id) => id === ref || id.endsWith("#" + ref));
+        if (g.length === 1) prune.push(g[0]);
+        else reasons.push(`--symbols: ${ref} not resolvable`);
       }
       if (reasons.length) return res(false);
+      pick = [...new Set(pick)]; renames = [...new Set(renames)];
+    }
+    const before = reasons.length;
+    for (const p of renames) {
+      const refs = referencesTo(index, p.from, (t, f) => resolveWith(api, index, t, f));
+      if (refs.length) reasons.push(`${nm(p.from)} was renamed to ${nm(p.to)} but the old name is still referenced by ${refs.map((x) => index.symbols[x]?.name || x).join(", ")}: update those callers/@calls/@covers (and the tasks md ### Symbols row) first`);
+    }
+    if (reasons.length > before) return res(false); // old name still referenced: refused even with --force
+    const renameTo = new Map(renames.map((p) => [p.to, p.from]));
+    const referenced = new Set();
+    for (const id of prune) {
+      const refs = referencesTo(index, id, (t, f) => resolveWith(api, index, t, f));
+      if (!refs.length) continue;
+      referenced.add(id);
+      reasons.push(`${id.slice(id.indexOf("#") + 1)} was removed but is still referenced by ${refs.map((x) => index.symbols[x]?.name || x).join(", ")}: restore it or update those callers/@calls/@covers before pruning it from the lock`);
+    }
+    if (reasons.length && !opts.force) return res(false);
+    for (const id of prune) {
+      if (referenced.has(id)) continue;
+      delete lock.symbols[id];
+      if (lt.doneBodyHashes) delete lt.doneBodyHashes[id];
+      changes.symbols.removed.push(id);
     }
     for (const id of pick) {
       const s = index.symbols[id];
-      const prev = lock.symbols[id];
-      const entry = { task: taskId, impl: s.tags?.impl || "agent", signature: s.signature, intent: s.intent, todos: s.todos || [],
-        sigHash: s.sigHash, intentHash: s.intentHash, todoHash: s.todoHash, approvedAt: now, approvedBy: by };
-      if (!prev) changes.symbols.new.push(id);
+      const from = renameTo.get(id);
+      const prev = lock.symbols[id] || (from && lock.symbols[from]);
+      let entry = { task: taskId, impl: s.tags?.impl || "agent", signature: s.signature, intent: s.intent, todos: s.todos || [],
+        sigHash: s.sigHash, intentHash: s.intentHash, todoHash: s.todoHash, prio: s.tags?.prio ?? undefined, approvedAt: now, approvedBy: by };
+      if (from) {
+        entry = { ...prev, ...entry, renamedFrom: from };
+        delete lock.symbols[from];
+        if (lt.doneBodyHashes?.[from]) { lt.doneBodyHashes[id] = lt.doneBodyHashes[from]; delete lt.doneBodyHashes[from]; }
+        changes.symbols.renamed.push({ from, to: id });
+      } else if (!prev) changes.symbols.new.push(id);
       else {
         const what = [];
         if (prev.sigHash !== s.sigHash) what.push("sig");
@@ -285,6 +365,9 @@ export function planApproval(opts) {
       else if (r.outcome === "skip") reasons.push(`${name}: skipped`);
     }
     if (reasons.length && !opts.force) return res(false);
+    for (const id of Object.keys(lock.tests)) {
+      if (lock.tests[id].task === taskId && !index.symbols[id]) { delete lock.tests[id]; changes.tests.removed.push(id); }
+    }
     for (const id of testIds) {
       const t = index.symbols[id];
       const prev = lock.tests[id];
