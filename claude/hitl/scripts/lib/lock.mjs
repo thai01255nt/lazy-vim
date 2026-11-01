@@ -155,9 +155,18 @@ export function taskTestIds(index, taskId, symIds) {
   return out.sort();
 }
 
+/** An unresolved call made through `super`: the call itself (`super`, `super(...)`) or a member of it (`super.m`, `super().m`). */
+export function isSuperCall(u) {
+  const dot = u.lastIndexOf("."), qual = dot < 0 ? u : u.slice(0, dot);
+  return /^super(\(.*\))?$/.test(qual);
+}
+
 /**
  * Index symbols that still point at removed symbol id `r` (an unresolved @calls/@covers tag naming it, or an unresolved
  * call to its last name segment). Drift reports these as DELETED_REFERENCED; approve refuses to prune such a symbol.
+ * Calls through `super` (Python `super().m` / `super(C, self).m`, TS/JS/Java `super.m` / `super(...)`) are skipped:
+ * they target the caller's own base class, and matching them by last segment made every `super().__init__()` a
+ * reference to any deleted `X.__init__`.
  * `resolve(ref, fromFile)` defaults to the local resolver; drift passes P1 graph.resolveRef.
  */
 export function referencesTo(index, r, resolve = (ref, file) => resolveRefLocal(index, ref, file)) {
@@ -166,7 +175,7 @@ export function referencesTo(index, r, resolve = (ref, file) => resolveRefLocal(
   for (const [id, s] of Object.entries(index?.symbols || {})) {
     const tagRefs = [...(s.tags?.calls || []), ...(s.tags?.covers || [])];
     const hitTag = tagRefs.some((t) => !resolve(t, s.file) && (t === r || t === name || name.endsWith("." + t)));
-    const hitCall = (s.unresolvedCalls || []).some((u) => u.split(".").at(-1) === last);
+    const hitCall = (s.unresolvedCalls || []).some((u) => !isSuperCall(u) && u.split(".").at(-1) === last);
     if (hitTag || hitCall) refs.push(id);
   }
   return refs.sort();

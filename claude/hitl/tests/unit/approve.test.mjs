@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { planApproval, defaultStage, readLock, writeLock, emptyLock, stableStringify } from "../../scripts/lib/lock.mjs";
+import { planApproval, defaultStage, readLock, writeLock, emptyLock, stableStringify, referencesTo, isSuperCall } from "../../scripts/lib/lock.mjs";
 import { applyRuns, emptyState, recordRuns, readState, recordReview } from "../../scripts/lib/state.mjs";
 import { buildRunRecords } from "../../scripts/lib/runner.mjs";
 import { computeStatuses } from "../../scripts/lib/status.mjs";
@@ -255,4 +255,17 @@ test("prune skeleton with --symbols: only the listed missing refs are removed", 
   assert.ok(r.lock.symbols[FE] && r.lock.symbols[OLD]);
   r = planApproval(base({ index: idx, lock, task: taskNoFE, stage: "skeleton", symbols: ["Nope.fn"] }));
   assert.equal(r.ok, false); assert.match(r.reasons[0], /--symbols: Nope\.fn not resolvable/);
+});
+
+test("referencesTo: calls through super never reference a deleted method (any language)", () => {
+  const index = { symbols: {
+    "a.py#ErrResp.__init__": { file: "a.py", unresolvedCalls: ["super", "super().__init__", "super(Exception, self).__init__"] },
+    "b.ts#View.render": { file: "b.ts", unresolvedCalls: ["super", "super.render"] },
+    "c.py#Use.run": { file: "c.py", unresolvedCalls: ["enc.__init__", "widget.render"] },
+  } };
+  const none = () => null;
+  assert.deepEqual(referencesTo(index, "gone.py#Encoder.__init__", none), ["c.py#Use.run"]);
+  assert.deepEqual(referencesTo(index, "gone.ts#Widget.render", none), ["c.py#Use.run"]);
+  assert.ok(isSuperCall("super") && isSuperCall("super()") && isSuperCall("super().x") && isSuperCall("super(A.B, self).x") && isSuperCall("super.x"));
+  assert.ok(!isSuperCall("superUser.x") && !isSuperCall("self.super") && !isSuperCall("obj.__init__"));
 });
