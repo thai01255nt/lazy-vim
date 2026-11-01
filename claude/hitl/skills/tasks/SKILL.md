@@ -40,7 +40,7 @@ write its exact path. Many unknowns → one Explore subagent (thoroughness: medi
 
 ## 4. Draft
 Per `slicing-and-risk.md`: vertical slices (prefactor first, expand–contract for wide refactors), `blocked-by` edges,
-prio P0–P3, risk with reasons, 2–6 ACs `T-n.ACk`, symbols in implement order with owner, test-plan row per AC.
+prio P0–P3, risk with reasons, 2–6 ACs `T-n.ACk`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), test-plan row per AC.
 - Tasks come from the **scenarios** (behaviour) sliced along the design's **components** (where it lives).
 - Each AC carries the scenario it instantiates right after its id: `- [ ] T-12.AC1 (ACC-R3.S1) Given … When … Then …`.
   Only ADDED/MODIFIED (or living, for a regression AC) ids of the change's view. A requirement-level ref `(ACC-R3)` is

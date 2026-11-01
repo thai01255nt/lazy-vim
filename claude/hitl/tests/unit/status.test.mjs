@@ -167,24 +167,25 @@ test("status --brief: trace and Linear hints go on line 2, never a new line", as
   assert.match(out[1], /^tasks: 1 \(done 0\).* · trace: AC 0\/1 proven/);
 });
 
-test("byPrio: @prio ascending, untagged last, ties by name", async () => {
-  const { byPrio } = await import("../../scripts/cmd/status.mjs");
-  const index = { symbols: { a: { name: "zeta", tags: { prio: 2 } }, b: { name: "beta", tags: {} }, c: { name: "alpha", tags: { prio: 1 } }, d: { name: "alpha2" }, e: { name: "eta", tags: { prio: 1 } } } };
-  assert.deepEqual(byPrio(["a", "b", "c", "d", "e"], index), ["c", "e", "a", "d", "b"]);
-});
-
-test("status <T> --by-prio: prio column, rows sorted by @prio", async () => {
+test("status <T> --by-prio / --work-order: # column, callees first (createUser @calls findByEmail), JSON workOrder", async () => {
   const { run } = await import("../../scripts/cmd/status.mjs");
   const { makeProject } = await import("./_project.mjs");
   const { loadConfig } = await import("../../scripts/lib/config.mjs");
   const root = makeProject();
-  const out = []; const log = console.log; console.log = (s) => out.push(...String(s).split("\n"));
-  try { await run(["T-1", "--by-prio"], { root, config: await loadConfig(root), json: false }); } finally { console.log = log; }
-  const head = out.findIndex((l) => l.startsWith("| prio | symbol |"));
-  assert.ok(head >= 0, out.join("\n"));
-  const prios = out.slice(head + 2).filter((l) => l.startsWith("| ")).map((l) => l.split("|")[1].trim());
-  assert.deepEqual(prios, [...prios].sort((a, b) => (a === "?" ? Infinity : +a) - (b === "?" ? Infinity : +b)));
-  assert.equal(prios[0], "1", out.join("\n"));
+  for (const flag of ["--by-prio", "--work-order"]) {
+    const out = []; const log = console.log; console.log = (s) => out.push(...String(s).split("\n"));
+    try { await run(["T-1", flag], { root, config: await loadConfig(root), json: false }); } finally { console.log = log; }
+    const head = out.findIndex((l) => l.startsWith("| # | prio | symbol |"));
+    assert.ok(head >= 0, out.join("\n"));
+    const rows = out.slice(head + 2).filter((l) => l.startsWith("| ")).map((l) => l.split("|").slice(1, 4).map((c) => c.trim()));
+    assert.deepEqual(rows.map((r) => r[0]), rows.map((_, i) => String(i + 1)));
+    const names = rows.map((r) => r[2]);
+    assert.ok(names.indexOf("UserRepo.findByEmail") >= 0 && names.indexOf("UserRepo.findByEmail") < names.indexOf("UserService.createUser"), out.join("\n"));
+  }
+  const out = []; const log = console.log; console.log = (s) => out.push(String(s));
+  try { await run(["T-1", "--json"], { root, config: await loadConfig(root), json: true }); } finally { console.log = log; }
+  const wo = JSON.parse(out.join("\n")).tasks["T-1"].workOrder;
+  assert.deepEqual(wo.filter((id) => /findByEmail|createUser/.test(id)).map((id) => id.split("#")[1]), ["UserRepo.findByEmail", "UserService.createUser"]);
 });
 
 test("sortTaskIds: numeric ids; with prio, P0 first and no prio last", async () => {

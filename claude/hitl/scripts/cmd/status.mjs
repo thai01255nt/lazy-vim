@@ -1,4 +1,4 @@
-// P2 — `hitl-index status [T] [--brief] [--json] [--sync-tags] [--by-prio]` (§E.6)
+// P2 — `hitl-index status [T] [--brief] [--json] [--sync-tags] [--work-order|--by-prio]` (§E.6)
 import { parseArgs } from "node:util";
 import { promises as fsp } from "node:fs";
 import { join, basename } from "node:path";
@@ -8,8 +8,10 @@ import { computeStatuses } from "../lib/status.mjs";
 import { computeNext, lockedDrift } from "../lib/nextstep.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
+import { workOrder } from "../lib/workorder.mjs";
+import { resolveWith } from "../lib/lock.mjs";
 
-export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, "by-prio": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
+export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, "by-prio": { type: "boolean" }, "work-order": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
 
 async function planningInfo(root) {
   const P = p2paths(root); const out = [];
@@ -24,14 +26,12 @@ async function planningInfo(root) {
 }
 
 /**
- * Symbol ids of one task in `@prio` order (no `@prio` last, then by name). Other orders keep the task's own order.
- * @param {string[]} ids
- * @param {{symbols:{[id]:{name?:string, tags?:{prio?:number}}}}} index
+ * Symbol ids of task T in work order (callees first over `@calls`, then `@prio`, then `### Symbols` row; lib/workorder.mjs).
+ * @param {string[]} ids @param {object} index @param {{symbols?:{ref:string,file?:string}[]}} [task] @param {object} [api]
  */
-export function byPrio(ids, index) {
-  const key = (id) => index.symbols[id]?.tags?.prio ?? Infinity;
-  const name = (id) => index.symbols[id]?.name || id;
-  return [...ids].sort((a, b) => key(a) - key(b) || name(a).localeCompare(name(b)));
+export function taskWorkOrder(ids, index, task, api) {
+  const rows = (task?.symbols || []).map((r) => resolveWith(api, index, r.ref, r.file)?.id).filter(Boolean);
+  return workOrder(ids, index, { rows });
 }
 
 /** Task ids by number (T-2 before T-10); with `prioOf`, by priority first (P0, P1, …; none last). */
@@ -131,7 +131,8 @@ export async function run(argv, ctx) {
       sync = await synctags(ctx.root, { task: T, config: ctx.config });
     }
     const g = await gather(ctx.root, ctx.config, { reindex: !sync });
-    const { index, tasks, statuses, drift, lock } = g;
+    const { index, tasks, statuses, drift, lock, api } = g;
+    const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
     const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes });
     const ld = lockedDrift(drift, lock);
@@ -146,7 +147,7 @@ export async function run(argv, ctx) {
     if (json) {
       const pick = T ? Object.fromEntries(Object.entries(statuses.symbols).filter(([id]) => statuses.tasks[T].symbols.includes(id))) : statuses.symbols;
       const enrich = (id, st) => { const m = tmeta(id); const items = (drift?.items || []).filter((i) => i.task === id);
-        return { ...st, title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
+        return { ...st, workOrder: taskWorkOrder(st.targets || st.symbols || [], index, m, api), title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
           trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
@@ -169,16 +170,16 @@ export async function run(argv, ctx) {
       if (ld.length) console.log(`⚠️ HITL: ${ld.length} drift item(s) on locked symbols — run /hitl:sync`);
       return 0;
     }
-    const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), v["by-prio"] ? (id) => tmeta(id).prio : null);
+    const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
     for (const [id, s] of rows) { const m = tmeta(id); console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status} | ${s.next || "—"} |`); }
-    if (v["by-prio"]) {
+    if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
         if (!syms.length) continue;
-        console.log(`\n${T ? "" : `### ${id}\n`}| prio | symbol | impl | status | reasons |\n|---|---|---|---|---|`);
-        for (const sid of byPrio(syms, index)) { const S = index.symbols[sid]; const st = statuses.symbols[sid]; console.log(`| ${S?.tags?.prio ?? "?"} | ${S?.name || sid} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
+        console.log(`\n${T ? "" : `### ${id}\n`}| # | prio | symbol | impl | status | reasons |\n|---|---|---|---|---|---|`);
+        taskWorkOrder(syms, index, tmeta(id), api).forEach((sid, i) => { const S = index.symbols[sid]; const st = statuses.symbols[sid]; console.log(`| ${i + 1} | ${S?.tags?.prio ?? "?"} | ${S?.name || sid} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); });
       }
     } else if (T) {
       console.log("\n| symbol | impl | status | reasons |\n|---|---|---|---|");

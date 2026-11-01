@@ -201,7 +201,7 @@ Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
-| `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo `@prio`: agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
+| `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
 | `/hitl:implement --feature <change-id> [--lane fast]` | Build rồi review: chạy mọi task của một change theo thứ tự (blocked-by, rồi prio), mỗi task theo lane của nó; dừng **một lần** ở cuối với review gộp `reviews/feature-<name>.md` (xem 5b) | ⛔ cuối / dừng sớm | chỉ bạn |
 | `/hitl:review <T> [fix F-n\|amend F-n\|recheck]` | Review nhiều lớp (L0 có gate `trace`) + fix loop; `amend F-n` = accept + sửa spec | ⛔ nếu cần người quyết | bạn / Claude |
 | `/hitl:review --security-audit [<change-id>\|repo] [--out <dir>]` | Audit bảo mật đầy đủ 6 phase (Cloudflare `security-audit`) cho một feature hoặc cả repo; link `REPORT.md` vào `reviews/feature-<name>.md` (xem 6a) | — | bạn / Claude |
@@ -211,7 +211,8 @@ Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|conflicts|merge|archive`, `hitl-index change [<id>]`
 (trạng thái/phase của change), `hitl-index migrate --specs` (v0.5 → 0.6),
-`hitl-index status [T-id] --by-prio` (bảng hàm của task có cột `prio`, sắp theo `@prio`; không có T-id → mọi task),
+`hitl-index status [T-id] --work-order` (alias `--by-prio`; bảng hàm của task theo thứ tự implement: hàm được gọi
+(`@calls` trong cùng task) trước hàm gọi, chu trình đi cùng nhau, hoà thì theo `@prio` rồi dòng `### Symbols`; `--json` có `tasks[T].workOrder`; không có T-id → mọi task),
 `hitl-index strip <T-id|change-id> [--dry-run]` (task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
 code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại để kiểm tra, có thay đổi hash/status thì tự khôi phục),
 `hitl-index trace [T-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),

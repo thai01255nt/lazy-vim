@@ -72,7 +72,10 @@ Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` exist
 
 ## Step 2 — Work list
 
-Task symbols whose status ∈ {skeleton, red, wip}, sorted by `@prio` (the `### Symbols` order breaks ties).
+Task symbols whose status ∈ {skeleton, red, wip}, in **work order**: `status <T> --json` → `tasks[T].workOrder`
+(also `hitl-index status <T> --work-order`). Work order = callees before callers over the task's own `@calls` (cycles kept
+together), then `@prio`, then the `### Symbols` row. Never reorder it by `@prio` alone: a caller implemented before its
+callees only hits their sentinels.
 If `symbol` was given, the list is just that symbol (short ref is fine if unambiguous; otherwise ask via a gate).
 
 Print it in the v2 style, then start the first item without asking (the `/hitl:implement` call is the go-ahead):
@@ -107,7 +110,7 @@ messages (if any), then continue with the next symbol.
    Max iterations: 3. Return the JSON from your Output section.
    ```
    Never paste this session's history. Never run two implementers on the same file at once.
-3. It returns `{symbol, result: "green"|"stuck", iterations, testsPassed, contractIssue?, specConflict?, notes}`.
+3. It returns `{symbol, result: "green"|"unreachable"|"stuck", via?, iterations, testsPassed, contractIssue?, specConflict?, notes}`.
    - `contractIssue` or `specConflict` → 🛑 stop the loop and print the **spec change proposal card** (spec links from
      `hitl-index context <ref> --json` / `hitl-index trace <T> --json`; omit the `conflicts with` line when none):
      ```
@@ -119,6 +122,9 @@ messages (if any), then continue with the next symbol.
      ```
      ⛔ GATE, end turn. Option 1 → `shared/amend-spec.md` (📐 Spec delta, `Apply? (Y/n/edit)`, then the approve command).
      Never let the agent deviate from the contract, and never re-run it with a "work around it" hint.
+   - `unreachable` (its tests enter through a task caller that is still a stub — `via`) → not a failure: print
+     `⏭ <ref> written, verified later through <via>` and go on (high risk: still the step-4 gate). The caller's turn
+     verifies it; step 5 still needs every symbol green. `via` is not later in the work order → treat as `stuck`.
    - `stuck` → 🛑 print the last failing output, iterations used, and the implementer's hypothesis.
      💡 Suggest systematic debugging: reproduce with the single failing test, read the full error, check the TODO step it maps to.
      Offer: `1. I retry with your hint  2. you implement it (flip @impl manual)  3. revisit the skeleton`. ⛔ GATE, end turn.

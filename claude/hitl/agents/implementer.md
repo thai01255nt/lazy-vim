@@ -30,7 +30,11 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
 3. **Loop** (max iterations): run the test command, read the **full** output, fix the body, repeat.
    Failing test → fix the code, never the test. Read the failure message before changing anything; form one hypothesis per
    iteration (systematic debugging, not random edits).
-4. Finish only after a **fresh passing run** of the test command in this session (verification-before-completion,
+   **Unreachable:** every failing test fails at another task symbol's sentinel (`TODO(impl): <other ref>`) or the test
+   command finds no test for the symbol → the tests cannot reach your code yet (a caller is still a stub). Do not loop:
+   finish the body against the contract (typecheck clean if `commands.typecheck` is set) and return `"result": "unreachable"`
+   with `"via": "<other ref>"`. Never edit the other symbol.
+4. Unless unreachable, finish only after a **fresh passing run** of the test command in this session (verification-before-completion,
    adapted from obra/superpowers, MIT). Also run `hitl-index test --task <T> --json` once at the end and report regressions
    in other symbols by name.
 
@@ -55,7 +59,7 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
 ## Output
 
 ```json
-{ "symbol": "<id>", "result": "green" | "stuck", "iterations": 2, "testsPassed": "3/3",
+{ "symbol": "<id>", "result": "green" | "unreachable" | "stuck", "via": "<only if unreachable>", "iterations": 2, "testsPassed": "3/3",
   "contractIssue": "<only if the contract blocks a correct implementation>",
   "specConflict": { "ref": "D-1" | "ACC-R3.S1" | null, "problem": "<what in the spec/design blocks a correct implementation>",
                     "proposal": "<proposed decision/requirement change>" },

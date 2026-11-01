@@ -51,8 +51,8 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
 | `@task` | code | owning task(s) |
 | `@impl` | code | who writes the body: `agent` or `manual` (human). Only the human flips it. |
 | `@status` | code | computed lifecycle state (tooling) |
-| `@prio` | code | implement order inside the task (1 = first) |
-| `@calls` | code | declared collaborators; drift reports undeclared/missing calls |
+| `@prio` | code | tie-break of the implement order inside the task (1 = first); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`) |
+| `@calls` | code | declared collaborators; drift reports undeclared/missing calls; also orders implement work (callees in the same task first) |
 | `@concurrency` | code | none / shared-state / async / locks / io; ≠ none adds a concurrency test stub |
 | `@covers` | test | symbol(s) the test exercises |
 | `@ac` | test | acceptance criteria ids the test proves |

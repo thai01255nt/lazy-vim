@@ -32,7 +32,7 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 - The skeleton pattern file(s) for the languages involved and `tag-grammar.md`.
 
 ## 3. Write stubs, in `### Symbols` order
-For each row (`@prio` = row number):
+For each row (`@prio` = row number; it only breaks ties — implement order is callees first over `@calls`):
 - **modify** → edit the symbol in place: update the intent docstring, add tags, add `TODO(impl): n. …` lines where the new
   steps belong. Keep working code. Add the sentinel only when the body will be fully rewritten.
 - **new** → create it in the stated file, following file/naming patterns. Create the file only if the row says so
@@ -48,6 +48,7 @@ For each row (`@prio` = row number):
 - New classes that host the stubs: intent + `@task <T> @impl agent @status skeleton` (avoids ORPHAN), no sentinel.
 - Types/interfaces used by signatures: full field types, no sentinel. Unknown fields → `// TODO(impl): define …`.
 - A needed helper not in `### Symbols` → add a row to the task's `### Symbols` (same format, next number) and stub it;
+  list it in its caller's `@calls` (that, not the row position, puts it before the caller in the work order);
   mention it at the gate. Never add helpers silently.
 - Respect `@impl manual` rows: stub only, same as agent rows (the human writes the body later).
 
