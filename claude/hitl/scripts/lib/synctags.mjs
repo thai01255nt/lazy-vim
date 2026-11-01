@@ -66,10 +66,11 @@ export function rewriteTasksMd(text, info) {
   return join2(lines);
 }
 
-/** Compute per-task checkbox info from statuses. Pure. */
+/** Compute per-task checkbox info from statuses. Pure. Archived tasks are skipped: an archive is a frozen record. */
 export function tasksInfo(index, state, statuses, tasks, resolve) {
   const info = {};
   for (const task of tasks) {
+    if (task.archived) continue;
     const st = statuses.tasks?.[task.id]; if (!st) continue;
     const I = { status: st.status, acDone: {}, symDone: {} };
     for (const ac of task.acs || []) {

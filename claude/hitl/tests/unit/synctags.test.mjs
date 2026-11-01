@@ -89,3 +89,13 @@ test("tasksInfo: AC done when all its tests pass fresh; symbol done when verifie
   assert.deepEqual(i2["T-1"].symDone, { 1: true, 2: true });
   assert.equal(i2["T-1"].status, "verified");
 });
+
+test("tasksInfo: archived tasks are skipped (archive tasks.md is never rewritten)", () => {
+  const idx = fixtureIndex({ mode: "active", implemented: true });
+  const st = applyRuns(emptyState(), buildRunRecords(idx, [{ testId: IDS.T1, outcome: "fail" }]));
+  const statuses = computeStatuses(idx, null, st, {}, TASKS);
+  const resolve = (ref) => Object.keys(idx.symbols).find((id) => id.endsWith("#" + ref)) || null;
+  const archived = TASKS.map((t) => ({ ...t, archived: true }));
+  assert.deepEqual(tasksInfo(idx, st, statuses, archived, resolve), {});
+  assert.ok(tasksInfo(idx, st, statuses, TASKS, resolve)["T-1"]);
+});
