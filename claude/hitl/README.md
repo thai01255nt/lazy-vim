@@ -217,7 +217,7 @@ CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|
 (trạng thái/phase của change), `hitl-index migrate --specs` (v0.5 → 0.6),
 `hitl-index status [T-id] --work-order` (alias `--by-prio`; bảng hàm của task theo thứ tự implement: hàm được gọi
 (`@calls` trong cùng task) trước hàm gọi, chu trình đi cùng nhau, hoà thì theo `@prio` rồi dòng `### Symbols`; `--json` có `tasks[T].workOrder`; không có T-id → mọi task),
-`hitl-index strip <T-id|change-id> [--dry-run]` (task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
+`hitl-index strip <T-id|change-id>[,…] [--dry-run]` (vd. `T-1,T-2`; task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
 code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại để kiểm tra, có thay đổi hash/status thì tự khôi phục),
 `hitl-index trace [T-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),
 `hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
@@ -485,7 +485,7 @@ là tag → một lần `INTENT_CHANGED` trên symbol đã khoá (hiếm).
 |---|---|---|
 | `ts-compiler@<ver>` | TS/JS (khi project có `typescript`) | chính xác (AST) |
 | `ts-lite@1` | TS/JS (fallback, không cần dependency) | gần đúng |
-| `py-ast@1` | Python (`python3 -I`, stdlib `ast`) | chính xác |
+| `py-ast@2` | Python (`python3 -I`, stdlib `ast`) | chính xác |
 | `ctags@1+<ver>` | mọi ngôn ngữ Universal Ctags hỗ trợ (cần bản build có `+json`) | tìm symbol bằng ctags; body/hash/call dùng logic generic |
 | `generic@1` | Java, Kotlin, Scala, Groovy, Go, Rust, C, C++, C#, Swift, PHP, Ruby, Dart, Lua, Shell, SQL, Elixir, Nim (+ Python khi thiếu `python3`) | gần đúng, không cần dependency |
 

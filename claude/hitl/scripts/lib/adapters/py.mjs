@@ -1,4 +1,4 @@
-// py-ast@1: runs scripts/adapters/py_index.py with `python3 -I` once per batch (§E.3.3).
+// py-ast@2: runs scripts/adapters/py_index.py with `python3 -I` once per batch (§E.3.3).
 import { spawn, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { PLUGIN_DIR, isTestFile } from "../config.mjs";
@@ -24,7 +24,7 @@ function runPy(input, timeoutMs = 15000) {
 }
 
 export default {
-  id: "py-ast@1",
+  id: "py-ast@2",
   langs: ["py"],
   available: async () => (avail ??= spawnSync("python3", ["-I", "-c", "import ast,sys; sys.exit(0 if sys.version_info >= (3,9) else 1)"], { stdio: "ignore", timeout: 10000 }).status === 0),
   parse: async (files, ctx) => {

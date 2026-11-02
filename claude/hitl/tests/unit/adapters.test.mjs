@@ -184,7 +184,7 @@ test("registry: custom adapter first, adapters.<lang> override, generic fallback
     assert.equal((await adapterFor("ts", root, { ...DEFAULTS, adapters: { ts: "ts-lite" } })).id, "ts-lite@1");
     assert.match(describeAdapter("kotlin", "generic@1"), /^kotlin → generic@1 \(approx; install universal-ctags for better symbol discovery\)$/);
   } finally { process.env.PATH = env; }
-  if (await py.available()) assert.equal((await adapterFor("py", root, DEFAULTS)).id, "py-ast@1");
+  if (await py.available()) assert.equal((await adapterFor("py", root, DEFAULTS)).id, "py-ast@2");
 });
 
 test("config: language detection by extension, languages include/exclude, toIndexSymbols strips generic comments", async () => {

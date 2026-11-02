@@ -1,4 +1,4 @@
-"""py-ast@1 adapter for hitl-index (stdlib only; run with python3 -I).
+"""py-ast@2 adapter for hitl-index (stdlib only; run with python3 -I).
 
 stdin:  {"files": [{"path": rel, "content": str}], "testGlobs"?: [...], "testFiles"?: [rel]}
 stdout: {"results": [AdapterFileResult]}  (see design §E.3.1)
@@ -140,6 +140,18 @@ def parse_file(f, test_file):
         return res
     src = Src(text)
 
+    def nested_doc_ranges(cls):
+        """[start, end) offsets of the docstrings of the symbols nested in cls (methods, nested classes, recursively)."""
+        out = []
+        for st in cls.body:
+            if isinstance(st, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                d = st.body[0] if st.body and is_doc_stmt(st.body[0]) else None
+                if d is not None:
+                    out.append((src.off(d.lineno, d.col_offset), src.off(d.end_lineno, d.end_col_offset)))
+                if isinstance(st, ast.ClassDef):
+                    out.extend(nested_doc_ranges(st))
+        return out
+
     for st in tree.body:
         if isinstance(st, ast.Import):
             for a in st.names:
@@ -161,6 +173,22 @@ def parse_file(f, test_file):
         doc_stmt = body[0] if body and is_doc_stmt(body[0]) else None
         body_start = src.off(doc_stmt.end_lineno, doc_stmt.end_col_offset) if doc_stmt else c_off + 1
         body_text = text[body_start:end]
+        if kind in ("class", "suite"):
+            # the docstrings of nested symbols (methods, nested classes) are their intent, not this class's body:
+            # blank them (newlines kept) so a nested doc edit or tag strip leaves the class bodyHash alone, as
+            # JSDoc / Lua doc comments are already dropped from an enclosing body by the comment stripper
+            chars = None
+            for a, b in nested_doc_ranges(node):
+                a, b = max(a, body_start), min(b, end)
+                if a >= b:
+                    continue
+                if chars is None:
+                    chars = list(body_text)
+                for i in range(a - body_start, b - body_start):
+                    if chars[i] != "\n":
+                        chars[i] = " "
+            if chars is not None:
+                body_text = "".join(chars)
         fn_like = kind in ("function", "method", "test")
         comment_lines = []
         if fn_like:

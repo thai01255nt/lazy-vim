@@ -1,7 +1,7 @@
 {
   "schema": "hitl.golden/1",
   "adapters": {
-    "py": "py-ast@1",
+    "py": "py-ast@2",
     "ts": "ts-lite@1"
   },
   "symbols": {
@@ -27,7 +27,7 @@
     },
     "tests/test_orders.py#TestOrders": {
       "sigHash": "72b380e4d750b34f",
-      "bodyHash": "67ef3ee5732c696b",
+      "bodyHash": "5df38b5e0fe2d63e",
       "intentHash": "230332cb143fc428"
     },
     "tests/test_orders.py#TestOrders.test_T2_AC1_rejects_bad_pct": {

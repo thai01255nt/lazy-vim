@@ -1,6 +1,6 @@
 {
   "adapters": {
-    "py": "py-ast@1",
+    "py": "py-ast@2",
     "ts": "ts-lite@1"
   },
   "files": {},

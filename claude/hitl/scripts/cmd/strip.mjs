@@ -1,4 +1,4 @@
-// `hitl-index strip <T-id|change-id> [--dry-run] [--json]`: remove @task @impl @status @prio @dec @risk from the docs of
+// `hitl-index strip <T-id|change-id>[,…] [--dry-run] [--json]`: remove @task @impl @status @prio @dec @risk from the docs of
 // done tasks (code only, never tests). Lock, drift and statuses are unchanged; verified by reindex, rolled back otherwise.
 import { parseArgs } from "node:util";
 import { strip } from "../lib/strip.mjs";
@@ -8,7 +8,7 @@ const OPTS = { "dry-run": { type: "boolean" }, json: { type: "boolean" }, root: 
 export async function run(argv, ctx) {
   const { values: v, positionals } = parseArgs({ args: argv, options: OPTS, allowPositionals: true, strict: false });
   const json = ctx.json || v.json; const target = positionals[0];
-  if (!target) { console.error("usage: hitl-index strip <T-id|change-id> [--dry-run] [--json]"); return 2; }
+  if (!target) { console.error("usage: hitl-index strip <T-id|change-id>[,…] [--dry-run] [--json]"); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   const r = await strip(ctx.root, { target, dryRun: !!v["dry-run"], config: ctx.config });
   if (json) { console.log(JSON.stringify({ ...r, dryRun: !!v["dry-run"] }, null, 2)); return r.ok ? 0 : 1; }

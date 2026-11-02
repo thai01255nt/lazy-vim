@@ -54,7 +54,7 @@ async function snapshot(api, root, config) {
 }
 
 /**
- * strip(root, {target: T-id | change-id, dryRun, config}) →
+ * strip(root, {target: T-id | change-id, or a comma list of them ("T-1,T-2"), dryRun, config}) →
  * {ok, error?, tasks:[ids], notDone:[{id,status}], symbols:[{id,file,removed}], skipped:[{id,reason}], files:[rel], verified}
  * Only tasks whose computed status is `done`. A symbol is skipped when another of its @task ids is not done, or when
  * it is reachable only through its @task tag (not in the task's `### Symbols` rows, not a class): stripping would drop it.
@@ -67,9 +67,12 @@ export async function strip(root, { target, dryRun = false, config } = {}) {
   const before = await snapshot(api, root, config);
   const { index, statuses } = before;
   const st = (id) => statuses.tasks[id]?.status ?? "todo";
-  const scope = before.tasks.filter((t) => t.id === target || t.change === target);
+  const targets = [...new Set(String(target ?? "").split(",").map((x) => x.trim()).filter(Boolean))];
+  const hit = (t, x) => t.id === x || t.change === x;
+  const scope = before.tasks.filter((t) => targets.some((x) => hit(t, x)));
   const out = { ok: false, tasks: [], notDone: [], symbols: [], skipped: [], files: [], verified: false };
-  if (!scope.length) return { ...out, error: `no task or change "${target}"` };
+  const unknown = targets.filter((x) => !before.tasks.some((t) => hit(t, x)));
+  if (unknown.length || !scope.length) return { ...out, error: `no task or change ${(unknown.length ? unknown : [target]).map((x) => `"${x}"`).join(", ")}` };
   const done = scope.filter((t) => st(t.id) === "done");
   out.tasks = done.map((t) => t.id);
   out.notDone = scope.filter((t) => st(t.id) !== "done").map((t) => ({ id: t.id, status: st(t.id) }));
