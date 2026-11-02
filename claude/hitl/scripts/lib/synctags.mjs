@@ -1,7 +1,7 @@
 // P2 — `status --sync-tags`: rewrite @status values in source docs + tasks md status/checkboxes (§E.6, §B.5).
 import { promises as fsp } from "node:fs";
 import { join } from "node:path";
-import { loadApi, readLock, writeFileAtomic } from "./lock.mjs";
+import { loadApi, readLock, writeFileAtomic, lockedTasks } from "./lock.mjs";
 import { readState } from "./state.mjs";
 import { computeStatuses, isFresh } from "./status.mjs";
 
@@ -84,7 +84,7 @@ export function tasksInfo(index, state, statuses, tasks, resolve) {
     }
     for (const sym of task.symbols || []) {
       const id = resolve(sym.ref, sym.file);
-      I.symDone[String(sym.order)] = !!id && ["verified", "done"].includes(statuses.symbols?.[id]?.status);
+      I.symDone[String(sym.order)] = !!id && ["verified", "done"].includes((st.symbolStatus?.[id] || statuses.symbols?.[id])?.status);
     }
     info[task.id] = I;
   }
@@ -103,7 +103,7 @@ export async function synctags(root, opts = {}) {
   const lock = await readLock(root); const state = await readState(root);
   const tasks = (await api.readTasks(root).catch(() => [])) || [];
   const statuses = computeStatuses(index, lock, state, config, tasks);
-  const inScope = (s) => !opts.task || (s.tags?.task || []).includes(opts.task) || lock.symbols?.[s.id]?.task === opts.task;
+  const inScope = (s) => !opts.task || (s.tags?.task || []).includes(opts.task) || lockedTasks(lock.symbols?.[s.id]).includes(opts.task);
 
   const byFile = new Map(); const changes = [];
   for (const [id, st] of Object.entries(statuses.symbols)) {

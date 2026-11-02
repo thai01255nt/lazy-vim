@@ -3,7 +3,7 @@
 // `--by human-override` (the user forced the fast lane with `/hitl:implement <T> --lane fast`) is gated by the hook's override
 // token the same way; the CLI allows it for any risk, never for stage done, and marks the task as overridden in the lock.
 import { parseArgs } from "node:util";
-import { planApproval, writeLock, APPROVERS } from "../lib/lock.mjs";
+import { planApproval, writeLock, APPROVERS, lockedTasks } from "../lib/lock.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { computeStatuses } from "../lib/status.mjs";
 import { computeNext } from "../lib/nextstep.mjs";
@@ -27,7 +27,7 @@ export async function run(argv, ctx) {
   const task = g.tasks.find((t) => t.id === T);
   const plan = planApproval({ taskId: T, stage: v.stage, symbols: v.symbols ? v.symbols.split(",").map((s) => s.trim()).filter(Boolean) : null,
     by, force: !!v.force, index: g.index, lock: g.lock, state: g.state, config: ctx.config, task, tasks: g.tasks, statuses: g.statuses, api: g.api });
-  const counts = (l) => ({ symbols: Object.values(l.symbols).filter((s) => s.task === T).length, tests: Object.values(l.tests).filter((t) => t.task === T).length,
+  const counts = (l) => ({ symbols: Object.values(l.symbols).filter((s) => lockedTasks(s).includes(T)).length, tests: Object.values(l.tests).filter((t) => t.task === T).length,
     testsLocked: Object.values(l.tests).filter((t) => t.task === T && t.stage === "locked").length });
   const nextCmd = plan.stage === "skeleton" ? `/hitl:test ${T}` : plan.stage === "tests" ? `/hitl:implement ${T}` : null;
   const out = { ok: plan.ok, task: T, stage: plan.stage, by, ...(by === "human-override" ? { override: true } : {}), dryRun: !!v["dry-run"], reasons: plan.reasons, changes: plan.changes };

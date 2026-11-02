@@ -1,6 +1,6 @@
 // P2 — `hitl-index precommit`: full reindex, drift --fail-on block (precommit levels), forged-status check. Exit 1 on block.
 import { parseArgs } from "node:util";
-import { loadApi, readLock } from "../lib/lock.mjs";
+import { loadApi, readLock, currentTask } from "../lib/lock.mjs";
 import { readState } from "../lib/state.mjs";
 import { computeStatuses, rank } from "../lib/status.mjs";
 import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
@@ -14,7 +14,7 @@ export function forgedStatuses(index, statuses, lock = null, state = null) {
   for (const [id, st] of Object.entries(statuses.symbols || {})) {
     const S = index.symbols[id]; const claimed = S?.tags?.status;
     if (S && ["verified", "done"].includes(claimed) && rank(st.status) < rank(claimed) && !wasRecorded(lock, state, S, id, claimed)) {
-      out.push({ level: "block", code: "STATUS_FORGED", symbol: id, file: S.file, line: S.docSpan?.start ?? S.span?.start ?? null, task: (S.tags?.task || [])[0] || null,
+      out.push({ level: "block", code: "STATUS_FORGED", symbol: id, file: S.file, line: S.docSpan?.start ?? S.span?.start ?? null, task: currentTask(S, lock, id),
         message: `${S.name} says @status ${claimed} but computed status is ${st.status}`, affected: [] });
     }
   }

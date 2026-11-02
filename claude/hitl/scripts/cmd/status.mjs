@@ -145,7 +145,8 @@ export async function run(argv, ctx) {
     const { trace, linear } = json || v.brief ? await traceAndTickets(ctx, g) : { trace: null, linear: null };
     const tickets = linear ? (({ perTask, ...rest }) => rest)(linear) : null;
     if (json) {
-      const pick = T ? Object.fromEntries(Object.entries(statuses.symbols).filter(([id]) => statuses.tasks[T].symbols.includes(id))) : statuses.symbols;
+      // with a task: its symbols' status for that task (a symbol shared with an earlier task is judged on T's work)
+      const pick = T ? Object.fromEntries(Object.entries(statuses.symbols).filter(([id]) => statuses.tasks[T].symbols.includes(id)).map(([id, st]) => [id, statuses.tasks[T].symbolStatus?.[id] || st])) : statuses.symbols;
       const enrich = (id, st) => { const m = tmeta(id); const items = (drift?.items || []).filter((i) => i.task === id);
         return { ...st, workOrder: taskWorkOrder(st.targets || st.symbols || [], index, m, api), title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
@@ -179,11 +180,11 @@ export async function run(argv, ctx) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
         if (!syms.length) continue;
         console.log(`\n${T ? "" : `### ${id}\n`}| # | prio | symbol | impl | status | reasons |\n|---|---|---|---|---|---|`);
-        taskWorkOrder(syms, index, tmeta(id), api).forEach((sid, i) => { const S = index.symbols[sid]; const st = statuses.symbols[sid]; console.log(`| ${i + 1} | ${S?.tags?.prio ?? "?"} | ${S?.name || sid} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); });
+        taskWorkOrder(syms, index, tmeta(id), api).forEach((sid, i) => { const S = index.symbols[sid]; const st = statuses.tasks[id].symbolStatus?.[sid] || statuses.symbols[sid]; console.log(`| ${i + 1} | ${S?.tags?.prio ?? "?"} | ${S?.name || sid} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); });
       }
     } else if (T) {
       console.log("\n| symbol | impl | status | reasons |\n|---|---|---|---|");
-      for (const id of statuses.tasks[T].symbols) { const S = index.symbols[id]; const st = statuses.symbols[id]; console.log(`| ${S?.name || id} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
+      for (const id of statuses.tasks[T].symbols) { const S = index.symbols[id]; const st = statuses.tasks[T].symbolStatus?.[id] || statuses.symbols[id]; console.log(`| ${S?.name || id} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
     }
     if (sync) console.log(`\nsync-tags: ${sync.tags.length} @status tag(s) rewritten in ${sync.files.length} file(s); ${sync.tasksFiles.length} tasks file(s) updated`);
     console.log(`\n🎯 next: ${next.command} (${next.reason})`);

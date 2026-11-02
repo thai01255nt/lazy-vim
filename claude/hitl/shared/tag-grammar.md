@@ -36,6 +36,10 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
   are hashed into the locked contract; `@status`, `@prio`, `@impl`, `@task`, `@dec` are not.
 - Invalid value → index warning `BAD_TAG`. Repeated list tags merge; a repeated scalar keeps the last value.
 - `@status` is written by tooling only (`hitl-index status --sync-tags`). Skeletons start at `skeleton`.
+- One symbol, several tasks (a later task's `modify` row appends its id: `@task T-2, T-3`): status is computed per task.
+  For task T it is `skeleton` while the sentinel or open `TODO(impl)` steps of T remain; a done task stays done when a
+  later task changes the symbol. `@status` shows the lowest; `hitl-index status <T>` shows T's.
+  A plain `TODO(impl): n. …` line belongs to every not-done task in `@task`; `TODO(impl T-3): n. …` to T-3 only.
 - `hitl-index strip <T|change>` removes the unhashed tags (`@task @impl @status @prio @dec @risk`) from done tasks' code
   docs; membership then comes from the task's `### Symbols` rows. Re-approving such a symbol needs its `@task` back.
 - `@dec` is a list tag (items `D-n`; anything else → `BAD_TAG`). Optional, code symbols only (ignored on tests), typically
@@ -48,10 +52,10 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
 ## 3. Tag meanings
 | tag | on | meaning |
 |---|---|---|
-| `@task` | code | owning task(s) |
+| `@task` | code | owning task(s), oldest first |
 | `@impl` | code | who writes the body: `agent` or `manual` (human). Only the human flips it. |
 | `@status` | code | computed lifecycle state (tooling) |
-| `@prio` | code | tie-break of the implement order inside the task (1 = first); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`) |
+| `@prio` | code | tie-break of the implement order inside the task working on it now (1 = first); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`) |
 | `@calls` | code | declared collaborators; drift reports undeclared/missing calls; also orders implement work (callees in the same task first) |
 | `@concurrency` | code | none / shared-state / async / locks / io; ≠ none adds a concurrency test stub |
 | `@covers` | test | symbol(s) the test exercises |

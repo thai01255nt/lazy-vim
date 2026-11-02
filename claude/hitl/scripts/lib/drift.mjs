@@ -5,7 +5,7 @@ import { loadConfig } from "./config.mjs";
 import { paths } from "./project.mjs";
 import { readJson } from "./fsutil.mjs";
 import { resolveRef, fileOfId, nameOfId } from "./graph.mjs";
-import { referencesTo, renamePairs } from "./lock.mjs";
+import { referencesTo, renamePairs, currentTask, lockedTasks } from "./lock.mjs";
 
 export const SCHEMA = "hitl.drift/1";
 const LEVEL = { block: 0, warn: 1, info: 2 };
@@ -38,7 +38,7 @@ export async function computeDriftFrom(root, index, opts = {}) {
   const add = (level, code, id, message, extra = {}) => {
     const s = S[id];
     items.push({ level, code, symbol: id, file: s?.file ?? (id && id.includes("#") ? fileOfId(id) : id), line: s?.span?.start ?? null,
-      task: extra.task ?? L.symbols[id]?.task ?? L.tests[id]?.task ?? s?.tags?.task?.[0] ?? null, message, affected: [], ...extra });
+      task: extra.task ?? L.symbols[id]?.task ?? L.tests[id]?.task ?? currentTask(s, L, id) ?? null, message, affected: [], ...extra });
   };
   const ref = (id) => S[id]?.name || nameOfId(id);
   const cur = (s) => ({ signature: s.signature, intent: s.intent });
@@ -64,14 +64,18 @@ export async function computeDriftFrom(root, index, opts = {}) {
       continue;
     }
     const approved = { signature: l.signature, intent: l.intent };
+    // re-approval goes to the task now working on it (a later task's skeleton changing a done task's symbol)
+    const owner = currentTask(s, L, id) || l.task;
+    const open = [...new Set([...(s.tags?.task || []), ...lockedTasks(l)])].filter((t) => !L.tasks[t]?.doneAt);
     if (l.sigHash && s.sigHash !== l.sigHash)
-      add("warn", "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${l.task}).`, { affected: s.callers, approved, current: cur(s) });
+      add("warn", "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
     if (l.intentHash && s.intentHash !== l.intentHash)
-      add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${l.task}).`, { affected: s.callers, approved, current: cur(s) });
-    if (s.stub && l.todoHash && s.todoHash !== l.todoHash) add("info", "TODO_FLOW_CHANGED", id, `${ref(id)} TODO(impl) steps changed since approval`);
+      add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
+    if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) add("info", "TODO_FLOW_CHANGED", id, `${ref(id)} TODO(impl) steps changed since approval`);
     if (l.impl && s.tags.impl && s.tags.impl !== l.impl) add("info", "IMPL_CHANGED", id, `${ref(id)} @impl ${l.impl} → ${s.tags.impl}`);
     const done = L.tasks[l.task]?.doneBodyHashes?.[id];
     const rv = state.reviews?.[l.task]?.bodyHashes?.[id];
+    if (open.some((t) => t !== l.task)) continue; // a later open task owns the body changes
     if ((done && done !== s.bodyHash) || (!done && rv && rv !== s.bodyHash)) add("info", "BODY_CHANGED", id, `${ref(id)} body changed since the last ${done ? "done record" : "review"}`);
   }
 
@@ -124,7 +128,11 @@ export async function computeDriftFrom(root, index, opts = {}) {
       for (const [id, s] of Object.entries(S)) {
         const c = st[id]?.status, t = s.tags?.status;
         if (!c || !t || c === t || c === "none") continue;
-        if ((t === "verified" || t === "done") && ORDER.indexOf(c) < ORDER.indexOf(t) && wasRecorded(L, state, s, id, t))
+        const by = Object.entries(st[id]?.byTask || {});
+        const had = by.filter(([, x]) => ORDER.indexOf(x) >= ORDER.indexOf(t)).map(([T]) => T), behind = by.filter(([, x]) => ORDER.indexOf(x) < ORDER.indexOf(t)).map(([T]) => T);
+        if ((t === "verified" || t === "done") && had.length && behind.length) // e.g. done in T-2, T-3 now modifies it
+          add("info", "STATUS_TAG_STALE", id, `${ref(id)} @status ${t} is ${had.join(", ")}'s; ${behind.join(", ")} now works on it (computed: ${c}); run hitl-index status --sync-tags`, { task: behind[0] });
+        else if ((t === "verified" || t === "done") && ORDER.indexOf(c) < ORDER.indexOf(t) && wasRecorded(L, state, s, id, t))
           add("warn", "STATUS_TAG_STALE", id, `${ref(id)} @status ${t} was recorded, but the code changed since (computed: ${c}); run /hitl:sync, then /hitl:review`);
         else if ((t === "verified" || t === "done") && ORDER.indexOf(c) < ORDER.indexOf(t))
           add(opts.precommit ? "block" : "warn", "STATUS_FORGED", id, `${ref(id)} says @status ${t} but computed status is ${c}`);
@@ -167,9 +175,8 @@ export async function computeDriftFrom(root, index, opts = {}) {
 
 /** True when tooling legitimately recorded `@status <t>` for this symbol (done approval / review), i.e. not forged by hand. */
 export function wasRecorded(lock, state, sym, id, t) {
-  const T = (sym?.tags?.task || [])[0] || lock?.symbols?.[id]?.task;
-  if (!T) return false;
-  if (t === "done") return !!(lock?.tasks?.[T]?.doneAt && lock.tasks[T].doneBodyHashes?.[id]);
-  if (t === "verified") return !!state?.reviews?.[T]?.bodyHashes?.[id];
+  const ts = [...new Set([...(sym?.tags?.task || []), ...lockedTasks(lock?.symbols?.[id])])];
+  if (t === "done") return ts.some((T) => !!(lock?.tasks?.[T]?.doneAt && lock.tasks[T].doneBodyHashes?.[id]));
+  if (t === "verified") return ts.some((T) => !!state?.reviews?.[T]?.bodyHashes?.[id]);
   return false;
 }

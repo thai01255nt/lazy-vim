@@ -35,6 +35,8 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 For each row (`@prio` = row number; it only breaks ties — implement order is callees first over `@calls`):
 - **modify** → edit the symbol in place: update the intent docstring, add tags, add `TODO(impl): n. …` lines where the new
   steps belong. Keep working code. Add the sentinel only when the body will be fully rewritten.
+  Already tagged by an earlier task → append yours (`@task T-2, T-3`), set `@status skeleton` and this task's `@prio`.
+  If another not-done task also has `TODO(impl)` lines in it, scope yours: `TODO(impl <T>): n. …`.
 - **new** → create it in the stated file, following file/naming patterns. Create the file only if the row says so
   (`creates file`) or the file is the row's stated path and does not exist.
 - Every target symbol gets:

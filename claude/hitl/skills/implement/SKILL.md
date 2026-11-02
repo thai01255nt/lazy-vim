@@ -72,7 +72,8 @@ Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` exist
 
 ## Step 2 — Work list
 
-Task symbols whose status ∈ {skeleton, red, wip}, in **work order**: `status <T> --json` → `tasks[T].workOrder`
+Task symbols whose status for <T> ∈ {skeleton, red, wip} (`status <T> --json` `.symbols` is per task: a symbol an
+earlier, done task built is judged on <T>'s own TODO steps and tests), in **work order**: `status <T> --json` → `tasks[T].workOrder`
 (also `hitl-index status <T> --work-order`). Work order = callees before callers over the task's own `@calls` (cycles kept
 together), then `@prio`, then the `### Symbols` row. Never reorder it by `@prio` alone: a caller implemented before its
 callees only hits their sentinels.

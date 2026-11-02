@@ -185,6 +185,10 @@ contract OpenAPI 3.1 / AsyncAPI 3 / JSON Schema 2020-12 / CLI (`shared/templates
 chỉ **cảnh báo** (`REQ_VAGUE`, `DT_OVERLAP`, `SM_UNREACHABLE`, `UC_EXT_REF`, `CONTRACT_VERSION`, `CAP_DUP_NEW`, …).
 
 Status (do tooling tính, không bao giờ sửa tay): `skeleton → red → wip → green → verified → done`.
+Một hàm thuộc nhiều task (task sau sửa hàm task trước làm: `@task T-2, T-3`) có status **theo từng task**: với T-3 hàm là
+`skeleton` khi còn sentinel hoặc bước `TODO(impl)` của T-3 (`TODO(impl T-3): …` để gắn bước cho riêng một task); T-2 đã
+`done` vẫn `done`. `@status` trong source là mức thấp nhất; `hitl-index status <T>` cho status theo T. Lock giữ lịch sử
+task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không cần migrate.
 
 ## 3. Lệnh
 

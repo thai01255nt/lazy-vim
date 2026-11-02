@@ -6,6 +6,7 @@ import { loadConfig } from "./config.mjs";
 import { paths } from "./project.mjs";
 import { readJson } from "./fsutil.mjs";
 import { resolveRef } from "./graph.mjs";
+import { currentTask } from "./lock.mjs";
 import { readTasks } from "./tasksmd.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
 
@@ -52,7 +53,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
     if (!r) throw Object.assign(new Error(`unknown ref ${target}`), { code: 1 });
     if (r.ambiguous) throw Object.assign(new Error(`ambiguous ref ${target}: ${r.ambiguous.join(", ")}`), { code: 1 });
     targets = [{ row: null, id: r.id }];
-    const t = S[r.id].tags?.task?.[0] || lock.symbols[r.id]?.task;
+    const t = currentTask(S[r.id], lock, r.id); // a symbol shared by tasks: the open one
     task = t ? tasks.find((x) => x.id === t) || null : null;
   }
   const ids = targets.map((t) => t.id).filter(Boolean);
@@ -65,7 +66,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
     const head = slice(s.span.start, s.bodySpan.start);
     const body = slice(s.bodySpan.start + 1, s.span.end);
     const indent = (body.find((l) => l.trim()) || "  ").match(/^\s*/)[0] || "  ";
-    const todos = body.filter((l) => /TODO\(impl\)/.test(l) && /^\s*(\/\/|#|\*)/.test(l));
+    const todos = body.filter((l) => /TODO\(impl[\s)]/.test(l) && /^\s*(\/\/|#|\*)/.test(l));
     if (s.file.endsWith(".py")) {
       const doc = s.docSpan ? slice(s.docSpan.start, s.docSpan.end) : [];
       return [...head, ...doc, ...todos, `${indent}...`].join("\n");
@@ -185,7 +186,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
 
   const testCmd = task ? `hitl-index test --task ${task.id}` : `hitl-index test --symbol ${S[ids[0]].name}`;
   sections.push({ text: ["\n## Rules",
-    "- Do not change signatures, docstrings or @tags of locked symbols. Do not edit tests. Follow TODO(impl) steps in order; turn them into \"// n. step\" comments.",
+    "- Do not change signatures, docstrings or @tags of locked symbols. Do not edit tests. Follow TODO(impl) steps in order; turn them into \"// n. step\" comments. Leave steps scoped to another task (TODO(impl T-n)).",
     `- Test command: ${testCmd}`].join("\n") });
 
   const render = (maxCallers, dropped) => sections.filter((s) => !dropped.has(s.drop)).map((s) => {

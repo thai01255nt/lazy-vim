@@ -93,11 +93,12 @@ export function buildRunRecords(index, matched) {
   });
 }
 
-/** Per-symbol summary {status,pass,fail,skip,stale}. */
-export function perSymbolSummary(index, state, symbolIds, statuses) {
+/** Per-symbol summary {status,pass,fail,skip,stale}; with `taskId`, the symbol's status for that task. */
+export function perSymbolSummary(index, state, symbolIds, statuses, taskId = null) {
   const out = {}; const cov = directCoverage(index);
   for (const id of symbolIds) {
-    const c = { status: statuses?.symbols?.[id]?.status || null, pass: 0, fail: 0, skip: 0, stale: 0 };
+    const st = (taskId && statuses?.tasks?.[taskId]?.symbolStatus?.[id]) || statuses?.symbols?.[id];
+    const c = { status: st?.status || null, pass: 0, fail: 0, skip: 0, stale: 0 };
     for (const t of testsFor(index, id, cov).tests) {
       const r = state.runs?.[t];
       if (!r) { c.skip++; continue; }
@@ -175,7 +176,7 @@ export async function executeTest(root, config, opts = {}) {
   const statuses = computeStatuses(index, lock, state, config, tasks);
   return {
     runs: r.matched.map(({ testId, outcome, message }) => ({ testId, outcome, message })),
-    perSymbol: perSymbolSummary(index, state, sel.symbolIds, statuses),
+    perSymbol: perSymbolSummary(index, state, sel.symbolIds, statuses, opts.task || null),
     unmatched: r.unmatched, errors: [...sel.errors, ...r.errors], commands: r.commands,
     fatal: !!r.fatal && !r.matched.length, selected: sel.testIds, statuses, index, tasks, state, lock,
   };

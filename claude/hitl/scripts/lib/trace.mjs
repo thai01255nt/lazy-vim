@@ -206,7 +206,7 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven,
         tests: ts.map((x) => ({ id: x.id, title: x.test?.titlePath?.at(-1) ?? x.name, mode: x.test?.mode ?? null, outcome: state.runs?.[x.id]?.outcome ?? null,
           fresh: testFresh(c, x), locked: lock.tests?.[x.id]?.stage === "locked" })),
-        symbols: symIds.map((id) => ({ id, name: S[id]?.name || id.split("#").pop(), status: statuses.symbols?.[id]?.status ?? null })) });
+        symbols: symIds.map((id) => ({ id, name: S[id]?.name || id.split("#").pop(), status: (statuses.tasks?.[t.id]?.symbolStatus?.[id] || statuses.symbols?.[id])?.status ?? null })) });
     }
     for (const id of syms) {
       if (S[id]?.kind === "class") continue;

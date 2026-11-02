@@ -194,13 +194,50 @@ export function renamePairs(index, lock) {
     if (S[old] || l.prio == null) continue;
     const file = old.slice(0, old.indexOf("#"));
     const ns = Object.values(S).filter((s) => s.file === file && !L[s.id] && !isTest(s) && s.kind !== "suite"
-      && (s.tags?.task || []).includes(l.task) && s.tags?.prio === l.prio).map((s) => s.id);
+      && lockedTasks(l).some((t) => (s.tags?.task || []).includes(t)) && s.tags?.prio === l.prio).map((s) => s.id);
     cand.set(old, ns);
     for (const n of ns) back.set(n, (back.get(n) || 0) + 1);
   }
   const out = [];
   for (const [from, ns] of cand) if (ns.length === 1 && back.get(ns[0]) === 1) out.push({ from, to: ns[0], task: L[from].task });
   return out.sort((a, b) => a.from.localeCompare(b.from));
+}
+
+/**
+ * Tasks that approved a locked symbol entry, oldest first. `task` is the latest approver (its signature/intent/todos are
+ * the locked contract); `tasks` is the approval history, added when a second task approved the same symbol. Entries
+ * written before `tasks` existed have only `task`.
+ */
+export function lockedTasks(entry) {
+  if (!entry) return [];
+  const out = [...(Array.isArray(entry.tasks) ? entry.tasks : [])];
+  if (entry.task && !out.includes(entry.task)) out.push(entry.task);
+  return out;
+}
+
+/**
+ * Owner task of a test: the task of its `@ac` ids, else its `@task` tag, else the task that locked it, else null
+ * (a plain `@covers` test belongs to whichever task covers it). A test owned by task A that also covers task B's
+ * symbols is a regression check for B: B runs it but never re-locks it or requires it to be red.
+ */
+export function testOwner(index, lock, id) {
+  const t = index?.symbols?.[id];
+  const ac = (t?.tags?.ac || [])[0];
+  if (ac) return ac.slice(0, ac.indexOf(".AC"));
+  return (t?.tags?.task || [])[0] || lock?.tests?.[id]?.task || null;
+}
+
+const taskNum = (t) => Number(/^T-(\d+)$/.exec(t)?.[1] ?? -1);
+/**
+ * The task a symbol is currently worked under: of its `@task` tags and lock approvals, the newest (highest T number)
+ * that is not done, else the newest overall; null when it has none. Used where one task must be picked for a symbol
+ * (context slice, test command, drift attribution); statuses are computed per task instead.
+ */
+export function currentTask(sym, lock, id = sym?.id) {
+  const all = [...new Set([...(sym?.tags?.task || []), ...lockedTasks(lock?.symbols?.[id])])];
+  if (!all.length) return null;
+  const open = all.filter((t) => !lock?.tasks?.[t]?.doneAt);
+  return (open.length ? open : all).reduce((a, b) => (taskNum(b) > taskNum(a) ? b : a));
 }
 
 export function taskRisk(task, lock, taskId) { return task?.risk || lock?.tasks?.[taskId]?.risk || "high"; }
@@ -255,6 +292,8 @@ export function planApproval(opts) {
   const allIds = taskSymbolIds(index, taskId, task, api); // incl. tagged classes (locked for sig/intent drift)
   const symIds = allIds.filter((id) => CODE_KINDS.has(index.symbols[id].kind));
   const testIds = taskTestIds(index, taskId, symIds);
+  // tests owned by another task (its @ac / @task / lock) that cover T's symbols: regression checks T runs, never re-locks
+  const ownTestIds = testIds.filter((id) => [null, taskId].includes(testOwner(index, lock, id)));
   const lt = lock.tasks[taskId] || { file: task?.file || null, risk, skeletonAt: null, testsAt: null, doneAt: null, doneBodyHashes: {} };
   lt.file = task?.file || lt.file || null;
   lt.risk = risk;
@@ -283,7 +322,7 @@ export function planApproval(opts) {
     // Locked symbols of T gone from the index are pruned (all of them, or only the listed ones with --symbols).
     // Rename pairs (renamePairs) move their entry to the new id instead; in scope when either old or new ref is listed.
     const renamedFrom = new Set(pairs.map((p) => p.from));
-    const gone = Object.keys(lock.symbols).filter((id) => lock.symbols[id].task === taskId && !index.symbols[id] && !renamedFrom.has(id));
+    const gone = Object.keys(lock.symbols).filter((id) => lockedTasks(lock.symbols[id]).includes(taskId) && !index.symbols[id] && !renamedFrom.has(id));
     let pick = allIds, prune = gone, renames = pairs;
     if (opts.symbols?.length) {
       pick = []; prune = []; renames = [];
@@ -326,6 +365,9 @@ export function planApproval(opts) {
       const prev = lock.symbols[id] || (from && lock.symbols[from]);
       let entry = { task: taskId, impl: s.tags?.impl || "agent", signature: s.signature, intent: s.intent, todos: s.todos || [],
         sigHash: s.sigHash, intentHash: s.intentHash, todoHash: s.todoHash, prio: s.tags?.prio ?? undefined, approvedAt: now, approvedBy: by };
+      // approval history: a symbol modified by a later task keeps the earlier tasks (written only once there are two)
+      const hist = [...new Set([...lockedTasks(prev).filter((t) => t !== taskId), taskId])];
+      if (hist.length > 1) entry.tasks = hist;
       if (from) {
         entry = { ...prev, ...entry, renamedFrom: from };
         delete lock.symbols[from];
@@ -343,7 +385,7 @@ export function planApproval(opts) {
       lock.symbols[id] = entry;
     }
     if (!opts.symbols?.length) {
-      for (const id of testIds) {
+      for (const id of ownTestIds) {
         const t = index.symbols[id];
         const prev = lock.tests[id];
         if (prev && prev.stage === "locked") { changes.tests.unchanged.push(id); continue; } // never downgrade locked tests
@@ -361,7 +403,7 @@ export function planApproval(opts) {
     // Re-lock (tests already locked once): red is required only for the first lock. Tests added later
     // (mutation killers, fix-loop regressions) may already be green; they still need a fresh run.
     const relock = !!lt.testsAt;
-    const active = testIds.filter((id) => index.symbols[id].test?.mode === "active");
+    const active = ownTestIds.filter((id) => index.symbols[id].test?.mode === "active");
     if (!active.length) reasons.push("no active tests cover the task (fill the stubs with /hitl:test first)");
     for (const id of active) {
       const t = index.symbols[id];
@@ -377,7 +419,7 @@ export function planApproval(opts) {
     for (const id of Object.keys(lock.tests)) {
       if (lock.tests[id].task === taskId && !index.symbols[id]) { delete lock.tests[id]; changes.tests.removed.push(id); }
     }
-    for (const id of testIds) {
+    for (const id of ownTestIds) {
       const t = index.symbols[id];
       const prev = lock.tests[id];
       const entry = testEntry(index, t, taskId, "locked", now, by);
@@ -390,7 +432,8 @@ export function planApproval(opts) {
   } else if (stage === "done") {
     const rv = state.reviews?.[taskId];
     if (by === "auto" && rv?.verdict !== "PASS") { reasons.push("auto done-approval requires review verdict PASS"); return res(false); }
-    const st = statuses?.symbols || {};
+    // per-task status: a symbol shared with another task is judged on T's work (T's TODO steps, review, done record)
+    const st = { ...(statuses?.symbols || {}), ...(statuses?.tasks?.[taskId]?.symbolStatus || {}) };
     for (const id of symIds) {
       const s = st[id]?.status;
       const okGreen = s === "green" && rv?.verdict === "PASS" && !config.mutationRequired;

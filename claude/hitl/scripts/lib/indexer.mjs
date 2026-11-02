@@ -19,6 +19,8 @@ const GRAPH_CODES = new Set(["AMBIGUOUS_REF", "UNRESOLVED_CALLS_TAG", "UNRESOLVE
 const FN_KINDS = new Set(["function", "method", "test"]);
 // languages hashed with the generic comment stripper (ts/py keep their own, unchanged)
 const genericLang = (lang) => lang !== "ts" && lang !== "py" && !!LANGS[lang];
+const TODO_LINE = /TODO\(impl(?:\s+(T-\d+))?\):\s*(.*)/;
+const TODO_ANY = /TODO\(impl[\s)]/;
 const lastSeg = (name) => String(name).split(/\.| > /).at(-1);
 
 /** AdapterFileResult -> {symbols: IndexSymbol[], warnings} (no graph fields yet). */
@@ -39,8 +41,11 @@ export function toIndexSymbols(res, lang) {
     const { prose, tags, errors } = parseDoc(s.doc);
     for (const e of errors) warnings.push({ code: "BAD_TAG", file: res.path, symbol: id, message: e.message });
     const lines = (s.commentLines || []).map((c) => c.text);
-    const todos = lines.map((t) => t.match(/TODO\(impl\):\s*(.*)/)).filter(Boolean).map((m) => m[1].trim());
-    const flowSteps = lines.filter((t) => !/TODO\(impl\)/.test(t)).map((t) => t.match(/^\s*(\d+)\.\s+(.+)/)).filter(Boolean).map((m) => `${m[1]}. ${m[2].trim()}`);
+    // `TODO(impl): n. step` (plain) or `TODO(impl T-3): n. step` (scoped to one task); todos keep the step text only
+    const todoHits = lines.map((t) => t.match(TODO_LINE)).filter(Boolean);
+    const todos = todoHits.map((m) => m[2].trim());
+    const todoTasks = todoHits.some((m) => m[1]) ? todoHits.map((m) => m[1] || null) : undefined;
+    const flowSteps = lines.filter((t) => !TODO_ANY.test(t)).map((t) => t.match(/^\s*(\d+)\.\s+(.+)/)).filter(Boolean).map((m) => `${m[1]}. ${m[2].trim()}`);
     const body = norm(s.bodyText);
     const fnLike = FN_KINDS.has(s.kind);
     symbols.push({
@@ -48,7 +53,7 @@ export function toIndexSymbols(res, lang) {
       parent: s.parentName ? `${res.path}#${s.parentName}` : null,
       exported: !!s.exported, async: !!s.async,
       signature: strip(s.sigText || "").replace(/\s+/g, " ").trim(),
-      intent: prose, tags, todos, flowSteps, stub: !!s.stub,
+      intent: prose, tags, todos, ...(todoTasks ? { todoTasks } : {}), flowSteps, stub: !!s.stub,
       features: fnLike && s.kind !== "test" ? features(body, lang) : [],
       locals: s.locals || {}, calleesRaw: s.calleesRaw || [],
       callees: [], callers: [], unresolvedCalls: [], approxCalls: false,
