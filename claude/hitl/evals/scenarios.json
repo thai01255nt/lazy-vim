@@ -144,6 +144,53 @@
     "flow_next_plan",
     "flow_no_edits"
    ]
+  },
+  {
+   "id": "skeleton-lua",
+   "fixture": "lua",
+   "runs": 3,
+   "prompt": "/hitl:skeleton T-1",
+   "luaTargets": [
+    {
+     "file": "src/ratelimit/bucket_util.lua",
+     "name": "planBurst",
+     "kind": "new"
+    },
+    {
+     "file": "src/ratelimit/bucket_util.lua",
+     "name": "refillBucket",
+     "kind": "modify",
+     "keep": [
+      "local elapsedMs = math.max(0, options.nowMs - bucket.updatedAtMs)",
+      "bucket.updatedAtMs = options.nowMs",
+      "return added"
+     ]
+    },
+    {
+     "file": "src/ratelimit/bucket_util.lua",
+     "name": "M.takeWithBurst",
+     "kind": "new"
+    },
+    {
+     "file": "src/ratelimit/take.lua",
+     "name": "M.take",
+     "kind": "existing",
+     "keep": [
+      "bucket_util.refillBucket({ bucket = bucket, nowMs = nowMs })",
+      "bucket.tokens = bucket.tokens - count"
+     ]
+    }
+   ],
+   "checks": [
+    "lua_signatures_bound",
+    "lua_sentinel",
+    "lua_steps",
+    "lua_tags",
+    "lua_modify_kept",
+    "lua_drift_clean",
+    "lua_test_stubs",
+    "skeleton_gate"
+   ]
   }
  ]
 }

@@ -1,0 +1,5 @@
+{
+  "schema": "hitl.config/1",
+  "commands": { "test": "busted" },
+  "testGlobs": ["spec/**/*_spec.lua"]
+}

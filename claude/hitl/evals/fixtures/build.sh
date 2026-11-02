@@ -7,6 +7,7 @@
 #         tasks     = spec, minus tasks.md (spec + design approved)
 #         flow      = design (next step should be /hitl:design feat-password-reset)
 #         review    ts-app (v0.5 tasks file) driven to "T-1 implemented, tests green, skeleton+tests locked"
+#         lua       lua-app (pure Lua + LuaLS annotations, busted) with approved change feat-burst-credit, T-1 todo
 # The plugin under test is never touched; the CLI used for set-up is this plugin's own hitl-index.
 set -euo pipefail
 H="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -48,6 +49,10 @@ case "$kind" in
     cp variants/src/repo/userRepo.ts.manual src/repo/userRepo.ts
     CLI index >/dev/null; CLI test --task T-1 --json >/dev/null
     rm -rf variants
+    gitc ;;
+  lua)
+    cp -R "$HERE/lua-app/." "$dest/"
+    (cd "$dest" && CLI init --json >/dev/null && CLI index --all >/dev/null)
     gitc ;;
   *) echo "unknown kind: $kind" >&2; exit 2 ;;
 esac

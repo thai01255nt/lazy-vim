@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Suite C: blind pairwise LLM judge of plan / design outputs (variant A vs B), both presentation orders.
+// Suite C: blind pairwise LLM judge of plan / design / skeleton outputs (variant A vs B), both presentation orders.
 //   node evals/judge.mjs <out> BASE NEW [--cases plan-vi,plan-en,design-auto] [--model opus]
 // Reads <out>/behaviour/<variant>/<case>/<run>/ (grade.json lastText + written files), pairs run i of A with run i of B,
 // asks the judge twice (A first, then B first) and writes <out>/judge/<case>-<run>-<order>.json + <out>/judge/summary.json.
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 
 const [out, A, B, ...rest] = process.argv.slice(2);
 let cases = ["plan-vi", "plan-en", "design-auto"], model = "opus";
@@ -25,6 +25,12 @@ function artefact(runDir, c) {
     const chDir = path.join(proj, ".hitl/changes");
     const ids = fs.existsSync(chDir) ? fs.readdirSync(chDir).filter((x) => x !== "feat-password-reset") : [];
     files = ids.flatMap((id) => walk(path.join(chDir, id)).filter((f) => f.endsWith(".md")));
+  } else if (c.startsWith("skeleton")) {
+    // the skeleton is the code diff against the fixture commit (sources + test stubs, not the index)
+    const git = (...a) => { try { return execFileSync("git", ["-C", proj, ...a], { encoding: "utf8" }); } catch { return ""; } };
+    const diff = git("diff", "HEAD", "--", ".", ":(exclude).hitl/index");
+    const added = git("ls-files", "--others", "--exclude-standard", "--", ".", ":(exclude).hitl/index").split("\n").filter(Boolean);
+    return `### What the user saw (final message)\n${g.lastText ?? ""}\n\n### Diff\n${diff}\n${added.map((f) => `--- new file: ${f}\n${read(path.join(proj, f))}`).join("\n")}`.slice(0, 60000);
   } else {
     const d = path.join(proj, ".hitl/changes/feat-password-reset");
     files = [path.join(d, "design.md"), path.join(d, "data-model.md"), ...walk(path.join(d, "contracts"))].filter((f) => fs.existsSync(f));
@@ -48,10 +54,22 @@ Criteria:
 2. hotspot_depth — depth on the risky parts (security of reset links, token storage, enumeration, expiry, concurrency).
 3. spec_completeness — does the design cover every requirement/rule of the spec (ACC-R5, ACC-R6, ACC-R1 change, ACC-BR1, ACC-UC1, removal of ACC-R2)?
 4. format_correctness — MADR records, D table with serves, contracts in a standard format, no function signatures.`,
+  skeleton: `This is a code skeleton (/hitl:skeleton T-1) for a Lua task: signatures with LuaLS annotations, intent prose
+(the contract a separate test author writes tests from), hitl tags, numbered TODO(impl) steps and a failing sentinel;
+existing working code must be kept; one pending test stub per acceptance criterion. The task: burst credit for a token
+bucket (borrow up to a burst limit, refused requests change nothing, refill repays debt first).
+Criteria:
+1. intent_clarity — does each intent say exactly what the function does and returns, so tests can be written from it alone?
+2. edge_cases — are edge cases, refusals and error behaviour stated (no burst limit, beyond the limit, nothing changes on refusal, clock going backwards, debt repaid first)?
+3. step_labels — are the TODO(impl) steps short intent labels (what each block does), in a sensible order, not pseudo-code?
+4. format_correctness — annotation layout LuaLS can bind (nothing between ---@field and ---@param), types complete, tags, sentinels, test stubs, existing code kept.`,
 };
+const KEYS = { plan: ["question_sharpness", "hotspot_depth", "spec_completeness", "format_correctness"],
+  design: ["question_sharpness", "hotspot_depth", "spec_completeness", "format_correctness"],
+  skeleton: ["intent_clarity", "edge_cases", "step_labels", "format_correctness"] };
 
 function judge(c, first, second) {
-  const kind = c.startsWith("plan") ? "plan" : "design";
+  const kind = c.startsWith("plan") ? "plan" : c.startsWith("skeleton") ? "skeleton" : "design";
   const prompt = `You are a strict senior reviewer comparing two outputs of the same AI workflow step on the same input.
 ${RUBRIC[kind]}
 Judge only quality; ignore length unless it hurts clarity. Do not favour an output for its position.
@@ -65,7 +83,7 @@ ${second}
 </output>
 
 Reply with ONLY a JSON object:
-{"question_sharpness":"X|Y|tie","hotspot_depth":"X|Y|tie","spec_completeness":"X|Y|tie","format_correctness":"X|Y|tie","overall":"X|Y|tie","rationale":"<= 120 words"}`;
+{${KEYS[kind].map((k) => `"${k}":"X|Y|tie"`).join(",")},"overall":"X|Y|tie","rationale":"<= 120 words"}`;
   const r = spawnSync("claude", ["-p", "--model", model, "--tools", "", "--max-turns", "1", "--output-format", "json",
     "--setting-sources", "user", "--settings", JSON.stringify({ enabledPlugins: { "hitl@thai-hitl": false } }), "--strict-mcp-config"],
   { input: prompt, encoding: "utf8", maxBuffer: 1 << 26, cwd: jdir });

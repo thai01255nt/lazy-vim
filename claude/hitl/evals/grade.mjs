@@ -49,6 +49,56 @@ function questions(text) {
   return { q: new Set(qs).size, rec: recs.length };
 }
 
+// ---- Lua skeleton helpers (case.luaTargets: [{file, name, kind: "new"|"modify"|"existing", keep?: [lines]}])
+const LUALS = process.env.LUALS ?? path.join(process.env.HOME ?? "", ".local/share/nvim/mason/bin/lua-language-server");
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** {line, doc: [comment lines directly above], body: [lines up to the closing top-level `end`]} or null */
+function luaFn(src, name) {
+  const L = src.split("\n");
+  const re = new RegExp(`^(local\\s+)?(function\\s+${reEsc(name)}\\s*\\(|${reEsc(name)}\\s*=\\s*function\\s*\\()`);
+  const i = L.findIndex((l) => re.test(l));
+  if (i < 0) return null;
+  const doc = []; for (let k = i - 1; k >= 0 && /^\s*--/.test(L[k]); k--) doc.unshift(L[k]);
+  let e = i + 1; while (e < L.length && !/^end\b/.test(L[e])) e++;
+  return { line: i, doc, body: L.slice(i + 1, e) };
+}
+const luaTargets = (P, c, kinds = ["new", "modify"]) => (c.luaTargets ?? []).filter((t) => kinds.includes(t.kind))
+  .map((t) => ({ ...t, src: read(path.join(P, t.file)) ?? "" }));
+const norm = (x) => x.replace(/\s+/g, " ").trim();
+/** LuaLS probe (all luaTargets): does a caller still see the declared @return type? A docstring broken by text between
+ *  `---@field` and `---@param` makes LuaLS drop the signature silently; `--check` alone reports nothing. */
+function luaSignatures(P, c) {
+  const res = {};
+  const byFile = {};
+  for (const t of c.luaTargets ?? []) (byFile[t.file] ??= []).push(t);
+  for (const [file, ts] of Object.entries(byFile)) {
+    const src = read(path.join(P, file)); if (src == null) { for (const t of ts) res[t.name] = "file missing"; continue; }
+    const L = src.split("\n");
+    let at = -1; for (let k = L.length - 1; k >= 0; k--) if (/^return\b/.test(L[k])) { at = k; break; }
+    if (at < 0) at = L.length;
+    const probe = ["---@class __HitlProbe", "---@field __hitlProbe true"]; const lineOf = {};
+    for (const t of ts) { probe.push("---@type __HitlProbe"); lineOf[t.name] = at + probe.length + 1; probe.push(`local __probe_${t.name.replace(/\W/g, "_")} = ${t.name}()`); }
+    L.splice(at, 0, ...probe);
+    const d = fs.mkdtempSync(path.join(fs.realpathSync(process.env.TMPDIR ?? "/tmp"), "hitl-luals-"));
+    const f = path.join(d, path.basename(file)); fs.writeFileSync(f, L.join("\n"));
+    const outJson = path.join(d, "check.json");
+    try { execFileSync(LUALS, [`--check=${d}`, "--checklevel=Warning", `--check_out_path=${outJson}`], { stdio: "ignore", timeout: 120000 }); } catch {}
+    const diags = Object.values(json(read(outJson) ?? "{}") ?? {}).flat();
+    for (const t of ts) {
+      const fn = luaFn(src, t.name);
+      const ret = fn?.doc.map((l) => /^\s*---@return\s+([\w.]+)/.exec(l)?.[1]).find(Boolean);
+      const hit = diags.find((x) => x.code === "assign-type-mismatch" && x.range.start.line + 1 === lineOf[t.name]);
+      if (!fn) res[t.name] = "function not found";
+      else if (!ret) res[t.name] = "no ---@return";
+      else if (!hit) res[t.name] = `signature lost (callers see no @return ${ret})`;
+      else if (!hit.message.includes(ret)) res[t.name] = `caller sees ${hit.message.split("\n")[0]}, declared ${ret}`;
+    }
+    fs.rmSync(d, { recursive: true, force: true });
+  }
+  return res;
+}
+const STEP_RE = /^\s*--\s*TODO\(impl(?: T-\d+)?\):\s*(\d+)\.\s*(.*)$/;
+
 const CHECKS = {
   // ---- plan (round 1 of a new change)
   plan_change_created: (S, P) => { const ch = newChanges(P); return ok(ch.length === 1 && fs.existsSync(path.join(P, ".hitl/changes", ch[0], "proposal.md")), `new changes: ${ch.join(",") || "none"}`); },
@@ -127,6 +177,60 @@ const CHECKS = {
   review_no_self_approve: (S) => { const b = bashCalls(S).find((c) => /approve\b.*--by\s+human/.test(c)); return ok(!b, `ran: ${b}`); },
   review_verdict: (S) => ok(/PASS|FAIL|NEEDS|verdict|Verdict|human/i.test(S.text), "no verdict"),
   review_lens_agents: (S) => ok(S.tools.some((t) => t.name === "Agent" && /reviewer/.test(JSON.stringify(t.input))), "no reviewer subagent"),
+  // ---- skeleton (Lua): case.luaTargets, task T-1
+  lua_signatures_bound: (S, P, c) => { const bad = Object.entries(luaSignatures(P, c)); return ok(!bad.length, bad.map(([k, v]) => `${k}: ${v}`).join("; ")); },
+  lua_sentinel: (S, P, c) => {
+    const bad = luaTargets(P, c, ["new"]).filter((t) => {
+      const fn = luaFn(t.src, t.name); const ref = `${t.file}#${t.name}`;
+      return !fn || !fn.body.some((l) => l.includes(`error("TODO(impl): ${ref}")`) || l.includes(`error('TODO(impl): ${ref}')`));
+    });
+    return ok(!bad.length, `no full-ref sentinel in: ${bad.map((t) => t.name).join(", ")}`);
+  },
+  lua_steps: (S, P, c) => {
+    const why = [];
+    for (const t of luaTargets(P, c)) {
+      const fn = luaFn(t.src, t.name); if (!fn) { why.push(`${t.name}: missing`); continue; }
+      const steps = fn.body.map((l) => STEP_RE.exec(l)).filter(Boolean);
+      if (!steps.length) { why.push(`${t.name}: no numbered TODO(impl) steps`); continue; }
+      if (steps.some((m, k) => Number(m[1]) !== k + 1)) why.push(`${t.name}: steps not numbered 1..n`);
+      for (const m of steps) {
+        const label = m[2].replace(/\([^)]*\)/g, "").trim();
+        if (label.split(/\s+/).length > 10 || /[=<>~]|\w\(|:\w+\(/.test(label)) why.push(`${t.name}: pseudo-code/long step "${m[2]}"`);
+      }
+    }
+    return ok(!why.length, why.join("; "));
+  },
+  lua_tags: (S, P, c) => {
+    const bad = luaTargets(P, c).filter((t) => {
+      const fn = luaFn(t.src, t.name); if (!fn) return true;
+      return !fn.doc.some((l) => /^\s*--\s+@task\s.*\bT-1\b.*@impl\s+\w+.*@status\s+skeleton.*@prio\s+\d/.test(l))
+        || fn.doc.some((l) => /^\s*---@\w+.*@(task|impl|status|prio|calls|concurrency|dec)\b/.test(l));
+    });
+    return ok(!bad.length, `bad/missing tags line: ${bad.map((t) => t.name).join(", ")}`);
+  },
+  lua_modify_kept: (S, P, c) => {
+    const miss = [];
+    for (const t of luaTargets(P, c, ["modify", "existing"]).filter((x) => x.keep)) {
+      const all = norm(t.src);
+      for (const k of t.keep) if (!all.includes(norm(k))) miss.push(`${t.name}: ${k}`);
+    }
+    return ok(!miss.length, `existing code removed: ${miss.join(" | ")}`);
+  },
+  lua_drift_clean: (S, P) => {
+    cli(P, "index", "--all");
+    const r = json(cli(P, "drift", "--task", "T-1", "--json").out);
+    const bad = (r?.items ?? []).filter((i) => /BAD_TAG|ORPHAN|PARSE_ERROR/.test(i.code ?? ""));
+    return ok(r && !bad.length, `drift: ${JSON.stringify(bad).slice(0, 300)}`);
+  },
+  lua_test_stubs: (S, P) => {
+    const specs = walk(path.join(P, "spec")).filter((f) => f.endsWith(".lua")).map(read).join("\n");
+    const miss = [1, 2, 3, 4].filter((k) => !new RegExp(`@ac T-1\\.AC${k}\\b`).test(specs) || !new RegExp(`["']T-1\\.AC${k}\\b`).test(specs));
+    return ok(!miss.length, `ACs without a stub: ${miss.join(",")}`);
+  },
+  skeleton_gate: (S) => {
+    const b = bashCalls(S).find((x) => /\bapprove\b/.test(x));
+    return ok(/\/hitl:approve T-1/.test(S.text) && !b, b ? `ran: ${b}` : "no /hitl:approve T-1 gate");
+  },
   // ---- flow / tickets
   flow_next_design: (S) => ok(/\/hitl:design\s+feat-password-reset/.test(S.text), "next is not /hitl:design feat-password-reset"),
   flow_help_table: (S) => ok(/\/hitl:archive/.test(S.text) && /\/hitl:skeleton/.test(S.text) && /fast/i.test(S.text) && /\|/.test(S.text), "help block incomplete"),

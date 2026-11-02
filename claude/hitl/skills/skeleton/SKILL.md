@@ -9,7 +9,10 @@ allowed-tools: Read Glob Grep Write Edit Bash(hitl-index *) Bash(node *hitl-inde
 
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md`.
 Patterns (read the one per language before writing): `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-ts.md`,
-`${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`. Tags: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`.
+`${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`, `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-lua.md`.
+Other languages (no template): follow the TS shape in the language's own doc-comment tool, and keep that tool's
+binding rules (never put prose or tags between a type-annotation block and the signature annotations).
+Tags: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`.
 
 Arguments: `$ARGUMENTS` — `<T-id>` and optional `--quick` (fast lane: no gate, auto-approve; low-risk only).
 `--quick --override` comes only from `/hitl:implement <T> --lane fast` (the user's override of a high-risk task):

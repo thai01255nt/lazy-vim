@@ -2,7 +2,7 @@
 
 For the test-author. The kind for each AC comes from the task's `### Test plan` row (`kind`, `oracle`, `seam`).
 Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-ts.md`,
-`${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`.
+`${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`, `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-lua.md`.
 
 ## Contents
 1. Tags and naming (all kinds)
