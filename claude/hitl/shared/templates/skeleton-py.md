@@ -3,19 +3,26 @@
 Rules: every target symbol gets intent docstring + reserved tags + numbered `# TODO(impl):` steps + the sentinel raise.
 The sentinel MUST be `raise NotImplementedError("TODO(impl): <ref>")` (the adapter detects it).
 Tag lines contain only reserved tags (see `../tag-grammar.md`). Keep full type hints.
+Step wording: each numbered step is a short intent label that says WHAT the block does (2-8 words, e.g.
+`1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
+the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
+only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
+error behaviour belong in the intent docstring (the test-author's contract), not in the steps.
 
 ## Function / method stub (exact shape)
 ```py
 def apply_discount(order: Order, pct: Decimal) -> Order:
     """Apply pct% discount once; total never negative.
 
+    pct outside 0..100 -> ValueError; an already discounted order is returned unchanged.
+
     @task T-2 @impl manual @status skeleton @prio 2
     @dec D-1
     @calls round_money
     @concurrency none
     """
-    # TODO(impl): 1. validate 0 <= pct <= 100 else ValueError
-    # TODO(impl): 2. if order.discounted, return order unchanged
+    # TODO(impl): 1. validate pct range
+    # TODO(impl): 2. skip an already discounted order
     raise NotImplementedError("TODO(impl): apply_discount")
 ```
 `@dec D-n` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
@@ -31,7 +38,7 @@ def find_by_email(self, email: str) -> User | None:
     @task T-3 @impl agent @status skeleton @prio 1
     @concurrency none
     """
-    # TODO(impl): 1. compare casefolded emails
+    # TODO(impl): 1. match email case-insensitively
     return next((u for u in self.users if u.email == email), None)  # existing code stays
 ```
 Add the sentinel only when the whole body will be rewritten.

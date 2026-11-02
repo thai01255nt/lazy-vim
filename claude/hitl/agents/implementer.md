@@ -22,6 +22,7 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
    Read callee files only if the slice lacks something you need.
 2. **Implement the minimal body** that follows the `TODO(impl)` steps **in order**:
    - turn each `// TODO(impl): n. text` into `// n. text` (Python: `# n. text`) and put the code for that step below it;
+     keep the step a short intent label (what the block does); never add comments that restate the code line;
    - remove the sentinel (`throw new Error("TODO(impl)…")` / `raise NotImplementedError("TODO(impl)…")`);
    - call the declared callees (`@calls`); do not invent new modules or public symbols;
    - an existing project helper that clearly fits a step but is not in `@calls` may be reused: mark it

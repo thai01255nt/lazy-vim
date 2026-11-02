@@ -3,6 +3,11 @@
 Rules: every target symbol gets intent docstring + reserved tags + numbered `TODO(impl):` steps + the sentinel throw.
 The sentinel text MUST start with `TODO(impl):` (the adapter detects `throw new Error("TODO(impl)…")`).
 Tags go on their own lines, never mixed with `@param/@returns/@throws` (see `../tag-grammar.md`).
+Step wording: each numbered step is a short intent label that says WHAT the block does (2-8 words, e.g.
+`1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
+the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
+only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
+error behaviour belong in the intent docstring (the test-author's contract), not in the steps.
 
 ## Method / function stub (exact shape)
 ```ts
@@ -17,9 +22,9 @@ Tags go on their own lines, never mixed with `@param/@returns/@throws` (see `../
  * @concurrency none
  */
 async createUser(email: string, password: string): Promise<User> {
-  // TODO(impl): 1. normalize email to lower case
-  // TODO(impl): 2. throw DuplicateEmailError if UserRepo.findByEmail(email) returns a user
-  // TODO(impl): 3. hash password, save, return user without passwordHash
+  // TODO(impl): 1. normalize email
+  // TODO(impl): 2. reject a duplicate email
+  // TODO(impl): 3. save the user with a hashed password
   throw new Error("TODO(impl): UserService.createUser");
 }
 ```
@@ -35,7 +40,7 @@ Top-level function: same, `export function name(...)` / `export const name = (..
  * @concurrency none
  */
 findByEmail(email: string): User | undefined {
-  // TODO(impl): 1. compare lower-cased emails
+  // TODO(impl): 1. match email case-insensitively
   return this.users.find((u) => u.email === email);   // existing code stays
 }
 ```

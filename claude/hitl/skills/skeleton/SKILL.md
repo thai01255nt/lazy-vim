@@ -43,7 +43,8 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
   - `@calls <short refs>` (declared collaborators; omit if none) and `@concurrency none|shared-state|async|locks|io`;
   - `@dec D-n` on its own line only on the symbols that embody a D-n cited in the task's `**Why**` whose *cost if
     wrong* matters (typically 0–3 per task; never required; not hashed). Ids must exist in the change's `design.md`;
-  - numbered `TODO(impl): 1. …` steps (the flow a reviewer will map), then the sentinel
+  - numbered `TODO(impl): 1. …` steps (the flow a reviewer will map; each a short intent label, not pseudo-code: see
+    "Step wording" in the skeleton template), then the sentinel
     (TS `throw new Error("TODO(impl): <ref>")`, Py `raise NotImplementedError("TODO(impl): <ref>")`).
 - New classes that host the stubs: intent + `@task <T> @impl agent @status skeleton` (avoids ORPHAN), no sentinel.
 - Types/interfaces used by signatures: full field types, no sentinel. Unknown fields → `// TODO(impl): define …`.
