@@ -7,7 +7,9 @@ Step wording: each numbered step is a short intent label that says WHAT the bloc
 `1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
 the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
 only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
-error behaviour belong in the intent docstring (the test-author's contract), not in the steps.
+error behaviour belong in the intent docstring (the test-author's contract), not in the steps. No ids (`T-n`, `D-n`, spec
+ids) in steps. Numbered step comments inside classes/enums are deleted after implementation (only function bodies
+keep them).
 
 ## Function / method stub (exact shape)
 ```py
@@ -31,6 +33,9 @@ Method: same inside the class; ref is `Class.method` (e.g. `"TODO(impl): Order.a
 Async: `async def …`, `@concurrency async`.
 
 ## Modify an existing symbol (keep working code)
+Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
+symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
+`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`T-n`, `D-n`, spec or change ids): use `@dec`.
 ```py
 def find_by_email(self, email: str) -> User | None:
     """Find a user by email, case-insensitive.

@@ -23,7 +23,9 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
 2. **Implement the minimal body** that follows the `TODO(impl)` steps **in order**:
    - turn each `// TODO(impl): n. text` or `// TODO(impl <T>): n. text` into `// n. text` (Python: `# n. text`) and put the
      code for that step below it; leave lines scoped to another task (`TODO(impl T-other)`) as they are;
-     keep the step a short intent label (what the block does); never add comments that restate the code line;
+     keep the step a short intent label (≤8 words, what the block does, no ids like `T-n`/`D-n`); reword pseudo-code
+     steps; never add comments that restate the code line; inside a class/enum body delete numbered step comments
+     instead (function bodies keep them);
    - remove the sentinel (`throw new Error("TODO(impl)…")` / `raise NotImplementedError("TODO(impl)…")`);
    - call the declared callees (`@calls`); do not invent new modules or public symbols;
    - an existing project helper that clearly fits a step but is not in `@calls` may be reused: mark it

@@ -9,7 +9,9 @@ Step wording: each numbered step is a short intent label that says WHAT the bloc
 `1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
 the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
 only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
-error behaviour belong in the intent prose (the test-author's contract), not in the steps.
+error behaviour belong in the intent prose (the test-author's contract), not in the steps. No ids (`T-n`, `D-n`, spec
+ids) in steps. Numbered step comments inside classes/enums are deleted after implementation (only function bodies
+keep them).
 
 ## Annotation order (LuaLS binding — do not break it)
 Docstring order: intent prose → hitl tags → `---@alias` / `---@class` + `---@field` → `---@param` / `---@return`
@@ -20,7 +22,7 @@ A class shared by several functions goes in its own block, separated from the do
 
 ## Function stub (exact shape)
 ```lua
--- Read phase of lease closing (BILL-R12): lists the leases this settle uses up; writes nothing.
+-- Read phase of lease closing: lists the leases this settle uses up; writes nothing.
 -- A lease that gets a refund or still carries another reservation stays open.
 -- Returns the lease ids, each once, in touch order; empty when nothing is used up.
 -- @task T-4 @impl agent @status skeleton @prio 2
@@ -44,6 +46,9 @@ Module function (`function M.name(...)` / `M.name = function(...)`): same docstr
 in the module's return table when other scripts call it.
 
 ## Modify an existing symbol (keep working code)
+Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
+symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
+`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`T-n`, `D-n`, spec or change ids): use `@dec`.
 The existing docstring has its class right above `---@param` → put the new prose and tags above the `---@class` line:
 ```lua
 -- Gives refund back to one lease and to the wallet lease total.      ← updated intent

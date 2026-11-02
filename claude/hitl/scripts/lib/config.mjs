@@ -34,6 +34,10 @@ export const DEFAULTS = Object.freeze({
   // (scripts/lib/speclint.mjs DEFAULT_VAGUE_TERMS) or an array that replaces it; vagueTermsExtra: terms added to it
   spec: { reviewOnClose: true, businessLint: "warn", archiveRequiresDone: true, qualityLint: "warn", vagueTerms: null, vagueTermsExtra: [] },
   trace: { precommit: false, mdOut: `${HITL_PREFIX}index/trace.md` },
+  // intent hygiene drift lint: idRefs → INTENT_TASK_REF (T-n/D-n/spec/change ids in prose); "warn" = warn on a draft
+  // intent, info once locked; "info" = always info; "off". idAllow: regex strings that whitelist matched ids.
+  // restateOverlap: `hitl-index intents` RESTATES threshold (Jaccard of content words between a sentence and a collaborator's)
+  intent: { idRefs: "warn", idAllow: [], restateOverlap: 0.3 },
   // tickets mirror (design v4): provider = linear | jira | github; its section below holds the provider's settings
   tickets: { provider: "linear" },
   linear: {

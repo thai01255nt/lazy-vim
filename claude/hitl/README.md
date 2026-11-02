@@ -143,6 +143,8 @@ một dòng `⚠️ HITL: legacy dir .claude/custom/ — run hitl-index migrate`
                    /hitl:approve T done  (high)  ·  auto done (low, verdict PASS)
                               ▼
                    /hitl:archive <change-id> ⛔  (delta → living spec .hitl/specs/, change → .hitl/archive/)
+                              ▼  (tuỳ chọn)
+                   /hitl:tidy <change-id> ⛔ → /hitl:approve <change-id> intent → hitl-index strip <change-id>
 
  Build rồi review   ─► /hitl:implement --feature <change-id> [--lane fast]  (một report gộp ở cuối)
  Sửa code ngoài Claude ─► /hitl:sync  (drift + trace report, re-approve / revert / defer / accept + amend spec)
@@ -201,9 +203,11 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:design <change-id> [--auto]` | HOW: `design.md` (`D-n`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần | ⛔ mỗi vòng | bạn / Claude |
 | `/hitl:tasks [change-id\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(ACC-R3.S1)`, Why trích `D-n`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | ⛔ quiz | bạn / Claude |
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | ⛔ diff / conflict | bạn / Claude |
+| `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | ⛔ diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | ⛔ mỗi vòng | bạn / Claude |
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
 | `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
 | `/hitl:implement --feature <change-id> [--lane fast]` | Build rồi review: chạy mọi task của một change theo thứ tự (blocked-by, rồi prio), mỗi task theo lane của nó; dừng **một lần** ở cuối với review gộp `reviews/feature-<name>.md` (xem 5b) | ⛔ cuối / dừng sớm | chỉ bạn |
@@ -219,6 +223,8 @@ CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|
 (`@calls` trong cùng task) trước hàm gọi, chu trình đi cùng nhau, hoà thì theo `@prio` rồi dòng `### Symbols`; `--json` có `tasks[T].workOrder`; không có T-id → mọi task),
 `hitl-index strip <T-id|change-id>[,…] [--dry-run]` (vd. `T-1,T-2`; task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
 code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại để kiểm tra, có thay đổi hash/status thì tự khôi phục),
+`hitl-index intents <change-id|T-id> [--json]` (báo cáo vệ sinh intent, chỉ đọc, xem mục 4),
+`hitl-index approve --change <change-id> --stage intent [--symbols a,b] --by human [--dry-run]` (do `/hitl:approve <id> intent` gọi),
 `hitl-index trace [T-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),
 `hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
 `hitl-index feature <change-id> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit).
@@ -231,6 +237,9 @@ Ngoài cổng, skill không hỏi mà tự quyết với giả định ghi rõ (
 **Duyệt là việc của người:** `hitl-index approve … --by human` chỉ chạy được ngay sau khi bạn gõ `/hitl:approve`
 (hook UserPromptSubmit phát "approve token" dùng một lần, ≤10 phút). `--by auto` chỉ cho task risk low (CLI chặn).
 `--by human-override` chỉ chạy được sau khi bạn gõ `/hitl:implement <T> --lane fast` (token riêng, xem 5a).
+Token gắn với thứ bạn gõ: `/hitl:approve T-3` chỉ duyệt T-3; `/hitl:approve <change-id> intent` chỉ cho đúng một lệnh
+`approve --change <change-id> --stage intent --by human`. Token task không duyệt được `--change` và ngược lại;
+`/hitl:approve` không kèm id không duyệt được `--change`; stage intent không nhận `--by auto` / `human-override`.
 
 ## 4. Đồng bộ khi code thay đổi (sync model)
 
@@ -246,6 +255,26 @@ Pre-commit gọi `node "${HITL_HOME:-$HOME/.config/nvim/claude/hitl}/scripts/hit
 
 Mã drift chính: `SIG_CHANGED`, `INTENT_CHANGED` (warn, kèm callers bị ảnh hưởng), `DELETED_REFERENCED` (block), `ORPHAN`,
 `TEST_CHANGED/DELETED/SKIPPED`, `STATUS_FORGED`, `PARSE_ERROR`.
+
+Vệ sinh intent (một contract hiện hành cho mỗi symbol; chỉ symbol không phải test có `@task` hoặc đã khoá; không bao giờ block):
+- `INTENT_TASK_REF`: prose intent, `TODO(impl)` và step `n.` nhắc id (`T-n`, `T-n.ACk`, `D-n`, spec id như `KEY-R3.S1`,
+  change id đang có/đã archive). Text trong backtick được bỏ qua. Id sống trong tag (`@task`, `@dec`, `@ac` của test).
+- Mức: `warn` khi intent còn là bản nháp (chưa khoá hoặc `intentHash` khác bản khoá), `info` khi đã khoá. `strip` không
+  xoá id trong prose (prose nằm trong `intentHash`): sửa tay rồi duyệt lại.
+- Cấu hình `hitl.config.json`: `"intent": { "idRefs": "warn", "idAllow": [], "restateOverlap": 0.3 }`
+  (`"off"` tắt lint, `"info"` luôn info; `idAllow` = regex string cho phép id khớp).
+- `hitl-index intents <change-id|T-id> [--json]` (chỉ đọc, không reindex): mỗi symbol không phải test của change/task,
+  xếp theo số tín hiệu, không cắt bớt:
+  - **ids**: như `INTENT_TASK_REF`;
+  - **RESTATES**: một câu của intent trùng từ (Jaccard trên từ nội dung, bỏ stopword và id) ≥ `restateOverlap` với một
+    câu của collaborator (callee `@calls`, symbol được nêu tên, hoặc enum định nghĩa `TÊN:` mà câu này dùng; với enum chỉ
+    cần ≥ một nửa ngưỡng và ≥ 3 từ chung ngoài tên) — in cả hai câu;
+  - **growth**: số task đã sửa symbol, số dòng intent lần duyệt đầu → hiện tại (từ `intentLog` trong lock; entry cũ chỉ có
+    số task). Chỉ là dữ liệu, không có giới hạn cố định;
+  - **steps**: step comment `n.` trong thân hàm trông như pseudo-code (gán, so sánh, cú pháp gọi hàm, > 10 từ; chỉ xét nhãn, phần lý do trong ngoặc được bỏ qua), và mọi
+    comment `n.` trong thân class/enum (chết sau khi implement).
+- Lock `hitl.lock/1` có thêm (additive) `intentLog: [{task, stage, lines, at}]` cho mỗi lần duyệt skeleton/intent làm đổi
+  intent (entry cũ được seed bằng intent đã khoá khi duyệt lại).
 
 ### 4a. Accept + amend spec (đồng bộ ngược code → spec)
 

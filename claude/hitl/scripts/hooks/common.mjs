@@ -233,3 +233,19 @@ export async function newLockedDrift(root, sid, drift, lock, index) {
   });
   return fresh;
 }
+
+// ---------------------------------------------------------------- approve token binding
+const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent"]);
+/**
+ * What a `/hitl:approve <args>` token authorizes, from its raw args (first token decides):
+ * `T-n …` → {kind:"task", task}; `<change-id> intent …` → {kind:"change", change, stage:"intent"}; anything else (no
+ * args, flags only) → {kind:"any"} (any one task approve, never a --change approve). A change id is never a T-id.
+ */
+export function approveBinding(args) {
+  const toks = String(args || "").trim().split(/[\s,]+/).filter(Boolean);
+  const first = toks[0] || "";
+  if (/^T-\d+$/.test(first)) return { kind: "task", task: first };
+  if (toks[1] === "intent" && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) return { kind: "change", change: first, stage: "intent" };
+  if (/\bT-\d+\b/.test(args || "")) return { kind: "task", task: /\bT-\d+\b/.exec(args)[0] }; // legacy: a T-id anywhere binds to it
+  return { kind: "any" };
+}

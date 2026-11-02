@@ -36,14 +36,19 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 
 ## 3. Write stubs, in `### Symbols` order
 For each row (`@prio` = row number; it only breaks ties — implement order is callees first over `@calls`):
-- **modify** → edit the symbol in place: update the intent docstring, add tags, add `TODO(impl): n. …` lines where the new
-  steps belong. Keep working code. Add the sentinel only when the body will be fully rewritten.
+- **modify** → edit the symbol in place: rewrite the whole intent as one current contract (never append a sentence
+  per task), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
+  only when the body will be fully rewritten.
   Already tagged by an earlier task → append yours (`@task T-2, T-3`), set `@status skeleton` and this task's `@prio`.
   If another not-done task also has `TODO(impl)` lines in it, scope yours: `TODO(impl <T>): n. …`.
 - **new** → create it in the stated file, following file/naming patterns. Create the file only if the row says so
   (`creates file`) or the file is the row's stated path and does not exist.
 - Every target symbol gets:
-  - intent docstring: what + business rule, params/returns/throws (prose lines);
+  - intent docstring: what + business rule, params/returns/throws (prose lines). Keep the intent to what this
+    symbol guarantees: a callee states its own rules; an orchestrator lists the outcome order and names the callee or enum
+    (`already settled → checkAlreadySettled`, `statuses: SettleStatusEnum`); an enum alone defines each status.
+    No ids in prose (`T-n`, `T-n.ACk`, `D-n`, spec ids like `KEY-R3`/`KEY-R3.S1`/`KEY-BR1`, change ids): decisions go
+    in `@dec`, requirement links live in tasks.md AC refs and tests' `@ac`;
   - `@task <T> @impl <row owner> @status skeleton @prio <n>` on one line;
   - `@calls <short refs>` (declared collaborators; omit if none) and `@concurrency none|shared-state|async|locks|io`;
   - `@dec D-n` on its own line only on the symbols that embody a D-n cited in the task's `**Why**` whose *cost if
@@ -68,7 +73,8 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
 ## 5. Index and validate (loop until clean, max 3)
 1. `hitl-index index <changed files…> --json`.
 2. `hitl-index drift --task <T> --json`. Fix every warn about this task: missing/bad tags (`BAD_TAG`), `ORPHAN`,
-   `AMBIGUOUS_REF` / unresolved `@calls`, ACs without a stub, `PARSE_ERROR`.
+   `AMBIGUOUS_REF` / unresolved `@calls`, ACs without a stub, `PARSE_ERROR`, ids in intent prose
+   (`INTENT_TASK_REF`).
 3. `hitl-index tasks --check --json` (Symbols refs must resolve).
    `hitl-index trace <T> --json`: fix every `block` item (DEC_UNKNOWN, AC_UNKNOWN, COVERS_UNRESOLVED). Gaps
    (`AC_NO_TEST`, `SYMBOL_NO_TEST`, …) are info at this stage; mention only real omissions at the gate.
@@ -89,9 +95,12 @@ Open in your editor:
 - tests/userService.test.ts
 <added helpers / typecheck notes / drift leftovers, if any>
 
+<intent diff per modify row: approved → new>
 Review/edit in your editor (you may change signatures, intents, @impl owners, add/remove stubs).
 Then: /hitl:approve <T>  •  or tell me what to change.
 ```
+Intent diff: for each `modify` row show the approved intent → the new one (drift `INTENT_CHANGED` `approved.intent` /
+`current.intent`; the previous docstring when never locked), so the reviewer sees a rewrite, not an appended sentence.
 Ticket tracker (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` exists and `onBranch` is false, add one
 line `🎯 branch: git switch -c <branch>` above `Then:` (run no git command; `linear` null → nothing).
 END THE TURN. Never self-approve. On change requests: apply them, redo step 5, show the gate again.

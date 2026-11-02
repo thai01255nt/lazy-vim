@@ -222,3 +222,61 @@ test("rename --dry-run (CLI): reports changes.symbols.renamed without writing; -
   }
   assert.equal(readFileSync(lp, "utf8"), before, "dry run writes nothing");
 });
+
+// ---------------------------------------------------------------- intent hygiene: INTENT_TASK_REF
+import { proseIds } from "../../scripts/lib/drift.mjs";
+const SVC_ID = "src/services/userService.ts#UserService.createUser";
+const intentItems = (d, code) => d.items.filter((i) => i.code === code).map((i) => `${i.level}:${i.symbol.split("#")[1]}${i.ids ? ":" + i.ids.join(",") : ""}`);
+const cfgProject = (intent = {}, extra = {}) => makeProject({ ".hitl/hitl.config.json": JSON.stringify({ schema: "hitl.config/1", adapters: { ts: "ts-lite", py: "py-ast" }, intent }), ...extra });
+
+test("proseIds: task/AC/decision/spec/change ids; not T-shirt, HTTP codes, SHA-256, bare T, backticks", () => {
+  assert.deepEqual(proseIds("Settles once (T-5, D-7, BILL-R7.S2, BILL-BR1); see T-3.AC2 and BILL-R11."), ["T-5", "T-3.AC2", "D-7", "BILL-R7.S2", "BILL-BR1", "BILL-R11"]);
+  assert.deepEqual(proseIds("T-shirt sizes; HTTP 404 / HTTP-404; SHA-256 and UTF-8; marker set:T names T; GPT-4; `T-9` and `D-1` quoted"), []);
+  assert.deepEqual(proseIds("a fix-up for feat-users, not feat-users-v2", { changeIds: ["feat-users", "fix-up-x"] }), ["feat-users"]);
+  assert.deepEqual(proseIds("T-1 and D-2", { allow: [/^D-2$/] }), ["T-1"]);
+});
+
+test("INTENT_TASK_REF: warn on a draft intent (prose + TODO steps), info once locked, warn again when edited", async () => {
+  const root = makeProject();
+  write(root, "src/services/userService.ts", SVC.replace("Registers a user.", "Registers a user (T-1, D-2); not a T-shirt, SHA-256 or `T-9`.").replace("1. reject duplicates", "1. reject duplicates (T-1.AC1)"));
+  await updateIndex(root, null, { full: true });
+  assert.deepEqual(intentItems(await computeDrift(root, {}), "INTENT_TASK_REF"), ["warn:UserService.createUser:T-1,T-1.AC1,D-2"]);
+  await lockAll(root);
+  assert.deepEqual(intentItems(await computeDrift(root, {}), "INTENT_TASK_REF"), ["info:UserService.createUser:T-1,T-1.AC1,D-2"]);
+  write(root, "src/services/userService.ts", SVC.replace("Registers a user.", "Registers any user (T-1)."));
+  await updateIndex(root, null, { full: true });
+  const d = await computeDrift(root, {});
+  assert.deepEqual(intentItems(d, "INTENT_TASK_REF"), ["warn:UserService.createUser:T-1"]);
+  assert.ok(d.items.some((i) => i.code === "INTENT_CHANGED"));
+  assert.equal(d.summary.block, 0, "never blocks");
+});
+
+test("INTENT_TASK_REF: untagged/unlocked symbols and tests are out of scope; idAllow and off", async () => {
+  const ctrl = `import { UserService } from "../services/userService.ts";\n/** Handles registration requests (T-1). */\nexport function register(svc: UserService, email: string) {\n  return svc.createUser(email);\n}\n`;
+  const svc = SVC.replace("Registers a user.", "Registers a user (T-1, D-2).");
+  const root = cfgProject({ idAllow: ["^D-\\d+$"] }, { "src/http/authController.ts": ctrl, "src/services/userService.ts": svc });
+  await updateIndex(root, null, { full: true });
+  assert.deepEqual(intentItems(await computeDrift(root, {}), "INTENT_TASK_REF"), ["warn:UserService.createUser:T-1"], "register has no @task; the T-1.AC1 test title is a test");
+  const off = cfgProject({ idRefs: "off" }, { "src/services/userService.ts": svc });
+  await updateIndex(off, null, { full: true });
+  assert.deepEqual((await computeDrift(off, {})).items.filter((i) => i.code === "INTENT_TASK_REF"), []);
+});
+
+test("INTENT_TASK_REF: change ids only when the change exists", async () => {
+  const svc = SVC.replace("Registers a user.", "Registers a user for feat-users; a fix-up of feat-other.");
+  const root = makeProject({ "src/services/userService.ts": svc, ".hitl/changes/feat-users/proposal.md": "# x\n" });
+  await updateIndex(root, null, { full: true });
+  assert.deepEqual(intentItems(await computeDrift(root, {}), "INTENT_TASK_REF"), ["warn:UserService.createUser:feat-users"]);
+});
+
+test("INTENT_TASK_REF: Lua intent prose and ---@ lines; bare T (set:T) is not an id; \"info\" config", async () => {
+  const lua = ["-- Settles once (BILL-R7, D-7): reads the marker set:T and names T in the error.", "-- @task T-1 @impl agent @status skeleton @prio 3", "-- @concurrency none",
+    "---@class TakeOptions", "---@field key string # see T-2", "---@param options TakeOptions", "---@return number", "local function take(options)", "\t-- TODO(impl): 1. read marker", '\terror("TODO(impl): src/take.lua#take")', "end", "return { take = take }", ""].join("\n");
+  const root = makeProject({ "src/take.lua": lua });
+  await updateIndex(root, null, { full: true });
+  assert.match((await readIndex(root)).symbols["src/take.lua#take"].intent, /@field key string/, "Lua annotations are prose in the grammar");
+  assert.deepEqual(intentItems(await computeDrift(root, {}), "INTENT_TASK_REF"), ["warn:take:T-2,D-7,BILL-R7"]);
+  const quiet = cfgProject({ idRefs: "info" }, { "src/take.lua": lua });
+  await updateIndex(quiet, null, { full: true });
+  assert.deepEqual(intentItems(await computeDrift(quiet, {}), "INTENT_TASK_REF"), ["info:take:T-2,D-7,BILL-R7"]);
+});

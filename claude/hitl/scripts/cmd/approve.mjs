@@ -2,6 +2,8 @@
 // The human-only rule for `--by human` is enforced by the PreToolUse approve token (P3); the CLI enforces `--by auto` = low risk only.
 // `--by human-override` (the user forced the fast lane with `/hitl:implement <T> --lane fast`) is gated by the hook's override
 // token the same way; the CLI allows it for any risk, never for stage done, and marks the task as overridden in the lock.
+// `hitl-index approve --change <id> [--stage intent] [--symbols a,b] --by human [--dry-run] [--json]`: intent re-approval of a
+// done change's locked symbols (lock.planApproval stage intent; the hook's approve token must be bound to that change).
 import { parseArgs } from "node:util";
 import { planApproval, writeLock, APPROVERS, lockedTasks } from "../lib/lock.mjs";
 import { synctags } from "../lib/synctags.mjs";
@@ -10,16 +12,18 @@ import { computeNext } from "../lib/nextstep.mjs";
 import { gather } from "./status.mjs";
 import { loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
 
-const OPTS = { stage: { type: "string" }, symbols: { type: "string" }, by: { type: "string" }, "dry-run": { type: "boolean" }, force: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
+const OPTS = { change: { type: "string" }, stage: { type: "string" }, symbols: { type: "string" }, by: { type: "string" }, "dry-run": { type: "boolean" }, force: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 
 export async function run(argv, ctx) {
   const { values: v, positionals } = parseArgs({ args: argv, options: OPTS, allowPositionals: true, strict: false });
   const json = ctx.json || v.json;
   const T = positionals[0];
   // tolerate positional stage/symbols (`approve T-1 tests a,b`) in addition to the flags
+  if (v.change !== undefined) return runIntent(v, positionals, ctx, json);
+  if (v.stage === "intent") { console.error("--stage intent takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage intent --by human"); return 2; }
   if (!v.stage && ["skeleton", "tests", "done"].includes(positionals[1])) v.stage = positionals[1];
   if (!v.symbols && positionals.length > 2) v.symbols = positionals.slice(2).join(",");
-  if (!T || !/^T-\d+$/.test(T)) { console.error("usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--by human|auto|human-override] [--dry-run] [--force]"); return 2; }
+  if (!T || !/^T-\d+$/.test(T)) { console.error("usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent [--symbols a,b] --by human [--dry-run]"); return 2; }
   const by = v.by || "human";
   if (!APPROVERS.includes(by)) { console.error(`--by must be one of ${APPROVERS.join("|")}`); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
@@ -88,5 +92,40 @@ export async function run(argv, ctx) {
     }
     console.log(`🎯 next: ${next}`);
   }
+  return 0;
+}
+
+/** `approve --change <id> --stage intent`: re-lock the intents of a done change's symbols; nothing else in the lock moves. */
+async function runIntent(v, positionals, ctx, json) {
+  const C = typeof v.change === "string" ? v.change.trim() : "";
+  const usage = "usage: hitl-index approve --change <change-id> [--stage intent] [--symbols a,b] --by human [--dry-run] [--json]";
+  if (!C || !/^[A-Za-z0-9][\w.-]*$/.test(C) || /^T-\d+$/.test(C)) { console.error(usage); return 2; }
+  if (positionals.length) { console.error(`--change takes no positional task/stage (got ${positionals.join(" ")}); ${usage}`); return 2; }
+  if (v.stage && v.stage !== "intent") { console.error(`--change approves only --stage intent (got ${v.stage})`); return 2; }
+  if (v.force) { console.error("--force does not apply to --stage intent"); return 2; }
+  const by = v.by || "human";
+  if (by !== "human") { console.error(`intent re-approval is human-only: --by human (not --by ${by})`); return 2; }
+  if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
+  const g = await gather(ctx.root, ctx.config, { drift: false });
+  const plan = planApproval({ changeId: C, stage: "intent", symbols: v.symbols ? v.symbols.split(",").map((s) => s.trim()).filter(Boolean) : null,
+    by, index: g.index, lock: g.lock, state: g.state, config: ctx.config, tasks: g.tasks, statuses: g.statuses, api: g.api });
+  const nm = (id) => g.index.symbols[id]?.name || id;
+  const out = { ok: plan.ok, change: C, stage: "intent", by, dryRun: !!v["dry-run"], reasons: plan.reasons, warnings: plan.warnings || [], changes: plan.changes };
+  const warn = () => { if (!json) for (const w of out.warnings) console.log(`⚠️ ${w}`); };
+  if (!plan.ok) {
+    const suggest = `hitl-index drift --json (INTENT_CHANGED only); hitl-index intents ${C}`;
+    if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));
+    else { console.log(`🛑 approve --change ${C} --stage intent refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`💡 ${suggest}`); }
+    return 1;
+  }
+  const changed = plan.changes.symbols.changed.map((x) => x.id);
+  if (v["dry-run"]) {
+    if (json) console.log(JSON.stringify(out, null, 2));
+    else { console.log(`approve --change ${C} --stage intent (dry run, by ${by}): ${changed.length} intent(s)`); for (const id of changed) console.log(`    ~ ${nm(id)} (intent)`); warn(); }
+    return 0;
+  }
+  await writeLock(ctx.root, plan.lock);
+  if (json) console.log(JSON.stringify({ ...out, approved: changed }, null, 2));
+  else { console.log(`✅ ${C} intent re-approved by ${by}: ${changed.map(nm).join(", ")}`); warn(); }
   return 0;
 }

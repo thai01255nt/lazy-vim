@@ -82,6 +82,9 @@ export async function withLock(root, fn) {
 
 export const nowIso = () => new Date().toISOString();
 
+/** Non-empty prose lines of an intent (annotation/tag lines starting with `@` not counted): the growth measure. */
+export function intentLines(intent) { return String(intent || "").split("\n").filter((l) => l.trim() && !l.trim().startsWith("@")).length; }
+
 // ---------------------------------------------------------------- lock IO
 export function emptyLock() { return { schema: LOCK_SCHEMA, symbols: {}, tests: {}, tasks: {} }; }
 
@@ -255,7 +258,99 @@ export function isOverride(lock, taskId) {
 }
 
 // ---------------------------------------------------------------- approve planning (pure)
-const STAGES = ["skeleton", "tests", "done"];
+const STAGES = ["skeleton", "tests", "done", "intent"];
+
+/**
+ * Intent growth history of a lock entry (additive, `hitl.lock/1`): [{task, stage, lines, at}], one item per approval that
+ * locked a new or changed intent. An entry locked before the log existed is seeded with its locked intent first.
+ * Returns the previous log unchanged when the intent did not change.
+ */
+export function appendIntentLog(prev, sym, { task, stage, at, change }) {
+  const log = Array.isArray(prev?.intentLog) ? [...prev.intentLog] : [];
+  if (prev && !log.length && prev.intent != null) log.push({ task: prev.task ?? null, stage: "skeleton", lines: intentLines(prev.intent), at: prev.approvedAt ?? null });
+  if (prev && prev.intentHash === sym.intentHash && log.length) return log;
+  log.push({ task: task ?? null, ...(change ? { change } : {}), stage, lines: intentLines(sym.intent), at });
+  return log;
+}
+
+/** Body hash recorded for a symbol by the latest `done` approval among `taskIds` that recorded it; null when none did. */
+export function doneBodyHash(lock, id, taskIds) {
+  let best = null;
+  for (const t of taskIds) {
+    const lt = lock.tasks?.[t];
+    const h = lt?.doneBodyHashes?.[id];
+    if (h && (!best || String(lt.doneAt || "") > String(best.at || ""))) best = { hash: h, at: lt.doneAt, task: t };
+  }
+  return best;
+}
+
+/**
+ * Intent re-approval after a change is done (e.g. /hitl:tidy rewrote docstrings). Pure; same result shape as planApproval.
+ * Picks the change's locked symbols whose intentHash moved (or `symbols`), and refuses (before any write) unless every
+ * owning task is done and signature, TODO flow and body are exactly what was locked / recorded at done. Writes only
+ * intent, intentHash, intentApprovedAt/By and an intentLog item; task/tasks history and lock.tasks stay. Never needs @task
+ * tags (they may be stripped): scope = the change's `### Symbols` rows, tags and lock entries.
+ */
+function planIntentApproval(opts, lock) {
+  const { changeId, index, tasks = [], statuses, api } = opts;
+  const by = opts.by || "human";
+  const now = opts.now || nowIso();
+  const reasons = [];
+  const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
+  const warnings = [];
+  const res = (ok) => ({ ok, stage: "intent", change: changeId ?? null, task: null, by, reasons, warnings, changes, lock });
+  if (by !== "human") { reasons.push(`intent re-approval is human-only (--by human), not --by ${by}`); return res(false); }
+  if (!changeId) { reasons.push("intent stage needs --change <change-id>"); return res(false); }
+  if (!index?.symbols) { reasons.push("index missing: run hitl-index index --all"); return res(false); }
+  const scopeTasks = tasks.filter((t) => t.change === changeId);
+  if (!scopeTasks.length) { reasons.push(`change ${changeId} has no tasks in the tasks files`); return res(false); }
+  const inScope = new Set();
+  for (const t of scopeTasks) {
+    for (const id of taskSymbolIds(index, t.id, t, api)) inScope.add(id);
+    for (const [id, l] of Object.entries(lock.symbols)) if (lockedTasks(l).includes(t.id)) inScope.add(id);
+  }
+  const candidates = [...inScope].filter((id) => index.symbols[id] && !isTest(index.symbols[id]) && lock.symbols[id]).sort();
+  let pick;
+  if (opts.symbols?.length) {
+    pick = [];
+    for (const ref of opts.symbols) {
+      const r = resolveWith(api, index, ref);
+      if (!r?.id) reasons.push(`--symbols: ${ref} ${r?.ambiguous ? `is ambiguous: ${r.ambiguous.join(", ")}` : "not resolvable"}`);
+      else if (!inScope.has(r.id)) reasons.push(`--symbols: ${ref} is not a symbol of change ${changeId}`);
+      else if (!lock.symbols[r.id]) reasons.push(`--symbols: ${ref} is not locked (approve its task's skeleton instead)`);
+      else pick.push(r.id);
+    }
+    pick = [...new Set(pick)];
+  } else pick = candidates.filter((id) => lock.symbols[id].intentHash !== index.symbols[id].intentHash);
+  if (reasons.length) return res(false);
+  if (!pick.length) { reasons.push(`no locked symbol of change ${changeId} has an intent that differs from the lock`); return res(false); }
+
+  const status = (t) => statuses?.tasks?.[t]?.status ?? (lock.tasks[t]?.doneAt ? "done" : "todo");
+  const rowTasks = (id) => tasks.filter((t) => (t.symbols || []).some((r) => resolveWith(api, index, r.ref, r.file)?.id === id)).map((t) => t.id);
+  for (const id of pick) {
+    const s = index.symbols[id], l = lock.symbols[id], nm = s.name || id;
+    const owners = [...new Set([...lockedTasks(l), ...(s.tags?.task || []), ...rowTasks(id)])];
+    const open = owners.filter((t) => status(t) !== "done");
+    if (open.length) { reasons.push(`${nm}: owning task ${open.map((t) => `${t} is ${status(t)}`).join(", ")} (intent re-approval only once every owning task is done; else /hitl:approve <T> skeleton)`); continue; }
+    if (l.sigHash !== s.sigHash) reasons.push(`${nm}: signature changed since approval (only intent prose may change here)`);
+    // implemented TODO(impl) lines became `n.` comments (todos empty): only open TODO lines are compared, as in drift
+    if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) reasons.push(`${nm}: TODO(impl) steps changed since approval`);
+    const done = doneBodyHash(lock, id, owners);
+    if (done && done.hash !== s.bodyHash) reasons.push(`${nm}: body changed since ${done.task} was done`);
+    else if (!done && CODE_KINDS.has(s.kind)) reasons.push(`${nm}: no done body record in the lock (approve its task's done stage first)`);
+    else if (!done) warnings.push(`${nm}: ${s.kind} has no done body record (done approvals record functions only); its body was not compared`);
+  }
+  if (reasons.length) return res(false);
+  for (const id of pick) {
+    const s = index.symbols[id], l = lock.symbols[id];
+    if (l.intentHash === s.intentHash) { changes.symbols.unchanged.push(id); continue; }
+    const entry = { ...l, intent: s.intent, intentHash: s.intentHash, intentApprovedAt: now, intentApprovedBy: by };
+    entry.intentLog = appendIntentLog(l, s, { task: l.task, change: changeId, stage: "intent", at: now });
+    lock.symbols[id] = entry;
+    changes.symbols.changed.push({ id, what: ["intent"] });
+  }
+  return res(true);
+}
 
 export function defaultStage(lock, taskId) {
   const t = lock.tasks[taskId];
@@ -269,18 +364,24 @@ const SENTINEL = "TODO(impl)";
 /**
  * Plan an approval. Pure: returns {ok, stage, reasons[], changes, lock(new)}.
  * opts: {taskId, stage?, symbols?:[refs], by:"human"|"auto"|"human-override", force?, index, lock, state, config, task, tasks, statuses, api?, now?}
+ * Stage "intent" takes {changeId} instead of taskId (planIntentApproval); --force does not apply to it.
  */
 export function planApproval(opts) {
   const { taskId, index, state = {}, config = {}, task, statuses, api } = opts;
   const by = opts.by || "human";
   const now = opts.now || nowIso();
   const lock = normalizeLock(JSON.parse(JSON.stringify(opts.lock || emptyLock())));
-  const stage = opts.stage || defaultStage(lock, taskId);
+  const stage = opts.stage || (opts.changeId ? "intent" : defaultStage(lock, taskId));
   const reasons = [];
   const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
   const res = (ok) => ({ ok, stage, task: taskId, by, reasons, changes, lock });
 
-  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done)`); return res(false); }
+  if (stage === "intent" || opts.changeId) {
+    if (stage !== "intent") { reasons.push(`--change approves only the intent stage, not "${stage}"`); return res(false); }
+    if (taskId) { reasons.push("intent stage takes --change <change-id>, not a task id"); return res(false); }
+    return planIntentApproval(opts, lock);
+  }
+  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done|intent)`); return res(false); }
   if (!index?.symbols) { reasons.push("index missing: run hitl-index index --all"); return res(false); }
   if (!task && !lock.tasks[taskId]) { reasons.push(`task ${taskId} not found in tasks/*.md`); return res(false); }
 
@@ -368,6 +469,7 @@ export function planApproval(opts) {
       // approval history: a symbol modified by a later task keeps the earlier tasks (written only once there are two)
       const hist = [...new Set([...lockedTasks(prev).filter((t) => t !== taskId), taskId])];
       if (hist.length > 1) entry.tasks = hist;
+      entry.intentLog = appendIntentLog(prev, s, { task: taskId, stage: "skeleton", at: now });
       if (from) {
         entry = { ...prev, ...entry, renamedFrom: from };
         delete lock.symbols[from];

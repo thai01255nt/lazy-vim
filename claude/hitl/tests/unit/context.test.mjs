@@ -63,3 +63,24 @@ test("AC lines carry requirement text; decisions only outside contract mode", as
   assert.doesNotMatch(k.markdown, /## Decisions/);
   assert.doesNotMatch(k.markdown, /decisions \(@dec\)/);
 });
+
+test("contract mode: collaborator contracts = @calls callees + symbols named in the intent (in scope only); dropped before test bodies", async () => {
+  const { write } = await import("./_project.mjs");
+  const root = makeProject({ "src/other/settle.ts": "/** Settles once. */\nexport function settleOnce() { return 1; }\n" });
+  const svc = join(root, "src/services/userService.ts");
+  write(root, "src/services/userService.ts", readFileSync(svc, "utf8").replace("Registers a user.", "Registers a `User`; already settled → settleOnce; save is the repo's."));
+  await updateIndex(root, null, { full: true });
+  const c = await buildContext(root, "UserService.createUser", { contract: true });
+  const sec = c.markdown.split("\n## Collaborator contracts\n")[1]?.split("\n## ")[0] ?? "";
+  assert.match(sec, /### User — type — src\/repo\/userRepo\.ts\n(signature: .*\n)?A user\./, "named in prose, file imported");
+  assert.match(sec, /### UserRepo\.findByEmail — method — src\/repo\/userRepo\.ts\nsignature: findByEmail\(email: string\): User \| undefined\nFinds a user by email\./, "declared callee, full intent");
+  assert.doesNotMatch(sec, /settleOnce/, "file neither a target file nor imported");
+  assert.doesNotMatch(sec, /UserRepo\.save/, "no intent to show");
+  assert.doesNotMatch((await buildContext(root, "UserService.createUser", {})).markdown, /Collaborator contracts/, "contract mode only");
+  const full = c.markdown.length;
+  let b = full;
+  while (b > 200 && (await buildContext(root, "UserService.createUser", { contract: true, budget: b })).markdown.includes("Collaborator contracts")) b -= 10;
+  const at = (await buildContext(root, "UserService.createUser", { contract: true, budget: b })).markdown;
+  assert.match(at, /#### tests\/userService\.test\.ts/, "test bodies survive the collab drop");
+  assert.doesNotMatch(at, /siblings:/, "siblings dropped first");
+});

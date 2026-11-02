@@ -167,6 +167,20 @@ export async function buildContext(root, target, { contract = false, budget = 12
     sections.push({ text: out.join("\n") });
   }
 
+  // contract mode: full intents of declared callees and of symbols the targets' intents name, so an intent may name
+  // its callee/enum instead of re-explaining it
+  if (contract) {
+    const collab = collaboratorsOf(index, ids, files);
+    if (collab.length) {
+      const out = ["\n## Collaborator contracts"];
+      for (const id of collab) {
+        const c = S[id];
+        out.push(`### ${c.name} — ${c.kind} — ${c.file}`, ...(c.signature ? [`signature: ${c.signature}`] : []), c.intent);
+      }
+      sections.push({ text: out.join("\n"), drop: "collab" });
+    }
+  }
+
   // contract mode: tests with bodies + import paths
   if (contract) {
     const out = ["\n## Tests (existing)"];
@@ -187,6 +201,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
   const testCmd = task ? `hitl-index test --task ${task.id}` : `hitl-index test --symbol ${S[ids[0]].name}`;
   sections.push({ text: ["\n## Rules",
     "- Do not change signatures, docstrings or @tags of locked symbols. Do not edit tests. Follow TODO(impl) steps in order; turn them into \"// n. step\" comments. Leave steps scoped to another task (TODO(impl T-n)).",
+    "- Reword pseudo-code steps into ≤8-word intent labels without ids; delete numbered step comments inside classes/enums.",
     `- Test command: ${testCmd}`].join("\n") });
 
   const render = (maxCallers, dropped) => sections.filter((s) => !dropped.has(s.drop)).map((s) => {
@@ -199,12 +214,37 @@ export async function buildContext(root, target, { contract = false, budget = 12
   let md = render(Infinity, dropped);
   if (md.length > budget) { dropped.add("siblings"); md = render(Infinity, dropped); }
   if (md.length > budget) md = render(5, dropped);
+  if (md.length > budget) { dropped.add("collab"); md = render(5, dropped); }
   if (md.length > budget) { dropped.add("testBodies"); md = render(5, dropped); }
   if (md.length > budget) md = md.slice(0, budget - 20) + "\n… (truncated)";
   const allFiles = new Set([...files, ...testFilesAll, ...(task ? [task.file] : [])]);
   const targetsOut = ids.map((id) => ({ id, callers: S[id].callers, callees: S[id].callees }));
   return { markdown: md + "\n", symbols: ids, files: [...allFiles].sort(), targets: targetsOut,
     callers: [...new Set(targetsOut.flatMap((t) => t.callers))].sort(), callees: [...new Set(targetsOut.flatMap((t) => t.callees))].sort() };
+}
+
+const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A name matched in prose must be a distinctive identifier (camelCase/PascalCase/snake_case, >= 4 chars), so prose
+ *  words like "save" or "main" do not pull in a symbol of that name. Dotted full names always count. */
+const distinctive = (n) => n.length >= 4 && /^[A-Za-z_$][\w$]*$/.test(n) && /[a-z0-9][A-Z]|_|^[A-Z][a-z0-9]/.test(n);
+
+/** Non-test, non-target symbols with intent prose that the targets declare in @calls, or name in their intent prose
+ *  (word-boundary match on the full name or a distinctive last segment), limited to the targets' files and their imports. */
+export function collaboratorsOf(index, ids, files) {
+  const S = index.symbols;
+  const scope = new Set(files);
+  for (const f of files) for (const i of index.files[f]?.imports || []) if (i.resolved) scope.add(i.resolved);
+  const out = new Set();
+  for (const id of ids) for (const r of S[id].tags?.calls || []) { const c = resolveRef(index, r, S[id].file)?.id; if (c) out.add(c); }
+  const prose = ids.map((id) => S[id].intent || "").join("\n");
+  if (prose) {
+    for (const s of Object.values(S)) {
+      if (s.test || out.has(s.id) || !scope.has(s.file)) continue;
+      const names = [s.name.includes(".") && s.name, s.name.split(".").at(-1)].filter((n) => n && (n.includes(".") || distinctive(n)));
+      if (names.some((n) => new RegExp(`(?<![\\w$.])${reEsc(n)}(?![\\w$])`).test(prose))) out.add(s.id);
+    }
+  }
+  return [...out].filter((id) => S[id] && !ids.includes(id) && !S[id].test && S[id].intent).sort();
 }
 
 function relImport(fromFile, srcFile) {

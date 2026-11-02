@@ -34,6 +34,10 @@ dec        := DECID ("," WS* DECID)*                          DECID := "D-" [0-9
   So `@param`, `@returns`, `@throws` lines stay in the intent. Never mix them with reserved tags on one line.
 - Intent = prose lines (JSDoc `*` stripped, trimmed, blank runs collapsed). Intent + `@calls` + `@concurrency`
   are hashed into the locked contract; `@status`, `@prio`, `@impl`, `@task`, `@dec` are not.
+- Intent prose is one current contract for its own symbol: a `modify` rewrites it whole (no sentence per task); an
+  orchestrator names its callee/enum instead of re-explaining it; an enum alone defines each status. Ids (`T-n`,
+  `T-n.ACk`, `D-n`, spec and change ids) live only in tags (`@task`, `@dec`, tests' `@ac`), never in prose; drift reports
+  `INTENT_TASK_REF` (text in backticks is ignored).
 - Invalid value → index warning `BAD_TAG`. Repeated list tags merge; a repeated scalar keeps the last value.
 - `@status` is written by tooling only (`hitl-index status --sync-tags`). Skeletons start at `skeleton`.
 - One symbol, several tasks (a later task's `modify` row appends its id: `@task T-2, T-3`): status is computed per task.

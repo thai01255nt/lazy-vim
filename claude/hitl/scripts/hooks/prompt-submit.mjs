@@ -1,7 +1,7 @@
 // UserPromptSubmit hook (design §D.5): approve token, fast-lane override token + silent safety-net reindex.
 // Verified: `prompt` carries the raw typed line for skill invocations (e.g. "/hitl:approve T-1"),
 // not the expanded skill body. Plain stdout is added to Claude's context on this event.
-import { run, projectRootOrExit, silent, emit, api, optionalLib, readSession, updateSession, newLockedDrift, driftLine } from "./common.mjs";
+import { run, projectRootOrExit, silent, emit, api, optionalLib, readSession, updateSession, newLockedDrift, driftLine, approveBinding } from "./common.mjs";
 
 const APPROVE_PROMPT = /^\s*\/(?:hitl:)?approve\b(.*)$/s;
 const IMPLEMENT_PROMPT = /^\s*\/(?:hitl:)?implement\b(.*)$/s;
@@ -34,7 +34,10 @@ async function main(input) {
   const prompt = typeof input.prompt === "string" ? input.prompt : "";
   const m = APPROVE_PROMPT.exec(prompt);
   if (m) {
-    await updateSession(root, sid, (s) => { s.approveToken = { at: Date.now(), args: m[1].trim().slice(0, 200) }; return s; });
+    // bound to a task (`T-n …`) or to a change's intent stage (`<change-id> intent …`); PreToolUse re-derives it from args
+    const args = m[1].trim().slice(0, 200);
+    const b = approveBinding(args);
+    await updateSession(root, sid, (s) => { s.approveToken = { at: Date.now(), args, ...(b.kind === "change" ? { change: b.change, stage: b.stage } : {}) }; return s; });
   }
   // Any typed slash command ends a previous override run; plain replies ("done", "y") at its gates keep it.
   if (/^\s*\//.test(prompt)) {

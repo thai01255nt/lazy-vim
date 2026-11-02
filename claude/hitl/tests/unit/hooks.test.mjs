@@ -472,6 +472,44 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: cmd }, null, "tok2"), /human-only/);
   });
 
+  test("approve token for a change's intent stage: bound to that change id, --by human only, task tokens do not cross", async () => {
+    const { root } = await mkProject();
+    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
+    const ok = "hitl-index approve --change feat-x --stage intent --by human --json";
+    // no token; --by auto / human-override refused for the intent stage in any form (dry run too)
+    assertDeny(pre(root, "Bash", { command: ok }, null, "ci0"), /human-only/);
+    for (const c of ["hitl-index approve --change feat-x --stage intent --by auto", "hitl-index approve --change feat-x --by auto --dry-run",
+      "hitl-index approve --change feat-x --stage intent --by human-override", "hitl-index approve T-1 --stage intent --by auto"])
+      assertDeny(pre(root, "Bash", { command: c }, null, "ci0"), /Intent re-approval is human-only/);
+    prompt("/hitl:approve feat-x intent", "ci0");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --stage intent --by auto" }, null, "ci0"), /Intent re-approval is human-only/);
+    // a task token never authorizes --change; the token is kept on that deny
+    prompt("/hitl:approve T-1", "ci1");
+    assertDeny(pre(root, "Bash", { command: ok }, null, "ci1"), /token is for T-1/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ci1"));
+    // a token typed without a T-id (any one task) does not authorize --change either
+    prompt("/hitl:approve", "ci2");
+    assertDeny(pre(root, "Bash", { command: ok }, null, "ci2"), /not bound to a change/);
+    // the change token: minted bound to the change and stage
+    prompt("/hitl:approve feat-x intent a,b", "ci3");
+    const sess = JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/ci3.json"), "utf8"));
+    assert.equal(sess.approveToken.change, "feat-x"); assert.equal(sess.approveToken.stage, "intent");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ci3"), /for change feat-x/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-y --stage intent --by human" }, null, "ci3"), /for change feat-x/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --change feat-y --stage intent" }, null, "ci3"), /for change feat-x/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --by human" }, null, "ci3"), /Run exactly/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --change feat-x --stage intent --by human" }, null, "ci3"), /names a change, not a task/);
+    assertDeny(pre(root, "Bash", { command: ok }, "hitl:implementer", "ci3"), /human-only/);
+    assertDeny(pre(root, "Bash", { command: ok }, "general-purpose", "ci3"), /human-only/);
+    assertDeny(pre(root, "Bash", { command: ok + " && echo ok" }, null, "ci3"), /alone/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index approve --change feat-x --stage intent --dry-run" }, null, "ci3")); // preview: no token use
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve --change=feat-x --stage=intent --symbols a,b" }, null, "ci3"));
+    assertDeny(pre(root, "Bash", { command: ok }, null, "ci3"), /human-only/); // one use
+    // "<word> intent" never binds a stage word or a T-id as a change
+    prompt("/hitl:approve T-1 intent", "ci4");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change T-1 --stage intent" }, null, "ci4"), /token is for T-1/);
+  });
+
   test("override token: /hitl:implement <T> --lane fast → --by human-override for that task only, multi-use, main thread", async () => {
     const { root } = await mkProject();
     const sid = "ov1";

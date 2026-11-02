@@ -6,6 +6,8 @@ import { paths } from "./project.mjs";
 import { readJson } from "./fsutil.mjs";
 import { resolveRef, fileOfId, nameOfId } from "./graph.mjs";
 import { referencesTo, renamePairs, currentTask, lockedTasks } from "./lock.mjs";
+import { SPECREF_G } from "./specids.mjs";
+import { changeOfFile } from "./tasksmd.mjs";
 
 export const SCHEMA = "hitl.drift/1";
 const LEVEL = { block: 0, warn: 1, info: 2 };
@@ -69,8 +71,11 @@ export async function computeDriftFrom(root, index, opts = {}) {
     const open = [...new Set([...(s.tags?.task || []), ...lockedTasks(l)])].filter((t) => !L.tasks[t]?.doneAt);
     if (l.sigHash && s.sigHash !== l.sigHash)
       add("warn", "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
+    // every owning task done (e.g. after /hitl:tidy): the change-level intent re-approval, which needs no @task tags
+    const doneChange = !open.length && changeOfFile(L.tasks[owner]?.file || "").change;
+    const reapprove = doneChange ? `/hitl:approve ${doneChange} intent` : `/hitl:approve ${owner}`;
     if (l.intentHash && s.intentHash !== l.intentHash)
-      add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
+      add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (${reapprove}).`, { affected: s.callers, approved, current: cur(s), task: owner });
     if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) add("info", "TODO_FLOW_CHANGED", id, `${ref(id)} TODO(impl) steps changed since approval`);
     if (l.impl && s.tags.impl && s.tags.impl !== l.impl) add("info", "IMPL_CHANGED", id, `${ref(id)} @impl ${l.impl} → ${s.tags.impl}`);
     const done = L.tasks[l.task]?.doneBodyHashes?.[id];
@@ -78,6 +83,9 @@ export async function computeDriftFrom(root, index, opts = {}) {
     if (open.some((t) => t !== l.task)) continue; // a later open task owns the body changes
     if ((done && done !== s.bodyHash) || (!done && rv && rv !== s.bodyHash)) add("info", "BODY_CHANGED", id, `${ref(id)} body changed since the last ${done ? "done record" : "review"}`);
   }
+
+  // intent hygiene (one current contract per symbol): ids in prose; never blocks
+  await intentLints(root, S, L, config.intent || {}, add, ref);
 
   // orphans
   const tracked = new Set();
@@ -171,6 +179,36 @@ export async function computeDriftFrom(root, index, opts = {}) {
   const summary = { block: 0, warn: 0, info: 0 };
   for (const i of out) summary[i.level]++;
   return { schema: SCHEMA, items: out, summary };
+}
+
+const TASK_REF_RE = /\bT-\d+(?:\.AC\d+)?\b/g;
+const DEC_REF_RE = /\bD-\d+\b/g;
+const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Ids that do not belong in intent prose (T-n, T-n.ACk, D-n, spec ids, known change ids); text in backticks is ignored. */
+export function proseIds(text, { changeIds = [], allow = [] } = {}) {
+  const t = String(text || "").replace(/`[^`\n]*`/g, " ");
+  const rxs = [TASK_REF_RE, DEC_REF_RE, SPECREF_G()];
+  if (changeIds.length) rxs.push(new RegExp(`(?<![\\w-])(?:${changeIds.map(escRe).join("|")})(?![\\w-])`, "g"));
+  const out = [];
+  for (const rx of rxs) for (const m of t.matchAll(new RegExp(rx.source, "g"))) if (!out.includes(m[0]) && !allow.some((a) => a.test(m[0]))) out.push(m[0]);
+  return out;
+}
+
+async function intentLints(root, S, L, cfg, add, ref) {
+  const idRefs = cfg.idRefs ?? "warn";
+  if (idRefs === "off") return;
+  let changeIds = [];
+  try { changeIds = [...new Set((await (await import("./changes.mjs")).listChanges(root)).map((c) => c.id))]; } catch { /* no change ids */ }
+  const allow = [];
+  for (const a of cfg.idAllow || []) { try { allow.push(new RegExp(a)); } catch { /* bad pattern: ignored */ } }
+  for (const [id, s] of Object.entries(S)) {
+    if (s.test || s.kind === "test" || s.kind === "suite" || !(s.tags?.task?.length || L.symbols[id])) continue;
+    const l = L.symbols[id];
+    const draft = !l || l.intentHash !== s.intentHash;
+    const ids = proseIds([s.intent, ...(s.todos || []), ...(s.flowSteps || [])].join("\n"), { changeIds, allow });
+    if (ids.length) add(idRefs === "info" || !draft ? "info" : "warn", "INTENT_TASK_REF", id, `${ref(id)} intent/steps mention ${ids.join(", ")}: ids live in tags (@task, @dec, tests' @ac), not prose; rewrite as the current contract.`, { ids });
+  }
 }
 
 /** True when tooling legitimately recorded `@status <t>` for this symbol (done approval / review), i.e. not forged by hand. */

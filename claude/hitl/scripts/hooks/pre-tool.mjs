@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   run, role, toolPath, findRootSync, relPath, silent, deny, allow, api, readSession, updateSession, shortName, tagsKey, CONFIG_REL, OVERRIDE_TTL_MS,
+  approveBinding,
 } from "./common.mjs";
 import { HITL_PREFIX, HITL_RE } from "../lib/paths.mjs";
 
@@ -91,9 +92,14 @@ function applyEdit(old, ti, toolName) {
 
 const byOf = (seg) => { const m = /--by(?:=|\s+)["']?(human-override|human|auto)(?![\w-])/.exec(seg); return m ? m[1] : /--by\b/.test(seg) ? "?" : "human"; };
 const stageOf = (seg) => {
-  const m = /--stage(?:=|\s+)["']?(skeleton|tests|done)\b/.exec(seg) || /\bapprove\s+["']?T-\d+["']?\s+(skeleton|tests|done)\b/.exec(seg);
+  const m = /--stage(?:=|\s+)["']?(skeleton|tests|done|intent)\b/.exec(seg) || /\bapprove\s+["']?T-\d+["']?\s+(skeleton|tests|done)\b/.exec(seg);
   return m ? m[1] : null;
 };
+/** Part of an approve segment after the `approve` word (the CLI's own arguments). */
+const argsOf = (seg) => seg.replace(/^[\s\S]*?\bapprove\b/, "");
+/** Intent re-approval of a change: `approve --change <id> --stage intent` (either flag marks it). */
+const isIntentSeg = (seg) => /--change\b/.test(argsOf(seg)) || /--stage(?:=|\s+)["']?intent\b/.test(argsOf(seg));
+const changeIdsOf = (seg) => [...argsOf(seg).matchAll(/--change(?:=|\s+)([^\s;&|]+)/g)].map((m) => m[1]);
 
 /**
  * `--by human-override`: the user typed `/hitl:implement <T> --lane fast` (or `--feature <file> --lane fast`).
@@ -121,6 +127,8 @@ async function approveGate(root, input, R, rawCmd) {
   }
   // Judge every approve invocation separately, so `approve --by auto; approve --by human` cannot hide the human one.
   const segs = cmd.split(/[;&|\n\r`#]|\$\(/).filter((s) => APPROVE_RE.test(s));
+  // intent re-approval of a done change is human-only in every form: no --by auto / human-override, not even as a dry run
+  for (const s of segs) if (isIntentSeg(s) && byOf(s) !== "human") deny("Intent re-approval is human-only: type /hitl:approve <change-id> intent (--by human only; never --by auto or human-override)");
   const human = segs.filter((s) => {
     if (byOf(s) === "auto") return false; // the CLI enforces low risk
     return !/--dry-run\b/.test(s); // preview only; does not consume the token
@@ -137,11 +145,23 @@ async function approveGate(root, input, R, rawCmd) {
   // The token is consumed here and the call is allowed outright, so a later permission check cannot swallow it.
   // Hence only a plain single command qualifies (checked before consuming; the token is kept on this deny).
   if (CHAIN_RE.test(cmd)) deny("Run the approve command alone (no chaining, pipes or redirection); the approval token is kept");
-  const tokTask = /\bT-\d+\b/.exec(tok.args || "");
-  const cmdTask = /\bT-\d+\b/.exec(human[0].replace(/^[\s\S]*?\bapprove\b/, ""));
-  if (tokTask && (!cmdTask || cmdTask[0] !== tokTask[0])) deny(`Approval token is for ${tokTask[0]}; type /hitl:approve <T> for another task`);
+  // A token is bound to one task (`/hitl:approve T-n`), to one change's intent stage (`/hitl:approve <change-id> intent`)
+  // or, typed without a T-id, to any one task approve. A task token never authorizes --change and vice versa.
+  const bind = approveBinding(tok.args);
+  const seg = human[0];
+  const cmdTask = /\bT-\d+\b/.exec(argsOf(seg));
+  if (isIntentSeg(seg)) {
+    const ids = changeIdsOf(seg);
+    if (bind.kind !== "change") deny(`Approval token is ${bind.kind === "task" ? `for ${bind.task}` : "not bound to a change"}; type /hitl:approve <change-id> intent for an intent re-approval`);
+    if (ids.length !== 1 || ids[0] !== bind.change) deny(`Approval token is for change ${bind.change} (intent); type /hitl:approve <change-id> intent for another change`);
+    if (stageOf(seg) !== "intent") deny(`Run exactly: hitl-index approve --change ${bind.change} --stage intent --by human`);
+    if (cmdTask) deny(`An intent re-approval names a change, not a task (${cmdTask[0]}): hitl-index approve --change ${bind.change} --stage intent --by human`);
+  } else {
+    if (bind.kind === "change") deny(`Approval token is for change ${bind.change} (intent); type /hitl:approve <T> for a task approval`);
+    if (bind.kind === "task" && (!cmdTask || cmdTask[0] !== bind.task)) deny(`Approval token is for ${bind.task}; type /hitl:approve <T> for another task`);
+  }
   await updateSession(root, sid, (x) => { x.approveToken = null; return x; });
-  allow("HITL approve token for this /hitl:approve (one use)");
+  allow(`HITL approve token for this /hitl:approve${bind.kind === "change" ? ` ${bind.change} intent` : ""} (one use)`);
 }
 
 async function main(input) {

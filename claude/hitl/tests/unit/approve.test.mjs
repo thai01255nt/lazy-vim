@@ -1,16 +1,23 @@
 // P2 — approve stages/preconditions (§E.5), lock IO, pre-commit hook block editing, forged status check.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { planApproval, defaultStage, readLock, writeLock, emptyLock, stableStringify, referencesTo, isSuperCall } from "../../scripts/lib/lock.mjs";
+import { planApproval, defaultStage, readLock, writeLock, emptyLock, stableStringify, referencesTo, isSuperCall, doneBodyHash, intentLines, appendIntentLog } from "../../scripts/lib/lock.mjs";
 import { applyRuns, emptyState, recordRuns, readState, recordReview } from "../../scripts/lib/state.mjs";
 import { buildRunRecords } from "../../scripts/lib/runner.mjs";
 import { computeStatuses } from "../../scripts/lib/status.mjs";
 import { editHook, hookBlock, BEGIN } from "../../scripts/cmd/install-git-hook.mjs";
 import { forgedStatuses } from "../../scripts/cmd/precommit.mjs";
 import { fixtureIndex, TASKS, IDS } from "./status.test.mjs";
+import { makeProject, REPO, SVC, TASKS as PTASKS, TESTS as PTESTS } from "./_project.mjs";
+import { loadConfig } from "../../scripts/lib/config.mjs";
+import { updateIndex, readIndex } from "../../scripts/lib/indexer.mjs";
+import { readTasks } from "../../scripts/lib/tasksmd.mjs";
+import { strip } from "../../scripts/lib/strip.mjs";
+import { computeDrift } from "../../scripts/lib/drift.mjs";
+import { run as approveCmd } from "../../scripts/cmd/approve.mjs";
 
 const { CU, FE, T1, T2 } = IDS;
 const NOW = "2026-10-25T00:00:00.000Z";
@@ -268,4 +275,160 @@ test("referencesTo: calls through super never reference a deleted method (any la
   assert.deepEqual(referencesTo(index, "gone.ts#Widget.render", none), ["c.py#Use.run"]);
   assert.ok(isSuperCall("super") && isSuperCall("super()") && isSuperCall("super().x") && isSuperCall("super(A.B, self).x") && isSuperCall("super.x"));
   assert.ok(!isSuperCall("superUser.x") && !isSuperCall("self.super") && !isSuperCall("obj.__init__"));
+});
+
+// ---------------------------------------------------------------- intent stage (approve --change <id> --stage intent)
+const NOW2 = "2026-11-01T00:00:00.000Z";
+const TCH = TASKS.map((t) => ({ ...t, change: "feat-u" }));
+/** T-1 done (skeleton → tests → done), then CU's intent rewritten in a stripped index (no @task tags). */
+function doneThenTidied({ edit = (s) => s } = {}) {
+  const sk = planApproval(base()).lock;
+  const red = planApproval(base({ index: fixtureIndex({ mode: "active" }), lock: sk, state: runs(fixtureIndex({ mode: "active" }), "fail") })).lock;
+  const impl = fixtureIndex({ mode: "active", implemented: true });
+  const st = runs(impl, "pass");
+  st.reviews["T-1"] = { verdict: "PASS", bodyHashes: { [CU]: "bodyCU2", [FE]: "bodyFE2" } };
+  const done = planApproval(base({ index: impl, lock: red, state: st, statuses: computeStatuses(impl, red, st, {}, TASKS), stage: "done" }));
+  assert.equal(done.ok, true, done.reasons.join("; "));
+  const idx = fixtureIndex({ mode: "active", implemented: true });
+  for (const s of Object.values(idx.symbols)) if (s.tags?.task) s.tags.task = []; // after `hitl-index strip`
+  Object.assign(idx.symbols[CU], { intent: "Registers a user.\nA duplicate email is refused.", intentHash: "intCU2" });
+  edit(idx.symbols[CU]);
+  const statuses = computeStatuses(idx, done.lock, st, {}, TCH);
+  const ib = (o) => ({ changeId: "feat-u", stage: "intent", by: "human", index: idx, lock: done.lock, state: st, config: {}, tasks: TCH, statuses, now: NOW2, ...o });
+  return { lock: done.lock, idx, st, statuses, ib };
+}
+
+test("intent stage: re-locks only the changed intents of a done change; history, other fields and task records kept", () => {
+  const { lock, ib, statuses } = doneThenTidied();
+  assert.equal(statuses.tasks["T-1"].status, "done", "the docstring edit leaves T-1 done");
+  const before = JSON.parse(JSON.stringify(lock));
+  const r = planApproval(ib());
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.equal(r.stage, "intent"); assert.equal(r.change, "feat-u");
+  assert.deepEqual(r.changes.symbols.changed, [{ id: CU, what: ["intent"] }]);
+  const e = r.lock.symbols[CU];
+  assert.equal(e.intent, "Registers a user.\nA duplicate email is refused.");
+  assert.equal(e.intentHash, "intCU2");
+  assert.equal(e.intentApprovedAt, NOW2); assert.equal(e.intentApprovedBy, "human");
+  for (const k of ["task", "sigHash", "todoHash", "signature", "approvedAt", "approvedBy", "impl", "prio"]) assert.deepEqual(e[k], before.symbols[CU][k], k);
+  assert.deepEqual(e.intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }, { task: "T-1", change: "feat-u", stage: "intent", lines: 2, at: NOW2 }]);
+  assert.deepEqual(r.lock.symbols[FE], before.symbols[FE], "unchanged intent: entry untouched");
+  assert.deepEqual(r.lock.tasks, before.tasks, "task records (done hashes) untouched");
+  assert.deepEqual(r.lock.tests, before.tests);
+  assert.deepEqual(lock, before, "pure: the input lock is not mutated");
+  // multi-task history (tasks) survives; --symbols picks explicitly
+  const hist = JSON.parse(JSON.stringify(lock)); hist.symbols[CU].tasks = ["T-0", "T-1"];
+  hist.tasks["T-0"] = { doneAt: "2026-10-01T00:00:00.000Z", doneBodyHashes: { [CU]: "bodyCU-old" } };
+  const r2 = planApproval(ib({ lock: hist, symbols: ["UserService.createUser"], statuses: { tasks: { "T-0": { status: "done" }, "T-1": { status: "done" } } } }));
+  assert.equal(r2.ok, true, r2.reasons.join("; "));
+  assert.deepEqual(r2.lock.symbols[CU].tasks, ["T-0", "T-1"]);
+  assert.equal(doneBodyHash(hist, CU, ["T-0", "T-1"]).task, "T-1", "latest done record wins");
+});
+
+test("intent stage: refusals (sig, todo, body, open task, human only, nothing changed, bad --symbols); nothing planned on refusal", () => {
+  const cases = [
+    [(s) => { s.sigHash = "sigCU-x"; }, /createUser: signature changed/],
+    [(s) => { s.todoHash = "todo-x"; s.todos = ["1. new step"]; }, /createUser: TODO\(impl\) steps changed/],
+    [(s) => { s.bodyHash = "bodyCU3"; }, /createUser: body changed since T-1 was done/],
+  ];
+  for (const [edit, re] of cases) {
+    const { ib, lock } = doneThenTidied({ edit });
+    const r = planApproval(ib({ statuses: { tasks: { "T-1": { status: "done" } } } }));
+    assert.equal(r.ok, false); assert.match(r.reasons.join("\n"), re);
+    assert.deepEqual(r.lock, lock, "refused plan carries the unchanged lock");
+  }
+  const { ib } = doneThenTidied();
+  let r = planApproval(ib({ statuses: { tasks: { "T-1": { status: "green" } } } }));
+  assert.equal(r.ok, false); assert.match(r.reasons[0], /owning task T-1 is green/);
+  for (const by of ["auto", "human-override"]) {
+    r = planApproval(ib({ by })); assert.equal(r.ok, false); assert.match(r.reasons[0], /human-only/);
+  }
+  r = planApproval(ib({ changeId: "feat-nope" })); assert.match(r.reasons[0], /no tasks/);
+  r = planApproval(ib({ symbols: ["Nope.x"] })); assert.match(r.reasons[0], /not resolvable/);
+  r = planApproval(ib({ symbols: ["register"] })); assert.match(r.reasons[0], /not a symbol of change feat-u/);
+  r = planApproval(ib({ taskId: "T-1" })); assert.match(r.reasons[0], /not a task id/);
+  r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent stage/);
+  // implemented TODO lines turned into `n.` comments (no open todos): todoHash moved, not a refusal (as in drift)
+  const impl = doneThenTidied({ edit: (s) => { s.todoHash = "todo-impl"; s.todos = []; } });
+  assert.equal(planApproval(impl.ib()).ok, true);
+  // a class has no done body record (done approvals record functions only): allowed, with a warning
+  const cls = doneThenTidied();
+  const UR = `${cls.idx.symbols[FE].parent}`;
+  cls.lock.symbols[UR] = { task: "T-1", impl: "agent", signature: "class UserRepo", intent: "A repo.", sigHash: "c", intentHash: "intUR", todoHash: "t0", todos: [] };
+  Object.assign(cls.idx.symbols[UR], { intent: "Stores users.", intentHash: "intUR2", sigHash: "c", todoHash: "t1", todos: [] });
+  r = planApproval(cls.ib({ symbols: ["UserRepo"] }));
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.match(r.warnings.join(), /UserRepo: class has no done body record/);
+  const { ib: ib2, idx } = doneThenTidied();
+  idx.symbols[CU].intentHash = "intCU"; // back to the locked intent
+  r = planApproval(ib2()); assert.equal(r.ok, false); assert.match(r.reasons[0], /no locked symbol of change feat-u has an intent that differs/);
+});
+
+test("skeleton approvals append intentLog only when the intent is new or changed; old entries are seeded", () => {
+  const r1 = planApproval(base());
+  assert.deepEqual(r1.lock.symbols[CU].intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }]);
+  const same = planApproval(base({ lock: r1.lock, now: NOW2, stage: "skeleton" }));
+  assert.equal(same.lock.symbols[CU].intentLog.length, 1, "re-approval without an intent change adds nothing");
+  const legacy = JSON.parse(JSON.stringify(r1.lock)); delete legacy.symbols[CU].intentLog; // locked before intentLog existed
+  const idx = fixtureIndex(); Object.assign(idx.symbols[CU], { intent: "Registers a user.\nRefuses duplicates.", intentHash: "intCU2" });
+  const r2 = planApproval(base({ index: idx, lock: legacy, now: NOW2, stage: "skeleton" }));
+  assert.deepEqual(r2.lock.symbols[CU].intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }, { task: "T-1", stage: "skeleton", lines: 2, at: NOW2 }]);
+  assert.equal(intentLines("A.\n\n@param x y\nB."), 2);
+  assert.deepEqual(appendIntentLog(null, { intent: "x", intentHash: "h" }, { task: "T-9", stage: "skeleton", at: "t" }), [{ task: "T-9", stage: "skeleton", lines: 1, at: "t" }]);
+});
+
+test("approve --change CLI: works after strip (no @task tags), dry-run and refusals write nothing", async () => {
+  const repo = REPO.replace('throw new Error("TODO(impl): UserRepo.findByEmail");', "return this.users.find((u) => u.email === email);");
+  const svc = SVC.replace('throw new Error("TODO(impl): UserService.createUser");', 'if (this.repo.findByEmail(email)) throw new Error("duplicate");\n    return this.repo.save({ id: email, email });');
+  const root = makeProject({ "src/repo/userRepo.ts": repo, "src/services/userService.ts": svc, ".hitl/changes/feat-users/tasks.md": PTASKS.replace("← Planning: .hitl/planning/feat-users.md", "← Change: feat-users"),
+    "tests/userService.test.ts": PTESTS.replace('it.todo("T-1.AC1 rejects duplicate email");', 'it("T-1.AC1 rejects duplicate email", () => {});') });
+  rmSync(join(root, ".hitl/tasks/feat-users.md"));
+  const config = await loadConfig(root);
+  await updateIndex(root, null, { config });
+  let index = await readIndex(root); const tasks = await readTasks(root);
+  assert.equal(tasks[0].change, "feat-users");
+  const plan = planApproval({ taskId: "T-1", by: "human", force: true, index, lock: emptyLock(), state: emptyState(), config, task: tasks[0], tasks });
+  assert.equal(plan.ok, true, plan.reasons.join("; "));
+  const syms = Object.values(index.symbols).filter((s) => (s.tags?.task || []).includes("T-1") && s.kind !== "test");
+  plan.lock.tasks["T-1"] = { ...plan.lock.tasks["T-1"], testsAt: "x", doneAt: "x", doneBodyHashes: Object.fromEntries(syms.map((s) => [s.id, s.bodyHash])) };
+  await writeLock(root, plan.lock);
+  const testId = Object.values(index.symbols).find((s) => s.kind === "test").id;
+  await recordRuns(root, buildRunRecords(index, [{ testId, outcome: "pass", message: "" }]));
+  const st = await strip(root, { target: "feat-users", config });
+  assert.equal(st.ok, true, st.error); assert.ok(st.verified);
+  const svcFile = join(root, "src/services/userService.ts");
+  assert.doesNotMatch(readFileSync(svcFile, "utf8"), /@task/);
+  writeFileSync(svcFile, readFileSync(svcFile, "utf8").replace("Registers a user.", "Registers a user; a duplicate email is refused."));
+  const lockFile = join(root, ".hitl/index/skeleton.lock.json");
+  const cli = async (args) => {
+    const log = console.log, err = console.error; const out = [];
+    console.log = (...a) => out.push(a.join(" ")); console.error = (...a) => out.push(a.join(" "));
+    try { return { code: await approveCmd(args, { root, config, json: true }), out: out.join("\n") }; } finally { console.log = log; console.error = err; }
+  };
+  const before = readFileSync(lockFile, "utf8");
+  await updateIndex(root, null, { config });
+  const ic = (await computeDrift(root, { config })).items.find((i) => i.code === "INTENT_CHANGED");
+  assert.match(ic.message, /\/hitl:approve feat-users intent/, "done owners: drift points at the change-level re-approval");
+  let r = await cli(["--change", "feat-users", "--stage", "intent", "--by", "human", "--dry-run"]);
+  assert.equal(r.code, 0, r.out); assert.equal(readFileSync(lockFile, "utf8"), before, "dry run writes nothing");
+  assert.deepEqual(JSON.parse(r.out).changes.symbols.changed.map((x) => x.id.split("#")[1]), ["UserService.createUser"]);
+  assert.equal((await cli(["--change", "feat-users", "--by", "auto"])).code, 2);
+  assert.equal((await cli(["T-1", "--stage", "intent"])).code, 2);
+  assert.equal((await cli(["--change", "feat-users", "--force"])).code, 2);
+  // a body edit is refused (T-1 is no longer done: its run is stale), and nothing is written
+  const good = readFileSync(svcFile, "utf8");
+  writeFileSync(svcFile, good.replace('throw new Error("duplicate")', 'throw new Error("dup")'));
+  r = await cli(["--change", "feat-users", "--stage", "intent", "--by", "human"]);
+  assert.equal(r.code, 1, r.out); assert.match(r.out, /owning task T-1 is wip/); assert.equal(readFileSync(lockFile, "utf8"), before);
+  writeFileSync(svcFile, good);
+  r = await cli(["--change", "feat-users", "--stage", "intent", "--by", "human"]);
+  assert.equal(r.code, 0, r.out);
+  const L = await readLock(root);
+  const id = Object.keys(L.symbols).find((k) => k.endsWith("#UserService.createUser"));
+  assert.match(L.symbols[id].intent, /a duplicate email is refused/);
+  assert.equal(L.symbols[id].intentApprovedBy, "human");
+  assert.equal(L.symbols[id].task, "T-1");
+  assert.deepEqual(L.tasks, JSON.parse(before).tasks);
+  const drift = (await computeDrift(root, { config })).items.filter((i) => i.code === "INTENT_CHANGED");
+  assert.deepEqual(drift, [], "re-approved: no INTENT_CHANGED left");
 });

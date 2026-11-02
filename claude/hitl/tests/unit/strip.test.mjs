@@ -42,10 +42,10 @@ test("stripDocTags: tags on a delimiter line are skipped, prose with @words is u
 });
 
 /** A project where T-1 is done: implemented bodies, passing fresh run, skeleton + done recorded in the lock. */
-async function doneProject({ helper = false } = {}) {
+async function doneProject({ helper = false, intent = "Registers a user." } = {}) {
   const repo = REPO.replace('throw new Error("TODO(impl): UserRepo.findByEmail");', "return this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());")
     .replace("  save(user: User)", helper ? "  /**\n   * Normalizes an email.\n   * @task T-1 @impl agent @status done\n   */\n  norm(e: string): string { return e.toLowerCase(); }\n  save(user: User)" : "  save(user: User)");
-  const svc = SVC.replace('throw new Error("TODO(impl): UserService.createUser");', `if (this.repo.findByEmail(${helper ? "this.repo.norm(email)" : "email"})) throw new Error("duplicate");\n    return this.repo.save({ id: email, email });`);
+  const svc = SVC.replace("Registers a user.", intent).replace('throw new Error("TODO(impl): UserService.createUser");', `if (this.repo.findByEmail(${helper ? "this.repo.norm(email)" : "email"})) throw new Error("duplicate");\n    return this.repo.save({ id: email, email });`);
   const root = makeProject({ "src/repo/userRepo.ts": repo, "src/services/userService.ts": svc, "tests/userService.test.ts": TESTS.replace('it.todo("T-1.AC1 rejects duplicate email");', 'it("T-1.AC1 rejects duplicate email", () => {});') });
   const config = await loadConfig(root);
   await updateIndex(root, null, { config });
@@ -84,6 +84,20 @@ test("strip <T>: done task loses its bookkeeping tags; lock, drift and status un
   assert.deepEqual(await snap(root, config), before);
   const again = await strip(root, { target: "T-1", config });
   assert.equal(again.ok, true); assert.equal(again.files.length, 0, "idempotent");
+});
+
+test("strip keeps ids in intent prose (prose is hashed); INTENT_TASK_REF stays an info on the locked symbol", async () => {
+  const doc = ["/**", " * Registers a user (T-1, D-2, ACC-R1.S2).", " * @task T-1 @impl agent @status done @dec D-2", " */"].join("\n");
+  assert.equal(stripDocTags(doc, span(doc, 1, 4)).text, ["/**", " * Registers a user (T-1, D-2, ACC-R1.S2).", " */"].join("\n"));
+  const { root, config } = await doneProject({ intent: "Registers a user (T-1, D-2)." });
+  const ref = (d) => d.items.filter((i) => i.code === "INTENT_TASK_REF").map((i) => `${i.level} ${i.symbol.split("#")[1]} ${i.ids.join(",")}`);
+  assert.deepEqual(ref(await computeDrift(root, { config })), ["info UserService.createUser T-1,D-2"]);
+  const r = await strip(root, { target: "T-1", config });
+  assert.equal(r.ok, true, r.error); assert.equal(r.verified, true);
+  const svc = readFileSync(`${root}/src/services/userService.ts`, "utf8");
+  assert.match(svc, /Registers a user \(T-1, D-2\)\./);
+  assert.doesNotMatch(svc, /@task|@impl|@status|@prio/);
+  assert.deepEqual(ref(await computeDrift(root, { config })), ["info UserService.createUser T-1,D-2"], "still locked: info, not warn");
 });
 
 test("strip: refuses tasks that are not done; skips symbols only reachable through @task", async () => {
