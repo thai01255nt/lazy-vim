@@ -4,9 +4,9 @@
 local keymap = vim.keymap
 local opts = { noremap = true, silent = true }
 
--- Increment/decrement zoom
+-- Increment/decrement number
 keymap.set("n", "+", "<C-a>")
-keymap.set("n", "-", "<C-x")
+keymap.set("n", "-", "<C-x>")
 
 -- Delete a word backward
 --keymap.set("n", "dw", "vb_d")
