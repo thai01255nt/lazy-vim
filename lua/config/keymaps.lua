@@ -43,6 +43,16 @@ keymap.set("n", "<C-w><C-right>", "10<C-W>>")
 keymap.set("n", "<C-w><C-up>", "2<C-W>+")
 keymap.set("n", "<C-w><C-down>", "2<C-W>-")
 
+-- Delete marks: dm{char} deletes one mark, dM deletes all lowercase marks of the buffer
+keymap.set("n", "dm", function()
+  local ok, char = pcall(vim.fn.getcharstr)
+  if ok and char:match("^[%a%d]$") then
+    vim.cmd("delmarks " .. char)
+    vim.notify("Deleted mark " .. char)
+  end
+end, { desc = "Delete mark" })
+keymap.set("n", "dM", "<cmd>delmarks!<cr>", { desc = "Delete all buffer marks" })
+
 -- Format json
 -- vim.api.nvim_create_autocmd("BufWritePost", {
 --   pattern = { "*.json" },
