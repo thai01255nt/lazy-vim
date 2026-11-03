@@ -1,7 +1,7 @@
 ---
 name: approve
-description: Human approval gate that locks a task's reviewed skeleton (signatures, intents, TODO flow, test stubs), its red tests, or its final verified result into skeleton.lock.json and advances its status; "<change-id> intent" re-locks the tidied intents of a done change. Only the human runs this.
-argument-hint: "<T-id> [skeleton|tests|done] [symbols...] | <change-id> intent [symbols...]"
+description: Human approval gate that locks a task's reviewed skeleton (signatures, intents, TODO flow, test stubs), its red tests, or its final verified result into skeleton.lock.json and advances its status; "<change-id> intent" re-locks the tidied intents of a done change; "<change-id> accept" accepts later drift on an archived change. Only the human runs this.
+argument-hint: "<T-id> [skeleton|tests|done] [symbols...] | <change-id> intent|accept [symbols...]"
 disable-model-invocation: true
 allowed-tools: Read Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -12,7 +12,8 @@ Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`.
 
 The user typing `/hitl:approve` IS the approval. There is no extra question. The UserPromptSubmit hook has issued a
 one-time approve token for this turn; the PreToolUse hook lets exactly one `--by human` approve through. The token is
-bound to what the user typed: a `T-<n>` token never approves a change, a `<change-id> intent` token never approves a task.
+bound to what the user typed: a `T-<n>` token never approves a change, a `<change-id> intent|accept` token never approves a
+task, and an `intent` token never runs `accept` (nor the reverse).
 
 Arguments: `$ARGUMENTS`
 
@@ -22,7 +23,11 @@ Parse the arguments (whitespace or comma separated). The first token decides the
   `/hitl:tidy <id>`): change id = first token; remaining tokens → `--symbols a,b`.
   `CMD = hitl-index approve --change <id> --stage intent [--symbols a,b] --by human` (exactly this shape; never `--force`,
   never `--by auto` or `human-override`: the hook refuses them). Go to step 2, skip step 3 and step 5.
-- first token `T-<n>` → task (required; missing → `❌ Usage: /hitl:approve <T-id> [skeleton|tests|done] [symbols...] | <change-id> intent [symbols...]`, stop);
+- first token not `T-<n>` and second token `accept` → **change form, accept** (later drift on an archived change, from
+  `/hitl:sync`): change id = first token; remaining tokens → `--symbols a,b` (symbols or locked test titles).
+  `CMD = hitl-index approve --change <id> --stage accept [--symbols a,b] --by human` (same shape rules as intent: never
+  `--force`, never `--by auto` or `human-override`). Go to step 2, skip step 3 and step 5.
+- first token `T-<n>` → task (required; missing → `❌ Usage: /hitl:approve <T-id> [skeleton|tests|done] [symbols...] | <change-id> intent|accept [symbols...]`, stop);
 - next token ∈ {skeleton, tests, done} → `--stage <it>` (omitted → the CLI picks the first stage not yet done);
 - tokens starting with `--` (e.g. `--force`) → passed through as flags;
 - remaining tokens → `--symbols a,b` (short refs).
@@ -34,7 +39,9 @@ approve commands). No separate `--dry-run` preview is needed: the real call retu
 CLI checks preconditions before writing and writes nothing when they fail. (`--dry-run` does not consume the token.)
 - Exit 1 (preconditions failed) → print `🛑 Cannot approve <T> <stage>:` + each reason + the CLI's suggested command
   (e.g. `/hitl:skeleton T-12`, `/hitl:test T-12`, `/hitl:review T-12`). Stop. Change form: the CLI refuses unless every
-  owning task is done and only intents moved (signature, TODO steps and the done body unchanged); print the reasons.
+  owning task is done and only intents moved (signature, TODO steps and the done or accepted body unchanged); print the
+  reasons. Accept: the CLI refuses unless the change is archived, no open task owns, tags or lists the symbol, the
+  signature is unchanged and the covering tests ran fresh and passed (else `hitl-index test`); print the reasons.
 - Exit 3 → not initialized, per conventions. Stop.
 - Denied by the hook with "Approval is human-only" → the token is missing (expired after 10 min, or already used).
   Print `🛑 Approval token missing or used. Type /hitl:approve <args> again.` Stop. Never retry or work around it.
@@ -61,7 +68,13 @@ Change form:
 ✅ Re-approved intents of <change-id> (by human): <n> symbol(s)
 <Symbol — intent ⚠️→✅, one per JSON changes.symbols.changed>
 ```
+Accept form:
+```
+✅ Accepted drift on <change-id> (by human): <n> symbol(s), <m> test(s)
+<Symbol — intent/todo/body ⚠️→✅, one per JSON changes.symbols.changed; test — re-recorded / dropped (deleted)>
+```
 🎯 next (change form): `hitl-index strip <change-id> --dry-run` (the user runs it; then `hitl-index strip <change-id>`).
+🎯 next (accept): `hitl-index status --json` `.next`.
 🎯 next:
 - skeleton → `/hitl:test <T>`
 - tests → `/hitl:implement <T>`

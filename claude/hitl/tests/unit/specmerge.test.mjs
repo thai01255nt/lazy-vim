@@ -216,6 +216,33 @@ test("runner: preconditions block (nothing written), merge then archive, re-merg
   await assert.rejects(runMerge(root, {}, "feat-password-reset", { archive: true, date: D }), /already archived/);
 });
 
+test("archive: the lock's tasks follow the move (file, archivedAt, change) and nothing else in the lock changes; done-body drift is a preflight warning", async () => {
+  const root = copyFixture();
+  const lockFile = path.join(root, ".hitl/index/skeleton.lock.json");
+  const lock0 = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+  lock0.tasks["T-12"].doneBodyHashes = { "src/gone.ts#gone": "h1" }; // the code moved on (here: the symbol is gone)
+  lock0.symbols = { "src/gone.ts#gone": { task: "T-12", sigHash: "s", intentHash: "i" } };
+  fs.writeFileSync(lockFile, JSON.stringify(lock0, null, 2));
+  const dry = await runMerge(root, {}, "feat-password-reset", { archive: true, force: true, dryRun: true, date: D });
+  assert.deepEqual(dry.warnings.filter((w) => w.code === "DONE_BODY_DRIFT").map((w) => [w.ref, w.task]), [["gone", "T-12"]]);
+  assert.match(dry.warnings.find((w) => w.code === "DONE_BODY_DRIFT").message, /gone since T-12 was done.*\/hitl:sync offers claim or accept/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(lockFile, "utf8")), lock0, "dry run: lock untouched");
+  const r = await runMerge(root, {}, "feat-password-reset", { archive: true, force: true, date: D });
+  assert.equal(r.archive.moved, true);
+  assert.deepEqual(r.archive.lockTasks, ["T-12"]);
+  const lock1 = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+  const t12 = lock1.tasks["T-12"];
+  assert.equal(t12.file, `${r.archive.to}/tasks.md`);
+  assert.equal(t12.change, "feat-password-reset");
+  assert.match(t12.archivedAt, /^\d{4}-\d{2}-\d{2}T/);
+  const { file, change, archivedAt, ...rest } = t12;
+  const { file: f0, ...rest0 } = lock0.tasks["T-12"];
+  assert.deepEqual(rest, rest0, "no other field of T-12 moves");
+  assert.deepEqual(lock1.tasks["T-10"], lock0.tasks["T-10"]);
+  assert.deepEqual([lock1.symbols, lock1.tests], [lock0.symbols, lock0.tests]);
+  assert.equal(lock1.tasks["T-13"], undefined, "tasks without a lock entry are not created");
+});
+
 test("runner: --renumber rewrites ids inside the change folder only", async () => {
   const root = copyFixture();
   const delta = path.join(root, ".hitl/changes/feat-password-reset/specs/accounts/spec.md");

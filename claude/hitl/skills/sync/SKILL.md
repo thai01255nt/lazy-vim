@@ -47,6 +47,10 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 ⛔ DEC_UNKNOWN D-9 — UserService.createUser @dec D-9 not in changes/feat-user-register/design.md   (trace)
 ⛔ SCN_UNKNOWN ACC-R1.S4 — T-12.AC3 refs a scenario not in the change's spec view               (trace)
 ⚠️ DEC_SUPERSEDED_REF D-1 — superseded by D-4                                                  (trace)
+## refactor-lua-const-mirror (archived)
+⚠️ ARCHIVED_BODY_CHANGED beginGranting — done in T-13; test runs stale (run hitl-index test)
+⚠️ INTENT_CHANGED beginGranting — approved: "<intent>"  →  current: "<intent>"
+⚠️ TEST_CHANGED tests/test_wallet.py "T-13.AC1 …"
 ## (no task)
 ⚠️ ORPHAN src/util/email.ts#normalize
 ```
@@ -55,6 +59,9 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 - For DELETED_LOCKED with a MOVED info item, say where it moved.
 - Items with `spec` → one extra line `   spec: D-1 (<decision text, ≤60 chars>) · <scenario/requirement ids> (change <id>)`.
 - Trace items go under their `task` group (no task → `## (no task)`), marked `(trace)`.
+- Items with `task: null` and a `change` (an archived change's symbol or locked test: ARCHIVED_BODY_CHANGED, SIG_CHANGED,
+  INTENT_CHANGED, TODO_FLOW_CHANGED, TEST_CHANGED, TEST_DELETED, TEST_SKIPPED) go under `## <change> (archived)`. An
+  archived change is frozen history: its tasks stay done, and each item carries a `fix` (claim / accept) for Step 3.
 
 No drift warn/block items and no trace block items → `✅ in sync` plus `hitl-index status --brief` output, then run `hitl-index status --sync-tags`
 (fixes stale `@status` tags) and stop.
@@ -66,11 +73,13 @@ For each changed contract: 1. accept (re-approve)  2. revert (I restore the appr
                             4. accept + amend spec (only items with spec: <symbols>)
 Orphans: tag with task? (T-id / ignore). Locked tests changed: accept (re-lock) / revert by hand / defer.
 Trace ⛔ items: I fix the reference (spec id / D-n / @dec / @ac / @covers) unless you say otherwise.
+Archived (<change>): claim <T> (into an open task) / accept / revert / defer — accept is not offered for SIG_CHANGED.
 Reply e.g. "1 all", "2 UserService.createUser", "4 UserService.createUser", "orphans T-12".
 ```
 💡 Recommend per item in one line (e.g. revert when callers would break and no caller was updated; accept when the user
 clearly intended the change and callers were updated too; accept + amend spec when the change contradicts a linked
-decision or requirement). End turn.
+decision or requirement; for an archived item: claim when an open task is changing that symbol on purpose, accept when the
+edit is a small follow-up the archived contract still describes and its tests pass fresh). End turn.
 
 ## Step 4 — Apply the reply
 
@@ -86,6 +95,9 @@ decision or requirement). End turn.
 | orphan → T-id | Add `@task <T> @impl <agent|manual> @status skeleton` to the symbol's docstring (create a minimal docstring if none; ask nothing — default `@impl manual` because the human wrote it). Reindex. Tell the user it joins the task at the next `/hitl:approve <T> skeleton <symbol>`. |
 | orphan → ignore | Nothing (orphans are warnings only). |
 | trace ⛔ (DEC_UNKNOWN, REQ_UNKNOWN, SCN_UNKNOWN, RULE_UNKNOWN, REQ_INACTIVE, SPEC_STALE, AC_UNKNOWN, …) | Fix the dangling reference: Edit the `@dec`/`@ac`/`@covers` tag line or the tasks md AC ref group `(ACC-R3.S1)`/Why text to an id in the change's spec view (never status or boxes; never `.hitl/specs/**` — a missing behaviour goes through accept + amend spec). `@dec` is not hashed. Reindex, re-run `hitl-index trace --json`; if drift now shows TEST_CHANGED/INTENT_CHANGED for it, print the matching `/hitl:approve` command. |
+| claim (archived item) → open task `<T>` | Add a `modify` row for the symbol to `<T>`'s `### Symbols` and `@task <T>` to its docstring (a test: tag it `@ac <T>.ACn` or `@task <T>`). Reindex, then print the command for the user to type: `/hitl:approve <T> skeleton <symbol>` (a test: `/hitl:approve <T> tests`). The lock entry moves to `<T>` (history keeps the archived task, which stays done). |
+| accept (archived item) | Needs fresh passing tests: if the item says stale/failing, run `hitl-index test` first. Preview with `hitl-index approve --change <change> --stage accept [--symbols a,b] --by human --dry-run`, then print the command for the user to type: `/hitl:approve <change> accept [<symbols…>]`. It records the current intent/TODO/body (tests: their hashes) as accepted on the archived change; task records stay. Signature changes are refused there: claim them. |
+| revert (archived item) | As revert above; for a body edit, the user restores the body by hand (you never touch bodies). |
 | DELETED_REFERENCED | Not auto-fixable. Show the referencing symbols; the user restores the symbol or updates the callers/@calls/@covers. |
 
 Finally: `hitl-index status --sync-tags`, re-run `hitl-index drift --json [--task <T>]` and print the remaining counts

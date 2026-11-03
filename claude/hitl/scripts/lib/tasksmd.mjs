@@ -35,6 +35,27 @@ export function changeOfFile(file) {
 }
 
 /**
+ * Archived change of task T, or null. The tasks docs decide first (an active doc holding T wins over an archived one);
+ * a task in no doc falls back to the lock: `lock.tasks[T].change` with `archivedAt` (written by archive), else the
+ * archive path of `lock.tasks[T].file`. A lock file still pointing at `.hitl/changes/<id>/` resolves through the docs.
+ */
+export function archivedChangeOf(lock, tasks, T) {
+  if (!T) return null;
+  const docs = (tasks || []).filter((t) => t.id === T);
+  if (docs.length) {
+    if (docs.some((t) => !t.archived)) return null;
+    return docs[0].change || changeOfFile(docs[0].file).change || null;
+  }
+  const lt = lock?.tasks?.[T];
+  if (!lt) return null;
+  if (lt.archivedAt && lt.change) return lt.change;
+  const loc = changeOfFile(lt.file || "");
+  return loc.archived ? loc.change : null;
+}
+/** True when task T belongs to an archived change (frozen history). */
+export const isArchivedTask = (lock, tasks, T) => !!archivedChangeOf(lock, tasks, T);
+
+/**
  * parseTasksMd(text, file) -> {file, planning, change, archived, changeDir, status, tasks: Task[]}
  * `change` comes from `← Change: <id>` (else from the file location); `planning` only from the legacy `← Planning:`.
  * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them.

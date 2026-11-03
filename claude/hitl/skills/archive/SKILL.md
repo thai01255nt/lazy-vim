@@ -30,6 +30,8 @@ Apply? (Y/n)
 ```
 - `renumbered` non-empty (dry run with `--renumber`) → one line per id `ACC-R5 → ACC-R7 (change folder rewritten)`.
 - `warnings` → ⚠️ lines. Nothing to merge (all `alreadyApplied`) → say so; Y only moves the folder.
+- `DONE_BODY_DRIFT` warnings (preflight: a symbol of the change whose code moved since its task's done record) → one line
+  `⚠️ drift since done: <symbols> — after archiving, /hitl:sync offers claim (into an open task) or accept` (never blocks).
 
 **When `ok: false`**, replace `Apply? (Y/n)` with numbered options; recommend one with 💡:
 | cause | options |
@@ -52,7 +54,9 @@ On Y (or the chosen option):
   ✅ Archived feat-password-reset → .hitl/archive/2026-11-02-feat-password-reset
   📝 specs/accounts/spec.md (+4 ~1 -1) · GLOSSARY.md (+1) · written: <n> files
   ```
-  then `hitl-index trace --capability <cap> --json` per capability and one line
+  The archive also re-points the lock's tasks of the change to the archived tasks file (`archive.lockTasks`; bookkeeping,
+  not an approval): from now on they are frozen history and stay done.
+  Then `hitl-index trace --capability <cap> --json` per capability and one line
   `🔗 <cap>: R <covered>/<total> covered · scenarios <withAc>/<total> with AC` (no percentages).
 - Ticket tracker: archive never pushes and never closes the change's container (project, epic or milestone). Mapped tasks get their new `file=` marker on the next
   `/hitl:tickets push` (say so in one line only when `hitl-index tickets status --json` shows `enabled`).

@@ -347,7 +347,7 @@ test("intent stage: refusals (sig, todo, body, open task, human only, nothing ch
   r = planApproval(ib({ symbols: ["Nope.x"] })); assert.match(r.reasons[0], /not resolvable/);
   r = planApproval(ib({ symbols: ["register"] })); assert.match(r.reasons[0], /not a symbol of change feat-u/);
   r = planApproval(ib({ taskId: "T-1" })); assert.match(r.reasons[0], /not a task id/);
-  r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent stage/);
+  r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent or accept stage/);
   // implemented TODO lines turned into `n.` comments (no open todos): todoHash moved, not a refusal (as in drift)
   const impl = doneThenTidied({ edit: (s) => { s.todoHash = "todo-impl"; s.todos = []; } });
   assert.equal(planApproval(impl.ib()).ok, true);
@@ -431,4 +431,11 @@ test("approve --change CLI: works after strip (no @task tags), dry-run and refus
   assert.deepEqual(L.tasks, JSON.parse(before).tasks);
   const drift = (await computeDrift(root, { config })).items.filter((i) => i.code === "INTENT_CHANGED");
   assert.deepEqual(drift, [], "re-approved: no INTENT_CHANGED left");
+  // accept: human-only, no --force, an active change is refused (accept is for archived changes); nothing written
+  const after = readFileSync(lockFile, "utf8");
+  assert.equal((await cli(["--change", "feat-users", "--stage", "accept", "--by", "auto"])).code, 2);
+  assert.equal((await cli(["--change", "feat-users", "--stage", "accept", "--force"])).code, 2);
+  assert.equal((await cli(["T-1", "--stage", "accept"])).code, 2);
+  r = await cli(["--change", "feat-users", "--stage", "accept", "--by", "human"]);
+  assert.equal(r.code, 1, r.out); assert.match(r.out, /is not archived/); assert.equal(readFileSync(lockFile, "utf8"), after);
 });

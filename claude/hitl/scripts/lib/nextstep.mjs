@@ -17,7 +17,7 @@ export function nextForTask(T, status, { risk = "high", testsLocked = false } = 
   }
 }
 
-const LOCK_DRIFT = new Set(["SIG_CHANGED", "INTENT_CHANGED", "DELETED_LOCKED", "RENAMED", "DELETED_REFERENCED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED", "STATUS_FORGED"]);
+const LOCK_DRIFT = new Set(["SIG_CHANGED", "INTENT_CHANGED", "ARCHIVED_BODY_CHANGED", "TODO_FLOW_CHANGED", "DELETED_LOCKED", "RENAMED", "DELETED_REFERENCED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED", "STATUS_FORGED"]);
 
 /** Drift items (warn/block) touching locked symbols/tests. */
 export function lockedDrift(drift, lock) {

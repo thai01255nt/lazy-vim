@@ -510,6 +510,34 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change T-1 --stage intent" }, null, "ci4"), /token is for T-1/);
   });
 
+  test("approve token for a change's accept stage: bound to (change, accept); intent and task tokens never cross", async () => {
+    const { root } = await mkProject();
+    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
+    const acc = "hitl-index approve --change refactor-x --stage accept --by human --json";
+    const int = "hitl-index approve --change refactor-x --stage intent --by human --json";
+    assertDeny(pre(root, "Bash", { command: acc }, null, "ca0"), /human-only/);
+    for (const c of ["hitl-index approve --change refactor-x --stage accept --by auto", "hitl-index approve --change refactor-x --stage accept --by human-override --dry-run"])
+      assertDeny(pre(root, "Bash", { command: c }, null, "ca0"), /Accept is human-only/);
+    // an intent token does not authorize accept, nor the reverse (the token is kept on these denies)
+    prompt("/hitl:approve refactor-x intent", "ca1");
+    assertDeny(pre(root, "Bash", { command: acc }, null, "ca1"), /token is for change refactor-x \(intent\)/);
+    assertAllow(pre(root, "Bash", { command: int }, null, "ca1"));
+    prompt("/hitl:approve refactor-x accept", "ca2");
+    const sess = JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/ca2.json"), "utf8"));
+    assert.equal(sess.approveToken.change, "refactor-x"); assert.equal(sess.approveToken.stage, "accept");
+    assertDeny(pre(root, "Bash", { command: int }, null, "ca2"), /token is for change refactor-x \(accept\)/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change refactor-x --by human" }, null, "ca2"), /Run exactly: hitl-index approve --change refactor-x --stage accept/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ca2"), /for change refactor-x \(accept\)/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change refactor-y --stage accept --by human" }, null, "ca2"), /for change refactor-x/);
+    assertDeny(pre(root, "Bash", { command: acc }, "hitl:implementer", "ca2"), /human-only/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index approve --change refactor-x --stage accept --dry-run" }, null, "ca2"));
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve --change=refactor-x --stage=accept --symbols a,b" }, null, "ca2"));
+    assertDeny(pre(root, "Bash", { command: acc }, null, "ca2"), /human-only/); // one use
+    // a task token authorizes neither change stage
+    prompt("/hitl:approve T-1", "ca3");
+    assertDeny(pre(root, "Bash", { command: acc }, null, "ca3"), /token is for T-1/);
+  });
+
   test("override token: /hitl:implement <T> --lane fast → --by human-override for that task only, multi-use, main thread", async () => {
     const { root } = await mkProject();
     const sid = "ov1";

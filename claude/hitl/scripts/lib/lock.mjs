@@ -4,6 +4,8 @@
 import { promises as fsp } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { HITL_DIR } from "./paths.mjs";
+import { archivedChangeOf } from "./tasksmd.mjs";
+import { testState } from "./status.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/1";
 
@@ -258,7 +260,9 @@ export function isOverride(lock, taskId) {
 }
 
 // ---------------------------------------------------------------- approve planning (pure)
-const STAGES = ["skeleton", "tests", "done", "intent"];
+const STAGES = ["skeleton", "tests", "done", "intent", "accept"];
+/** Change-form stages (`--change <id>`): human-only, no task id, no --force. */
+export const CHANGE_STAGES = ["intent", "accept"];
 
 /**
  * Intent growth history of a lock entry (additive, `hitl.lock/1`): [{task, stage, lines, at}], one item per approval that
@@ -282,6 +286,19 @@ export function doneBodyHash(lock, id, taskIds) {
     if (h && (!best || String(lt.doneAt || "") > String(best.at || ""))) best = { hash: h, at: lt.doneAt, task: t };
   }
   return best;
+}
+
+/**
+ * Body hash a locked symbol is compared against: the newest of the owners' done records (doneBodyHash) and the body a
+ * human accepted on an archived change (`acceptedBodyHash` at `acceptedAt`). Returns {hash, at, task|null, accepted?,
+ * change?} or null when neither exists.
+ */
+export function bodyBaseline(lock, id, owners) {
+  const done = doneBodyHash(lock, id, owners);
+  const l = lock.symbols?.[id];
+  const acc = l?.acceptedBodyHash ? { hash: l.acceptedBodyHash, at: l.acceptedAt ?? null, task: null, accepted: true, change: l.acceptedChange ?? null } : null;
+  if (!acc || !done) return acc || done;
+  return String(acc.at || "") >= String(done.at || "") ? acc : done;
 }
 
 /**
@@ -335,8 +352,8 @@ function planIntentApproval(opts, lock) {
     if (l.sigHash !== s.sigHash) reasons.push(`${nm}: signature changed since approval (only intent prose may change here)`);
     // implemented TODO(impl) lines became `n.` comments (todos empty): only open TODO lines are compared, as in drift
     if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) reasons.push(`${nm}: TODO(impl) steps changed since approval`);
-    const done = doneBodyHash(lock, id, owners);
-    if (done && done.hash !== s.bodyHash) reasons.push(`${nm}: body changed since ${done.task} was done`);
+    const done = bodyBaseline(lock, id, owners);
+    if (done && done.hash !== s.bodyHash) reasons.push(`${nm}: body changed since ${done.accepted ? `it was accepted${done.change ? ` in ${done.change}` : ""}` : `${done.task} was done`}${changeOfLock(lock, tasks, owners) ? ` (archived change: /hitl:approve ${changeId} accept, or claim it into an open task)` : ""}`);
     else if (!done && CODE_KINDS.has(s.kind)) reasons.push(`${nm}: no done body record in the lock (approve its task's done stage first)`);
     else if (!done) warnings.push(`${nm}: ${s.kind} has no done body record (done approvals record functions only); its body was not compared`);
   }
@@ -348,6 +365,133 @@ function planIntentApproval(opts, lock) {
     entry.intentLog = appendIntentLog(l, s, { task: l.task, change: changeId, stage: "intent", at: now });
     lock.symbols[id] = entry;
     changes.symbols.changed.push({ id, what: ["intent"] });
+  }
+  return res(true);
+}
+
+/** An ambiguous ref resolves to the one candidate inside `scope` (a task's or change's symbols), when there is exactly one. */
+function preferIn(r, scope) {
+  if (!r?.ambiguous) return r;
+  const hit = r.ambiguous.filter((id) => scope.has(id));
+  return hit.length === 1 ? { id: hit[0] } : r;
+}
+
+/** Archived change shared by every owner of a symbol (each done and archived), else null. */
+function changeOfLock(lock, tasks, owners) {
+  if (!owners.length) return null;
+  const cs = owners.map((t) => (lock.tasks?.[t]?.doneAt ? archivedChangeOf(lock, tasks, t) : null));
+  return cs.every(Boolean) ? cs[0] : null;
+}
+
+/** Drift of a locked symbol against its lock entry and body baseline: {sig, intent, todo, body} booleans. */
+export function symbolDrift(lock, id, s) {
+  const l = lock.symbols?.[id];
+  if (!l || !s) return { sig: false, intent: false, todo: false, body: false };
+  const base = bodyBaseline(lock, id, lockedTasks(l));
+  return { sig: !!(l.sigHash && s.sigHash !== l.sigHash), intent: !!(l.intentHash && s.intentHash !== l.intentHash),
+    todo: !!((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash), body: !!(base && base.hash !== s.bodyHash) };
+}
+
+/**
+ * Accept the drift of an archived change's symbols and locked tests (human-only; pure; same result shape as planApproval).
+ * An archived change is frozen history: a later edit to one of its symbols is either claimed into an open task or
+ * accepted here. Picks every symbol of the change with intent, TODO or body drift and every locked test of it that
+ * changed or is gone (or `symbols`, which may name tests), and refuses (writing nothing) unless the change is archived,
+ * no open task owns, tags or lists the item, the signature is unchanged and the covering tests ran fresh and passed.
+ * Writes on a symbol: intent/intentHash (+ an intentLog item, stage accept), todos/todoHash, acceptedBodyHash/At/By/
+ * Change; on a test: bodyHash/intentHash + accepted* (a deleted test leaves the lock). task/tasks, lock.tasks and the
+ * done records stay.
+ */
+function planAcceptApproval(opts, lock) {
+  const { changeId, index, tasks = [], statuses, api } = opts;
+  const state = opts.state || {};
+  const by = opts.by || "human";
+  const now = opts.now || nowIso();
+  const reasons = [];
+  const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
+  const warnings = [];
+  const res = (ok) => ({ ok, stage: "accept", change: changeId ?? null, task: null, by, reasons, warnings, changes, lock });
+  if (by !== "human") { reasons.push(`accept is human-only (--by human), not --by ${by}`); return res(false); }
+  if (!changeId) { reasons.push("accept stage needs --change <change-id>"); return res(false); }
+  if (!index?.symbols) { reasons.push("index missing: run hitl-index index --all"); return res(false); }
+  const scopeTasks = tasks.filter((t) => t.change === changeId);
+  if (!scopeTasks.length) { reasons.push(`change ${changeId} has no tasks in the tasks files`); return res(false); }
+  const live = scopeTasks.filter((t) => archivedChangeOf(lock, tasks, t.id) !== changeId).map((t) => t.id);
+  if (live.length) { reasons.push(`change ${changeId} is not archived (${live.join(", ")} in an active tasks file): accept is for archived changes; use /hitl:approve ${changeId} intent or the task stages`); return res(false); }
+  const scopeIds = new Set(scopeTasks.map((t) => t.id));
+  const inScope = new Set();
+  for (const t of scopeTasks) {
+    for (const id of taskSymbolIds(index, t.id, t, api)) inScope.add(id);
+    for (const [id, l] of Object.entries(lock.symbols)) if (lockedTasks(l).includes(t.id)) inScope.add(id);
+  }
+  const status = (t) => statuses?.tasks?.[t]?.status ?? (lock.tasks[t]?.doneAt ? "done" : "todo");
+  const rowTasks = (id) => tasks.filter((t) => (t.symbols || []).some((r) => resolveWith(api, index, r.ref, r.file)?.id === id)).map((t) => t.id);
+  const openOf = (id) => {
+    const s = index.symbols[id], l = lock.symbols[id];
+    return [...new Set([...lockedTasks(l), ...(s?.tags?.task || []), ...rowTasks(id)])].filter((t) => status(t) !== "done");
+  };
+  const symDrift = (id) => symbolDrift(lock, id, index.symbols[id]);
+  const drifted = (d) => d.intent || d.todo || d.body;
+  const lockedTests = Object.entries(lock.tests).filter(([, t]) => scopeIds.has(t.task) && t.stage === "locked").map(([id]) => id);
+  const testDrifted = (id) => { const t = index.symbols[id], l = lock.tests[id]; return !t || (l.bodyHash && t.bodyHash !== l.bodyHash) || (l.intentHash && t.intentHash !== l.intentHash); };
+  const testOpen = (id) => { const o = testOwner(index, lock, id); return o && status(o) !== "done" ? o : null; };
+
+  let pickS = [], pickT = [];
+  if (opts.symbols?.length) {
+    for (const ref of opts.symbols) {
+      const tid = lockedTests.find((id) => id === ref || id.endsWith("#" + ref));
+      const r = tid ? null : preferIn(resolveWith(api, index, ref), inScope);
+      if (tid) { if (!testDrifted(tid)) reasons.push(`--symbols: test ${ref} has not changed since it was locked`); else pickT.push(tid); continue; }
+      if (!r?.id) reasons.push(`--symbols: ${ref} ${r?.ambiguous ? `is ambiguous: ${r.ambiguous.join(", ")}` : "not resolvable"}`);
+      else if (!inScope.has(r.id)) reasons.push(`--symbols: ${ref} is not a symbol of change ${changeId}`);
+      else if (!lock.symbols[r.id]) reasons.push(`--symbols: ${ref} is not locked`);
+      else if (!drifted(symDrift(r.id))) reasons.push(`--symbols: ${ref} has no intent, TODO or body drift to accept`);
+      else pickS.push(r.id);
+    }
+    pickS = [...new Set(pickS)]; pickT = [...new Set(pickT)];
+  } else {
+    pickS = [...inScope].filter((id) => index.symbols[id] && !isTest(index.symbols[id]) && lock.symbols[id] && !openOf(id).length && drifted(symDrift(id))).sort();
+    pickT = lockedTests.filter((id) => testDrifted(id) && !testOpen(id)).sort();
+  }
+  if (reasons.length) return res(false);
+  if (!pickS.length && !pickT.length) { reasons.push(`nothing to accept: no symbol or locked test of change ${changeId} drifted (outside open tasks)`); return res(false); }
+
+  for (const id of pickS) {
+    const s = index.symbols[id], nm = s.name || id;
+    const open = openOf(id);
+    if (open.length) { reasons.push(`${nm}: owned by open task ${open.map((t) => `${t} (${status(t)})`).join(", ")}: it is claimed, approve it there (/hitl:approve ${open[0]} skeleton ${nm})`); continue; }
+    if (symDrift(id).sig) { reasons.push(`${nm}: signature changed: claim it into a task`); continue; }
+    const ts = testState(index, state, id);
+    if (ts.state === "no tests" && !["function", "method"].includes(s.kind)) warnings.push(`${nm}: ${s.kind} has no covering test; accepted on review only`);
+    else if (ts.state !== "fresh pass") reasons.push(`${nm}: covering tests are ${ts.state === "no tests" ? "missing" : ts.state} (run hitl-index test; accept needs fresh passing tests)`);
+  }
+  for (const id of pickT) {
+    const t = index.symbols[id], nm = t?.test?.titlePath?.at(-1) ?? t?.name ?? id.slice(id.indexOf("#") + 1);
+    const o = testOpen(id);
+    if (o) { reasons.push(`test ${nm}: owned by open task ${o} (${status(o)}): lock it there (/hitl:approve ${o} tests)`); continue; }
+    if (!t) continue; // deleted: accepting drops it from the lock
+    const r = state.runs?.[id];
+    if (t.test && t.test.mode !== "active") reasons.push(`test ${nm}: is ${t.test.mode}, not active`);
+    else if (!r || r.testBodyHash !== t.bodyHash || r.outcome !== "pass") reasons.push(`test ${nm}: ${!r ? "no recorded run" : r.testBodyHash !== t.bodyHash ? "run is stale" : `last run ${r.outcome}`} (run hitl-index test; accept needs a fresh pass)`);
+  }
+  if (reasons.length) return res(false);
+
+  const acc = { acceptedAt: now, acceptedBy: by, acceptedChange: changeId };
+  for (const id of pickS) {
+    const s = index.symbols[id], l = lock.symbols[id], d = symDrift(id);
+    const entry = { ...l, acceptedBodyHash: s.bodyHash, ...acc };
+    const what = [];
+    if (d.intent) { entry.intent = s.intent; entry.intentHash = s.intentHash; entry.intentLog = appendIntentLog(l, s, { task: l.task, change: changeId, stage: "accept", at: now }); what.push("intent"); }
+    if (d.todo) { entry.todos = s.todos || []; entry.todoHash = s.todoHash; what.push("todo"); }
+    if (d.body) what.push("body");
+    lock.symbols[id] = entry;
+    changes.symbols.changed.push({ id, what });
+  }
+  for (const id of pickT) {
+    const t = index.symbols[id];
+    if (!t) { delete lock.tests[id]; changes.tests.removed.push(id); continue; }
+    lock.tests[id] = { ...lock.tests[id], bodyHash: t.bodyHash, intentHash: t.intentHash, ...acc };
+    changes.tests.changed.push({ id, what: ["body"] });
   }
   return res(true);
 }
@@ -364,7 +508,8 @@ const SENTINEL = "TODO(impl)";
 /**
  * Plan an approval. Pure: returns {ok, stage, reasons[], changes, lock(new)}.
  * opts: {taskId, stage?, symbols?:[refs], by:"human"|"auto"|"human-override", force?, index, lock, state, config, task, tasks, statuses, api?, now?}
- * Stage "intent" takes {changeId} instead of taskId (planIntentApproval); --force does not apply to it.
+ * Stages "intent" and "accept" take {changeId} instead of taskId (planIntentApproval, planAcceptApproval); --force
+ * does not apply to them.
  */
 export function planApproval(opts) {
   const { taskId, index, state = {}, config = {}, task, statuses, api } = opts;
@@ -376,12 +521,12 @@ export function planApproval(opts) {
   const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
   const res = (ok) => ({ ok, stage, task: taskId, by, reasons, changes, lock });
 
-  if (stage === "intent" || opts.changeId) {
-    if (stage !== "intent") { reasons.push(`--change approves only the intent stage, not "${stage}"`); return res(false); }
-    if (taskId) { reasons.push("intent stage takes --change <change-id>, not a task id"); return res(false); }
-    return planIntentApproval(opts, lock);
+  if (CHANGE_STAGES.includes(stage) || opts.changeId) {
+    if (!CHANGE_STAGES.includes(stage)) { reasons.push(`--change approves only the intent or accept stage, not "${stage}"`); return res(false); }
+    if (taskId) { reasons.push(`${stage} stage takes --change <change-id>, not a task id`); return res(false); }
+    return stage === "accept" ? planAcceptApproval(opts, lock) : planIntentApproval(opts, lock);
   }
-  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done|intent)`); return res(false); }
+  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done|intent|accept)`); return res(false); }
   if (!index?.symbols) { reasons.push("index missing: run hitl-index index --all"); return res(false); }
   if (!task && !lock.tasks[taskId]) { reasons.push(`task ${taskId} not found in tasks/*.md`); return res(false); }
 
@@ -404,9 +549,13 @@ export function planApproval(opts) {
     const pairs = renamePairs(index, lock).filter((p) => p.task === taskId);
     const pairOf = (ref) => pairs.find((p) => p.from === ref || nm(p.from) === ref);
     if (task?.parseErrors?.length) reasons.push(`tasks file parse errors: ${task.parseErrors.map((e) => e.message || e).join("; ")}`);
+    // --symbols: only the picked symbols' rows and tags are checked (a done, tag-stripped task can claim one symbol)
+    const scope = new Set(allIds);
+    const listed = opts.symbols?.length ? new Set(opts.symbols.flatMap((ref) => { const r = preferIn(resolveWith(api, index, ref), scope); const p = pairOf(ref); return [ref, r?.id, p?.to, p?.from]; }).filter(Boolean)) : null;
     for (const sym of task?.symbols || []) {
       const r = resolveWith(api, index, sym.ref, sym.file);
       const rn = !r && pairOf(sym.ref);
+      if (listed && !listed.has(sym.ref) && !(r?.id && listed.has(r.id)) && !(rn && (listed.has(rn.to) || listed.has(rn.from)))) continue;
       if (rn) reasons.push(`symbol ${sym.ref} was renamed to ${nm(rn.to)}: update its ### Symbols row in ${task.file || "the tasks md"} (and any @covers/@calls naming it)`);
       else if (!r) reasons.push(`symbol ${sym.ref} not found in index (expected in ${sym.file})`);
       else if (r.ambiguous) reasons.push(`symbol ${sym.ref} is ambiguous: ${r.ambiguous.join(", ")}`);
@@ -428,7 +577,7 @@ export function planApproval(opts) {
     if (opts.symbols?.length) {
       pick = []; prune = []; renames = [];
       for (const ref of opts.symbols) {
-        const r = resolveWith(api, index, ref);
+        const r = preferIn(resolveWith(api, index, ref), new Set(allIds));
         if (r?.id) { pick.push(r.id); const p = pairs.find((x) => x.to === r.id); if (p) renames.push(p); continue; }
         const p = pairOf(ref);
         if (p) { renames.push(p); pick.push(p.to); continue; }

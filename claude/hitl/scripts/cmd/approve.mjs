@@ -2,10 +2,11 @@
 // The human-only rule for `--by human` is enforced by the PreToolUse approve token (P3); the CLI enforces `--by auto` = low risk only.
 // `--by human-override` (the user forced the fast lane with `/hitl:implement <T> --lane fast`) is gated by the hook's override
 // token the same way; the CLI allows it for any risk, never for stage done, and marks the task as overridden in the lock.
-// `hitl-index approve --change <id> [--stage intent] [--symbols a,b] --by human [--dry-run] [--json]`: intent re-approval of a
-// done change's locked symbols (lock.planApproval stage intent; the hook's approve token must be bound to that change).
+// `hitl-index approve --change <id> [--stage intent|accept] [--symbols a,b] --by human [--dry-run] [--json]`: the change-form
+// stages, both human-only (the hook's approve token must be bound to that change and stage). intent: re-lock the intents of
+// a done change's symbols. accept: accept the later drift (intent, TODO steps, body, locked tests) of an archived change.
 import { parseArgs } from "node:util";
-import { planApproval, writeLock, APPROVERS, lockedTasks } from "../lib/lock.mjs";
+import { planApproval, writeLock, APPROVERS, CHANGE_STAGES, lockedTasks } from "../lib/lock.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { computeStatuses } from "../lib/status.mjs";
 import { computeNext } from "../lib/nextstep.mjs";
@@ -19,11 +20,11 @@ export async function run(argv, ctx) {
   const json = ctx.json || v.json;
   const T = positionals[0];
   // tolerate positional stage/symbols (`approve T-1 tests a,b`) in addition to the flags
-  if (v.change !== undefined) return runIntent(v, positionals, ctx, json);
-  if (v.stage === "intent") { console.error("--stage intent takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage intent --by human"); return 2; }
+  if (v.change !== undefined) return runChange(v, positionals, ctx, json);
+  if (CHANGE_STAGES.includes(v.stage)) { console.error(`--stage ${v.stage} takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage ${v.stage} --by human`); return 2; }
   if (!v.stage && ["skeleton", "tests", "done"].includes(positionals[1])) v.stage = positionals[1];
   if (!v.symbols && positionals.length > 2) v.symbols = positionals.slice(2).join(",");
-  if (!T || !/^T-\d+$/.test(T)) { console.error("usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent [--symbols a,b] --by human [--dry-run]"); return 2; }
+  if (!T || !/^T-\d+$/.test(T)) { console.error("usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent|accept [--symbols a,b] --by human [--dry-run]"); return 2; }
   const by = v.by || "human";
   if (!APPROVERS.includes(by)) { console.error(`--by must be one of ${APPROVERS.join("|")}`); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
@@ -95,37 +96,50 @@ export async function run(argv, ctx) {
   return 0;
 }
 
-/** `approve --change <id> --stage intent`: re-lock the intents of a done change's symbols; nothing else in the lock moves. */
-async function runIntent(v, positionals, ctx, json) {
+/**
+ * `approve --change <id> --stage intent|accept`: intent re-locks the intents of a done change's symbols; accept records the
+ * later drift of an archived change's symbols/tests as accepted. Nothing else in the lock moves.
+ */
+async function runChange(v, positionals, ctx, json) {
   const C = typeof v.change === "string" ? v.change.trim() : "";
-  const usage = "usage: hitl-index approve --change <change-id> [--stage intent] [--symbols a,b] --by human [--dry-run] [--json]";
+  const usage = "usage: hitl-index approve --change <change-id> [--stage intent|accept] [--symbols a,b] --by human [--dry-run] [--json]";
   if (!C || !/^[A-Za-z0-9][\w.-]*$/.test(C) || /^T-\d+$/.test(C)) { console.error(usage); return 2; }
   if (positionals.length) { console.error(`--change takes no positional task/stage (got ${positionals.join(" ")}); ${usage}`); return 2; }
-  if (v.stage && v.stage !== "intent") { console.error(`--change approves only --stage intent (got ${v.stage})`); return 2; }
-  if (v.force) { console.error("--force does not apply to --stage intent"); return 2; }
+  const stage = v.stage || "intent";
+  if (!CHANGE_STAGES.includes(stage)) { console.error(`--change approves only --stage intent or accept (got ${v.stage})`); return 2; }
+  if (v.force) { console.error(`--force does not apply to --stage ${stage}`); return 2; }
   const by = v.by || "human";
-  if (by !== "human") { console.error(`intent re-approval is human-only: --by human (not --by ${by})`); return 2; }
+  if (by !== "human") { console.error(`${stage === "accept" ? "accept" : "intent re-approval"} is human-only: --by human (not --by ${by})`); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   const g = await gather(ctx.root, ctx.config, { drift: false });
-  const plan = planApproval({ changeId: C, stage: "intent", symbols: v.symbols ? v.symbols.split(",").map((s) => s.trim()).filter(Boolean) : null,
+  const plan = planApproval({ changeId: C, stage, symbols: v.symbols ? v.symbols.split(",").map((s) => s.trim()).filter(Boolean) : null,
     by, index: g.index, lock: g.lock, state: g.state, config: ctx.config, tasks: g.tasks, statuses: g.statuses, api: g.api });
-  const nm = (id) => g.index.symbols[id]?.name || id;
-  const out = { ok: plan.ok, change: C, stage: "intent", by, dryRun: !!v["dry-run"], reasons: plan.reasons, warnings: plan.warnings || [], changes: plan.changes };
+  const nm = (id) => g.index.symbols[id]?.name || id.slice(id.indexOf("#") + 1);
+  const out = { ok: plan.ok, change: C, stage, by, dryRun: !!v["dry-run"], reasons: plan.reasons, warnings: plan.warnings || [], changes: plan.changes };
   const warn = () => { if (!json) for (const w of out.warnings) console.log(`⚠️ ${w}`); };
   if (!plan.ok) {
-    const suggest = `hitl-index drift --json (INTENT_CHANGED only); hitl-index intents ${C}`;
+    const suggest = stage === "accept" ? `hitl-index drift --json (items with change ${C}); claim instead: add a modify row + @task <T> to an open task, then /hitl:approve <T> skeleton <sym>`
+      : `hitl-index drift --json (INTENT_CHANGED only); hitl-index intents ${C}`;
     if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));
-    else { console.log(`🛑 approve --change ${C} --stage intent refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`💡 ${suggest}`); }
+    else { console.log(`🛑 approve --change ${C} --stage ${stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`💡 ${suggest}`); }
     return 1;
   }
-  const changed = plan.changes.symbols.changed.map((x) => x.id);
+  const c = plan.changes;
+  const changed = c.symbols.changed.map((x) => x.id);
+  const lines = () => {
+    for (const x of c.symbols.changed) console.log(`    ~ ${nm(x.id)} (${x.what.join(", ")})`);
+    for (const x of c.tests.changed) console.log(`    ~ test ${nm(x.id)} (${x.what.join(", ")})`);
+    for (const id of c.tests.removed) console.log(`    - test ${nm(id)} (deleted; dropped from the lock)`);
+  };
+  const what = stage === "accept" ? `${changed.length} symbol(s), ${c.tests.changed.length + c.tests.removed.length} test(s)` : `${changed.length} intent(s)`;
   if (v["dry-run"]) {
     if (json) console.log(JSON.stringify(out, null, 2));
-    else { console.log(`approve --change ${C} --stage intent (dry run, by ${by}): ${changed.length} intent(s)`); for (const id of changed) console.log(`    ~ ${nm(id)} (intent)`); warn(); }
+    else { console.log(`approve --change ${C} --stage ${stage} (dry run, by ${by}): ${what}`); lines(); warn(); }
     return 0;
   }
   await writeLock(ctx.root, plan.lock);
-  if (json) console.log(JSON.stringify({ ...out, approved: changed }, null, 2));
+  if (json) console.log(JSON.stringify({ ...out, approved: changed, ...(stage === "accept" ? { tests: [...c.tests.changed.map((x) => x.id), ...c.tests.removed] } : {}) }, null, 2));
+  else if (stage === "accept") { console.log(`✅ ${C} drift accepted by ${by}: ${what}`); lines(); warn(); }
   else { console.log(`✅ ${C} intent re-approved by ${by}: ${changed.map(nm).join(", ")}`); warn(); }
   return 0;
 }

@@ -235,17 +235,46 @@ export async function newLockedDrift(root, sid, drift, lock, index) {
 }
 
 // ---------------------------------------------------------------- approve token binding
-const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent"]);
+const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent", "accept"]);
+const CHANGE_STAGE_WORDS = new Set(["intent", "accept"]);
 /**
  * What a `/hitl:approve <args>` token authorizes, from its raw args (first token decides):
- * `T-n …` → {kind:"task", task}; `<change-id> intent …` → {kind:"change", change, stage:"intent"}; anything else (no
+ * `T-n …` → {kind:"task", task}; `<change-id> intent|accept …` → {kind:"change", change, stage}; anything else (no
  * args, flags only) → {kind:"any"} (any one task approve, never a --change approve). A change id is never a T-id.
  */
 export function approveBinding(args) {
   const toks = String(args || "").trim().split(/[\s,]+/).filter(Boolean);
   const first = toks[0] || "";
   if (/^T-\d+$/.test(first)) return { kind: "task", task: first };
-  if (toks[1] === "intent" && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) return { kind: "change", change: first, stage: "intent" };
+  if (CHANGE_STAGE_WORDS.has(toks[1]) && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) return { kind: "change", change: first, stage: toks[1] };
   if (/\bT-\d+\b/.test(args || "")) return { kind: "task", task: /\bT-\d+\b/.exec(args)[0] }; // legacy: a T-id anywhere binds to it
   return { kind: "any" };
+}
+
+// ---------------------------------------------------------------- post-edit drift lines
+// An item carrying a `fix` (archived change: claim or accept) or no task shows that instead of a rebuilt command.
+const fixOr = (it, f) => (it.fix ? `Ask the user to choose — ${it.fix}.` : it.task ? f(it) : it.message || f(it));
+const HINT = {
+  SIG_CHANGED: (it) => fixOr(it, (x) => `Needs human re-approval (/hitl:approve ${x.task || "<T>"}).`),
+  INTENT_CHANGED: (it) => fixOr(it, (x) => `Needs human re-approval (/hitl:approve ${x.task || "<T>"}).`),
+  TODO_FLOW_CHANGED: (it) => fixOr(it, () => "TODO(impl) steps changed since approval."),
+  ARCHIVED_BODY_CHANGED: (it) => fixOr(it, () => "Body of an archived change's symbol changed; the user claims it into an open task or accepts it (/hitl:sync)."),
+  ORPHAN: (it) => `add @task ${it.task || "T-n"} @impl agent @status skeleton.`,
+  DELETED_REFERENCED: () => "Restore it or update the referencing symbols.",
+  DELETED_LOCKED: () => "Locked symbol removed; the user must re-approve or restore it.",
+  RENAMED: (it) => `Locked symbol renamed to ${it.affected?.[0]?.split("#")[1] || "?"}; update the tasks md ### Symbols row and @covers, then the user re-approves (/hitl:approve ${it.task || "<T>"} skeleton).`,
+  TEST_CHANGED: (it) => (it.fix ? fixOr(it, () => "") : "Locked test changed; tests change only via /hitl:test + /hitl:approve <T> tests."),
+  TEST_DELETED: (it) => (it.fix ? fixOr(it, () => "") : "Locked test removed."),
+  TEST_SKIPPED: (it) => (it.fix ? fixOr(it, () => "") : "Locked test is now skipped/todo."),
+  PARSE_ERROR: () => "Fix the syntax error; the index keeps the last good parse.",
+};
+
+/** One PostToolUse drift line: code, symbol, owner, callers and the hint (an item's `fix` when it has one). */
+export function formatDriftItem(it) {
+  const name = shortName(it.symbol) || it.file || "?";
+  const locked = it.task && it.code !== "ORPHAN" ? ` (locked ${it.task})` : it.change ? ` (archived ${it.change})` : "";
+  const aff = Array.isArray(it.affected) && it.affected.length ? ` — affected callers: ${it.affected.map(shortName).join(", ")}.` : "";
+  const hint = HINT[it.code] ? HINT[it.code](it) : (it.message || "");
+  const sep = it.code === "ORPHAN" ? " has no @task —" : "";
+  return `⚠️ ${it.code} ${name}${locked}${sep}${aff} ${hint}`.replace(/\s+/g, " ").trim();
 }

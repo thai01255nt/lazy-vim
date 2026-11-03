@@ -558,11 +558,12 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
   }
   const m = mergeChange({ changeId: id, deltas: ch.deltas, glossaryDelta: ch.glossaryDelta, proposal: ch.proposal, living: living.specs, glossary: living.glossary,
     base: ch.base, acceptBase, renumber, reserved, date });
-  let tasksPre = null; let tasksOk = true;
+  let tasksPre = null; let tasksOk = true; let bodyDrift = [];
   if (archive) {
     const tc = await taskCounts(root, config, ch.tasksDoc);
     tasksPre = { total: tc.total, done: tc.done, notDone: tc.notDone };
     tasksOk = !tc.notDone.length || force || config?.spec?.archiveRequiresDone === false;
+    bodyDrift = await doneBodyDrift(root, ch.tasksDoc);
   }
   const archiveTo = `${ARCHIVE_REL}/${archiveDirName(date, id)}`;
   const conflicts = [...m.conflicts];
@@ -575,7 +576,9 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
     archive: archive ? { from: ch.dir, to: archiveTo, moved: false } : null,
   };
   if (vErrors.length) out.errors = vErrors;
-  if (m.warnings.length) out.warnings = m.warnings;
+  const warnings = [...m.warnings, ...bodyDrift.map((d) => ({ code: "DONE_BODY_DRIFT", ref: d.name, capability: null, changes: [id], symbol: d.id, task: d.task,
+    message: `${d.name} ${d.gone ? "is gone" : "body changed"} since ${d.task} was done; once archived, /hitl:sync offers claim or accept` }))];
+  if (warnings.length) out.warnings = warnings;
   if (!ok || dryRun) return out;
   // renumber: rewrite ids inside the change folder only (deltas, design serves, tasks AC refs, proposal)
   const writes = [...m.writes];
@@ -593,7 +596,37 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
       await moveDir(join(root, ch.dir), join(root, archiveTo), io);
     } catch (e) { await tx.restore(); throw e; }
     out.archive.moved = true;
+    // the lock follows the move: its tasks point at the archived tasks file (bookkeeping, not an approval)
+    try { out.archive.lockTasks = await relinkArchivedTasks(root, ch.tasksDoc, id, `${archiveTo}/tasks.md`); }
+    catch (e) { out.archive.lockError = e.message; }
   }
   out.written = writes.map((w) => w.file);
   return out;
+}
+
+/** Done records of a change's tasks the code moved away from: [{id, name, task, gone}] (archive preflight; never blocks). */
+async function doneBodyDrift(root, tasksDoc) {
+  const ids = new Set((tasksDoc?.tasks || []).map((t) => t.id));
+  if (!ids.size) return [];
+  const [{ readIndex }, { readLock }] = await Promise.all([import("./indexer.mjs"), import("./lock.mjs")]);
+  const index = (await readIndex(root).catch(() => null)) || { symbols: {} };
+  const lock = await readLock(root);
+  const out = [];
+  for (const T of [...ids].sort()) for (const [sid, h] of Object.entries(lock.tasks[T]?.doneAt ? lock.tasks[T].doneBodyHashes || {} : {})) {
+    const s = index.symbols?.[sid];
+    if (!s || s.bodyHash !== h) out.push({ id: sid, name: s?.name || sid.slice(sid.indexOf("#") + 1), task: T, gone: !s });
+  }
+  return out;
+}
+
+/** After the archive move: lock.tasks[T].file → the archived tasks file, plus archivedAt and change. Returns the task ids. */
+async function relinkArchivedTasks(root, tasksDoc, changeId, file) {
+  const { readLock, writeLock, nowIso } = await import("./lock.mjs");
+  const lock = await readLock(root);
+  const ids = (tasksDoc?.tasks || []).map((t) => t.id).filter((T) => lock.tasks[T]);
+  if (!ids.length) return [];
+  const at = nowIso();
+  for (const T of ids) lock.tasks[T] = { ...lock.tasks[T], file, archivedAt: at, change: changeId };
+  await writeLock(root, lock);
+  return ids.sort();
 }

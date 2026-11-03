@@ -1,29 +1,7 @@
 // PostToolUse(Edit|Write|MultiEdit) hook (design §D.4): record touched symbols, reindex the file,
 // and report warn/block drift as additionalContext. Always exits 0.
-import { run, role, toolPath, projectRootOrExit, relPath, silent, context, api, updateSession, shortName, driftKey } from "./common.mjs";
+import { run, role, toolPath, projectRootOrExit, relPath, silent, context, api, updateSession, driftKey, formatDriftItem } from "./common.mjs";
 import { HITL_RE } from "../lib/paths.mjs";
-
-const HINT = {
-  SIG_CHANGED: (it) => `Needs human re-approval (/hitl:approve ${it.task || "<T>"}).`,
-  INTENT_CHANGED: (it) => `Needs human re-approval (/hitl:approve ${it.task || "<T>"}).`,
-  ORPHAN: (it) => `add @task ${it.task || "T-n"} @impl agent @status skeleton.`,
-  DELETED_REFERENCED: () => "Restore it or update the referencing symbols.",
-  DELETED_LOCKED: () => "Locked symbol removed; the user must re-approve or restore it.",
-  RENAMED: (it) => `Locked symbol renamed to ${it.affected?.[0]?.split("#")[1] || "?"}; update the tasks md ### Symbols row and @covers, then the user re-approves (/hitl:approve ${it.task || "<T>"} skeleton).`,
-  TEST_CHANGED: () => "Locked test changed; tests change only via /hitl:test + /hitl:approve <T> tests.",
-  TEST_DELETED: () => "Locked test removed.",
-  TEST_SKIPPED: () => "Locked test is now skipped/todo.",
-  PARSE_ERROR: () => "Fix the syntax error; the index keeps the last good parse.",
-};
-
-function formatItem(it) {
-  const name = shortName(it.symbol) || it.file || "?";
-  const locked = it.task && it.code !== "ORPHAN" ? ` (locked ${it.task})` : "";
-  const aff = Array.isArray(it.affected) && it.affected.length ? ` — affected callers: ${it.affected.map(shortName).join(", ")}.` : "";
-  const hint = HINT[it.code] ? HINT[it.code](it) : (it.message || "");
-  const sep = it.code === "ORPHAN" ? " has no @task —" : "";
-  return `⚠️ ${it.code} ${name}${locked}${sep}${aff} ${hint}`.replace(/\s+/g, " ").trim();
-}
 
 async function main(input) {
   const tool = input.tool_name;
@@ -74,7 +52,7 @@ async function main(input) {
       return s;
     });
   } catch { /* best effort */ }
-  context("PostToolUse", items.map(formatItem).join("\n"));
+  context("PostToolUse", items.map(formatDriftItem).join("\n"));
 }
 
 run(main, { watchdogMs: 28000 });

@@ -208,6 +208,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
 | `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
 | `/hitl:implement --feature <change-id> [--lane fast]` | Build rồi review: chạy mọi task của một change theo thứ tự (blocked-by, rồi prio), mỗi task theo lane của nó; dừng **một lần** ở cuối với review gộp `reviews/feature-<name>.md` (xem 5b) | ⛔ cuối / dừng sớm | chỉ bạn |
@@ -224,7 +225,7 @@ CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|
 `hitl-index strip <T-id|change-id>[,…] [--dry-run]` (vd. `T-1,T-2`; task đã `done`: xoá `@task @impl @status @prio @dec @risk` khỏi docstring
 code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại để kiểm tra, có thay đổi hash/status thì tự khôi phục),
 `hitl-index intents <change-id|T-id> [--json]` (báo cáo vệ sinh intent, chỉ đọc, xem mục 4),
-`hitl-index approve --change <change-id> --stage intent [--symbols a,b] --by human [--dry-run]` (do `/hitl:approve <id> intent` gọi),
+`hitl-index approve --change <change-id> --stage intent|accept [--symbols a,b] --by human [--dry-run]` (do `/hitl:approve <id> intent|accept` gọi),
 `hitl-index trace [T-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),
 `hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
 `hitl-index feature <change-id> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit).
@@ -238,8 +239,16 @@ Ngoài cổng, skill không hỏi mà tự quyết với giả định ghi rõ (
 (hook UserPromptSubmit phát "approve token" dùng một lần, ≤10 phút). `--by auto` chỉ cho task risk low (CLI chặn).
 `--by human-override` chỉ chạy được sau khi bạn gõ `/hitl:implement <T> --lane fast` (token riêng, xem 5a).
 Token gắn với thứ bạn gõ: `/hitl:approve T-3` chỉ duyệt T-3; `/hitl:approve <change-id> intent` chỉ cho đúng một lệnh
-`approve --change <change-id> --stage intent --by human`. Token task không duyệt được `--change` và ngược lại;
-`/hitl:approve` không kèm id không duyệt được `--change`; stage intent không nhận `--by auto` / `human-override`.
+`approve --change <change-id> --stage intent --by human`; `/hitl:approve <change-id> accept` chỉ cho đúng một lệnh
+`approve --change <change-id> --stage accept --by human`. Token task không duyệt được `--change` và ngược lại; token
+intent không chạy được accept và ngược lại; `/hitl:approve` không kèm id không duyệt được `--change`; stage intent và
+accept không nhận `--by auto` / `human-override`.
+
+**Change đã archive = lịch sử đóng băng:** task của nó luôn `done`, kể cả khi code sau này đổi body/intent của symbol.
+Archive ghi lại `lock.tasks[T].file` sang file tasks trong archive (+ `archivedAt`, `change`; không phải sự duyệt). Drift
+trên symbol/test chỉ thuộc task đã archive (`ARCHIVED_BODY_CHANGED`, `SIG_CHANGED`, `INTENT_CHANGED`, `TODO_FLOW_CHANGED`,
+`TEST_CHANGED`, …) có `task: null`, `change` và `fix`: **claim** (thêm dòng `modify` + `@task <T>` vào một task mở, rồi
+`/hitl:approve <T> skeleton <sym>`) hoặc **accept** (`/hitl:approve <change-id> accept`; không áp dụng cho đổi chữ ký).
 
 ## 4. Đồng bộ khi code thay đổi (sync model)
 

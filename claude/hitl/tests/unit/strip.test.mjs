@@ -1,7 +1,7 @@
 // `hitl-index strip`: bookkeeping tags removed from done tasks only; lock, drift and statuses unchanged.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
 import { stripDocTags, strip } from "../../scripts/lib/strip.mjs";
 import { makeProject, write, REPO, SVC, TESTS } from "./_project.mjs";
 import { loadConfig } from "../../scripts/lib/config.mjs";
@@ -268,4 +268,22 @@ test("strip T-a,T-b: a comma list strips each listed task; an unknown id in the 
   const r = await strip(root, { target: "T-1, T-1", config });
   assert.equal(r.ok, true, r.error); assert.deepEqual(r.tasks, ["T-1"], "a task named twice is stripped once");
   assert.equal(r.symbols.length, 2);
+});
+
+test("strip <change>: an archived change strips cleanly (verified) while its symbols have body drift; its task stays done", async () => {
+  const { root, config } = await doneProject();
+  // archive: the tasks file moves under .hitl/archive/<date>-<id>/ (the lock's file still points at the old path)
+  const text = readFileSync(`${root}/.hitl/tasks/feat-users.md`, "utf8").replace("← Planning: .hitl/planning/feat-users.md", "← Change: feat-users");
+  write(root, ".hitl/archive/2026-11-01-feat-users/tasks.md", text); rmSync(`${root}/.hitl/tasks/feat-users.md`);
+  const svc = `${root}/src/services/userService.ts`;
+  writeFileSync(svc, readFileSync(svc, "utf8").replace('throw new Error("duplicate")', 'throw new Error("dup")')); // a later edit
+  await updateIndex(root, null, { config });
+  const before = await snap(root, config);
+  assert.equal(before.status, "done", "archived: frozen history");
+  assert.ok(before.drift.some((d) => d.startsWith("ARCHIVED_BODY_CHANGED") && d.includes("createUser")), before.drift.join("\n"));
+  const r = await strip(root, { target: "feat-users", config });
+  assert.equal(r.ok, true, r.error); assert.equal(r.verified, true);
+  assert.doesNotMatch(readFileSync(svc, "utf8"), /@task T-1/);
+  const after = await snap(root, config);
+  assert.deepEqual([after.status, after.drift, after.lock], [before.status, before.drift, before.lock]);
 });

@@ -5,20 +5,28 @@ import { loadConfig } from "./config.mjs";
 import { paths } from "./project.mjs";
 import { readJson } from "./fsutil.mjs";
 import { resolveRef, fileOfId, nameOfId } from "./graph.mjs";
-import { referencesTo, renamePairs, currentTask, lockedTasks } from "./lock.mjs";
+import { referencesTo, renamePairs, currentTask, lockedTasks, bodyBaseline, testOwner } from "./lock.mjs";
 import { SPECREF_G } from "./specids.mjs";
-import { changeOfFile } from "./tasksmd.mjs";
+import { changeOfFile, archivedChangeOf, readTasks } from "./tasksmd.mjs";
 
 export const SCHEMA = "hitl.drift/1";
 const LEVEL = { block: 0, warn: 1, info: 2 };
 const ORDER = ["skeleton", "red", "wip", "green", "verified", "done"];
 const FN = new Set(["function", "method", "class"]);
-const SPEC_CODES = new Set(["SIG_CHANGED", "INTENT_CHANGED", "DELETED_LOCKED", "RENAMED", "TODO_FLOW_CHANGED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED"]);
+const SPEC_CODES = new Set(["SIG_CHANGED", "INTENT_CHANGED", "DELETED_LOCKED", "RENAMED", "TODO_FLOW_CHANGED", "ARCHIVED_BODY_CHANGED", "TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED"]);
 
-async function loadStatus() {
+/** The `fix` of a drift item on an archived change's symbol or test: claim it into an open task, or accept it (not for a signature). */
+export function archivedFix(change, ref, { accept = true, test = false } = {}) {
+  const claim = test
+    ? `claim: tag the test @ac <T>.ACn (or @task <T>) of an open task, then /hitl:approve <T> tests`
+    : `claim: add a modify row + @task <T> to an open task, then /hitl:approve <T> skeleton ${ref}`;
+  return accept ? `${claim} · accept: /hitl:approve ${change} accept` : claim;
+}
+
+async function loadStatusModule() {
   const p = new URL("./status.mjs", import.meta.url);
   if (!existsSync(fileURLToPath(p))) return null;
-  try { return (await import(p.href)).computeStatuses || null; } catch { return null; }
+  try { return await import(p.href); } catch { return null; }
 }
 
 export async function computeDrift(root, opts = {}) {
@@ -28,7 +36,7 @@ export async function computeDrift(root, opts = {}) {
   return computeDriftFrom(root, index, opts);
 }
 
-/** computeDriftFrom(root, index, {files?, task?, precommit?, prevIndex?, config?, lock?, state?, spec?}) */
+/** computeDriftFrom(root, index, {files?, task?, precommit?, prevIndex?, config?, lock?, state?, spec?, tasks?}) */
 export async function computeDriftFrom(root, index, opts = {}) {
   const P = paths(root);
   const config = opts.config || (await loadConfig(root));
@@ -36,6 +44,8 @@ export async function computeDriftFrom(root, index, opts = {}) {
   const state = opts.state || (await readJson(P.state, null)) || { runs: {}, mutation: {}, reviews: {} };
   const L = { symbols: lock.symbols || {}, tests: lock.tests || {}, tasks: lock.tasks || {} };
   const S = index.symbols;
+  const tasks = opts.tasks || (await readTasks(root).catch(() => []));
+  const statusMod = await loadStatusModule();
   const items = [];
   const add = (level, code, id, message, extra = {}) => {
     const s = S[id];
@@ -49,6 +59,13 @@ export async function computeDriftFrom(root, index, opts = {}) {
   const bySigIntent = new Map();
   for (const [id, s] of Object.entries(S)) bySigIntent.set(`${s.sigHash}:${s.intentHash}`, id);
   const renamed = new Map(renamePairs(index, L).map((p) => [p.from, p.to]));
+  // archived change of a done task (frozen history), memoized
+  const archMemo = new Map();
+  const archivedOf = (T) => { if (!archMemo.has(T)) archMemo.set(T, L.tasks[T]?.doneAt ? archivedChangeOf(L, tasks, T) : null); return archMemo.get(T); };
+  const testWord = (id) => {
+    const ts = statusMod?.testState?.(index, state, id);
+    return !ts ? "tests unknown" : ts.state === "fresh pass" ? "tests pass fresh" : ts.state === "failing" ? "tests failing" : ts.state === "stale" ? "test runs stale (run hitl-index test)" : "no covering tests";
+  };
   for (const [id, l] of Object.entries(L.symbols)) {
     const s = S[id];
     const to = renamed.get(id);
@@ -69,6 +86,25 @@ export async function computeDriftFrom(root, index, opts = {}) {
     // re-approval goes to the task now working on it (a later task's skeleton changing a done task's symbol)
     const owner = currentTask(s, L, id) || l.task;
     const open = [...new Set([...(s.tags?.task || []), ...lockedTasks(l)])].filter((t) => !L.tasks[t]?.doneAt);
+    // every lock owner done and archived, no open task tags it: frozen history; changes are claimed or accepted
+    const lockOwners = lockedTasks(l);
+    const arch = !open.length && lockOwners.length && lockOwners.every((t) => archivedOf(t)) ? archivedOf(l.task) || archivedOf(lockOwners.at(-1)) : null;
+    if (arch) {
+      const at = `(archived ${arch}, done in ${l.task})`;
+      const nm = ref(id), unique = Object.values(S).filter((o) => o.name === nm).length === 1;
+      const x = (accept) => ({ task: null, change: arch, fix: archivedFix(arch, unique ? nm : id, { accept }) });
+      if (l.sigHash && s.sigHash !== l.sigHash)
+        add("warn", "SIG_CHANGED", id, `${ref(id)} ${at} signature changed${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Claim it into an open task (a signature change cannot be accepted).`, { affected: s.callers, approved, current: cur(s), ...x(false) });
+      if (l.intentHash && s.intentHash !== l.intentHash)
+        add("warn", "INTENT_CHANGED", id, `${ref(id)} ${at} intent changed${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Claim it into an open task, or accept it (/hitl:approve ${arch} accept).`, { affected: s.callers, approved, current: cur(s), ...x(true) });
+      if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash)
+        add("warn", "TODO_FLOW_CHANGED", id, `${ref(id)} ${at} TODO(impl) steps changed. Claim it into an open task, or accept it (/hitl:approve ${arch} accept).`, x(true));
+      if (l.impl && s.tags.impl && s.tags.impl !== l.impl) add("info", "IMPL_CHANGED", id, `${ref(id)} @impl ${l.impl} → ${s.tags.impl}`, { task: null, change: arch });
+      const base = bodyBaseline(L, id, lockOwners);
+      if (base && base.hash !== s.bodyHash)
+        add("warn", "ARCHIVED_BODY_CHANGED", id, `${ref(id)} ${at} body changed since ${base.accepted ? "it was accepted" : "the done record"}; ${testWord(id)}. Claim it into an open task, or accept it (/hitl:approve ${arch} accept).`, x(true));
+      continue;
+    }
     if (l.sigHash && s.sigHash !== l.sigHash)
       add("warn", "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
     // every owning task done (e.g. after /hitl:tidy): the change-level intent re-approval, which needs no @task tags
@@ -78,7 +114,7 @@ export async function computeDriftFrom(root, index, opts = {}) {
       add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (${reapprove}).`, { affected: s.callers, approved, current: cur(s), task: owner });
     if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) add("info", "TODO_FLOW_CHANGED", id, `${ref(id)} TODO(impl) steps changed since approval`);
     if (l.impl && s.tags.impl && s.tags.impl !== l.impl) add("info", "IMPL_CHANGED", id, `${ref(id)} @impl ${l.impl} → ${s.tags.impl}`);
-    const done = L.tasks[l.task]?.doneBodyHashes?.[id];
+    const done = bodyBaseline(L, id, [l.task])?.hash;
     const rv = state.reviews?.[l.task]?.bodyHashes?.[id];
     if (open.some((t) => t !== l.task)) continue; // a later open task owns the body changes
     if ((done && done !== s.bodyHash) || (!done && rv && rv !== s.bodyHash)) add("info", "BODY_CHANGED", id, `${ref(id)} body changed since the last ${done ? "done record" : "review"}`);
@@ -111,11 +147,16 @@ export async function computeDriftFrom(root, index, opts = {}) {
   // locked tests
   for (const [id, l] of Object.entries(L.tests)) {
     const s = S[id];
-    if (!s) { add("warn", "TEST_DELETED", id, `locked test ${nameOfId(id)} (${l.task}) is missing`); continue; }
+    // owner (its @ac/@task tags, else the lock) done and archived: frozen history; claimed by tagging it into an open task
+    const owner = s ? testOwner(index, L, id) || l.task : l.task;
+    const arch = archivedOf(owner) && archivedOf(l.task) ? archivedOf(l.task) : null;
+    const tx = (accept) => (arch ? { task: null, change: arch, fix: archivedFix(arch, nameOfId(id), { accept, test: true }) } : {});
+    const at = arch ? `(archived ${arch}, locked by ${l.task})` : `(${l.task})`;
+    if (!s) { add("warn", "TEST_DELETED", id, `locked test ${nameOfId(id)} ${at} is missing${arch ? `. Restore it, or accept it (/hitl:approve ${arch} accept drops it from the lock).` : ""}`, tx(true)); continue; }
     if (l.stage !== "locked") continue;
     if ((l.bodyHash && s.bodyHash !== l.bodyHash) || (l.intentHash && s.intentHash !== l.intentHash))
-      add("warn", "TEST_CHANGED", id, `locked test "${s.test?.titlePath?.at(-1) ?? s.name}" (${l.task}) changed since it was locked`);
-    if (s.test && s.test.mode !== "active") add("warn", "TEST_SKIPPED", id, `locked test "${s.test.titlePath.at(-1)}" (${l.task}) is now ${s.test.mode}`);
+      add("warn", "TEST_CHANGED", id, `locked test "${s.test?.titlePath?.at(-1) ?? s.name}" ${at} changed since it was locked${arch ? `. Claim it into an open task, or accept it (/hitl:approve ${arch} accept).` : ""}`, tx(true));
+    if (s.test && s.test.mode !== "active") add("warn", "TEST_SKIPPED", id, `locked test "${s.test.titlePath.at(-1)}" ${at} is now ${s.test.mode}`, tx(false));
   }
 
   // declared vs actual calls (task-tagged, non-stub)
@@ -127,11 +168,9 @@ export async function computeDriftFrom(root, index, opts = {}) {
   }
 
   // status tags (needs P2 status.mjs)
-  const computeStatuses = await loadStatus();
+  const computeStatuses = statusMod?.computeStatuses;
   if (computeStatuses) {
     try {
-      const { readTasks } = await import("./tasksmd.mjs");
-      const tasks = await readTasks(root).catch(() => []);
       const st = computeStatuses(index, lock, state, config, tasks)?.symbols || {};
       for (const [id, s] of Object.entries(S)) {
         const c = st[id]?.status, t = s.tags?.status;
