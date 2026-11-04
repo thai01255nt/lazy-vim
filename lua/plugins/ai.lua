@@ -264,6 +264,26 @@ return {
   {
     "nvim-mini/mini.diff",
     pin = true,
+    keys = {
+      {
+        "<leader>gd",
+        function()
+          -- Source stays `none` globally (gitsigns owns the sign column); the
+          -- toggle attaches the git source to this buffer only while the overlay is on.
+          local diff = require("mini.diff")
+          local buf = vim.api.nvim_get_current_buf()
+          local data = diff.get_buf_data(buf)
+          local on = data and data.overlay
+          vim.b[buf].minidiff_config = (not on) and { source = diff.gen_source.git() } or nil
+          diff.disable(buf)
+          diff.enable(buf)
+          if not on then
+            diff.toggle_overlay(buf)
+          end
+        end,
+        desc = "Toggle Diff Overlay (git)",
+      },
+    },
     config = function()
       local diff = require("mini.diff")
       diff.setup({
