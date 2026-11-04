@@ -91,6 +91,33 @@ return {
     },
     keys = {
       {
+        -- LazyVim's git_status previewer shows raw +/- diff; render it like <leader>gb
+        "<leader>gs",
+        function()
+          local diff_preview = require("diff_preview")
+          require("telescope.builtin").git_status({
+            previewer = require("telescope.previewers").new_buffer_previewer({
+              title = "Diff",
+              define_preview = function(self, entry)
+                local path = entry.path or entry.value
+                local git = { "git", "-C", vim.fn.fnamemodify(path, ":h"), "diff", "--no-color" }
+                if entry.status and entry.status:find("?", 1, true) then
+                  vim.list_extend(git, { "--no-index", "--", "/dev/null", path })
+                else
+                  vim.list_extend(git, { "HEAD", "--", path })
+                end
+                local rows = diff_preview.parse(vim.fn.systemlist(git))
+                if #rows == 0 then
+                  rows = { { text = "(no diff)", hl = "Comment" } }
+                end
+                diff_preview.render(self.state.bufnr, rows, vim.filetype.match({ filename = path }))
+              end,
+            }),
+          })
+        end,
+        desc = "Status",
+      },
+      {
         "<leader>fP",
         function()
           require("telescope.builtin").find_files({

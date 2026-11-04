@@ -104,10 +104,9 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- Line history: one entry per commit that touched the cursor line; the preview shows
--- only that commit's hunk for this line, rendered without +/- markers: added lines on
--- DiffAdd, removed lines on DiffDelete, code highlighted with the file's filetype.
-local line_history_ns = vim.api.nvim_create_namespace("git_line_history")
+-- only that commit's hunk for this line, rendered by diff_preview (no +/- markers).
 keymap.set("n", "<leader>gb", function()
+  local diff_preview = require("diff_preview")
   local file = vim.api.nvim_buf_get_name(0)
   local ft = vim.bo.filetype
   local line = vim.fn.line(".")
@@ -119,20 +118,14 @@ keymap.set("n", "<leader>gb", function()
     vim.notify(table.concat(out, "\n"), vim.log.levels.WARN, { title = "Git Line History" })
     return
   end
-  local kinds = { ["+"] = "DiffAdd", ["-"] = "DiffDelete" }
   local items, item = {}, nil
   for _, l in ipairs(out) do
     local commit, author, date, msg = l:match("^@@@C@@@(%S+)\t(.-)\t(.-)\t(.*)$")
     if commit then
-      item = { commit = commit, author = author, date = date, msg = msg, text = commit .. " " .. author .. " " .. msg, rows = {} }
+      item = { commit = commit, author = author, date = date, msg = msg, text = commit .. " " .. author .. " " .. msg, diff = {} }
       items[#items + 1] = item
-    elseif item and l ~= "" and not l:match("^diff %-%-git ") and not l:match("^%-%-%- ") and not l:match("^%+%+%+ ") then
-      local new_start = l:match("^@@ %-%d+,?%d* %+(%d+)")
-      if new_start then
-        item.rows[#item.rows + 1] = { text = "── line " .. new_start .. " ──", hl = "Comment" }
-      else
-        item.rows[#item.rows + 1] = { text = l:sub(2), line_hl = kinds[l:sub(1, 1)] }
-      end
+    elseif item then
+      item.diff[#item.diff + 1] = l
     end
   end
   Snacks.picker({
@@ -142,31 +135,15 @@ keymap.set("n", "<leader>gb", function()
     confirm = "git_checkout",
     preview = function(ctx)
       local it = ctx.item
-      local lines = { it.commit .. "  " .. it.author .. "  " .. it.date, it.msg, "" }
-      for _, r in ipairs(it.rows) do
-        lines[#lines + 1] = r.text
-      end
+      local c, a = #it.commit, #it.author
+      local first = it.commit .. "  " .. it.author .. "  " .. it.date
       ctx.preview:reset()
-      ctx.preview:set_lines(lines)
-      ctx.preview:highlight({ ft = ft })
       ctx.preview:set_title(it.commit)
-      local buf = ctx.buf
-      vim.api.nvim_buf_clear_namespace(buf, line_history_ns, 0, -1)
-      local function mark(row, col, end_col, hl)
-        vim.api.nvim_buf_set_extmark(buf, line_history_ns, row, col, { end_col = end_col, hl_group = hl, priority = 200 })
-      end
-      mark(0, 0, #it.commit, "Constant")
-      mark(0, #it.commit + 2, #it.commit + 2 + #it.author, "Identifier")
-      mark(0, #lines[1] - #it.date, #lines[1], "Comment")
-      mark(1, 0, #it.msg, "Title")
-      for i, r in ipairs(it.rows) do
-        local row = i + 2
-        if r.line_hl then
-          vim.api.nvim_buf_set_extmark(buf, line_history_ns, row, 0, { line_hl_group = r.line_hl })
-        elseif r.hl then
-          mark(row, 0, #r.text, r.hl)
-        end
-      end
+      diff_preview.render(ctx.buf, diff_preview.parse(it.diff), ft, {
+        { text = first, spans = { { 0, c, "Constant" }, { c + 2, c + 2 + a, "Identifier" }, { c + a + 4, #first, "Comment" } } },
+        { text = it.msg, hl = "Title" },
+        { text = "" },
+      })
     end,
   })
 end, { desc = "Git Line History" })
