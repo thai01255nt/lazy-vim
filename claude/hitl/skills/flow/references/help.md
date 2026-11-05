@@ -21,7 +21,8 @@ reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`,
 **Two changes at once** (0.10): link them in the dependent proposal's meta line, `| after: feat-b (strong)` (contracts,
 shared code, a changed flow: its overlapping tasks pause until feat-b is archived) or `| relates: feat-b (low)` (parallel).
 `hitl-index coupling <id>` shows the evidence. The change that archives second owns the reconcile:
-`/hitl:plan <id> reconcile <other>` turns the other change's impact into notes here; archive waits for it.
+`/hitl:plan <id> reconcile <other>` turns the other change's impact into notes here; archive waits for it. A finding
+you do not pick stays pending; only you skip it: `/hitl:approve <id> skip RC-n <reason>`.
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 **Shared language and refactor** (0.8.x): `spec validate` and the review's `terms` gate warn when a business file or an
@@ -68,6 +69,7 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
 | `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
+| `/hitl:approve <id> skip [<other>] RC-n[,RC-m] <reason>` | skip reconcile findings you do not take in (recorded with the reason; never offered again; clears `RECONCILE_PENDING` once none is left) | user-only |
 | `/hitl:test T` | real failing tests via isolated test-author | ⛔ high risk |
 | `/hitl:implement T` | agent fns via implementer, manual fns handed to you | ⛔ manual fns |
 | `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | ⛔ end / early stop |

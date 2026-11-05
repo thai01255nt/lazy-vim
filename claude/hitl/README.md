@@ -102,6 +102,13 @@ Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test
 - `/hitl:flow` chỉ còn status, định tuyến T-id và help; mô tả việc mới → `🎯 next: /hitl:go …`. Mô tả trần
   (không có "plan", "TDD", "tasks quick") được route sang `/hitl:go`; lời gọi rõ ràng vẫn vào thẳng skill.
 - `/hitl:tasks <id> update [<việc>]` vào thẳng chế độ update (không hỏi update/overwrite).
+- Reconcile: phát hiện không được chọn (`pick`, `--pick none`) giờ **còn pending** (`RECONCILE_PENDING` giữ nguyên);
+  chỉ bạn bỏ qua được: `/hitl:approve <id> skip [<change khác>] RC-n[,RC-m] <lý do>` (mục 4d).
+- Hook PreToolUse chặn thêm lệnh Bash ghi vào file hitl được bảo vệ (`sed -i`, `>`/`>>`, `tee`, `cp`/`mv`/`rm`, …);
+  chỉ là lưới an toàn, không phải bảo đảm (xem `shared/conventions.md`).
+- Gợi ý "bắt đầu việc mới" (project trống, mọi task xong, `change` chưa có change, `/hitl:setup`, `/hitl:overview`,
+  `/hitl:archive`, dòng SessionStart) giờ là `🎯 next: /hitl:go <describe the work>`; `/hitl:plan <id>` vẫn dùng để
+  tiếp tục một change cụ thể.
 
 ### Nâng cấp từ 0.9
 
@@ -269,6 +276,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; `doneAt` chuyển vào `reopened[]`. Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:plan <change-id> reconcile <change khác>` | Đưa ảnh hưởng của change kia vào change này dưới dạng note (spec id nó đổi mà change này dùng, contract chung, symbol đã khoá bị nó sửa); một cổng `Add <n> notes? (Y/n/pick)` | ⛔ | bạn / Claude |
 | `/hitl:approve <change-id> dismiss N-k <lý do>` · `defer N-k <change khác>` · `/hitl:approve <T> <stage> --ack N-k` | Đóng note (bỏ qua có lý do / chuyển sang change khác) · cho task T đi tiếp dù note còn mở | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> skip [<change khác>] RC-n[,RC-m] <lý do>` | Bỏ qua phát hiện reconcile không cần đưa vào (ghi kèm lý do, không đề nghị lại); hết pending thì `RECONCILE_PENDING` mới mất | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
 | `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
@@ -304,7 +312,8 @@ Token gắn với thứ bạn gõ: `/hitl:approve T-3` chỉ duyệt T-3; `/hitl
 `approve --change <change-id> --stage accept --by human`. Token task không duyệt được `--change` và ngược lại; token
 intent không chạy được accept và ngược lại; `/hitl:approve` không kèm id không duyệt được `--change`; stage intent và
 accept không nhận `--by auto` / `human-override`. Tương tự (0.9) cho `reopen`, `dismiss`, `defer`: token gắn với change,
-stage, note id (và change đích của defer) bạn gõ; `--ack` chỉ đi với `--by human` và chỉ các note id bạn gõ.
+stage, note id (và change đích của defer) bạn gõ; `--ack` chỉ đi với `--by human` và chỉ các note id bạn gõ; `skip`
+chỉ đúng các id `RC-n` (và change khác, nếu có) bạn gõ.
 
 **Change đã archive = lịch sử đóng băng:** task của nó luôn `done`, kể cả khi code sau này đổi body/intent của symbol.
 Archive ghi lại `lock.tasks[T].file` sang file tasks trong archive (+ `archivedAt`, `change`; không phải sự duyệt). Drift
@@ -401,6 +410,8 @@ Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, v
   phát hiện `RC-n` (spec + diff so với text trước khi change kia merge, quyết định contract chung, drift trên symbol đã
   khoá) → một cổng → note trong change này (kind spec, design, recheck). Áp dụng như mục 4c: amend → 🔁 Impact →
   `/hitl:approve <id> reopen` (chỉ bạn). Chạy lại không tạo note trùng; chạy được bất cứ lúc nào, cả hai chiều.
+  Phát hiện không chọn vẫn **pending** (archive vẫn bị chặn) tới khi được thêm, hoặc bạn bỏ qua:
+  `/hitl:approve <id> skip RC-2 <lý do>` (ghi vào bản ghi reconcile trong `notes.md`, không đề nghị lại).
 - Luật: change kia **không bao giờ** sửa file của change này; ảnh hưởng chỉ đi qua note.
 
 ### 4b. Ticket tracker: Linear, Jira, GitHub Issues (tuỳ chọn)

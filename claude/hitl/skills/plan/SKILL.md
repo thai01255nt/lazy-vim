@@ -171,6 +171,11 @@ What `<other>` changed that this change must take in (0.10). Logic is in the CLI
 3. Y → `hitl-index reconcile <id> --from <other> --json`; `pick RC-1,RC-3` → add `--pick RC-1,RC-3`; n → nothing is
    written and the reconcile stays pending. Print the added `📌 N-k` lines and `🎯 next: <next>` (an amend of a note, or
    `/hitl:approve <id> reopen N-k` for a recheck: only the human runs that).
+4. Adding is the only thing you run. A finding not picked stays **pending** (JSON `pending`), and `RECONCILE_PENDING`
+   holds until each one is added (a later Y or pick) or skipped. Skipping is human-only: print
+   `⏳ pending: RC-2 — add it (pick), or skip it yourself: /hitl:approve <id> skip RC-2 <reason>` and stop. Never run
+   `approve --stage skip`, never treat `pick`, `--pick none` or n as a skip. Findings marked `skippedBefore` are not
+   offered again.
 
 ## Rules
 - Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, and design.md

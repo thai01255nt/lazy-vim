@@ -144,7 +144,7 @@ test("computeNext: drift override, frontier by prio/id and blocked-by, empty sta
   const drift = { items: [{ level: "warn", code: "SIG_CHANGED", symbol: CU, task: "T-1" }] };
   assert.equal(computeNext({ tasks, statuses, drift, lock: { symbols: { [CU]: {} } } }).command, "/hitl:sync");
   assert.equal(computeNext({ tasks, statuses, drift: { items: [{ level: "info", code: "BODY_CHANGED", symbol: CU }] } }).command, "/hitl:skeleton T-2");
-  assert.equal(computeNext({ tasks: [], statuses: { tasks: {} } }).command, "/hitl:plan");
+  assert.equal(computeNext({ tasks: [], statuses: { tasks: {} } }).command, "/hitl:go <describe the work>");
   assert.equal(computeNext({ tasks: [], statuses: { tasks: {} }, planning: [{ file: "feat-x.md", status: "approved", hasTasks: false }] }).command, "/hitl:tasks feat-x.md");
   assert.equal(nextForTask("T-1", "review"), "/hitl:review T-1 fix …");
 });

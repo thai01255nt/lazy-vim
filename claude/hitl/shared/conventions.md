@@ -73,8 +73,13 @@ Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered 
 - Edit an `@status` tag or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status --sync-tags` does).
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
-- Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply` and `/hitl:approve` write it), or add `--ack`, or run
-  the `reopen`, `dismiss` or `defer` approve forms unless the user typed them.
+- Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply|reconcile` and `/hitl:approve` write it), or add
+  `--ack`, or run the `reopen`, `dismiss`, `defer` or `skip` approve forms unless the user typed them. Skipping a
+  reconcile finding is the human's `/hitl:approve <id> skip RC-n <reason>`; a finding you do not add stays pending.
+- Write any of the files above from Bash either (`sed -i`, `>`/`>>`, `tee`, `cp`/`mv`/`rm`, `perl -i`, inline
+  python/node). The PreToolUse hook denies the obvious forms as a backstop, not a guarantee: indirect writes (a
+  variable path, `cd` then a relative name, a script on disk) are not caught and are still forbidden. Reading them
+  (`cat`, `grep`, `jq`, `git diff`) is fine; changes go through `hitl-index`.
 - Edit another change's files to carry this change's impact: it reaches the other change only as notes there
   (`/hitl:plan <other> reconcile <this>`, 0.10).
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or

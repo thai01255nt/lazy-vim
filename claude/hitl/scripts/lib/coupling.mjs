@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { readText } from "./fsutil.mjs";
 import { parseProposal } from "./specmd.mjs";
 import { lockedTasks, taskSymbolIds } from "./lock.mjs";
-import { readNotesDoc, specRefsTouch, todayIso, nextNoteId, updateNotes, validateRefs } from "./notes.mjs";
+import { readNotesDoc, specRefsTouch, todayIso, nextNoteId, updateNotes, validateRefs, reconcileDone } from "./notes.mjs";
 
 export const STRONG_TYPES = new Set(["same-id", "ac-ref", "serves-ref", "rule-ref", "symbol", "contract"]);
 const CHANGED_OPS = ["MODIFIED", "REMOVED"];
@@ -44,7 +44,8 @@ function archivedBefore(target, declarer) {
 /**
  * Links of an active change: [{change, rel: after|before|relates, level, declaredIn, archived, unknown, stale, reconcile}].
  * after = this change waits for `change`; before = `change` waits for this one. reconcile: null (target active) |
- * "pending" | "done" (a recorded run against the archived target).
+ * "pending" | "done" (a recorded run against the archived target with no finding left pending); pendingFindings: the
+ * RC ids of that run neither added as notes nor skipped by the human.
  */
 export function linksOf(graph, id) {
   const me = graph.byId(id);
@@ -64,13 +65,19 @@ export function linksOf(graph, id) {
     const t = graph.byId(l.change);
     const stale = l.declaredIn === id && archivedBefore(t, me);
     const archived = !!t?.archived;
-    return { ...l, archived, unknown: !t, stale, reconcile: !t || !archived || stale ? null : rec[l.change]?.archived ? "done" : "pending" };
+    const r = rec[l.change];
+    const reconcile = !t || !archived || stale ? null : reconcileDone(r) ? "done" : "pending";
+    return { ...l, archived, unknown: !t, stale, reconcile, ...(reconcile === "pending" && r?.archived && r.pending?.length ? { pendingFindings: r.pending.map((p) => p.id) } : {}) };
   });
 }
 
-/** Archived linked changes this active change still owes a reconcile: [{from, command}]. */
+/**
+ * Archived linked changes this active change still owes a reconcile: [{from, command, findings?}]. findings: the RC ids
+ * a recorded run left pending (add them with the reconcile, or the human skips them with /hitl:approve <id> skip …).
+ */
 export function reconcilePending(graph, id) {
-  return linksOf(graph, id).filter((l) => l.reconcile === "pending").map((l) => ({ from: l.change, command: `/hitl:plan ${id} reconcile ${l.change}` }));
+  return linksOf(graph, id).filter((l) => l.reconcile === "pending")
+    .map((l) => ({ from: l.change, command: `/hitl:plan ${id} reconcile ${l.change}`, ...(l.pendingFindings ? { findings: l.pendingFindings } : {}) }));
 }
 
 /** The `after` edges between active changes: a cycle through `id`, as a list of ids, or null. */
@@ -206,7 +213,9 @@ export function couplingItems(graph, ch, others = [], ectx = null) {
     it("warn", "COUPLING_UNDERSTATED", o.id, null, `${o.id}: evidence says strong (${evidenceLine(ev.evidence.filter((e) => STRONG_TYPES.has(e.type)))}) but the link is ${l ? "relates (low)" : "missing"}; the change that waits gets "| after: <other> (strong)" (the human decides)`);
   }
   const pend = links.filter((l) => l.reconcile === "pending");
-  for (const l of pend) it("warn", "RECONCILE_PENDING", l.change, null, `${l.change} is archived and ${ch.id} never reconciled against it (${pend.length} pending): /hitl:plan ${ch.id} reconcile ${l.change}`);
+  for (const l of pend) it("warn", "RECONCILE_PENDING", l.change, null, l.pendingFindings
+    ? `${l.change} is archived and ${ch.id} has reconcile findings neither added nor skipped (${l.pendingFindings.join(", ")}): add them with /hitl:plan ${ch.id} reconcile ${l.change}, or the human skips them with /hitl:approve ${ch.id} skip ${l.pendingFindings.join(",")} <reason>`
+    : `${l.change} is archived and ${ch.id} never reconciled against it (${pend.length} pending): /hitl:plan ${ch.id} reconcile ${l.change}`);
   return items;
 }
 

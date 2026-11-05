@@ -154,7 +154,9 @@ async function cmdMerge(argv, ctx, archive) {
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
   for (const n of r.preconditions.notes?.open || []) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
-  for (const p of r.preconditions.reconcile?.pending || []) console.log(`❌ 🔄 RECONCILE_PENDING: ${p.from} is archived and ${r.change} never reconciled against it → ${p.command} (--force does not skip it)`);
+  for (const p of r.preconditions.reconcile?.pending || []) console.log(p.findings
+    ? `❌ 🔄 RECONCILE_PENDING: findings ${p.findings.join(", ")} from ${p.from} are neither added nor skipped → ${p.command}, or the human types /hitl:approve ${r.change} skip ${p.findings.join(",")} <reason> (--force does not skip it)`
+    : `❌ 🔄 RECONCILE_PENDING: ${p.from} is archived and ${r.change} never reconciled against it → ${p.command} (--force does not skip it)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
   else if (r.dryRun) console.log(`🔎 dry run: spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
   else {

@@ -77,7 +77,7 @@ Reply e.g. "Y", "2 test.py = …", "1 3", "1 4".
    - Print ✅ with the hook path and: `It runs hitl-index precommit (blocks only on DELETED_REFERENCED / forged status). Uninstall: hitl-index install-git-hook --uninstall`.
 8. 🎯 Next:
    - Any of `docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
-   - Else → `/hitl:plan <what you want to build>`
+   - Else → `/hitl:go <describe the work>`
    - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
      index/skeleton.lock.json, <provider>.map.json (linear|jira|github), reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored
      (.hitl/.gitignore): the rest of index/ and reviews/<T>/, .inbox/, .scout.json, .spec-review.json.` (`init --json` `gitignore.added` non-empty → also

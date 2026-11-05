@@ -149,7 +149,7 @@ test("computeNext: tasks first, then the active change waiting for its next phas
   assert.equal(computeNext({ tasks: [], statuses: { tasks: {} }, changes: [changes[2]] }).command, "/hitl:plan feat-c");
   const t = [{ id: "T-1", prio: "P1", blockedBy: [], risk: "high" }];
   assert.equal(computeNext({ tasks: t, statuses: { tasks: { "T-1": { status: "todo", next: "/hitl:skeleton T-1" } } }, changes }).command, "/hitl:skeleton T-1");
-  assert.equal(computeNext({ tasks: t, statuses: { tasks: { "T-1": { status: "done" } } }, changes: [] }).command, "/hitl:plan");
+  assert.equal(computeNext({ tasks: t, statuses: { tasks: { "T-1": { status: "done" } } }, changes: [] }).command, "/hitl:go <describe the work>");
   assert.equal(computeNext({ tasks: [], statuses: { tasks: {} }, planning: [{ file: "feat-x.md", status: "approved", hasTasks: false }] }).command, "/hitl:tasks feat-x.md");
 });
 

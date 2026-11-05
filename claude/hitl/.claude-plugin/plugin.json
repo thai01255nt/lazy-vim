@@ -1,6 +1,6 @@
 {
   "name": "hitl",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Human-in-the-loop SDD workflow: one entry for new work (/hitl:go routes to a note, tdd, quick task or plan), spec-only planning (proposal + spec deltas, grill-style interview), developer design, tasks, then reviewed code skeletons, locked failing tests, per-function human/agent implementation and layered review (or build-then-review), with living specs + archive, a deterministic AST index, drift checks, requirement→scenario→test traceability, and optional one-way ticket sync (Linear, Jira, GitHub Issues).",
   "author": {
     "name": "Thai"

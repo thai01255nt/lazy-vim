@@ -37,13 +37,16 @@ export function nextForChange(c) {
   }
 }
 const CHANGE_ORDER = { "archive-ready": 0, tasks: 1, design: 2, spec: 3 };
+/** The next step when nothing is in flight: start new work through the router (0.11). */
+export const NEW_WORK = "/hitl:go <describe the work>";
 const CHANGE_REASON = { "archive-ready": "all tasks done; merge its spec deltas", tasks: "spec/design approved; no approved tasks yet",
   design: "spec approved; design missing or draft", spec: "proposal is still draft" };
 
 /**
  * Overall next step. Order: drift on locked code → a recheck waiting for reopen → a pending reconcile (0.10) → the
  * first unblocked task (prio, id) → an active change waiting for
- * its next phase (archive-ready, tasks, design, spec) → an approved v0.5 planning file without tasks → /hitl:plan.
+ * its next phase (archive-ready, tasks, design, spec) → an approved v0.5 planning file without tasks → new work
+ * (/hitl:go <describe the work>, 0.11: the one entry point for new work).
  * @param {{tasks:Task[], statuses:{tasks}, drift?, lock?, planning?:[{file,status,hasTasks}], changes?:[{id,phase}]}} o
  * @returns {{task:string|null, command:string, reason:string, change?:string}}
  */
@@ -55,7 +58,7 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
   if (pend) return { task: null, command: `/hitl:approve ${pend.change} reopen ${pend.id}`, reason: `${pend.id} (${pend.title}) waits for your reopen decision`, change: pend.change };
   // 0.10: a linked change was archived and this one never reconciled against it (it owns the reconcile)
   const rc = reconcile[0];
-  if (rc) return { task: null, command: rc.command, reason: `${rc.from} is archived; ${rc.change} has not reconciled against it`, change: rc.change };
+  if (rc) return { task: null, command: rc.command, reason: rc.findings?.length ? `${rc.change} has reconcile findings from ${rc.from} neither added nor skipped (${rc.findings.join(", ")})` : `${rc.from} is archived; ${rc.change} has not reconciled against it`, change: rc.change };
   const st = statuses?.tasks || {};
   const all = tasks.length ? tasks : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
   const isDone = (id) => st[id]?.status === "done";
@@ -83,5 +86,5 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
   if (all.length && !all.every((t) => isDone(t.id))) return { task: null, command: "/hitl:flow", reason: "no unblocked task (check blocked-by edges)" };
   const p = planning.find((x) => x.status === "approved" && !x.hasTasks);
   if (p) return { task: null, command: `/hitl:tasks ${p.file}`, reason: "approved planning has no tasks file" };
-  return { task: null, command: "/hitl:plan", reason: all.length ? "all tasks done" : "no tasks yet" };
+  return { task: null, command: NEW_WORK, reason: all.length ? "all tasks done" : "no tasks yet" };
 }

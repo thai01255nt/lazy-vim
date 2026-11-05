@@ -650,6 +650,85 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertAllow(pre(root, "Bash", { command: dfr }, null, "r6"));
   });
 
+  test("0.11.1 skip token: skipping reconcile findings is human-only, bound to the typed RC ids (and other change)", async () => {
+    const { root } = await mkProject();
+    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
+    const skp = (ids, extra = "") => `hitl-index approve --change feat-x --stage skip --findings ${ids}${extra} --reason "B keeps its rule" --by human`;
+    // never --by auto / human-override (not even a dry run), never a subagent, never without the user's token
+    assertDeny(pre(root, "Bash", { command: skp("RC-1").replace("--by human", "--by auto") }, null, "k0"), /Skipping reconcile findings is human-only/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1").replace("--by human", "--by human-override") + " --dry-run" }, null, "k0"), /Skipping reconcile findings is human-only/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k0"), /human-only/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, "hitl:implementer", "k0"), /human-only/);
+    // other tokens never authorize a skip, and a skip token authorizes nothing else
+    for (const p of ["/hitl:approve feat-x dismiss N-3 nope", "/hitl:approve feat-x reopen", "/hitl:approve T-1", "/hitl:approve"]) {
+      prompt(p, "k1");
+      assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k1"), /token is|not bound to a change/);
+    }
+    prompt("/hitl:approve feat-x skip RC-1,RC-3 B keeps its own rule", "k2");
+    const sess = JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/k2.json"), "utf8"));
+    assert.deepEqual([sess.approveToken.change, sess.approveToken.stage], ["feat-x", "skip"]);
+    assertDeny(pre(root, "Bash", { command: 'hitl-index approve --change feat-x --stage dismiss --note N-3 --reason "x" --by human' }, null, "k2"), /token is for change feat-x \(skip\)/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k2"), /skips RC-1,RC-3 of feat-x.*--findings RC-1,RC-3/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3,RC-4") }, null, "k2"), /skips RC-1,RC-3/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1", " --findings RC-3") }, null, "k2"), /skips RC-1,RC-3/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3", " --from feat-y") }, null, "k2"), /no other change typed/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3").replace("feat-x", "feat-y") }, null, "k2"), /for change feat-x/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3") + " && echo ok" }, null, "k2"), /alone/);
+    assertSilent(pre(root, "Bash", { command: skp("RC-1,RC-3") + " --dry-run" }, null, "k2"));
+    assertAllow(pre(root, "Bash", { command: skp("RC-3,RC-1") }, null, "k2")); // same set, any order
+    assertDeny(pre(root, "Bash", { command: skp("RC-3,RC-1") }, null, "k2"), /human-only/); // one use
+    // the other change, when typed, binds too; no ids typed binds nothing
+    prompt("/hitl:approve feat-x skip feat-y RC-2 not relevant", "k3");
+    assertDeny(pre(root, "Bash", { command: skp("RC-2") }, null, "k3"), /from feat-y.*--findings RC-2 --from feat-y/);
+    assertDeny(pre(root, "Bash", { command: skp("RC-2", " --from feat-z") }, null, "k3"), /from feat-y/);
+    assertAllow(pre(root, "Bash", { command: skp("RC-2", " --from feat-y") }, null, "k3"));
+    prompt("/hitl:approve feat-x skip because", "k4");
+    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k4"), /no finding ids typed/);
+  });
+
+  test("Bash backstop: a shell write to a protected hitl file is denied (any role); reads, data heredocs and hitl-index runs pass", async () => {
+    const { root } = await mkProject();
+    const N = ".hitl/changes/feat-x/notes.md";
+    const deny = [
+      [`sed -i 's/open/dismissed/' ${N}`, /notes\.md \(sed -i\).*Notes are written only by hitl-index/],
+      [`sed -E -i.bak 's/a/b/' src/a.ts ${N}`, /sed -i/],
+      [`echo "- status: dismissed" >> ${N}`, /\(redirect\)/],
+      [`cat /tmp/x > "${root}/${N}"`, /redirect/],
+      [`hitl-index status --json > .hitl/index/skeleton.lock.json`, /skeleton\.lock\.json \(redirect\)/],
+      [`printf x 2>&1 | tee -a ${N}`, /\(tee\)/],
+      [`cp /tmp/lock.json .hitl/index/skeleton.lock.json`, /\(cp\)/],
+      [`mv ${N} /tmp/notes.bak`, /\(mv\)/],
+      [`rm -f .hitl/index/state.json`, /\(rm\)/],
+      [`rm -rf .hitl/index`, /\.hitl\/index \(rm\)/],
+      [`perl -pi -e 's/a/b/' .hitl/specs/accounts/spec.md`, /perl -i.*Living specs/],
+      [`git checkout -- ${N}`, /git checkout/],
+      [`truncate -s 0 .hitl/docs/CODEBASE-MAP.md`, /CODEBASE-MAP/],
+      [`echo '{"approveToken":{"at":1}}' > .hitl/index/.session/s1.json`, /redirect/],
+      [`python3 -c "open('${N}','a').write('x')"`, /inline script/],
+      [`node -e "require('fs').writeFileSync('.hitl/index/skeleton.lock.json', '{}')"`, /inline script/],
+      [`python3 - <<'EOF'\np='${N}'\ns=open(p).read()\nopen(p,'w').write(s.replace('open','dismissed'))\nEOF`, /inline script/],
+      [`bash <<'EOF'\nrm .hitl/index/state.json\nEOF`, /\(rm\)/],
+      [`cat > ${N} <<'EOF'\n## N-1 x\nEOF`, /redirect/],
+      [`cd /tmp && sed -i s/a/b/ ${root}/.hitl/archive/2026-01-01-feat-a/proposal.md`, /Archived changes are frozen/],
+    ];
+    for (const [c, re] of deny) assertDeny(pre(root, "Bash", { command: c }, null, "g1"), re);
+    assertDeny(pre(root, "Bash", { command: `sed -i 's/a/b/' ${N}` }, "hitl:implementer", "g1"), /sed -i/);
+    const pass = [
+      `cat ${N}`, `grep -n "status:" ${N}`, `jq '.symbols | length' .hitl/index/skeleton.lock.json`, `head -40 ${N} | grep N-`,
+      `sed -n 1,20p ${N}`, `git diff -- ${N}`, `git log -p .hitl/index/skeleton.lock.json`, `git show HEAD:${N}`,
+      `cat ${N} > /tmp/notes.copy`, `cp ${N} /tmp/notes.copy`, `grep x ${N} 2>/dev/null >&2`,
+      `hitl-index note apply --change feat-x N-2 --impact ACC-R1=behaviour`, `node /p/scripts/hitl-index.mjs context T-1 --out .hitl/index/contracts/T-1.md`,
+      `hitl-index context T-1 --out .hitl/index/contracts/T-1.md && cat .hitl/index/contracts/T-1.md`,
+      `sed -i 's/a/b/' src/a.ts`, `echo hi > .hitl/.inbox/route.json`, `cat > .hitl/changes/feat-x/proposal.md <<'EOF'\nx\nEOF`,
+      `cat > /tmp/notes.txt <<'EOF'\necho x > ${N}\nrm -rf .hitl/index\nEOF`,
+      `cp .hitl/archive/2026-01-01-feat-a/tasks.md /tmp/t.md`, `python3 -c "print(open('${N}').read())"`,
+    ];
+    for (const c of pass) assertSilent(pre(root, "Bash", { command: c }, null, "g2"));
+    // outside a hitl project the guard stays quiet (e.g. a plugin's own fixtures)
+    const plain = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-plain-"));
+    assertSilent(pre(plain, "Bash", { command: `sed -i s/a/b/ ${N}` }, null, "g3"));
+  });
+
   test("override token: /hitl:implement <T> --lane fast → --by human-override for that task only, multi-use, main thread", async () => {
     const { root } = await mkProject();
     const sid = "ov1";

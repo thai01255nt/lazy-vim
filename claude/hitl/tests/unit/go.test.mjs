@@ -139,6 +139,15 @@ test("hitl-index route: not initialized → exit 3", () => {
   assert.equal(cli(dir, "route", "--json").code, 3);
 });
 
+test("new work points to /hitl:go: an empty project's next (status --json, --brief) and `change` with no changes", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-go-empty-"));
+  assert.equal(cli(dir, "init", "--quiet").code, 0);
+  assert.equal(cli(dir, "status", "--json").json().next.command, "/hitl:go <describe the work>");
+  assert.match(cli(dir, "status", "--brief").out, /^HITL: no tasks yet · next: \/hitl:go <describe the work>$/m);
+  assert.match(cli(dir, "change").out, /no changes yet \(\.hitl\/changes\/\) — start new work with \/hitl:go <describe the work>/);
+  assert.ok(!/\/hitl:plan/.test(cli(dir, "status", "--brief").out + cli(dir, "change").out));
+});
+
 // ---- dry grade of the go scenarios (synthetic stream-json, no claude calls)
 const scenarios = JSON.parse(fs.readFileSync(path.join(PLUGIN, "evals/scenarios.json"), "utf8")).cases;
 const asst = (content) => ({ type: "assistant", message: { content } });

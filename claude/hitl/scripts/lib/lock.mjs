@@ -287,6 +287,11 @@ const STAGES = ["skeleton", "tests", "done", "intent", "accept"];
 export const CHANGE_STAGES = ["intent", "accept", "reopen"];
 /** Change-form note decisions (0.9, `--change <id> --stage dismiss|defer --note N-k`): human-only; they write notes.md only. */
 export const NOTE_STAGES = ["dismiss", "defer"];
+/**
+ * Change-form reconcile decision (0.11.1, `--change <id> --stage skip --findings RC-1,RC-3 [--from <other>] --reason "…"`):
+ * human-only; it records the skipped findings in notes.md (the reconcile record) and never adds a note.
+ */
+export const FINDING_STAGES = ["skip"];
 
 /**
  * Intent growth history of a lock entry (additive, `hitl.lock/1`): [{task, stage, lines, at}], one item per approval that

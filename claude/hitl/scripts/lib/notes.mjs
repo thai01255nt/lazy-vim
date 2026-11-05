@@ -92,10 +92,20 @@ export function reopensLine(reopen) {
   }).join(" · ");
 }
 
+/**
+ * A reconcile record (`meta.reconciled[<from>]`): {at, archived, notes:[N-k], pending:[{id, key, title}],
+ * skipped:[{key, id, title, reason, by, at}]}. A finding is pending until it is added as a note or the human skips it
+ * (`/hitl:approve <change> skip RC-n <reason>`); 0.10 records hold `skipped` as bare keys (kept as skipped).
+ */
+export const skippedKeys = (r) => new Set((r?.skipped || []).map((s) => (typeof s === "string" ? s : s?.key)).filter(Boolean));
+/** True when the run against an archived change is recorded and no finding of it is still pending. */
+export const reconcileDone = (r) => !!r?.archived && !(r.pending || []).length;
+
 /** Readable lines of the file-level record (0.10): one per change reconciled from. */
 export function reconciledLines(meta) {
   return Object.entries(meta?.reconciled || {}).sort(([a], [b]) => a.localeCompare(b)).map(([from, r]) =>
-    `> Reconciled: ${from} ${r.at || "?"} (${r.archived ? "archived" : "active"}) · ${r.notes?.length ? r.notes.join(", ") : "no new notes"}${r.skipped?.length ? ` · ${r.skipped.length} skipped` : ""}`);
+    `> Reconciled: ${from} ${r.at ? `${r.at} (${r.archived ? "archived" : "active"})` : "(no run yet)"} · ${r.notes?.length ? r.notes.join(", ") : "no new notes"}`
+    + `${r.pending?.length ? ` · pending ${r.pending.map((p) => p.id).join(", ")}` : ""}${r.skipped?.length ? ` · ${r.skipped.length} skipped` : ""}`);
 }
 
 /** renderNotes(changeId, notes, fileMeta?) -> notes.md text. */

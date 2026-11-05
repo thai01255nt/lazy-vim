@@ -217,7 +217,7 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.match(read("README.md"), /^\| `\/hitl:go <mô tả> \[--plan\\\|--quick\\\|--tdd\]` \|/m);
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.10/m);
   assert.match(read("HUONG-DAN.md"), /^## 1a\. Việc mới: bắt đầu bằng `\/hitl:go`/m);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.11.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(1[1-9]|[2-9]\d)\.\d+$/, "version ≥ 0.11");
   const trig = JSON.parse(read("evals/trigger.json")).cases;
   const want = (id) => trig.find((c) => c.id === id)?.expect;
   assert.equal(want("en-build-csv"), "hitl:go");

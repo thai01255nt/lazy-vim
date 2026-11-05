@@ -137,6 +137,7 @@ Chỉ liên quan ít: `| relates: feat-a (low)`. Claude cũng đề nghị khi t
 ```
 /hitl:archive feat-a                          (in ra 🎯 next: /hitl:plan feat-b reconcile feat-a)
 /hitl:plan feat-b reconcile feat-a            (xem các RC-n → Add <n> notes? (Y/n/pick))
+/hitl:approve feat-b skip RC-2 <lý do>        (chỉ bạn: bỏ qua RC không chọn; nếu không nó còn pending)
 /hitl:plan feat-b amend N-2 · /hitl:approve feat-b reopen N-3   (như mục 5a)
 ```
 Xem bằng chứng: `hitl-index coupling feat-b`.

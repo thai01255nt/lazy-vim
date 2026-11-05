@@ -74,7 +74,7 @@ Legend: ✅ unchanged  ❌ new  🗑️ removed  ⚠️ changed
 - Conventions mapper `testing` vs `hitl.config.json` `commands.test` mismatch (e.g. docs say jest, config uses node --test)
   → `⚠️ Test setup differs from config: <detail>. Run /hitl:setup --reconfigure`.
 - `CONSTITUTION.md` row: `present (MANUAL)` or `— (optional)`.
-- 🎯 next: `/hitl:plan <what you want to build>`.
+- 🎯 next: `/hitl:go <describe the work>`.
 
 ## Rules
 - Never put signatures or line numbers in these three docs (CODEBASE-MAP owns signatures).

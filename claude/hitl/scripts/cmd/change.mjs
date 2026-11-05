@@ -18,7 +18,7 @@ export async function run(argv, ctx) {
   for (const e of entries) changes.push(await changeInfo(ctx.root, ctx.config, await readChange(ctx.root, e), { graph }));
   const out = { schema: "hitl.change/1", changes };
   if (ctx.json) { console.log(JSON.stringify(out, null, 2)); return 0; }
-  if (!changes.length) { console.log("no changes yet (.hitl/changes/) — start one with /hitl:plan"); return 0; }
+  if (!changes.length) { console.log("no changes yet (.hitl/changes/) — start new work with /hitl:go <describe the work>"); return 0; }
   console.log("| change | phase | proposal | design | tasks | next |\n|---|---|---|---|---|---|");
   for (const c of changes) {
     const tc = c.taskCounts.total ? ` ${c.taskCounts.done}/${c.taskCounts.total}` : "";

@@ -308,7 +308,7 @@ test("archive B first: next line, A's RECONCILE_PENDING (validate, archive, stat
   assert.equal(cli(root, "note", "apply", "--change", A, "N-2", "--impact", "ACC-R1=behaviour").code, 1);
 });
 
-test("archive A first (relates): B owes the reconcile; pick none records the run with skipped findings; usage errors", () => {
+test("archive A first (relates): B owes the reconcile; pick none leaves the findings pending; only the human skip clears it; usage errors", () => {
   const root = linkedProject(`relates: ${B} (low)`);
   // A archives first (its tasks are not done: --force); B is linked by A's header
   const arch = cli(root, "spec", "archive", A, "--force", "--json").json();
@@ -322,11 +322,67 @@ test("archive A first (relates): B owes the reconcile; pick none records the run
   assert.equal(cli(root, "reconcile", B, "--from", B).code, 2);
   assert.equal(cli(root, "reconcile", B).code, 2);
   assert.equal(cli(root, "reconcile", A, "--from", B).code, 1, "an archived change is frozen");
+  const BN = ".hitl/changes/feat-password-reset/notes.md";
+  // pick none: the run is recorded, but the finding stays pending (the AI cannot skip it)
   const none = cli(root, "reconcile", B, "--from", A, "--pick", "none", "--json").json();
-  assert.deepEqual([none.added, none.skipped.length, none.recorded], [[], 1, true]);
-  const bn = read(root, ".hitl/changes/feat-password-reset/notes.md");
-  assert.match(bn, /> Reconciled: feat-signin-audit \S+ \(archived\) · no new notes · 1 skipped/);
-  assert.ok(!/^## N-/m.test(bn));
+  assert.deepEqual([none.added, none.pending, none.skipped, none.recorded], [[], ["RC-1"], [], true]);
+  assert.match(read(root, BN), /> Reconciled: feat-signin-audit \S+ \(archived\) · no new notes · pending RC-1$/m);
+  assert.ok(!/^## N-/m.test(read(root, BN)));
+  const pend = cli(root, "spec", "archive", B, "--dry-run", "--force", "--json").json().preconditions.reconcile.pending;
+  assert.deepEqual(pend.map((p) => [p.from, p.findings]), [[A, ["RC-1"]]]);
+  const val = cli(root, "spec", "validate", B, "--json").json().items.find((i) => i.code === "RECONCILE_PENDING");
+  assert.match(val.message, /neither added nor skipped \(RC-1\).*\/hitl:approve feat-password-reset skip RC-1 <reason>/);
+  // a pick naming nothing is the same: still pending; the dry run offers it again
+  assert.equal(cli(root, "reconcile", B, "--from", A, "--dry-run", "--json").json().counts.new, 1);
+  // the human skip: CLI shape errors
+  const skip = (...x) => cli(root, "approve", "--change", B, "--stage", "skip", ...x);
+  const before = read(root, BN);
+  assert.equal(skip("--findings", "RC-1", "--reason", "x", "--by", "auto").code, 2, "human-only");
+  assert.equal(skip("--findings", "RC-1", "--reason", "x", "--by", "human-override").code, 2, "human-only");
+  assert.equal(skip("--findings", "RC-1", "--by", "human").code, 2, "needs a reason");
+  assert.equal(skip("--findings", "N-1", "--reason", "x", "--by", "human").code, 2, "RC ids only");
+  assert.equal(skip("--reason", "x", "--by", "human").code, 2, "needs findings");
+  assert.equal(cli(root, "approve", "--change", B, "--stage", "dismiss", "--note", "N-1", "--findings", "RC-1", "--reason", "x").code, 2, "--findings belongs to skip");
+  assert.equal(skip("--findings", "RC-7", "--reason", "x", "--by", "human").code, 1, "unknown finding");
+  assert.equal(skip("--findings", "RC-1", "--from", "feat-nope", "--reason", "x", "--by", "human").code, 1, "unknown change");
+  assert.equal(read(root, BN), before, "nothing written by a refused skip");
+  // dry run writes nothing; the real skip (from inferred) records it with the reason and clears the pending
+  const dryS = skip("--findings", "RC-1", "--reason", "x", "--by", "human", "--dry-run", "--json").json();
+  assert.deepEqual([dryS.from, dryS.pending, dryS.reconciled], [A, [], true]);
+  assert.equal(read(root, BN), before);
+  const sk = skip("--findings", "RC-1", "--reason", "B keeps its own <sign-in> rule --> fine", "--by", "human", "--json");
+  assert.equal(sk.code, 0, sk.out + sk.err);
+  assert.deepEqual([sk.json().skipped.map((f) => f.id), sk.json().pending, sk.json().reconciled], [["RC-1"], [], true]);
+  const bn = read(root, BN);
+  assert.match(bn, /> Reconciled: feat-signin-audit \S+ \(archived\) · no new notes · 1 skipped$/m);
+  const rec = parseNotes(bn).meta.reconciled[A];
+  assert.deepEqual([rec.pending, rec.skipped.length, rec.skipped[0].id, rec.skipped[0].by, rec.skipped[0].reason], [[], 1, "RC-1", "human", "B keeps its own sign-in rule fine"]);
   assert.deepEqual(cli(root, "spec", "archive", B, "--dry-run", "--force", "--json").json().preconditions.reconcile.pending, []);
-  assert.equal(cli(root, "reconcile", B, "--from", A, "--dry-run", "--json").json().findings[0].skippedBefore, true);
+  // a re-run does not offer it again; picking it is refused; skipping it again is refused
+  const re = cli(root, "reconcile", B, "--from", A, "--dry-run", "--json").json();
+  assert.deepEqual([re.findings[0].skippedBefore, re.counts.new, re.skipped], [true, 0, ["RC-1"]]);
+  assert.equal(cli(root, "reconcile", B, "--from", A, "--pick", "RC-1").code, 2);
+  assert.equal(skip("--findings", "RC-1", "--reason", "x", "--by", "human").code, 1);
+  const re2 = cli(root, "reconcile", B, "--from", A, "--json").json();
+  assert.deepEqual([re2.added, re2.pending], [[], []]);
+  assert.equal(parseNotes(read(root, BN)).meta.reconciled[A].skipped.length, 1, "a re-run keeps the skips");
+  assert.deepEqual(cli(root, "spec", "archive", B, "--dry-run", "--force", "--json").json().preconditions.reconcile.pending, []);
+});
+
+test("reconcile pick: the findings not picked stay pending until added; a 0.10 record with bare skipped keys still counts as skipped", () => {
+  const root = linkedProject(`relates: ${B} (low)`);
+  cli(root, "spec", "archive", A, "--force", "--json");
+  const BN = ".hitl/changes/feat-password-reset/notes.md";
+  cli(root, "reconcile", B, "--from", A, "--pick", "none");
+  // Y on a later run adds the pending finding and clears it
+  const y = cli(root, "reconcile", B, "--from", A, "--json").json();
+  assert.deepEqual([y.added, y.pending], [["N-1"], []]);
+  assert.deepEqual(cli(root, "spec", "archive", B, "--dry-run", "--force", "--json").json().preconditions.reconcile.pending, []);
+  // legacy record: skipped as bare keys, no pending → done; the key is never offered again
+  const r2 = linkedProject(`relates: ${B} (low)`);
+  cli(r2, "spec", "archive", A, "--force", "--json");
+  const key = cli(r2, "reconcile", B, "--from", A, "--dry-run", "--json").json().findings[0].key;
+  fs.writeFileSync(path.join(r2, BN), renderNotes(B, [], { reconciled: { [A]: { at: "2026-11-05", archived: true, notes: [], skipped: [key] } } }));
+  assert.deepEqual(cli(r2, "spec", "archive", B, "--dry-run", "--force", "--json").json().preconditions.reconcile.pending, []);
+  assert.equal(cli(r2, "reconcile", B, "--from", A, "--dry-run", "--json").json().findings[0].skippedBefore, true);
 });

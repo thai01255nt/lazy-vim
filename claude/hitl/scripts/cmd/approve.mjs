@@ -7,8 +7,11 @@
 // a done change's symbols. accept: accept the later drift (intent, TODO steps, body, locked tests) of an archived change.
 // 0.9: `--stage reopen [--note N-k]` unlocks what a recheck note lists; `--stage dismiss --note N-k --reason "…"` and
 // `--stage defer --note N-k --to <change>` close a note. All human-only; `<T> --ack N-k` releases a note for one task.
+// 0.11.1: `--stage skip --findings RC-1,RC-3 [--from <other>] --reason "…"` skips reconcile findings (human-only): they are
+// recorded as skipped in the change's reconcile record and never offered again; only then can RECONCILE_PENDING clear
+// without a note for each finding.
 import { parseArgs } from "node:util";
-import { planApproval, writeLock, APPROVERS, CHANGE_STAGES, NOTE_STAGES, lockedTasks } from "../lib/lock.mjs";
+import { planApproval, writeLock, APPROVERS, CHANGE_STAGES, NOTE_STAGES, FINDING_STAGES, lockedTasks } from "../lib/lock.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { computeStatuses } from "../lib/status.mjs";
 import { computeNext } from "../lib/nextstep.mjs";
@@ -17,8 +20,8 @@ import { loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
 import { BLOCKING, readNotes, updateNotes, todayIso, nextNoteId, refHashes, validateRefs } from "../lib/notes.mjs";
 import { findChange } from "../lib/changes.mjs";
 
-const USAGE = "usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--ack N-k] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent|accept|reopen [--symbols a,b] [--note N-k] --by human [--dry-run]  |  hitl-index approve --change <change-id> --stage dismiss --note N-k --reason \"…\" --by human  |  hitl-index approve --change <change-id> --stage defer --note N-k --to <change-id> --by human";
-const OPTS = { ack: { type: "string" }, note: { type: "string" }, reason: { type: "string" }, to: { type: "string" }, change: { type: "string" }, stage: { type: "string" }, symbols: { type: "string" }, by: { type: "string" }, "dry-run": { type: "boolean" }, force: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
+const USAGE = "usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--ack N-k] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent|accept|reopen [--symbols a,b] [--note N-k] --by human [--dry-run]  |  hitl-index approve --change <change-id> --stage dismiss --note N-k --reason \"…\" --by human  |  hitl-index approve --change <change-id> --stage defer --note N-k --to <change-id> --by human  |  hitl-index approve --change <change-id> --stage skip --findings RC-1,RC-3 [--from <other-change>] --reason \"…\" --by human";
+const OPTS = { ack: { type: "string" }, note: { type: "string" }, reason: { type: "string" }, to: { type: "string" }, findings: { type: "string" }, from: { type: "string" }, change: { type: "string" }, stage: { type: "string" }, symbols: { type: "string" }, by: { type: "string" }, "dry-run": { type: "boolean" }, force: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 
 export async function run(argv, ctx) {
   const { values: v, positionals } = parseArgs({ args: argv, options: OPTS, allowPositionals: true, strict: false });
@@ -26,7 +29,7 @@ export async function run(argv, ctx) {
   const T = positionals[0];
   // tolerate positional stage/symbols (`approve T-1 tests a,b`) in addition to the flags
   if (v.change !== undefined) return runChange(v, positionals, ctx, json);
-  if (CHANGE_STAGES.includes(v.stage) || NOTE_STAGES.includes(v.stage)) { console.error(`--stage ${v.stage} takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage ${v.stage} --by human`); return 2; }
+  if (CHANGE_STAGES.includes(v.stage) || NOTE_STAGES.includes(v.stage) || FINDING_STAGES.includes(v.stage)) { console.error(`--stage ${v.stage} takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage ${v.stage} --by human`); return 2; }
   if (!v.stage && ["skeleton", "tests", "done"].includes(positionals[1])) v.stage = positionals[1];
   if (!v.symbols && positionals.length > 2) v.symbols = positionals.slice(2).join(",");
   if (!T || !/^T-\d+$/.test(T)) { console.error(USAGE); return 2; }
@@ -123,26 +126,34 @@ export async function run(argv, ctx) {
 /**
  * `approve --change <id> --stage intent|accept|reopen|dismiss|defer`: intent re-locks the intents of a done change's
  * symbols; accept records the later drift of an archived change's symbols/tests as accepted; reopen unlocks what the
- * change's recheck notes list (0.9); dismiss/defer close a note (notes.md only). Nothing else in the lock moves.
+ * change's recheck notes list (0.9); dismiss/defer close a note (notes.md only); skip records reconcile findings as
+ * skipped (notes.md only). Nothing else in the lock moves.
  */
 async function runChange(v, positionals, ctx, json) {
   const C = typeof v.change === "string" ? v.change.trim() : "";
-  const usage = "usage: hitl-index approve --change <change-id> [--stage intent|accept|reopen] [--symbols a,b] [--note N-k] --by human [--dry-run] [--json]  |  --stage dismiss --note N-k --reason \"…\"  |  --stage defer --note N-k --to <change-id>";
+  const usage = "usage: hitl-index approve --change <change-id> [--stage intent|accept|reopen] [--symbols a,b] [--note N-k] --by human [--dry-run] [--json]  |  --stage dismiss --note N-k --reason \"…\"  |  --stage defer --note N-k --to <change-id>  |  --stage skip --findings RC-1,RC-3 [--from <other-change>] --reason \"…\"";
   if (!C || !/^[A-Za-z0-9][\w.-]*$/.test(C) || /^T-\d+$/.test(C)) { console.error(usage); return 2; }
   if (positionals.length) { console.error(`--change takes no positional task/stage (got ${positionals.join(" ")}); ${usage}`); return 2; }
   const stage = v.stage || "intent";
-  if (!CHANGE_STAGES.includes(stage) && !NOTE_STAGES.includes(stage)) { console.error(`--change approves only --stage intent, accept, reopen, dismiss or defer (got ${v.stage})`); return 2; }
+  if (!CHANGE_STAGES.includes(stage) && !NOTE_STAGES.includes(stage) && !FINDING_STAGES.includes(stage)) { console.error(`--change approves only --stage intent, accept, reopen, dismiss, defer or skip (got ${v.stage})`); return 2; }
   if (v.force) { console.error(`--force does not apply to --stage ${stage}`); return 2; }
   if (v.ack) { console.error("--ack belongs to a task approval: hitl-index approve <T> --stage <s> --ack N-k --by human"); return 2; }
   const by = v.by || "human";
-  const what0 = { accept: "accept", intent: "intent re-approval", reopen: "reopen", dismiss: "dismissing a note", defer: "deferring a note" }[stage];
+  const what0 = { accept: "accept", intent: "intent re-approval", reopen: "reopen", dismiss: "dismissing a note", defer: "deferring a note", skip: "skipping reconcile findings" }[stage];
   if (by !== "human") { console.error(`${what0} is human-only: --by human (not --by ${by})`); return 2; }
   if (v.note !== undefined && !/^N-\d+$/.test(String(v.note))) { console.error(`--note takes a note id N-k (got ${v.note})`); return 2; }
   if (NOTE_STAGES.includes(stage) && !v.note) { console.error(`--stage ${stage} needs --note N-k`); return 2; }
   if (stage === "dismiss" && !String(v.reason || "").trim()) { console.error("--stage dismiss needs --reason \"…\" (why the note does not apply)"); return 2; }
   if (stage === "defer" && !v.to) { console.error("--stage defer needs --to <change-id>"); return 2; }
+  if (stage === "skip") {
+    const ids = String(v.findings || "").split(",").map((x) => x.trim()).filter(Boolean);
+    if (!ids.length || ids.some((x) => !/^RC-\d+$/.test(x))) { console.error(`--stage skip needs --findings RC-n[,RC-m] (got ${v.findings ?? "nothing"})`); return 2; }
+    if (!String(v.reason || "").trim()) { console.error("--stage skip needs --reason \"…\" (why these findings do not apply)"); return 2; }
+    if (v.note !== undefined || v.to !== undefined || v.symbols !== undefined) { console.error("--stage skip takes --findings, --from and --reason only"); return 2; }
+  } else if (v.findings !== undefined) { console.error("--findings belongs to --stage skip"); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   if (NOTE_STAGES.includes(stage)) return noteDecision(stage, C, v, ctx, json);
+  if (stage === "skip") return skipFindings(C, v, ctx, json);
   const g = await gather(ctx.root, ctx.config, { drift: false });
   const entry = stage === "reopen" ? await findChange(ctx.root, C) : null;
   if (stage === "reopen" && !entry) { console.error(`change ${C} not found`); return 1; }
@@ -264,5 +275,69 @@ async function noteDecision(stage, C, v, ctx, json) {
     console.log(`✅ ${n.id} (${n.title}) deferred by human → ${to} ${newId} (open there)`);
     if (dropped.length) console.log(`⚠️ refs not in ${to}, dropped: ${dropped.join(", ")}`);
   }
+  return 0;
+}
+
+/**
+ * skip reconcile findings (human-only; notes.md only): each typed RC id must be a finding of <C> from <from> that is
+ * neither noted nor skipped yet. <from> is --from, or the one change <C> has a reconcile pending against. The skips go
+ * into the reconcile record with the reason; the record's pending list is recomputed (every finding neither noted nor
+ * skipped), so RECONCILE_PENDING clears once nothing is left.
+ */
+async function skipFindings(C, v, ctx, json) {
+  const stage = "skip";
+  const fail = (msg) => { if (json) console.log(JSON.stringify({ ok: false, change: C, stage, reasons: [msg] }, null, 2)); else console.log(`🛑 approve --change ${C} --stage skip refused: ${msg}`); return 1; };
+  const entry = await findChange(ctx.root, C);
+  if (!entry) return fail(`change ${C} not found`);
+  if (entry.archived) return fail(`${C} is archived: its notes are frozen`);
+  const ids = [...new Set(String(v.findings).split(",").map((x) => x.trim()).filter(Boolean))];
+  // the reason lands in an HTML comment (the record) and a > line: one line, no comment terminators
+  const reason = String(v.reason).replace(/-->|<!--|[<>`$]/g, "").replace(/\s+/g, " ").trim();
+  if (!reason) return fail("--reason is empty once cleaned");
+  let B = typeof v.from === "string" ? v.from.trim() : "";
+  if (B === C) return fail("--from must be another change");
+  if (!B) {
+    const { loadLinkGraph, reconcilePending } = await import("../lib/coupling.mjs");
+    const { readNotesDoc } = await import("../lib/notes.mjs");
+    const recs = (await readNotesDoc(ctx.root, entry.dir)).meta?.reconciled || {};
+    const cands = [...new Set([...reconcilePending(await loadLinkGraph(ctx.root), C).map((p) => p.from),
+      ...Object.entries(recs).filter(([, r]) => r?.pending?.length).map(([from]) => from)])].sort();
+    if (cands.length !== 1) return fail(cands.length ? `${C} has reconcile findings from ${cands.join(", ")}: the user names one: /hitl:approve ${C} skip <from> ${ids.join(",")} <reason>`
+      : `${C} has no reconcile pending: name the other change: /hitl:approve ${C} skip <from> ${ids.join(",")} <reason>`);
+    B = cands[0];
+  }
+  const { loadFindings } = await import("./reconcile.mjs");
+  let lf;
+  try { lf = await loadFindings(ctx.root, ctx.config, C, B); } catch (e) { return fail(e.message); }
+  const { findings, fresh, rec } = lf;
+  const errs = [];
+  for (const id of ids) {
+    const f = findings.find((x) => x.id === id);
+    if (!f) errs.push(`${id} is not a finding of ${C} from ${B} (findings: ${findings.map((x) => x.id).join(", ") || "none"}; see hitl-index reconcile ${C} --from ${B} --dry-run)`);
+    else if (f.existing) errs.push(`${id} is already noted as ${f.existing}: decide the note instead (/hitl:approve ${C} dismiss ${f.existing} <reason>)`);
+    else if (f.skippedBefore) errs.push(`${id} was already skipped`);
+  }
+  if (errs.length) return fail(errs.join("; "));
+  const picked = fresh.filter((f) => ids.includes(f.id));
+  const left = fresh.filter((f) => !ids.includes(f.id));
+  const ran = !!rec?.at;
+  const body = { ok: true, change: C, stage, by: "human", from: B, skipped: picked.map((f) => ({ id: f.id, title: f.title, key: f.key })), reason,
+    pending: ran ? left.map((f) => f.id) : [], reconciled: ran ? !!rec.archived && !left.length : false, dryRun: !!v["dry-run"] };
+  if (v["dry-run"]) { console.log(json ? JSON.stringify(body, null, 2) : `(dry run) would skip ${ids.join(", ")} of ${C} from ${B}`); return 0; }
+  const at = todayIso();
+  const short = (t) => { const x = String(t || "").replace(/\s+/g, " ").trim(); return x.length > 60 ? x.slice(0, 59).trimEnd() + "…" : x; };
+  await updateNotes(ctx.root, entry.dir, C, (ns, d) => {
+    const r = d.meta?.reconciled?.[B] || { at: null, archived: false, notes: [] };
+    const skipped = [...(r.skipped || []), ...picked.map((f) => ({ key: f.key, id: f.id, title: short(f.title), reason, by: "human", at }))];
+    // pending = every finding of the recorded run still neither noted nor skipped (none before a real run)
+    const pending = r.at ? left.map((f) => ({ id: f.id, key: f.key, title: short(f.title) })) : [];
+    d.meta = { ...d.meta, reconciled: { ...(d.meta?.reconciled || {}), [B]: { ...r, pending, skipped } } };
+  });
+  if (json) { console.log(JSON.stringify(body, null, 2)); return 0; }
+  console.log(`✅ ${ids.join(", ")} (reconcile from ${B}) skipped by human: ${reason}`);
+  for (const f of picked) console.log(`  ⏭ ${f.id} ${f.title}`);
+  if (!ran) console.log(`⚠️ ${C} has not recorded a reconcile run from ${B} yet: /hitl:plan ${C} reconcile ${B}`);
+  else if (left.length) console.log(`⏳ still pending: ${left.map((f) => f.id).join(", ")} — add them (/hitl:plan ${C} reconcile ${B}) or skip them (/hitl:approve ${C} skip ${left.map((f) => f.id).join(",")} <reason>)`);
+  else if (rec.archived) console.log(`✅ reconcile of ${C} from ${B} is complete`);
   return 0;
 }
