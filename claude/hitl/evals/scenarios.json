@@ -44,6 +44,25 @@
    ]
   },
   {
+   "id": "plan-term-clash",
+   "fixture": "plan",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-merge-duplicates Cho phép nhân viên hỗ trợ gộp hai user record trùng email thành một.",
+   "checks": [
+    "plan_change_created",
+    "plan_delta_written",
+    "plan_validate_0_errors",
+    "plan_no_code_names",
+    "plan_questions",
+    "plan_round_header",
+    "plan_reply_line",
+    "plan_term_challenge",
+    "reply_ids_glossed",
+    "scout_spawned",
+    "no_main_source_reads"
+   ]
+  },
+  {
    "id": "plan-amend",
    "fixture": "plan",
    "runs": 2,
@@ -84,7 +103,8 @@
     "tasks_all_scenarios",
     "tasks_why_decisions",
     "tasks_quiz_gate",
-    "tasks_not_approved"
+    "tasks_not_approved",
+    "reply_ids_glossed"
    ]
   },
   {
@@ -97,7 +117,9 @@
     "review_report",
     "review_no_self_approve",
     "review_verdict",
-    "review_lens_agents"
+    "review_lens_agents",
+    "review_tests_side_channel",
+    "reply_ids_glossed"
    ]
   },
   {
@@ -143,6 +165,18 @@
    "checks": [
     "flow_next_plan",
     "flow_no_edits"
+   ]
+  },
+  {
+   "id": "tdd-adhoc",
+   "fixture": "plan",
+   "runs": 2,
+   "maxTurns": 15,
+   "prompt": "/hitl:tdd make UserService reject emails with leading spaces",
+   "checks": [
+    "tdd_seam_gate",
+    "tdd_no_writes_before_gate",
+    "tdd_no_foreign_skills"
    ]
   },
   {

@@ -77,3 +77,49 @@ test("skill descriptions route plan vs design vs grilling", () => {
   assert.match(d("design"), /thiết kế/);
   assert.match(d("design"), /Not for requirements/);
 });
+
+test("shared language (0.8): [T] tag + credited Shared language, Plain replies stays short, glossary rules, glossary loaded", () => {
+  const iv = read("shared/interview.md");
+  assert.match(iv, /^\| `\[T\]` \|/m, "interview: [T] row");
+  assert.match(iv, /^## 10\. Shared language/m);
+  assert.match(iv, /Adapted from mattpocock\/skills \(MIT\) — see NOTICE\.md\. Source: skills\/engineering\/domain-modeling\//);
+  const conv = read("shared/conventions.md");
+  const plain = conv.split(/^## Plain replies.*$/m)[1]?.split(/^## /m)[0] ?? "";
+  assert.ok(plain, "conventions: ## Plain replies");
+  const bullets = plain.split("\n").filter((l) => /^- /.test(l)).length;
+  assert.ok(bullets > 0 && bullets <= 8, `Plain replies has ${bullets} bullets (≤ 8: the model copies the length)`);
+  for (const w of ["`?`", "`wait`", "`hả`", "`giải thích`", "`không hiểu`"]) assert.ok(plain.includes(w), `recovery reply ${w}`);
+  const g = read("shared/templates/glossary.md");
+  assert.ok(g.includes("_Avoid_") && g.includes("In this project"), "glossary template rules");
+  assert.match(g, /@ 4ae2317/);
+  for (const s of ["plan", "design", "tasks"]) assert.match(read(`skills/${s}/SKILL.md`), /GLOSSARY\.md/, `${s} loads the glossary`);
+  assert.match(read("skills/design/SKILL.md"), /💡 Needs term/);
+  assert.match(read("agents/spec-scout.md"), /"vocabulary":/);
+  assert.doesNotMatch(read("skills/tasks/references/slicing-and-risk.md"), /glossary \(BUSINESS-CONTEXT\)/);
+  assert.doesNotMatch(read("skills/review/SKILL.md"), /Decide: F-1 \(accept/, "review gate glosses each finding");
+});
+
+test("test patterns (0.8): one source of truth, inner loop, tdd routing", () => {
+  for (const f of ["agents/test-author.md", "agents/implementer.md", "skills/review/references/lenses.md", "skills/skeleton/SKILL.md",
+    "skills/test/SKILL.md", "skills/implement/SKILL.md", "skills/design/SKILL.md", "skills/tdd/SKILL.md", "skills/test/references/tdd-rules.md"])
+    assert.match(read(f), /shared\/test-patterns\.md/, `${f} points at shared/test-patterns.md`);
+  assert.doesNotMatch(read("skills/test/references/tdd-rules.md"), /^\| real \|/m, "the duplicated good-tests table is gone");
+  assert.match(read("agents/implementer.md"), /one failing test at a time/);
+  assert.match(read("agents/implementer.md"), /only runs\s+without progress count/);
+  assert.match(read("skills/implement/SKILL.md"), /Max iterations: 3 \(runs without progress\)/);
+  assert.match(read("skills/test/SKILL.md"), /Pattern glance/);
+  assert.match(read("skills/review/SKILL.md"), /Tests lens: add the line `Test patterns:/);
+  assert.match(read("skills/tasks/references/slicing-and-risk.md"), /AC1 = the tracer/);
+  assert.match(read("shared/templates/design.md"), /per ADDED\/MODIFIED requirement: `- <req id> — <seam> — catches/);
+  const d = (s) => frontmatter(read(`skills/${s}/SKILL.md`)).description;
+  assert.match(d("test"), /hitl:tdd/);
+  assert.match(d("tdd"), /no hitl change/);
+  assert.ok(!VENDORED.has("tdd"), "skills/tdd/SKILL.md is hitl's own and linted like other skills");
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:tdd` \|/m);
+  assert.match(read("README.md"), /^\| `\/hitl:tdd /m);
+  const notice = read("NOTICE.md");
+  assert.match(notice, /Two skills are vendored unmodified/);
+  assert.match(notice, /`shared\/test-patterns\.md` — from/);
+  assert.match(notice, /`skills\/tdd\/SKILL\.md` \(`hitl:tdd`\) — adapted from/);
+  assert.match(notice, /### mattpocock\/skills `tdd` reference files/);
+});

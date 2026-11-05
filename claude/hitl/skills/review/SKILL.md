@@ -64,6 +64,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    Write findings JSON (schema hitl.findings/1) to .hitl/reviews/<T>/findings-<lens>.json, then return the summary JSON.
    ```
    Security lens: add the line `Security method: ${CLAUDE_PLUGIN_ROOT}/skills/review/references/security.md §2–3 (upstream attack-class docs, guidance mode).`
+   Tests lens: add the line `Test patterns: ${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md`.
 6. **Verify**: read `review.confidenceThreshold` from `.hitl/hitl.config.json` (default 80). Spawn **one**
    `hitl:finding-verifier` (haiku) with: the list of `R/findings-<lens>.json` files that exist, the review-context path,
    the threshold, and the output path `R/findings.json`. If a reviewer failed to write its file, note `⚠️ <lens> lens missing`
@@ -73,8 +74,9 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:
-   - `human required > 0` → run the tickets block (step 9) first, then ⛔ GATE
-     `Decide: F-1 (accept/reject/defer/amend), F-2 … — or "fix F-1". HUMAN-routed functions: open <file> beside the report.`
+   - `human required > 0` → run the tickets block (step 9) first, then ⛔ GATE: one line per finding,
+     `F-1 (<the problem in plain words, glossary terms>) → accept/reject/defer/amend`, then `— or "fix F-1". HUMAN-routed
+     functions: open <file> beside the report.`
      End turn. (`amend` is offered for findings with a `spec:` line and category intent, scope or todo-flow.)
    - else, verdict PASS: risk low → `hitl-index approve <T> --stage done --by auto`, print ✅ and the next frontier task
      (`hitl-index status --json` `.next`). Risk high → ✅ and `🎯 next: /hitl:approve <T> done`.

@@ -12,8 +12,10 @@ You are the HITL implementer. You fill exactly one approved skeleton function so
 
 ## Inputs
 
-Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.md`), test command
-(`hitl-index test --symbol <ref> --json`), max iterations (default 3). Optionally a review finding to fix.
+Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.md`), test-patterns path
+(`…/shared/test-patterns.md`; read §4 and §6 once), test command
+(`hitl-index test --symbol <ref> --json`), max iterations (default 3, counting only runs without progress). Optionally a
+review finding to fix.
 
 ## Process
 
@@ -31,9 +33,11 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
    - an existing project helper that clearly fits a step but is not in `@calls` may be reused: mark it
      `// REUSE: <ref> — <why>` and list it in `notes`;
    - a private helper is allowed only in the same file, with a docstring carrying `@task <T> @impl agent @status skeleton`.
-3. **Loop** (max iterations): run the test command, read the **full** output, fix the body, repeat.
-   Failing test → fix the code, never the test. Read the failure message before changing anything; form one hypothesis per
-   iteration (systematic debugging, not random edits).
+3. **Loop**, one failing test at a time (inner loop, test-patterns §6): take the first failing test in file order (AC1
+   first), write only the code it needs within the TODO steps, run the test command, read the **full** output, then
+   the next failing test. A run that turns a test green is progress; only runs without progress count against max
+   iterations. Failing test → fix the code, never the test. Read the failure message before changing anything; form one
+   hypothesis per iteration (systematic debugging, not random edits).
    **Unreachable:** every failing test fails at another task symbol's sentinel (`TODO(impl): <other ref>`) or the test
    command finds no test for the symbol → the tests cannot reach your code yet (a caller is still a stub). Do not loop:
    finish the body against the contract (typecheck clean if `commands.typecheck` is set) and return `"result": "unreachable"`
@@ -59,6 +63,8 @@ Task id, symbol id + file, context slice path (`.hitl/index/contracts/<T>.impl.m
   await every promise/coroutine; no fire-and-forget.
 - Security: parameterized queries, no shell string interpolation, no secrets in code/logs, normalize + check paths.
 - Follow existing patterns in the file (error handling, logging, naming). No speculative options or refactors elsewhere.
+- Use dependencies as the signature injects them (never `new` a port the contract passes in); no test-only code in
+  production (test-patterns §4).
 
 ## Output
 

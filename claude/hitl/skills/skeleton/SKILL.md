@@ -56,6 +56,9 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
   - numbered `TODO(impl): 1. …` steps (the flow a reviewer will map; each a short intent label, not pseudo-code: see
     "Step wording" in the skeleton template), then the sentinel
     (TS `throw new Error("TODO(impl): <ref>")`, Py `raise NotImplementedError("TODO(impl): <ref>")`).
+- Signatures for testability (`${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §3–§4): take ports in (repo, mailer,
+  clock), one method per external operation, return results. A behaviour a test could only see through a side channel
+  → reshape the signature now and say so at the gate.
 - New classes that host the stubs: intent + `@task <T> @impl agent @status skeleton` (avoids ORPHAN), no sentinel.
 - Types/interfaces used by signatures: full field types, no sentinel. Unknown fields → `// TODO(impl): define …`.
 - A needed helper not in `### Symbols` → add a row to the task's `### Symbols` (same format, next number) and stub it;
@@ -64,8 +67,10 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
 - Respect `@impl manual` rows: stub only, same as agent rows (the human writes the body later).
 
 ## 4. Write test stubs
-- One stub per `### Test plan` row, in the project's test location and framework (PATTERNS `Testing Conventions`, config test command).
-- Title starts with the AC id (`T-12.AC1 …`); tags `@covers <ref> @ac <T-n.ACk> @kind <kind> @origin skeleton`.
+- One stub per `### Test plan` row, in AC order (AC1 first), in the project's test location and framework (PATTERNS
+  `Testing Conventions`, config test command). `describe` = the row's seam.
+- Title starts with the AC id (`T-12.AC1 …`), then the behaviour in `## Terms` words (test-patterns §1); tags
+  `@covers <ref> @ac <T-n.ACk> @kind <kind> @origin skeleton`.
 - Body: `it.todo(...)` (TS) / skipped test with docstring only (Py). No assertions.
 - Any covered symbol with `@concurrency` ≠ none and no concurrency row → add a `@kind concurrency` stub and add the row to the Test plan.
 - Never edit existing locked tests; add new stubs beside them.

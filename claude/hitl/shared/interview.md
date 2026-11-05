@@ -3,9 +3,11 @@
 Uses the vendored `hitl:grilling` technique (mattpocock/skills, MIT — see NOTICE.md): frontier rounds, numbered
 questions with a recommended answer, "yes" accepts the recommendation, facts are the agent's job, decisions are the
 user's, done when the frontier is empty and the user confirms. This file only says how hitl **formats and records**
-those rounds. Where this file and the grilling skill differ, this file wins (format, caps, recording). Own text.
+those rounds. Where this file and the grilling skill differ, this file wins (format, caps, recording). Own text, except
+§ Shared language:
+<!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (D-n rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
 
-Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`) and `/hitl:design` (tags `[D]`, `[A]`).
+Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags `[D]`, `[A]`).
 
 ## Contents
 1. Loading
@@ -17,6 +19,7 @@ Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`) and `/hitl:design` (tags `[D]`, 
 7. Recording (after every reply)
 8. Parking and cross-overs
 9. Done
+10. Shared language
 
 ## 1. Loading
 The first interview step of `/hitl:plan` and `/hitl:design` invokes the Skill tool with `hitl:grilling` (the user never
@@ -31,6 +34,7 @@ There is **no design tree of components and no levels**. The frontier is a set o
 | `[S]` | plan | scope mapping: which capability (business area) a behaviour belongs to, new vs existing capability, its key | delta file + proposal `## Capabilities` row |
 | `[A]` | plan, design | whether to add an optional artifact (`shared/artifacts.md`); max 2 per round | proposal / design `## Artifacts` row |
 | `[D]` | design | how: components (module level), data, contracts, errors, test strategy, risks, rollout | `D-n` row in design.md |
+| `[T]` | plan (design: `💡 Needs term`) | a term: the canonical word, what it IS, its boundary with a neighbour term; max 2 per round | `### Term:` block in glossary.md with `_Avoid_` (§10) |
 - Plan never asks `[D]`. Design never asks `[R]`: a design answer that needs new behaviour becomes `💡 Needs spec: …`
   (amend the delta in the same gate, `shared/amend-spec.md`).
 - `[S]` questions wait for the spec-scout result (`.scout.json`); every other question does not.
@@ -60,6 +64,8 @@ Mechanics in `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/elicitation.md` (plan
 
 Reply: "Y" (accept all) · "Q2: <your answer>" · "deep <ID|topic>" · "add <artifact>" / "drop <artifact>" · "done"
 ```
+- Each question body starts with one context sentence; an id in it carries its title the first time (Plain replies in
+  `conventions.md`).
 - ≤ 7 questions per round; if more, take the ones that unblock the most. A question that depends on another open
   question of this round goes to a later round.
 - `💡 Recommended:` replaces upstream's `➡️`. Word each question so "yes" accepts the recommendation.
@@ -101,6 +107,9 @@ Plan writes only the change's business files; design writes only its dev files (
 - `[S]` → the delta file header (`> capability: … | key: … | change: …`), `## Purpose` for a new capability, the
   proposal `## Capabilities` row.
 - `[A]` → the `## Artifacts` row (`assumed`, `asked → included`, `asked → skipped`).
+- `[T]` → a `### Term:` block in the change's `glossary.md` (ADDED; MODIFIED with the full text when a living term
+  changes; REMOVED + `Reason:`) with `_Avoid_:`, written the moment the term is settled (never batched at close). Reword
+  every requirement and scenario of the change that used an avoided word.
 - `[D]` → `| D-n | decision | why | alternatives | cost if wrong | serves | accepted |` in design.md. An accepted
   recommendation still gets a row. A reversal before approval: edit the row; after approval: supersede
   (`shared/amend-spec.md`).
@@ -117,7 +126,21 @@ Plan writes only the change's business files; design writes only its dev files (
 - A **new behaviour** during `/hitl:design` → `💡 Needs spec: <behaviour>` + the 📐 delta preview in the same gate.
 
 ## 9. Done
-The frontier is empty (every category ✅ or —, no hotspot left open, every artifact decided) or the user said `done`.
+The frontier is empty (every category ✅ or —, no hotspot left open, every artifact and `[T]` decided) or the user said
+`done`.
 Then the skill's close step runs (validate, summary gate). Plan applies the **stop rule** (elicitation.md §4): close
 only without `COVERAGE_GAP` / `REQ_UNCLEAR` from `spec validate`, else a gap gate with "force" recorded as
 `💡 Forced:`. Never move to the next phase before the user confirms at that gate.
+
+## 10. Shared language (plan; design uses it through `💡 Needs term`)
+The glossary = living `.hitl/specs/GLOSSARY.md` + the change's `glossary.md`. Ask a `[T]` question when:
+- **Challenge**: the user uses a word the glossary defines differently, or a word in some term's `_Avoid_` list. Quote
+  the definition: "Glossary: *Account* = … You wrote 'user record'. Same thing?" Recommend the glossary word.
+- **Sharpen**: a noun that could name two concepts ("account": the Customer or the User?). Recommend one canonical word.
+- **Boundary**: two terms are close → one concrete example in the question body that separates them.
+- **Check against code**: the user says how the system works today and a scout `behaviourFacts` or `vocabulary` row
+  disagrees → "The code says …; you said …. Which is right?" No fact yet → plan: one follow-up spec-scout question
+  (never read code here); design: Explore. Never hold the rest of the round for it.
+- Ask only about avoided words, conflicting definitions and new nouns used in a requirement; never about every noun. A
+  new noun with one obvious word → record it and print `💡 Assumed: term <Term>` instead of asking.
+- Term rules (what a definition may hold): `shared/templates/glossary.md`.

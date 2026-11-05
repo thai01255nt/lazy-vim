@@ -4,6 +4,7 @@ Adapted from mattpocock/skills (MIT) — see NOTICE.md
 Source: `skills/engineering/to-tickets/SKILL.md` @ 5c2cbbd5c3342a9ff4a80b7d8530759ca6a98c22 (vertical slices, blocking edges,
 expand–contract, quiz). Changes: one tasks md per change instead of one file per ticket; adds HITL priority,
 risk rules, symbol rows, impl owners, AC ids and test plan; consistency check idea from github/spec-kit `/analyze` (ideas only).
+Seam rules (§5 tracer AC, §7 seam column) from `skills/engineering/{to-spec,tdd}/SKILL.md` @ 4ae2317 via `shared/test-patterns.md` §5.
 
 ## Contents
 1. Vertical slices
@@ -22,7 +23,7 @@ risk rules, symbol rows, impl owners, AC ids and test plan; consistency check id
 - Each task fits one fresh context window: as a rule of thumb ≤6 symbols and ≤3 files changed. Larger → split.
 - Prefactor first: "make the change easy, then make the easy change". A prefactor task has no new behaviour, its ACs say
   "existing tests stay green" plus one AC for the seam it opens.
-- Titles use the domain glossary (BUSINESS-CONTEXT) and say the behaviour, not the layer ("Register user with unique email", not "UserService").
+- Titles use the glossary words (`.hitl/specs/GLOSSARY.md` + the change's `glossary.md`) and say the behaviour, not the layer ("Register user with unique email", not "UserService").
 - Titles are short and direct (Linear Method: "short and simple issue titles that directly state what the task is"):
   verb first, ≤ 60 characters, one behaviour; no layer or class names, no lists of every case ("Refuse settle when context
   ended or reservation missing", not "Settle script refuses an ended context, a missing reservation and an unknown lease").
@@ -54,6 +55,7 @@ Low-risk tasks may use the ⚡ fast lane (auto skeleton/tests approval). Never l
 
 ## 5. Acceptance criteria
 - 2–6 per task, id `T-n.ACk` (k from 1), Given/When/Then, one observable behaviour each, testable at a seam.
+- AC1 = the tracer: the main success path end to end through the highest seam.
 - Include at least one failure/edge AC when the task validates input or handles errors.
 - Every ADDED/MODIFIED scenario of the change has ≥1 AC that references it `(ACC-R3.S1)`; an AC instantiates its
   scenario concretely (same GIVEN/WHEN/THEN, concrete values). `MAY` requirements may stay without AC. Never reference
@@ -75,7 +77,8 @@ One row per AC (more rows allowed): `| AC1 | kind | oracle | seam | author |`.
   · `golden` (stable output snapshot) · `metamorphic` (relation between two runs).
 - oracle: where the expected value comes from — `spec` (the AC text), `invariant: <expr>`, `golden file`, `relation: <r>`. Never "the implementation".
 - seam: the public symbol or endpoint the test calls (from design.md `## Test strategy`; design skipped → the
-  highest existing public seam).
+  highest existing public seam). Highest seam that can observe the AC, prefer existing, fewest per task; a lower seam
+  needs a reason in the cell; no independent oracle (pure wiring) → `author: human` + reason (test-patterns §5).
 - author: `test-author` (default) or `human`.
 
 ## 8. Consistency check (before the gate)

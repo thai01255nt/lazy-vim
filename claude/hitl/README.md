@@ -89,6 +89,18 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.7
+
+0.8 thêm **ngôn ngữ chung** (mục 2) và quy tắc trả lời dễ đọc (`shared/conventions.md` § Plain replies). Không cần
+migrate: file cũ đọc như trước.
+- `hitl-index context` có thêm mục `## Terms` và trường JSON `terms` (thuật ngữ glossary mà task dùng).
+- Vòng plan có thêm câu hỏi `[T]` (thuật ngữ, tối đa 2/vòng); spec-scout có thêm trường `vocabulary` (thêm vào, schema
+  không đổi).
+- Ở mọi gate, gõ `?`, `wait`, `hả`, `giải thích` hoặc `không hiểu` để Claude giải thích lại rồi hỏi lại đúng câu đó.
+- `skills/grilling/` đồng bộ lên upstream 4ae2317 (một cụm từ: "with a fresh context window").
+- Mẫu test chuẩn (`shared/test-patterns.md`, mục 6) và lệnh mới `/hitl:tdd` (test-first ngoài change). Implementer làm
+  xanh từng test một; `/hitl:test` thêm bước xem nhanh mẫu test trước khi khoá (dùng chung 2 lần trả lại).
+
 ### Nâng cấp từ 0.6
 
 0.7 tách kênh ticket theo provider (Linear, Jira, GitHub Issues — mục 4b).
@@ -174,6 +186,16 @@ strategy, risks, rollout), tuỳ chọn `data-model.md`, `contracts/`. Không ba
 skeleton). `--auto`: tự quyết theo khuyến nghị, một gate duyệt. Design được bỏ qua khi change nhỏ (không dependency
 mới, không đổi dữ liệu lưu, không đổi interface public, ≤ 2 task, không risk cao).
 
+**Ngôn ngữ chung (0.8).** Một glossary duy nhất: `.hitl/specs/GLOSSARY.md` (living, chỉ CLI ghi) + `glossary.md` của
+change (delta). Tên thuật ngữ giữ tiếng Anh (khớp tên code và test), định nghĩa có thể viết tiếng Việt; câu trả lời tiếng
+Việt dùng nguyên thuật ngữ tiếng Anh. Khi bạn dùng một từ mâu thuẫn với glossary, từ nằm trong `_Avoid_`, hoặc một danh từ
+mơ hồ, plan hỏi một câu `[T]` (tối đa 2/vòng) và ghi thuật ngữ ngay khi chốt (`shared/interview.md` §10). Design đặt tên
+component, entity, event và test seam theo thuật ngữ (*Reset link* → `ResetLink`); thiếu thuật ngữ → `💡 Needs term`.
+Design cũng đọc các quyết định `D-n` đã archive để báo khi quyết định mới mâu thuẫn. `hitl-index context <T>` thêm mục
+`## Terms` (≤ 8 thuật ngữ mà tiêu đề, AC hay scenario của task nhắc tới), nên skeleton, test-author và reviewer dùng cùng
+từ. Mọi câu trả lời theo § Plain replies: ngữ cảnh trước, id luôn kèm tiêu đề (`ACC-R4 (Lock after failed sign-ins)`),
+câu ngắn; ở gate gõ `?`/`wait`/`hả` để được giải thích lại.
+
 **Archive.** Khi mọi task xong, `/hitl:archive <id>` xem trước merge (conflict, id trùng, `BASE_CHANGED`) rồi CLI gộp
 delta vào `.hitl/specs/<capability>/spec.md` (+ `GLOSSARY.md`, `## Change History`, `## Retired IDs`) và chuyển change
 sang `.hitl/archive/<ngày>-<id>/`. Living spec chỉ CLI ghi (hook chặn sửa tay).
@@ -205,6 +227,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | ⛔ diff / conflict | bạn / Claude |
 | `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | ⛔ diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | ⛔ mỗi vòng | bạn / Claude |
+| `/hitl:tdd <việc cần làm>` | Chế độ test-first nhanh của hitl (chuyển thể từ mattpocock `tdd`) cho việc nhỏ **ngoài** change: chốt seam một vòng, rồi red→green từng test một. Việc thuộc một change/task → chuyển sang `/hitl:flow` | ⛔ seam | bạn / Claude |
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
@@ -437,6 +460,13 @@ Fast lane (tự skeleton → test → implement, không gate) mặc định bị
    **finding-verifier** (haiku) chấm lại 0–100, giữ ≥ 80 → report một màn hình `reviews/T-n.review.md` (verdict PASS / WITH FIXES / FAIL).
 8. **Fix loop**: finding được accept trên hàm agent → test-author viết test fail trước, implementer làm xanh; hàm manual → TODO cho bạn. Tối đa 2 vòng rồi chuyển người.
 
+**Mẫu test (0.8, `shared/test-patterns.md`)**: một nguồn quy tắc cho test-author, implementer, lens tests, skeleton,
+design và tasks (trên `skills/tdd/tests.md` + `mocking.md` vendor nguyên bản từ mattpocock): tên test dùng thuật ngữ
+`## Terms`, không mock module của project, không kiểm qua kênh phụ (đọc mảng/bảng thay vì hỏi qua interface), double theo
+loại dependency, AC1 là tracer qua seam cao nhất. Vòng kép: test AC của task được khoá RED trước (vòng ngoài), implementer
+làm xanh **từng test một** theo thứ tự file (vòng trong; chỉ lần chạy không tiến triển mới tính vào giới hạn 3). Refactor
+không nằm trong implement: làm qua `/hitl:review` + fix loop, dưới test xanh đã khoá.
+
 **Truy vết (trace, `hitl.trace/2`):** requirement (`ACC-R3`, spec) → scenario (`ACC-R3.S1`) → AC `(ACC-R3.S1)` (tasks md)
 → test `@ac` → symbol `@covers`, cộng `D-n` qua `**Why**`, `@dec` và cột `serves` của `design.md`.
 `hitl-index trace [T|change-id] [--capability <cap>] [--check] [--md]` tính tất định (không LLM, không reindex, không
@@ -593,7 +623,7 @@ phí; xem `evals/README.md`): Suite A (skill nào được gọi), Suite B (hàn
 
 ## 9. Gợi ý dùng kèm (tuỳ chọn)
 
-- **obra/superpowers** plugin (TDD, systematic-debugging, verification).
+- **obra/superpowers** plugin (systematic-debugging, verification; TDD ngoài change đã có `/hitl:tdd`).
 - **Semgrep** (MCP/plugin) cho lớp security L0.
 - **Stryker** (TS/JS) / **mutmut** (Python): bật `commands.mutation.*` trong config để có mutation gate.
 - Built-in **`/code-review`** và **`/security-review`** làm ý kiến thứ hai (audit đầy đủ: `/hitl:review --security-audit`, xem 6a).
@@ -617,9 +647,11 @@ phí; xem `evals/README.md`): Suite A (skill nào được gọi), Suite B (hàn
 ## Credits
 
 Skill **mattpocock/skills `grilling`** (MIT, © 2026 Matt Pocock) và **cloudflare/security-audit-skill** (MIT, © 2025-2026
-Cloudflare, Inc.) được vendor nguyên bản (`skills/grilling/`, `skills/security-audit/`). Định dạng spec/delta và merge
+Cloudflare, Inc.) được vendor nguyên bản (`skills/grilling/`, `skills/security-audit/`), cùng hai file tham chiếu của
+mattpocock `tdd` (`skills/tdd/tests.md`, `mocking.md`; `/hitl:tdd` là bản chuyển thể của hitl). Định dạng spec/delta và merge
 chuyển thể từ **Fission-AI/OpenSpec** (MIT); template proposal/design, taxonomy clarify, checklist và constitution từ
-**github/spec-kit** (MIT); một số file tham chiếu từ **mattpocock/skills** và **obra/superpowers** (MIT). Ý tưởng từ Kiro,
+**github/spec-kit** (MIT); một số file tham chiếu từ **mattpocock/skills** (gồm cơ chế glossary của `domain-modeling` trong
+`shared/interview.md`) và **obra/superpowers** (MIT). Ý tưởng từ Kiro,
 EARS, BMAD-METHOD (advanced elicitation; "BMad" là thương hiệu của chủ sở hữu), Example Mapping, BABOK/DMN/ISO 25010,
 chuẩn tham chiếu (không chép nội dung): MADR 4 (MIT/CC0), ISO/IEC/IEEE 29148, INCOSE GtWR, Cockburn use cases, C4 (CC BY 4.0),
 OpenAPI/AsyncAPI/JSON Schema,

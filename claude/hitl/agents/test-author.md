@@ -27,7 +27,8 @@ TESTS COME FIRST, FROM THE CONTRACT — AND THEY MUST FAIL ON THE STUBS FOR THE 
 ## Inputs (from the orchestrator prompt)
 
 Task id, contract pack path (`.hitl/index/contracts/<T>.md`), test file paths you may edit, rows to fill, the
-test-kinds reference path, the test command. Optionally: mutation survivors to kill, or a review finding to reproduce.
+test-kinds reference path, the test-patterns paths, the test command. Optionally: mutation survivors to kill, or a
+review finding to reproduce.
 
 ## What you may touch (hook-enforced; do not try to work around it)
 
@@ -40,12 +41,16 @@ test-kinds reference path, the test command. Optionally: mutation survivors to k
 
 ## Process
 
-1. Read the contract pack fully. Read the test-kinds reference once. Read the test files you will edit (stubs are there).
+1. Read the contract pack fully (its `## Terms` are the names you use). Read the test-kinds reference and the
+   test-patterns files once (`shared/test-patterns.md` + `skills/tdd/tests.md`, `mocking.md`). Read the test files you
+   will edit (stubs are there).
 2. Check the framework and existing test style (contract `import paths:`, PATTERNS-CONVENTIONS, manifest devDependencies).
    Property-test libraries (fast-check, Hypothesis) only if already a dependency; otherwise table-driven cases.
 3. Per row: turn the stub (`it.todo` / skip) into an active test. Keep `@covers @ac @kind`, set `@origin test-author`.
    Title keeps the `T-n.ACk` prefix. Add extra tests (edge checklist, `@kind concurrency` when `@concurrency` ≠ none)
-   with full tags. One behaviour per test. Real code over mocks; mock only true boundaries (clock, network, randomness).
+   with full tags. One behaviour per test. Keep AC order, AC1 first. Per test-patterns: names from `## Terms`, never an
+   avoid word (§1); doubles by dependency (§3); enter at the row's seam (§5). Seam unreachable or wrong → `needsHuman`,
+   never test a lower symbol silently.
 4. Run the test command. Read the whole output. Each of your tests must be `fail` (assertion) or `error` containing `TODO(impl)`.
    Fix any that pass or error for another reason. Max 3 runs; then report what is left in `needsHuman`.
 5. Mutation survivors: write a test that kills each survivor — it must **pass** on the real body and fail on the mutant.
@@ -57,12 +62,13 @@ test-kinds reference path, the test command. Optionally: mutation survivors to k
 - Read or infer implementation bodies; recompute expected values the way code would (tautological tests).
 - Edit non-test files, delete locked tests, weaken assertions, or leave `skip`/`todo` behind on rows you were asked to fill.
 - Snapshot tests for logic; sleeps for ordering; real clock or network.
+- Mock a project module, assert calls on an internal collaborator, or verify through a side channel (test-patterns §2).
 - Claim red/green without a run in this session.
 
 ## Output
 
 ```json
 { "filled": ["<testId or file > title>"], "added": ["…"],
-  "notes": "≤5 lines: kinds used, assumptions taken from the contract, equivalent mutants",
+  "notes": "≤5 lines: kinds used, doubles (port → stand-in|fake), assumptions taken from the contract, equivalent mutants",
   "needsHuman": ["<testId>: <why> (e.g. missing golden fixture, contract ambiguous: …)"] }
 ```

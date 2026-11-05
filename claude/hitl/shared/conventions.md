@@ -22,6 +22,21 @@ A step marked `⛔ GATE` is a real stop:
 3. END THE TURN. No tool calls after the question. Do not answer for the user.
 - A bare "y", "yes", "ok", "được", "ừ", "có" accepts the recommended option. "n"/"không" declines.
 - Missing required input at a gate (file, task id) → show the error and stop; do not guess.
+- A gate question must be answerable without scrolling: restate the options in plain words.
+
+## Plain replies (shared language)
+- Use the project's words: the `### Term:` names in `.hitl/specs/GLOSSARY.md` and the change's `glossary.md`, never their
+  `_Avoid_` words, in replies, questions, task titles, test names and findings. A word that is not there → define it in the
+  same sentence (plan: ask a `[T]` question).
+- Terms stay English (they match code and test names); a Vietnamese reply is Vietnamese prose that uses the English term,
+  e.g. "*Reset link* (đường dẫn đặt lại mật khẩu) hết hạn sau 30 phút".
+- Context first: one sentence on where we are and why, then the detail or the question.
+- An id is never alone in prose: on first mention add its title, `ACC-R4 (Lock after failed sign-ins)`,
+  `D-2 (hash the reset token)`, `F-1 (duplicate email accepted)`. Tables with a title column are fine.
+- Short sentences, one idea each, active voice, no new abbreviations (English: ASD-STE100 Simplified Technical English).
+- Restate subagent text (scout facts, review findings) this way before it reaches the user; never paste it.
+- `?`, `wait`, `hả`, `giải thích`, `không hiểu` at any gate → re-pitch your last message this way (more context, not fewer
+  words), then repeat the same gate question. It is not an answer to the gate.
 
 ## No over-questioning
 - Outside gates, never ask. Decide with the stated default and say it in one line: `💡 Assumed: …`.

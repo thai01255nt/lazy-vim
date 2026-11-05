@@ -80,12 +80,15 @@ export async function buildContext(root, target, { contract = false, budget = 12
   const label = (id) => `${S[id].name} (${S[id].file})`;
 
   // spec for AC lines and decisions: the change's effective view + design.md, or (v0.5) the planning file's R-/D- rows
-  let changeCtx = null;
+  let changeCtx = null, glossary = null;
   if (task && (task.change || task.changeDir)) {
     const ch = await import("./changes.mjs");
-    changeCtx = ch.changeForTask(await ch.loadSpecContext(root).catch(() => null), task);
+    const specCtx = await ch.loadSpecContext(root).catch(() => null);
+    changeCtx = ch.changeForTask(specCtx, task);
     if (changeCtx) changeCtx.find = (r) => ch.findInView(changeCtx.view, r);
-  }
+    // archived: its delta is already in the living glossary
+    glossary = { living: specCtx?.living.glossary?.doc || null, delta: changeCtx && !changeCtx.entry.archived ? changeCtx.change.glossaryDelta : null };
+  } else if (task) glossary = { living: (await (await import("./changes.mjs")).readLiving(root).catch(() => null))?.glossary?.doc || null, delta: null };
   const planning = !changeCtx && task?.planning && task.planning !== "none" ? await readPlanning(root, task.planning).catch(() => null) : null;
   const decisionsDoc = changeCtx ? changeCtx.change.design : planning;
   const reqOf = (r) => planning?.requirements.find((x) => x.id === r);
@@ -100,6 +103,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
     : changeCtx ? `- ${a.id} (${a.reqs.map(specText).join("; ")}) ${a.text}`
     : `- ${a.id} (${a.reqs.map((r) => `${r}: ${reqOf(r)?.text ?? "unknown"}`).join("; ")}) ${a.text}`;
 
+  let terms = [];
   const sections = []; // {text, drop: "siblings"|"testBodies"|null}
   const head = [];
   if (task) {
@@ -107,6 +111,9 @@ export async function buildContext(root, target, { contract = false, budget = 12
     head.push(`# Context ${task.id} — ${task.title}  (risk: ${task.risk} | prio: ${task.prio} | status: ${tst})`);
     head.push(`task file: ${task.file}${task.change ? ` · change: ${task.change}` : task.planning ? ` · planning: ${task.planning}` : ""}`);
     head.push("", "## Acceptance criteria", ...(task.acs.length ? task.acs.map(acLine) : ["- (none)"]));
+    const said = [task.title, ...task.acs.map((a) => a.text), ...(changeCtx ? task.acs.flatMap((a) => (a.reqs || []).map(specText)) : [])].join("\n");
+    terms = termsFor(effectiveTerms(glossary?.living, glossary?.delta), said);
+    if (terms.length) head.push("", "## Terms", ...terms.map((t) => `- **${t.term}**: ${t.text}${t.avoid.length ? ` (avoid: ${t.avoid.join(", ")})` : ""}`));
     if (!contract && decisionsDoc) {
       const ids = [...new Set([...(task.decisions || []), ...Object.values(S).filter((s) => (s.tags?.task || []).includes(task.id)).flatMap((s) => s.tags?.dec || [])])];
       if (ids.length) head.push("", "## Decisions", ...ids.map((d) => { const x = decOf(d); return x ? `- ${d} (${statusText(x)}): ${x.decision}` : `- ${d} (unknown)`; }));
@@ -219,11 +226,32 @@ export async function buildContext(root, target, { contract = false, budget = 12
   if (md.length > budget) md = md.slice(0, budget - 20) + "\n… (truncated)";
   const allFiles = new Set([...files, ...testFilesAll, ...(task ? [task.file] : [])]);
   const targetsOut = ids.map((id) => ({ id, callers: S[id].callers, callees: S[id].callees }));
-  return { markdown: md + "\n", symbols: ids, files: [...allFiles].sort(), targets: targetsOut,
+  return { markdown: md + "\n", symbols: ids, files: [...allFiles].sort(), targets: targetsOut, terms,
     callers: [...new Set(targetsOut.flatMap((t) => t.callers))].sort(), callees: [...new Set(targetsOut.flatMap((t) => t.callees))].sort() };
 }
 
 const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The glossary a task sees: living terms, then the change's delta applied (ADDED/MODIFIED replace by key, REMOVED drops).
+ *  -> [{term, key, text, avoid}] with `text` = the definition only (no `### Term:` header, no `_Avoid_:` line). */
+export function effectiveTerms(living, delta) {
+  const out = new Map();
+  const def = (t) => (t.text || "").split("\n").filter((l) => !/^###\s+Term:/.test(l) && !/^_Avoid_:/.test(l)).join(" ").replace(/\s+/g, " ").trim();
+  for (const t of living?.terms || []) out.set(t.key, { term: t.term, key: t.key, text: def(t), avoid: t.avoid || [] });
+  for (const t of delta?.terms || []) {
+    if (t.op === "REMOVED") out.delete(t.key);
+    else out.set(t.key, { term: t.term, key: t.key, text: def(t), avoid: t.avoid || [] });
+  }
+  return [...out.values()];
+}
+
+/** Terms whose name or an `_Avoid_` word appears in `said` (case-folded, whole words, Unicode letters), in glossary
+ *  order, at most `max`. -> [{term, text, avoid}] */
+export function termsFor(terms, said, max = 8) {
+  if (!said) return [];
+  const hit = (w) => w && new RegExp(`(?<![\\p{L}\\p{N}_])${reEsc(w.trim()).replace(/\s+/g, "\\s+")}(?![\\p{L}\\p{N}_])`, "iu").test(said);
+  return terms.filter((t) => hit(t.term) || t.avoid.some(hit)).slice(0, max).map(({ term, text, avoid }) => ({ term, text, avoid }));
+}
 /** A name matched in prose must be a distinctive identifier (camelCase/PascalCase/snake_case, >= 4 chars), so prose
  *  words like "save" or "main" do not pull in a symbol of that name. Dotted full names always count. */
 const distinctive = (n) => n.length >= 4 && /^[A-Za-z_$][\w$]*$/.test(n) && /[a-z0-9][A-Z]|_|^[A-Z][a-z0-9]/.test(n);

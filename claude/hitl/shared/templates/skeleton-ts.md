@@ -95,7 +95,7 @@ describe("UserService.createUser", () => {
   /** @covers Cache.getOrLoad @ac T-7.AC3 @kind concurrency @origin skeleton */
   it.todo("T-7.AC3 concurrent getOrLoad calls load once");
 ```
-Title always starts with the AC id. Describe name = the covered symbol ref.
+Title always starts with the AC id. Describe name = the seam from the Test plan row (usually the covered symbol ref).
 
 ## After implementation (for reference)
 `// TODO(impl): 1. x` becomes `// 1. x` and the sentinel is removed. Step comments stay so reviewers map the flow.

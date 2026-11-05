@@ -99,6 +99,20 @@ function luaSignatures(P, c) {
 }
 const STEP_RE = /^\s*--\s*TODO\(impl(?: T-\d+)?\):\s*(\d+)\.\s*(.*)$/;
 
+/** Plain replies: the first prose mention of each spec/finding id is followed (≤ 3 chars) by "(" or a quote. Ids that
+ *  appear in a table row count as glossed (a title column is allowed). -> {ids, bare: [id]} */
+const ID_RE = /\b(?:[A-Z]{2,6}-(?:R|BR|UC)\d+(?:\.S\d+)?|F-\d+)\b/g;
+function idGlossing(text) {
+  const lines = text.split("\n");
+  const inTable = new Set(lines.filter((l) => /^\s*\|/.test(l)).flatMap((l) => l.match(ID_RE) ?? []));
+  const first = new Map();
+  for (const l of lines) {
+    if (/^\s*\|/.test(l)) continue;
+    for (const m of l.matchAll(ID_RE)) if (!inTable.has(m[0]) && !first.has(m[0])) first.set(m[0], /^.{0,3}?[("“]/.test(l.slice(m.index + m[0].length)));
+  }
+  return { ids: first.size, bare: [...first].filter(([, g]) => !g).map(([id]) => id) };
+}
+
 const CHECKS = {
   // ---- plan (round 1 of a new change)
   plan_change_created: (S, P) => { const ch = newChanges(P); return ok(ch.length === 1 && fs.existsSync(path.join(P, ".hitl/changes", ch[0], "proposal.md")), `new changes: ${ch.join(",") || "none"}`); },
@@ -120,6 +134,10 @@ const CHECKS = {
   plan_questions: (S) => { const { q, rec } = questions(S.text); return ok(q >= 2 && q <= 7 && rec >= q, `Q=${q} rec=${rec}`); },
   plan_round_header: (S) => ok(/🌳\s*(Round|Vòng)\s*1/.test(S.text), "no round-1 header"),
   plan_reply_line: (S) => ok(/Reply:|Trả lời:/.test(S.text), "no Reply: line"),
+  // shared language: the prompt says "user record", the living glossary has Account (_Avoid_: user record, profile)
+  plan_term_challenge: (S) => ok(/\[T\]/.test(S.text) && /Account/.test(S.text) && /user record/i.test(S.text), "no [T] question naming Account and quoting \"user record\""),
+  // report-only for now (always ok): share of ids glossed on first prose mention; bare ids listed in `warn`
+  reply_ids_glossed: (S) => { const g = idGlossing(S.text); const ratio = g.ids ? +((g.ids - g.bare.length) / g.ids).toFixed(2) : 1; return { ok: true, why: "", ratio, warn: ratio < 0.8 ? `bare ids: ${g.bare.join(", ")}` : "" }; },
   grilling_loaded: (S) => ok(skillCalls(S).some((s) => /grilling/.test(s)) || S.tools.some((t) => t.name === "Read" && /grilling\/SKILL\.md/.test(t.input.file_path || "")), "grilling not loaded"),
   scout_spawned: (S) => ok(S.tools.some((t) => t.name === "Agent" && /spec-scout/.test(JSON.stringify(t.input))), "no spec-scout"),
   no_main_source_reads: (S) => ok(!S.tools.some((t) => t.main && t.name === "Read" && /\/src\/|\/tests\//.test(t.input.file_path || "")), "main thread read source"),
@@ -177,6 +195,12 @@ const CHECKS = {
   review_no_self_approve: (S) => { const b = bashCalls(S).find((c) => /approve\b.*--by\s+human/.test(c)); return ok(!b, `ran: ${b}`); },
   review_verdict: (S) => ok(/PASS|FAIL|NEEDS|verdict|Verdict|human/i.test(S.text), "no verdict"),
   review_lens_agents: (S) => ok(S.tools.some((t) => t.name === "Agent" && /reviewer/.test(JSON.stringify(t.input))), "no reviewer subagent"),
+  // the fixture's locked T-1.AC2 test asserts `repo.users.length` (a side channel): the tests lens must name it
+  review_tests_side_channel: (S, P) => { const t = read(path.join(P, ".hitl/reviews/T-1/findings-tests.json")) ?? ""; return ok(/users\.length|side[ -]?channel/i.test(t), "tests lens missed the side channel (repo.users.length)"); },
+  // ---- tdd (ad-hoc, no change): one seam round, nothing written before the reply, no upstream-only skill calls
+  tdd_seam_gate: (S) => ok(/\bseam/i.test(S.text) && /\*\*Q1\*\*|\bQ1\b/.test(S.text) && /Reply:|Trả lời:/.test(S.text), "no seam question with a Reply: line"),
+  tdd_no_writes_before_gate: (S, P) => { const d = gitDirty(P, ["src", "tests"]); return ok(d === "", `wrote before the seam gate: ${d}`); },
+  tdd_no_foreign_skills: (S) => { const b = skillCalls(S).find((x) => /codebase-design|code-review/.test(x)); return ok(!b, `called ${b}`); },
   // ---- skeleton (Lua): case.luaTargets, task T-1
   lua_signatures_bound: (S, P, c) => { const bad = Object.entries(luaSignatures(P, c)); return ok(!bad.length, bad.map(([k, v]) => `${k}: ${v}`).join("; ")); },
   lua_sentinel: (S, P, c) => {
@@ -253,6 +277,8 @@ function pluginChars(S, pluginDir, c) {
   }
   return { n, files: [...seen].map((f) => path.relative(pluginDir, f)) };
 }
+
+export { idGlossing };
 
 export function gradeRun({ suite, c, dir, proj, pluginDir, exit }) {
   const S = parseStream(path.join(dir, "out.jsonl"));

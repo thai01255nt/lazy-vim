@@ -23,9 +23,9 @@ test("vendored grilling files match UPSTREAM.md checksums", () => {
   assert.deepEqual(extra, [], "hitl glue belongs in shared/interview.md, not skills/grilling/");
 });
 
-test("design doc checksums are the vendored ones (SKILL.md befdff1e…, LICENSE 0e7ac423…)", () => {
+test("design doc checksums are the vendored ones (SKILL.md a146842e…, LICENSE 0e7ac423…)", () => {
   const m = Object.fromEntries(manifest().map((x) => [x.file, x.sha]));
-  assert.equal(m["SKILL.md"], "befdff1e27a1dfe2a294d5871169ac1afe16d983911daa4f32627514a48c1e15");
+  assert.equal(m["SKILL.md"], "a146842ed93ca43d833550fa9adf02e58cb63c83fea9d4b4522995b82242d4e2");
   assert.equal(m.LICENSE, "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5");
 });
 

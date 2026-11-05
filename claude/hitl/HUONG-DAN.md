@@ -43,6 +43,14 @@ Mở lại Claude Code. Gõ `/hitl:` thấy danh sách lệnh là xong.
 - **Viết theo chuẩn** (`shared/formats/`): mỗi yêu cầu một `SHALL`, không từ mơ hồ ("nhanh", "dễ dùng", "v.v."); NFR có
   `Fit:` đo được. `spec validate` chỉ cảnh báo, Claude tự sửa câu chữ hoặc hỏi bạn con số.
 
+### Ngôn ngữ chung và khi không hiểu câu trả lời
+- Mỗi project có một glossary (`.hitl/specs/GLOSSARY.md`): tên thuật ngữ tiếng Anh, định nghĩa có thể tiếng Việt.
+  Claude trả lời tiếng Việt nhưng giữ nguyên thuật ngữ, vd. "*Reset link* hết hạn sau 30 phút".
+- Bạn dùng từ khác glossary (vd. "user record" thay cho *Account*) → Claude hỏi một câu `[T]` để chốt một từ.
+- Mã như `ACC-R4`, `F-1` luôn đi kèm tiêu đề ngắn để bạn khỏi phải tra.
+- Không hiểu câu trả lời? Ở bất kỳ cổng nào gõ `?`, `wait`, `hả`, `giải thích` hoặc `không hiểu`: Claude giải thích lại
+  (thêm ngữ cảnh, câu ngắn) rồi hỏi lại đúng câu đó. Câu này không tính là trả lời.
+
 ## 3. Làm từng task
 
 ### Task rủi ro thấp (low): một lệnh
@@ -86,6 +94,7 @@ Claude so code với khung đã duyệt: duyệt lại / hoàn tác / để sau 
 ## 6. Trả lời ở các cổng (⛔)
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.
+- `?` / `wait` / `hả` = giải thích lại rồi hỏi lại (không phải câu trả lời).
 - Finding trong review: `accept F-1`, `reject F-2 <lý do>`, `defer F-3`, `amend F-4`; sửa: `/hitl:review T-2 fix F-1`.
 
 ## 7. Tuỳ chọn
@@ -95,5 +104,6 @@ Claude so code với khung đã duyệt: duyệt lại / hoàn tác / để sau 
 | Đẩy task lên Linear / Jira / GitHub | `/hitl:tickets init [linear\|jira\|github]` (một lần), sau đó `/hitl:tickets push` |
 | Audit bảo mật cả change | `/hitl:review --security-audit feat-xxx` |
 | "Grill" một ý tưởng bất kỳ | `/hitl:grilling` |
+| Sửa nhỏ / làm nhanh theo TDD, không mở change | `/hitl:tdd <việc cần làm>` (chốt seam, rồi red→green từng test) |
 
 Commit: `/hitl:setup` đã tạo sẵn `.hitl/.gitignore`, cứ `git add .hitl`.

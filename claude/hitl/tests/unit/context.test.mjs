@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { makeProject } from "./_project.mjs";
 import { updateIndex, buildContext, readIndex } from "../../scripts/lib/api.mjs";
 import { writeMapMd } from "../../scripts/lib/mapmd.mjs";
+import { effectiveTerms, termsFor } from "../../scripts/lib/context.mjs";
+import { parseGlossary } from "../../scripts/lib/specmd.mjs";
 
 test("context for a task lists ACs, targets, callers, callees and tests without line numbers", async () => {
   const root = makeProject();
@@ -83,4 +87,40 @@ test("contract mode: collaborator contracts = @calls callees + symbols named in 
   const at = (await buildContext(root, "UserService.createUser", { contract: true, budget: b })).markdown;
   assert.match(at, /#### tests\/userService\.test\.ts/, "test bodies survive the collab drop");
   assert.doesNotMatch(at, /siblings:/, "siblings dropped first");
+});
+
+// ## Terms (shared language): the glossary words a task uses travel in the context and the contract pack.
+const SPEC_APP = fileURLToPath(new URL("../fixtures/spec-app", import.meta.url));
+const copySpecApp = () => { const d = mkdtempSync(join(tmpdir(), "hitl-ctx-terms-")); cpSync(SPEC_APP, d, { recursive: true }); return d; };
+
+test("Terms: glossary terms (living + the change's delta) named in the title, ACs or linked scenarios", async () => {
+  const root = copySpecApp();
+  const c = await buildContext(root, "T-12", { contract: true });
+  assert.match(c.markdown, /\n## Terms\n- \*\*Account\*\*: A registered person's identity in the shop, reached by their email address\. \(avoid: user record, profile\)\n- \*\*Reset link\*\*: A single-use link that lets a user set a new password\. \(avoid: token, magic link\)\n/);
+  assert.ok(c.markdown.indexOf("## Terms") > c.markdown.indexOf("## Acceptance criteria"), "after the ACs");
+  assert.deepEqual(c.terms.map((t) => t.term), ["Account", "Reset link"]);
+  const t13 = await buildContext(root, "T-13", {});
+  assert.deepEqual(t13.terms, [{ term: "Reset link", text: "A single-use link that lets a user set a new password.", avoid: ["token", "magic link"] }]);
+  assert.match(t13.markdown, /## Terms\n- \*\*Reset link\*\*/, "outside contract mode too");
+});
+
+test("Terms: no glossary or no match → no section and terms: []", async () => {
+  const root = makeProject();
+  await updateIndex(root, null, { full: true });
+  const c = await buildContext(root, "T-1", { contract: true });
+  assert.doesNotMatch(c.markdown, /## Terms/);
+  assert.deepEqual(c.terms, []);
+  assert.deepEqual((await buildContext(root, "UserService.createUser", {})).terms, []);
+});
+
+test("Terms: delta overrides living, avoided words match, whole words only (Unicode), cap 8", () => {
+  const living = parseGlossary("# Glossary\n> updated: 2026-10-20\n\n### Term: Account\nA person's identity.\n_Avoid_: user record\n\n### Term: Order\nA purchase.\n\n### Term: Hoàn tiền\nTiền trả lại cho khách.\n_Avoid_: trả tiền\n", "GLOSSARY.md");
+  const delta = parseGlossary("# Glossary delta\n> change: x\n\n## MODIFIED Terms\n### Term: Account\nA person's identity, by email.\n_Avoid_: user record, profile\n\n## REMOVED Terms\n### Term: Order\nReason: gone\n", "glossary.md", { delta: true });
+  const terms = effectiveTerms(living, delta);
+  assert.deepEqual(terms.map((t) => [t.term, t.text, t.avoid]), [["Account", "A person's identity, by email.", ["user record", "profile"]], ["Hoàn tiền", "Tiền trả lại cho khách.", ["trả tiền"]]]);
+  assert.deepEqual(termsFor(terms, "Merge two USER  RECORD rows").map((t) => t.term), ["Account"], "avoided word, case and spaces folded");
+  assert.deepEqual(termsFor(terms, "Accounts page; khách được hoàn tiền").map((t) => t.term), ["Hoàn tiền"], "no partial word; diacritics");
+  assert.deepEqual(termsFor(terms, "Hoàn tiềnx"), [], "Unicode word boundary");
+  const many = Array.from({ length: 10 }, (_, i) => ({ term: `T${i}`, text: "x", avoid: [] }));
+  assert.equal(termsFor(many, many.map((t) => t.term).join(" ")).length, 8);
 });

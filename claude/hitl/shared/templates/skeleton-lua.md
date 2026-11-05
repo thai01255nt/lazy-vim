@@ -85,7 +85,7 @@ return M
 ```
 
 ## Test stubs (one per test-plan row; no assertions yet)
-Busted (pure Lua); title starts with the AC id, describe name = the covered ref:
+Busted (pure Lua); title starts with the AC id, describe name = the Test plan row's seam (usually the covered ref):
 ```lua
 describe("src/lib/lease.lua#findUsedUpLeases", function()
 	-- @covers src/lib/lease.lua#findUsedUpLeases @ac T-4.AC1 @kind example @origin skeleton

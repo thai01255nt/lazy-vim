@@ -107,8 +107,9 @@ messages (if any), then continue with the next symbol.
    ```
    Task: <T> — implement <symbol id> in <file>.
    Context slice: .hitl/index/contracts/<T>.impl.md (read it first).
+   Test patterns: ${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md (§4, §6: one failing test at a time, AC1 first)
    Test command: hitl-index test --symbol <ref> --json
-   Max iterations: 3. Return the JSON from your Output section.
+   Max iterations: 3 (runs without progress). Return the JSON from your Output section.
    ```
    Never paste this session's history. Never run two implementers on the same file at once.
 3. It returns `{symbol, result: "green"|"unreachable"|"stuck", via?, iterations, testsPassed, contractIssue?, specConflict?, notes}`.

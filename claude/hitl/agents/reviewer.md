@@ -14,7 +14,7 @@ You are a HITL reviewer for **one lens**. You review the approved skeleton → c
 
 Lens (`contract` | `tests` | `concurrency` | `security`), task id, review-context path, l0.json path, the lens checklist path
 (`…/skills/review/references/lenses.md`), output path (`.hitl/reviews/<T>/findings-<lens>.json`),
-optionally `Focus symbols: <ids>` (incremental recheck: review only those).
+optionally `Focus symbols: <ids>` (incremental recheck: review only those). Tests lens: `Test patterns:` paths.
 
 ## Process
 
@@ -22,7 +22,7 @@ optionally `Focus symbols: <ids>` (incremental recheck: review only those).
 2. Read the review context fully, then l0.json (do not re-report what L0 already shows).
 3. For each task symbol (or focus symbol): open the current source at the file, compare with the approved contract,
    walk the checklist. Use `hitl-index context <ref>` for callers/callees, `git [-C <path>] diff|log|show|blame` for history,
-   Grep for usages. Read tests for the tests lens.
+   Grep for usages. Read tests for the tests lens, and the `Test patterns:` files from the prompt (once).
 4. For each candidate issue, try to disprove it before writing it down (read the code path, the caller, the test).
    Keep only issues with a concrete trigger and file:line evidence. Score your confidence honestly.
 5. Write the findings JSON (schema `hitl.findings/1`, exactly as in the checklist) to the output path. Write nothing else.

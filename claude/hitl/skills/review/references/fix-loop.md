@@ -41,7 +41,7 @@ If you pushed back and were wrong, say so in one line and fix it.
 ## 4. Test-first fix (agent-owned)
 
 1. `hitl-index context <T> --contract --out .hitl/index/contracts/<T>.md`.
-2. Spawn `hitl:test-author`: contract pack path, test file paths, the finding (title, evidence, trigger — not the code),
+2. Spawn `hitl:test-author`: contract pack path, test file paths, the test-patterns paths (as in `/hitl:test` fill), the finding (title, evidence, trigger — not the code),
    `Write one failing test that reproduces F-n (tag @ac with the closest AC, @kind per behaviour, @origin test-author)`.
 3. `hitl-index test --task <T> --json` → the new test must **fail** on the current body for the reason in the finding.
    It passes → the finding is not reproduced: report it (likely false positive → propose `reject`), stop for this finding.

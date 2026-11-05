@@ -10,11 +10,30 @@ Each adapted file starts with a credit line: `Adapted from <project> (<license>)
 
 ### mattpocock/skills — https://github.com/mattpocock/skills
 Adapted into:
-- `shared/templates/glossary.md` — from `domain-modeling/GLOSSARY-FORMAT.md` @ 5beb35b (glossary term blocks, `_Avoid_:` synonyms).
+- `shared/templates/glossary.md` — from `domain-modeling/GLOSSARY-FORMAT.md` and `productivity/teach/GLOSSARY-FORMAT.md`
+  @ 4ae2317 (glossary term blocks, `_Avoid_:` synonyms, the term rules, glossary terms inside definitions, the in-definition
+  ambiguity note).
+- `shared/interview.md` § Shared language — from `domain-modeling/SKILL.md` @ 4ae2317 (challenge against the glossary,
+  sharpen fuzzy terms, boundary scenarios, check against code, record each term when settled, glossary purity). Changes:
+  writes the change's `glossary.md` delta, not `GLOSSARY.md`; no ADR files (`D-n` rows); a `[T]` tag capped at 2 per
+  round; code checks go through spec-scout / Explore. The rest of `interview.md` is hitl's own text.
 - `shared/templates/proposal.md` — from `to-spec` @ 5beb35b (problem from the user's view, no file paths; section ideas).
 - `skills/tasks/references/slicing-and-risk.md` — from `to-tickets` (vertical slices, blocking edges, prefactor first, quiz the user).
-- Ideas also taken from `tdd` (pre-agreed test seams) and `implement-spec` (context pointers).
-- The `grilling` skill itself is vendored unmodified (section 3); `shared/interview.md` is hitl's own overlay on it.
+- `shared/test-patterns.md` — from `engineering/tdd/SKILL.md`, `engineering/codebase-design/{SKILL,DEEPENING}.md` and
+  `engineering/to-spec/SKILL.md` @ 4ae2317 (anti-patterns incl. side-channel verification, doubles by dependency type,
+  designing interfaces for testability, seam catches/misses, highest/fewest seams, the vertical one-test loop re-framed
+  as the implementer's inner loop, the code-layer terms without codebase-design's avoid-list). Pointers and short adapted
+  lines in `skills/review/references/lenses.md` §3 and `skills/tasks/references/slicing-and-risk.md` §5/§7.
+- `skills/tdd/SKILL.md` (`hitl:tdd`) — adapted from `engineering/tdd/SKILL.md` @ 4ae2317 (loop rules, pre-agreed seams,
+  anti-patterns). Changes: guard for work inside a hitl change, the hitl gate shape, no `codebase-design`/`code-review`
+  skill calls, tuned description.
+- Ideas also taken from `implement-spec` (context pointers).
+- Ideas only (no text) @ 4ae2317: `wait-what` (the re-pitch reply: context first, Simplified Technical English, glossary
+  words → `shared/conventions.md` § Plain replies and the `?`/`wait`/`hả` gate reply); `setup-matt-pocock-skills/domain.md`
+  (glossary words in every output → § Plain replies and `## Terms` in `hitl-index context`; flag a conflict with a past
+  decision → `/hitl:design` reads archived `D-n` decisions).
+- The `grilling` skill itself is vendored unmodified (section 3); `shared/interview.md` is hitl's overlay on it
+  (own text except § Shared language, above).
   (v0.5's adapted `skills/plan/references/grilling.md` with its component "design tree" was removed in 0.6.)
 
 ```
@@ -195,6 +214,12 @@ Vendored byte-identical as `skills/grilling/` (skill `hitl:grilling`): `SKILL.md
 `skills/grilling/UPSTREAM.md`. `/hitl:plan` and `/hitl:design` load it through the Skill tool; the hitl overlay (round
 header, tags, caps, recording) is separate: `shared/interview.md`. License text: section 1, mattpocock/skills
 (Copyright (c) 2026 Matt Pocock).
+
+### mattpocock/skills `tdd` reference files — https://github.com/mattpocock/skills
+`tests.md` and `mocking.md` (from `skills/engineering/tdd/`) and the upstream `LICENSE` are vendored byte-identical in
+`skills/tdd/`. Commit, date, checksums and the re-sync procedure: `skills/tdd/UPSTREAM.md`. The skill itself
+(`skills/tdd/SKILL.md`) is hitl's adaptation (section 1); the hitl overlay is `shared/test-patterns.md`. License text:
+section 1, mattpocock/skills (Copyright (c) 2026 Matt Pocock).
 
 ### cloudflare/security-audit-skill — https://github.com/cloudflare/security-audit-skill
 Vendored byte-identical as `skills/security-audit/` (skill `hitl:security-audit`): `SKILL.md`, phase docs, attack-class

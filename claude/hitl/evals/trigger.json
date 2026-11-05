@@ -6,6 +6,8 @@
     { "id": "vi-spec-email", "prompt": "Viết spec cho chức năng đổi email đăng nhập", "expect": "hitl:plan" },
     { "id": "en-requirements", "prompt": "We need requirements for a referral program, let's write the spec", "expect": "hitl:plan" },
     { "id": "en-brainstorm-sso", "prompt": "Let's brainstorm the requirements for SSO login before anyone writes code", "expect": ["hitl:plan", "hitl:grilling"] },
+    { "id": "en-grill-docs", "prompt": "grill me with docs about the refund flow and build a glossary as we go", "expect": ["hitl:plan", "hitl:grilling"] },
+    { "id": "vi-thuat-ngu", "prompt": "thống nhất thuật ngữ cho tính năng hoàn tiền trước khi viết spec", "expect": "hitl:plan" },
     { "id": "vi-design", "prompt": "thiết kế kỹ thuật cho feat-password-reset", "expect": "hitl:design" },
     { "id": "en-design-how", "prompt": "How should we build feat-password-reset? Let's do the architecture", "expect": "hitl:design" },
     { "id": "vi-kien-truc", "prompt": "kiến trúc cho change feat-password-reset nên thế nào?", "expect": "hitl:design" },
@@ -26,12 +28,18 @@
     { "id": "vi-skeleton", "prompt": "tạo skeleton cho T-12", "expect": "hitl:skeleton" },
     { "id": "en-stubs", "prompt": "draft the function stubs for T-13", "expect": "hitl:skeleton" },
     { "id": "vi-test", "prompt": "viết test cho T-12", "expect": "hitl:test" },
+    { "id": "en-tests-T", "prompt": "write the tests for T-12", "expect": "hitl:test" },
+    { "id": "en-tdd-bugfix", "prompt": "fix the off-by-one in paginate() test-first", "expect": "hitl:tdd" },
+    { "id": "en-red-green", "prompt": "let's do red-green-refactor on the slugify helper", "expect": "hitl:tdd" },
+    { "id": "vi-tdd", "prompt": "làm TDD cho hàm tính phí vận chuyển", "expect": "hitl:tdd" },
+    { "id": "en-tdd-in-change", "prompt": "implement T-12 test-first", "expect": ["hitl:implement", "hitl:test", "hitl:flow"] },
     { "id": "en-archive", "prompt": "all tasks of feat-password-reset are done, archive it and merge the spec", "expect": "hitl:archive" },
     { "id": "vi-sync-manual", "prompt": "tôi vừa sửa code tay ngoài Claude, đối chiếu lại với skeleton đã duyệt giúp", "expect": ["hitl:flow", "nohitl"] },
     { "id": "neg-js-let", "prompt": "What's the difference between let and const in JavaScript?", "expect": "nohitl" },
     { "id": "neg-regex", "prompt": "Explain what this regex does: ^\\d{3}-\\d{4}$", "expect": "nohitl" },
     { "id": "neg-rename-script", "prompt": "write a python one-liner that renames all .jpeg files in a folder to .jpg", "expect": "nohitl" },
     { "id": "neg-pr-review", "prompt": "Review this diff for bugs:\n```diff\n-  if (a > b) return a;\n+  if (a >= b) return b;\n```", "expect": "nohitl" },
-    { "id": "neg-git", "prompt": "which files changed in git since the last commit?", "expect": "nohitl" }
+    { "id": "neg-git", "prompt": "which files changed in git since the last commit?", "expect": "nohitl" },
+    { "id": "neg-jest-config", "prompt": "why does jest not resolve my tsconfig paths?", "expect": "nohitl" }
   ]
 }

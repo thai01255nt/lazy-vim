@@ -14,3 +14,5 @@ Read with `conventions.md` (core).
 - Errors: structured, typed errors; no swallowed exceptions; structured logging.
 - Integration: follow existing patterns (PATTERNS-CONVENTIONS), reuse before creating.
 - Refer to symbols as `Class.method` or `path#Class.method`, never by line number.
+- Tests and testable signatures: `shared/test-patterns.md` (also the code-layer terms seam, port, adapter, stand-in, fake;
+  they never go into the domain glossary).

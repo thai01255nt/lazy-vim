@@ -13,6 +13,8 @@ agree on *what* (plan) and *how* (design) before any code. After that you choose
   (`/hitl:review`, `fix F-n`, `amend F-n`). Locks, trace and drift still record everything, so nothing is silently
   unreviewed.
 The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks against.
+At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
+ids with titles) and asks the same question again.
 
 ```
 /hitl:setup → /hitl:overview → /hitl:plan ⛔ (WHAT) → /hitl:design ⛔ (HOW, skippable) → /hitl:tasks ⛔
@@ -46,4 +48,5 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
 | `/hitl:sync` | reconcile manual edits, drift + trace report, amend spec | ⛔ user-only |
 | `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
+| `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | ⛔ seams |
 | `/hitl:flow` | this status / router | — |

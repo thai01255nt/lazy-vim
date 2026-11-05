@@ -34,7 +34,8 @@ per-file symbol lists or code bodies: those belong to `/hitl:tasks` (`### Symbol
 - Proposal `status: draft` → `⚠️ spec still draft` and continue (repeated at the gate).
 - Proposal `## Artifacts` says `design | skipped` → `💡 Design was skipped in the spec (<why>). Continue anyway? (y/N)`
   ⛔ GATE END THE TURN; on y change that row to `asked → included`.
-- Load: `hitl-index spec show --change <id> --json` (the effective spec view), the proposal, `.hitl/docs/ARCHITECTURE.md`,
+- Load: `hitl-index spec show --change <id> --json` (the effective spec view), the proposal, `.hitl/specs/GLOSSARY.md`
+  and the change's `glossary.md` (if present; the project's words), `.hitl/docs/ARCHITECTURE.md`,
   `PATTERNS-CONVENTIONS.md`, `CODEBASE-MAP.md`, `CONSTITUTION.md` (if present), and the existing `design.md` (resume;
   its `## Parked from planning` ideas are frontier items).
 - New design: write `design.md` from the template (`status: draft`, today); drop the template rows; remove the
@@ -43,8 +44,10 @@ per-file symbol lists or code bodies: those belong to `/hitl:tasks` (`### Symbol
 ## 2. Facts (subagent; keeps code reading out of this conversation)
 Dispatch **one Explore subagent** (thoroughness: medium) with the code questions the design depends on: existing
 modules in the area, reusable services, data shapes and persistence, external interfaces, test setup and seams,
-patterns to follow. Ask it for ≤ 20 bullet facts each with a path. Record them in `## Context` as
-`- <fact> (source: <path>)`. Use `hitl-index context <ref> --json` for a single known symbol. Never ask the user a fact.
+patterns to follow, and the accepted decisions in `.hitl/archive/*/design.md` (D table) that touch these modules (id,
+archived change, decision). Ask it for ≤ 20 bullet facts each with a path. Record them in `## Context` as
+`- <fact> (source: <path>)`; an archived decision as `- <archived change> D-n: <decision> (source: …)`. A new decision
+that contradicts one → Discussion Mode that quotes it ("Contradicts <change> D-3 (…); reopen because …"). Use `hitl-index context <ref> --json` for a single known symbol. Never ask the user a fact.
 Only the questions that depend on a pending fact wait; ask the rest of the frontier now.
 
 ## 3. Technique and artifacts
@@ -70,11 +73,16 @@ Only the questions that depend on a pending fact wait; ask the rest of the front
   `data-model.md`, `contracts/<file>` from the matching skeleton (HTTP `*.openapi.yaml`, events `*.asyncapi.yaml`, payloads
 `*.schema.json`, CLI `cli-*.md`; only what the change adds or changes) + its `## Contracts` line
 (`- contracts/<file> — <boundary>`), `## State machines` (technical lifecycles: `stateDiagram-v2` + transition table), `## Flow / sequence`
-  (mermaid `sequenceDiagram` at component level, optional), `## Error handling`, `## Test strategy` (highest seams:
-  endpoint, CLI, module boundary; test kinds; data — one line per ADDED/MODIFIED requirement), `## Risks`
+  (mermaid `sequenceDiagram` at component level, optional), `## Error handling`, `## Test strategy` (one line per
+  ADDED/MODIFIED requirement: `seam — catches / misses — doubles`, highest seams: endpoint, CLI, module boundary;
+  `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §3, §5; test kinds; data), `## Risks`
   (`concurrency|security|public-api|data|perf` with why; for security one line naming the trust boundaries:
   `security: anonymous client → reset endpoint → account store`), `## Migration / rollout`. Parked ideas that were
   decided leave `## Parked from planning`.
+- Names: new components, entities, events, contract fields and test seams take the glossary term in code form
+  (*Reset link* → `ResetLink`). A business noun the glossary lacks → `💡 Needs term: <term> — <definition>`, written to
+  the change's `glossary.md` (rules: `shared/templates/glossary.md`) in the same gate as a `💡 Needs spec`. Technical-only
+  names (token hash, queue) stay out of the glossary.
 - A decision that needs **new behaviour** → `💡 Needs spec: <behaviour>` + the 📐 delta preview of
   `shared/amend-spec.md` §2 in the same gate (the change's delta gets the requirement; proposal back to draft only for
   a new capability or a new `must` requirement).
@@ -108,6 +116,7 @@ Approved design: decisions are never edited in place — supersede per `shared/a
 
 ## Rules
 - Write only in `.hitl/changes/<id>/`: `design.md`, `data-model.md`, `contracts/*`, and the proposal `## Artifacts`
-  rows for (a) artifacts. Spec deltas only through the `💡 Needs spec` path. Never code, never `.hitl/specs/**`.
+  rows for (a) artifacts. Spec deltas only through the `💡 Needs spec` path; `glossary.md` only through `💡 Needs term`.
+  Never code, never `.hitl/specs/**`.
 - No function signatures, no per-file symbol lists, no line numbers. Name existing modules as they are in the code.
 - Anti-hallucination: proven tech, official docs linked for a new library, "unknown" when unsure.

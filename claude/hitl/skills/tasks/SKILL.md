@@ -29,6 +29,7 @@ Arguments: `$ARGUMENTS`
 - `hitl-index spec show --change <id> --json` (effective view: requirements, scenarios with GIVEN/WHEN/THEN, rules,
   origin `added|modified|living`), the proposal (`## Out of scope`, `## Unchanged behaviour`), `design.md`
   (Decisions, Components, Test strategy, Risks, Contracts), `data-model.md` and `contracts/` when present.
+- `.hitl/specs/GLOSSARY.md` and the change's `glossary.md` (if present): the words for titles and ACs.
 - `docs/PATTERNS-CONVENTIONS.md`, `docs/CODEBASE-MAP.md` (if present), `.hitl/hitl.config.json`
   (`risk.corePaths`, `risk.securityPaths`).
 - `hitl-index tasks --json` (existing tasks and ids). `hitl-index next-id` → first new id; number further tasks sequentially.

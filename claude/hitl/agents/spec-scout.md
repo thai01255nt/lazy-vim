@@ -31,6 +31,9 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 4. Answer each behaviour question from the code and tests: what the system does **today**. Write each fact in business
    words (no code names, file paths, libraries, SQL, HTTP verbs in `text`); put the path in `source` (dev-only field).
    Prefer tests and user-facing entry points over internals. Not found after looking → put the question in `unknowns`.
+4b. Vocabulary: the business nouns the touched code and tests use for the topic (class, table, field, event names):
+   `code` = the identifier, `word` = the plain word it stands for, `maps` = the `.hitl/specs/GLOSSARY.md` term it
+   means (or `null` when no term fits). ≤ 10 rows; skip technical-only names (cache, queue, token store).
 5. Overlaps: active changes whose deltas MODIFY/REMOVE the same ids, or that add behaviour to the same capability.
 6. Write the JSON. Budget: ≤ 25 file reads; stop early when the questions are answered.
 
@@ -42,6 +45,7 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
     { "capability": "user-admin", "key": "UADM", "relevance": "new", "requirements": [] } ],
   "behaviourFacts": [ { "text": "Users are stored with a name and an email; there is no active/inactive flag today.",
       "source": "src/users/store.ts" } ],
+  "vocabulary": [ { "code": "UserRecord", "word": "user record", "maps": "Account", "source": "src/users/store.ts" } ],
   "overlaps": [ { "change": "feat-2fa", "ids": ["ACC-R1"] } ],
   "unknowns": [ "Whether deactivated users may still receive emails" ] }
 ```

@@ -48,6 +48,8 @@ Trigger ≈ $0.18 per prompt-run (≈ $6 per variant). Plan round 1 ≈ $0.9, de
 review ≈ $0.8, flow/tickets ≈ $0.25. Judge ≈ $0.1–0.2 per call.
 
 ## Known limits
+- `reply_ids_glossed` (Plain replies: an id carries its title on first mention) is report-only: always ok, with
+  `ratio` and `warn` (the bare ids) in `grade.json`. Make it a real check once the ratio is stable.
 - Fixtures are small (one change, a 3-file TS app). A check passes on shape, not on deep correctness. Suite C covers
   quality.
 - Triggering varies a little run to run (the model sometimes explores with Bash first, which is denied in the trigger

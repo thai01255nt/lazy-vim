@@ -88,7 +88,8 @@ import pytest
 def test_T2_AC1_rejects_bad_pct():
     """@covers apply_discount @ac T-2.AC1 @kind example @origin skeleton"""
 ```
-Name: `test_T<n>_AC<k>_<short_snake_desc>`. `@concurrency` ≠ none → add a `@kind concurrency` stub.
+Name: `test_T<n>_AC<k>_<short_snake_desc>`; unittest class = the Test plan row's seam (usually the covered symbol).
+`@concurrency` ≠ none → add a `@kind concurrency` stub.
 
 ## After implementation (for reference)
 `# TODO(impl): 1. x` becomes `# 1. x` and the sentinel is removed. Step comments stay.

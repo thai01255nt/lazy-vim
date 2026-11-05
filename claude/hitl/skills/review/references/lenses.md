@@ -5,7 +5,8 @@ Read **Common rules** plus the section for your lens only.
 > The parallel-lens + per-finding confidence filter pattern is adapted (ideas, reworded) from Anthropic's official
 > `code-review` plugin (anthropics/claude-plugins-official). Severity scale and "set aside" list adapted from
 > obra/superpowers `requesting-code-review` (MIT) — see NOTICE.md. The concurrency checklist follows the HITL research
-> notes (Sonar's Opus 5.5 evaluation: concurrency/threading the largest bug category).
+> notes (Sonar's Opus 5.5 evaluation: concurrency/threading the largest bug category). The tests lens applies
+> `shared/test-patterns.md` (adapted from mattpocock/skills `tdd`, MIT) and the vendored `skills/tdd/tests.md`, `mocking.md`.
 
 ## Contents
 1. Common rules (all lenses)
@@ -81,8 +82,15 @@ Per task symbol (approved lock entry → current):
 
 ## 3. tests
 
+- Rules: the `Test patterns:` files in your prompt (`shared/test-patterns.md` §1–§5 + `skills/tdd/tests.md`,
+  `mocking.md`): the same rules the test-author got.
 - Each AC has ≥1 active test with `@ac` that would fail if the AC were broken (name the mutation that it kills).
-- Tests check behaviour through the seam, not mocks; expected values come from the contract, not recomputed like the code.
+- Seam fidelity: each test enters at its Test-plan row's seam (the review context lists the Test plan). A lower entry
+  without a reason in the row → finding.
+- Each test-patterns §2 tell (mocked project module, call assertion on an internal collaborator, **side channel** such as
+  reading a repo's array instead of its query, tautology, shape-only, avoid word in a title) → one finding naming the
+  tell. Severity `important` if it would let an AC break unnoticed, else `minor`. A call assertion on a fake
+  true-external port that *is* the AC's outcome ("nothing is sent") is correct, not a finding.
 - No weakened assertions, added skips, deleted cases, or loosened matchers vs the locked version (L0 shows TEST_CHANGED;
   you judge whether it weakens the test).
 - Edge checklist coverage relevant to the intent: empty/None, boundaries, unicode/case, duplicates, ordering, timeouts/cancel,

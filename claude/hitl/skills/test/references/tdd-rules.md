@@ -3,7 +3,9 @@
 > Adapted from obra/superpowers (MIT) — `skills/test-driven-development` and `skills/verification-before-completion`,
 > Copyright (c) 2025 Jesse Vincent — see NOTICE.md. Changes: re-framed for the skeleton-first flow (tests are written
 > from a locked contract by an isolated test-author; implementation by a separate implementer or the human), mechanical
-> enforcement via hitl-index and hooks, trimmed examples.
+> enforcement via hitl-index and hooks, trimmed examples. Test patterns (names, anti-patterns, doubles, seams, the inner
+> loop) come from mattpocock/skills `tdd` (MIT) via `shared/test-patterns.md` and the vendored `skills/tdd/tests.md`,
+> `mocking.md`.
 
 ## Contents
 1. The iron laws
@@ -11,7 +13,7 @@
 3. Verify RED
 4. GREEN — minimal body
 5. Verify GREEN (fresh evidence)
-6. Good tests
+6. Good tests (pointer)
 7. Rationalizations and red flags
 
 ## 1. The iron laws
@@ -32,9 +34,8 @@ the right thing.
   a test that recomputes the answer the way the code does is tautological.
 - One behaviour per test. The title starts with the AC id: `T-12.AC1 rejects duplicate email in any case`.
 - Before writing a test, name the production defect that would make it fail. If you cannot, the test is not worth writing.
-- Real code over mocks. Mock only true boundaries (network, clock, randomness, external services) and only after you
-  know the side effects of the thing you mock. Never assert on mock behaviour ("called 3 times") when an observable
-  result exists.
+- Names, anti-patterns and doubles: `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §1–§3 (+ `skills/tdd/tests.md`,
+  `mocking.md`).
 - Keep test-only helpers in test files/utilities, never in production modules.
 
 ## 3. Verify RED (mandatory, never skip)
@@ -51,6 +52,7 @@ Anything else is wrong:
 
 - Write the simplest body that follows the TODO(impl) steps in order and makes the locked tests pass.
 - No extra options, parameters, modules or "improvements" beyond the contract (YAGNI). No refactoring of other code.
+- One failing test at a time, AC1 first (the inner loop, test-patterns §6).
 - Test fails? Fix the code, not the test. Locked tests cannot be edited (hook-enforced).
 - The contract seems wrong? Stop and report it; contracts change only through the human + `/hitl:approve`.
 
@@ -74,13 +76,8 @@ BEFORE claiming any status ("green", "done", "fixed", "works"):
 
 ## 6. Good tests
 
-| quality | good | bad |
-|---|---|---|
-| minimal | one behaviour; "and" in the title → split | `validates email and domain and whitespace` |
-| clear | the title states the behaviour and the AC id | `test1` |
-| independent oracle | expected value from the AC/intent/table | expected value computed like the code does |
-| real | exercises real code through the seam | asserts on mocks |
-| deterministic | fixed seeds, fake clock, no sleeps for ordering | timing-dependent, flaky |
+`shared/test-patterns.md` (the hitl rules) on top of `skills/tdd/tests.md` (the upstream good/bad examples). Plus:
+deterministic — fixed seeds, fake clock, no sleeps for ordering.
 
 ## 7. Rationalizations and red flags
 
@@ -90,6 +87,8 @@ BEFORE claiming any status ("green", "done", "fixed", "works"):
 | "I'll test after" | Tests written after pass immediately and prove nothing. |
 | "It passes already, good" | Passing on a stub means the test is vacuous. |
 | "I'll peek at the implementation to get the values right" | Then the test mirrors the code. Use the contract. |
+| "I'll mock the repo, it's faster" | Use a stand-in (test-patterns §3); a mocked project module tests nothing real. |
+| "I'll check the row in the DB" | Verify through the interface's own query (test-patterns §2, side channel). |
 | "Should pass now" / "looks correct" | Run it. Confidence is not evidence. |
 | "The agent said green" | Verify independently. |
 | "Just this once" | No exceptions without the human's explicit permission. |

@@ -59,7 +59,8 @@ Not initialized → per conventions (`/hitl:setup`), stop.
 ## 2. Load (no questions)
 - `.hitl/docs/BUSINESS-CONTEXT.md`, `.hitl/specs/GLOSSARY.md` (if present), `hitl-index spec list --json`
   (capabilities, keys, requirement titles), `hitl-index change --json` (other active changes).
-- A resumed change: its proposal, deltas, glossary delta and `## Open questions`.
+- A resumed change: its proposal, deltas, glossary delta (`glossary.md`) and `## Open questions`. The living glossary +
+  the delta are the project's words (interview.md §10, Plain replies in conventions.md).
 - Do **not** load ARCHITECTURE, PATTERNS-CONVENTIONS or CODEBASE-MAP, and do not read source code yourself: the scout
   does. Missing BUSINESS-CONTEXT → `❌ BUSINESS-CONTEXT missing (💡 /hitl:overview)` and continue.
 
@@ -69,11 +70,13 @@ Meanwhile load the technique (§4.1). Prompt:
 ```
 Change: <id>. Summary: <2–4 business sentences>. Candidate capabilities: <from spec list, or "none yet">.
 Behaviour questions: <what the system does today that the interview depends on, ≤ 6>.
+Vocabulary: business nouns the code uses for <topic> (identifier → plain word → glossary term or null).
 Output: .hitl/changes/<id>/.scout.json   CLI: <hitl-index | node …/hitl-index.mjs>
 ```
 **Never read source code or tests yourself, and never write `.scout.json`** — that is the scout's job and keeps this
 conversation small. When it reports: facts → proposal `## Assumptions` in business words (never the `source` path);
-`unknowns` → frontier questions; `overlaps` → one `⚠️ overlaps <change>: <ids>` line in round 1. Scout failed or
+`unknowns` → frontier questions; `overlaps` → one `⚠️ overlaps <change>: <ids>` line in round 1; `vocabulary` rows
+with `maps: null` or a clash with a glossary term → `[T]` questions (interview.md §10). Scout failed or
 unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions from `spec list` alone (the user may answer
 "don't know"; record it as an assumption).
 
@@ -98,7 +101,7 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
   new capability + key, recommended from `spec list`).
 - Later rounds: ❌ then ⚠️ coverage categories, hotspots 🔥 drilled into first (elicitation.md §1–2). A ✅ or —
   category asks nothing. `deep <ID|topic>` → the technique menu (`references/deep.md`).
-- Header `🌳 Round <n> — [R][S][A]   (settled: <ids> · S: <scenarios> · open: <n> · 🔥 <hotspots>)` + the coverage
+- Header `🌳 Round <n> — [R][S][A][T]   (settled: <ids> · S: <scenarios> · open: <n> · 🔥 <hotspots>)` + the coverage
   line `Độ phủ: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — · …` (user's language). END THE TURN after `Reply:`.
 - On the reply, record per interview.md §7 — only `proposal.md`, `specs/<cap>/spec.md`, `glossary.md`; a design
   idea is parked (interview.md §8) — then recompute the frontier. Recording rules:
@@ -114,7 +117,7 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
     DMN form (`Hit policy: U` by default, `(in)`/`(out)` columns, rules that never overlap under U); a business
     lifecycle is a Rule with `stateDiagram-v2` + a `from | event | guard | action | to` table. A use case is a
     `### Flow:` in Cockburn lite form (Primary actor, Trigger, Success guarantee, numbered steps, extensions `2a.`).
-    A new domain noun (also a lifecycle state) → a `glossary.md` term with `_Avoid_:` synonyms.
+    A new domain noun (also a lifecycle state) → a `[T]` question, recorded per interview.md §7 `[T]`.
   - Postponed → proposal `## Deferred` (never in a delta). Excluded → `## Out of scope`.
   - Update the `## Coverage` table and the hotspot scores after every reply.
 
@@ -131,7 +134,7 @@ When the frontier is empty or the user said `done`:
    wording` findings yourself and re-validate; `kind: behaviour` findings become one more round. Failure → one ⚠️ line.
 3. ⛔ GATE:
    ```
-   📋 feat-password-reset — capabilities: accounts (+2 ~1 -1) · scenarios: 7 · rules: 1 · terms: 1
+   📋 feat-password-reset — capabilities: accounts (+2 ~1 -1) · scenarios: 7 · rules: 1 · terms: +1 ~0 · avoided words reworded: 2
    artifacts: design ✅ · decision table 💡 assumed · use-case flow ⏭️ skipped · open: 0
    validate: ✅ (warn 1: BIZ_CODE_TOKEN ACC-R4) · spec review: 2 wording fixes applied
    Spec complete? Mark approved and continue to /hitl:design? (Y/n)

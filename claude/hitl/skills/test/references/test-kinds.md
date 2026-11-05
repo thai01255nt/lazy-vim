@@ -18,6 +18,8 @@ Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_P
 - Turn `it.todo(...)` / `@unittest.skip("TODO(test)…")` / `@pytest.mark.skip` into an active test. Do not leave skips.
 - Import the unit under test through the `import paths:` line of the contract pack. Never import private internals.
 - Use the project's framework and style (contract pack + `docs/PATTERNS-CONVENTIONS.md`). Do not add dependencies.
+- Patterns (names in `## Terms` words, anti-patterns, doubles, seams): `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md`
+  (+ `skills/tdd/tests.md`, `mocking.md`).
 
 ## 2. Kinds
 
@@ -72,4 +74,6 @@ When the exact output is unknown but a relation between two runs is known: f(x) 
   logic (they freeze the implementation, not the contract).
 - **unittest**: `self.assertRaises(ValueError)`, `self.subTest(case=...)` for tables. No `@skip` left behind.
 - **pytest**: `pytest.raises(ValueError, match="…")`, `@pytest.mark.parametrize` for tables.
+- `vi.mock` / `jest.mock` / `unittest.mock.patch` only for a true-external port or clock/randomness (test-patterns §3),
+  never for a project module.
 - Red must come from the stub sentinel or a failed assertion — never from a typo or a wrong import path.

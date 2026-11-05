@@ -51,7 +51,8 @@
 ## Error handling
 
 ## Test strategy
-<!-- highest seams (endpoint, CLI, module boundary), test kinds, data; per ADDED/MODIFIED requirement -->
+<!-- per ADDED/MODIFIED requirement: `- <req id> — <seam> — catches <…> / misses <…> — doubles <port → stand-in|fake>`
+     (highest seams: endpoint, CLI, module boundary; shared/test-patterns.md §3, §5); test kinds; data -->
 
 ## Risks
 <!-- concurrency|security|public-api|data|perf; security: one trust-boundary line -->

@@ -67,6 +67,7 @@ test("templates parse to zero errors after placeholder fill", () => {
   const g = parseGlossary(tpl("glossary.md"), "glossary.md", { delta: true });
   assert.deepEqual(errors(g), []);
   assert.equal(g.terms[0].op, "ADDED");
+  assert.equal(g.terms.length, 1, "the rules comment creates no term");
   const ds = parseDesign(tpl("design.md"), "design.md");
   assert.deepEqual(errors(ds), []);
   assert.equal(ds.decisions[0].id, "D-1");
