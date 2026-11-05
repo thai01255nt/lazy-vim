@@ -24,7 +24,7 @@ new change is archived (A's plan, design and tasks stay open). While planning th
 A as a note (`source:`), never into A's files; after the new change is archived, A takes those notes in with
 `/hitl:plan A amend N-k`. Planning also lists other active changes that share ids, files, contracts or terms
 (`hitl-index overlap <id>`) and asks you what to do. Who goes first is your call; `/hitl:approve A dismiss N-k <reason>`
-ends a wait.
+ends a wait. Check any time (e.g. after merging a branch): `/hitl:overlap A [B C …]` (0.13.1).
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 **Shared language and refactor** (0.8.x): `spec validate` and the review's `terms` gate warn when a business file or an
@@ -84,5 +84,6 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
 | `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | ⛔ seams |
+| `/hitl:overlap <id> [<id> …]` | check one active change against others (`--with B,C`; none = all active): shared ids, contracts, terms, symbols, files, drift → one judge with a Given/When/Then witness per finding → adjust one side · both sides (📥 notes, the affected change waits) · not an overlap | ⛔ one line per finding |
 | `/hitl:flow` | this status, task id routing and help (new work → `/hitl:go`) | — |
 | `/hitl:migrate` | upgrade a pre-0.13 project to change-key ids (`PWR-T3`, `PWR-R1`, `PWR-D1`): dry run, one key table, rename map, then apply | ⛔ keys + `Apply? (Y/n)` |

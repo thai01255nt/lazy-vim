@@ -88,8 +88,10 @@ Output: .hitl/changes/<id>/.scout.json   CLI: <hitl-index | node …/hitl-index.
 ```
 **Never read source code or tests yourself, and never write `.scout.json`** — that is the scout's job and keeps this
 conversation small. When it reports: facts → proposal `## Assumptions` in business words (never the `source` path);
-`unknowns` → frontier questions; then `hitl-index overlap <id> --json` → the round-1 `🔎 may overlap` lines and `[R]`
-questions of other-changes.md §4 (every round: apply the owner check of §3 before recording a behaviour that another
+`unknowns` → frontier questions; then `hitl-index overlap <id> --json` → first one round-1 line per candidate with
+`parent: true`, `🔗 parent <P> — shared: <evidence refs (titles)>` (`shared: none found yet` when it has no evidence;
+other-changes.md §3), then the `🔎 may overlap` lines and `[R]` questions of §4 for candidates with `linked: false`
+(every round: apply the owner check of §3, starting with the 🔗 list, before recording a behaviour that another
 active change owns); `vocabulary` rows
 with `maps: null` or a clash with a glossary term → `[T]` questions (interview.md §10). Scout failed or
 unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions from `spec list` alone (the user may answer

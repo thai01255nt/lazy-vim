@@ -27,8 +27,12 @@ const SPEC_SCOUT_BASH = new RegExp(HI + String.raw`(?:spec\s+(?:list|show)|chang
 const SPEC_REVIEWER_BASH = new RegExp(HI + String.raw`(?:spec\s+(?:validate|show|list)|change|overlap)\b`);
 const SPEC_AGENT = {
   "spec-scout": { file: ".scout.json", bash: SPEC_SCOUT_BASH, allowed: "hitl-index spec list|show, change, context" },
-  "spec-reviewer": { file: ".spec-review.json", bash: SPEC_REVIEWER_BASH, allowed: "hitl-index spec validate|show|list, change, overlap" },
+  "spec-reviewer": { file: ".spec-review.json", bash: SPEC_REVIEWER_BASH, allowed: "hitl-index spec validate|show|list, change, overlap (no --review)" },
 };
+// 0.13.1 /hitl:overlap: the spec-reviewer's overlap mode writes its verdict to the inbox; only the skill's CLI call
+// `overlap --review` reads (and removes) it
+const OVERLAP_REVIEW_REL = ".inbox/overlap-review.json";
+const OVERLAP_REVIEW_READS = /(?:^|\s)--review\b/;
 
 // work-router (0.11, /hitl:go): read-only CLI (no `status --sync-tags`, no `context --out`), one scratch file
 const WORK_ROUTER_BASH = new RegExp(HI + String.raw`(?:change|status|context|spec\s+(?:list|show))\b`);
@@ -374,10 +378,10 @@ async function main(input) {
   if (SPEC_AGENT[R]) {
     const S = SPEC_AGENT[R];
     if (EDIT_TOOLS.has(tool)) {
-      const ok = rel && new RegExp(`^${HITL_RE}changes/[^/]+/${S.file.replace(/\./g, "\\.")}$`).test(rel);
-      if (!ok) deny(`${R} may write only ${CUSTOM}changes/<id>/${S.file}`);
+      const ok = rel && (new RegExp(`^${HITL_RE}changes/[^/]+/${S.file.replace(/\./g, "\\.")}$`).test(rel) || (R === "spec-reviewer" && rel === CUSTOM + OVERLAP_REVIEW_REL));
+      if (!ok) deny(`${R} may write only ${CUSTOM}changes/<id>/${S.file}${R === "spec-reviewer" ? ` (overlap mode: ${CUSTOM}${OVERLAP_REVIEW_REL})` : ""}`);
     }
-    if (tool === "Bash" && !safeBash(cmd, S.bash)) deny(`${R} may run only: ${S.allowed} (no chaining or redirection)`);
+    if (tool === "Bash" && (!safeBash(cmd, S.bash) || (R === "spec-reviewer" && OVERLAP_REVIEW_READS.test(cmd)))) deny(`${R} may run only: ${S.allowed} (no chaining or redirection)`);
     if (R === "spec-reviewer" && tool === "Grep" && !(input.tool_input || {}).path) deny(`spec-reviewer reads only ${CUSTOM}: Grep needs a path inside it`);
     if (R === "spec-reviewer" && (tool === "Read" || tool === "Grep") && rel !== null && !(rel === CUSTOM.slice(0, -1) || rel.startsWith(CUSTOM)))
       deny(`spec-reviewer reads only ${CUSTOM} (the spec, not the code)`);

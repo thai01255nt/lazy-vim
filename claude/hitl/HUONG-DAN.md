@@ -160,7 +160,15 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 /hitl:approve feat-receipt reopen N-3         (chỉ bạn, như mục 5a)
 ```
 - Thôi chờ (thứ tự là quyết định của bạn) hoặc feat-fee bị bỏ: `/hitl:approve feat-receipt dismiss N-1 <lý do>`.
-- Chồng lấn tình cờ: plan tự chạy `hitl-index overlap <id>` và hỏi bạn ở cổng (`⚠️ Overlap with … (1/2/3)`).
+- Chồng lấn với change chưa liên kết (dù có `--before` hay không): plan tự chạy `hitl-index overlap <id>` và hỏi bạn ở
+  cổng (`⚠️ Overlap with … (1/2/3)`). Change cha (đang chờ change này) hiện thành dòng `🔗 parent … — shared: …` ở vòng 1.
+- Kiểm tra chồng lấn bất cứ lúc nào (vd. sau khi merge nhánh có change khác):
+```
+/hitl:overlap feat-fee feat-waive feat-report      (hoặc --with feat-waive,feat-report; không nêu = mọi change đang mở)
+```
+  Không có bằng chứng → `✅` rồi dừng. Có → một subagent chấm cả cụm, mỗi finding một dòng
+  `⚠️ … → 1. adjust <một bên> · 2. both sides · 3. not an overlap`; trả lời kiểu `1 2, 2 3`. "both sides" ghi note
+  `source:` vào change bị ảnh hưởng (change đó chờ tới khi change kia archive); "adjust" chỉ in `🎯 /hitl:plan <id> amend`.
 
 ## 6. Trả lời ở các cổng (⛔)
 

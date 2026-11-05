@@ -89,6 +89,21 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.13.0
+
+0.13.1 thêm **`/hitl:overlap <change-id> [<change khác> …]`** (hoặc `--with B,C`; không nêu thì so với mọi change đang
+mở): kiểm tra chồng lấn giữa một change và nhiều change khác bất cứ lúc nào (vd. sau khi merge một nhánh có change
+khác). Không cần migrate.
+- CLI `hitl-index overlap <id> [--with B,C] [--json]`: lọc theo change đích; thêm phần `code` (symbol/file mà task của
+  hai change cùng đụng: `### Symbols`, symbol đã khoá, đường dẫn của scout; drift trên symbol đã khoá của change này nằm
+  trong file change kia đụng); `parent: true` cho change đang chờ change này (có note `source:` từ nó).
+- Không có bằng chứng → `✅ <A>: no overlap with …`, không gọi LLM. Có → **một** `hitl:spec-reviewer` (overlap mode)
+  chấm cả cụm; mỗi finding phải trích một witness Given/When/Then từ **từng** change nó nêu (`hitl-index overlap A
+  --review` bỏ finding không có witness). Cổng: một dòng mỗi finding `⚠️ … → 1. adjust <một bên> · 2. both sides (📥
+  note vào change bị ảnh hưởng, change đó chờ) · 3. not an overlap`; trả lời kiểu `1 2, 2 3`.
+- Plan vòng 1 in `🔗 parent <P> — shared: …` cho mỗi change cha (change đang chờ change đang plan), để bước kiểm chủ sở
+  hữu đi theo danh sách cụ thể; design kiểm lại contract/file mới với change cha.
+
 ### Nâng cấp từ 0.12
 
 0.13 đổi **mọi id sang khoá của change** (change key). Chạy **`/hitl:migrate` một lần** sau khi cập nhật plugin.
@@ -305,6 +320,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 |---|---|---|---|
 | `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | ⛔ xác nhận lệnh | chỉ bạn |
 | `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (📌 note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` → `/hitl:tasks quick` → `/hitl:plan`; phân vân thì chọn nặng hơn), in `🧭 <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | ⛔ chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
+| `/hitl:overlap <change-id> [<change khác> …]` · `--with B,C` | Kiểm tra chồng lấn của một change với các change đang mở khác (không nêu = tất cả): bằng chứng chắc chắn trước (id, rule, contract, thuật ngữ, symbol, file, drift), không có → ✅ dừng; có → một subagent `spec-reviewer` chấm cả cụm, mỗi finding phải có witness Given/When/Then trích từ từng change; chỉ ghi note khi bạn chọn "both sides". Dùng cả sau khi merge nhánh | ⛔ một dòng mỗi finding | bạn / Claude |
 | `/hitl:flow [task-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `🎯 next`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | ⛔ nếu đã có docs | bạn / Claude |
 | `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`), độ phủ + 🔥 + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change chọn ở gate đầu) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt | ⛔ mỗi vòng | bạn / Claude |
@@ -332,8 +348,9 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:migrate [--force]` | Nâng cấp project 0.12 sang id theo key của change (`PWR-T1`, `PWR-R1`, `PWR-D1`): chạy thử, một bảng key, bản đồ đổi tên, rồi áp dụng; ghi `.hitl/index/id-map.json` | ⛔ bảng key + `Apply? (Y/n)` | bạn / Claude |
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|key|conflicts|merge|archive`, `hitl-index change [<id>]`
-(trạng thái/phase của change; `wait`/`blocks` khi một change chờ change khác), `hitl-index overlap <id>` (ứng viên chồng
-lấn với change khác đang mở: id, rule, decision, contract, symbol, file, thuật ngữ, capability — chỉ đọc),
+(trạng thái/phase của change; `wait`/`blocks` khi một change chờ change khác), `hitl-index overlap <id> [--with B,C]`
+(ứng viên chồng lấn với change khác đang mở: id, rule, decision, contract, symbol, file, thuật ngữ, capability, phần
+`code` — chỉ đọc; `--review` đọc phán quyết của `/hitl:overlap`),
 `hitl-index note add … --source <change khác>` (note từ change khác: chặn toàn bộ change tới khi change kia archive), `hitl-index migrate --specs` (v0.5 → 0.6),
 `hitl-index status [task-id] --work-order` (alias `--by-prio`; bảng hàm của task theo thứ tự implement: hàm được gọi
 (`@calls` trong cùng task) trước hàm gọi, chu trình đi cùng nhau, hoà thì theo `@prio` rồi dòng `### Symbols`; `--json` có `tasks[T].workOrder`; không có task id → mọi task),
@@ -455,11 +472,14 @@ song song hay không là quyết định của bạn; Claude không tự xếp t
   amend sớm khi B chưa archive; A vẫn chờ tới khi B archive.
 - **B bị bỏ/xoá** → A vẫn bị chặn: amend ngược phần đã nhận, rồi `/hitl:approve A dismiss N-k <lý do>` (chỉ bạn; dismiss
   được bất cứ lúc nào để chấm dứt việc chờ).
-- **Chồng lấn tình cờ** (B không tạo với `--before`): `hitl-index overlap B` liệt kê ứng viên theo khoá chung (id, rule,
-  decision, contract, symbol, file, thuật ngữ, capability). Plan đưa vào vòng 1, spec-reviewer chấm cả cụm ở cuối plan và
-  phải trích một "witness" Given/When/Then; design kiểm lại contract/file mới. Bạn chọn: 1. chỉ sửa B · 2. cả hai (delta
-  B + note `source: B` trong A, A chờ) · 3. không chồng lấn. Sau design không có gì đặc biệt: va chạm ở code đi theo luồng
-  task và drift bình thường.
+- **Change cha** (change đang chờ B, có note `source: B`): plan vòng 1 in `🔗 parent <P> — shared: <bằng chứng>` cho
+  từng change cha; bước kiểm chủ sở hữu đi theo đúng danh sách đó. Design kiểm lại contract/file mới với change cha.
+- **Chồng lấn với change B chưa liên kết** (không có note giữa hai bên, dù B có tạo với `--before` hay không):
+  `hitl-index overlap B` liệt kê ứng viên theo khoá chung (id, rule, decision, contract, symbol, file, thuật ngữ,
+  capability). Plan đưa vào vòng 1, spec-reviewer chấm cả cụm ở cuối plan và phải trích một "witness" Given/When/Then;
+  design kiểm lại contract/file mới. Bạn chọn: 1. chỉ sửa B · 2. cả hai (delta B + note `source: B` trong A, A chờ) ·
+  3. không chồng lấn. Sau design, va chạm ở code đi theo luồng task và drift bình thường; muốn kiểm lại bất cứ lúc nào
+  (vd. sau khi merge nhánh): `/hitl:overlap B [A C …]`.
 
 ### 4b. Ticket tracker: Linear, Jira, GitHub Issues (tuỳ chọn)
 

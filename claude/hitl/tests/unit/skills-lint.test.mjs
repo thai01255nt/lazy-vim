@@ -256,3 +256,52 @@ test("0.13: /hitl:migrate skill gates the id migration; docs use change-key ids"
     ...fs.readdirSync(path.join(ROOT, "shared/templates")).filter((f) => f.endsWith(".md")).map((f) => `shared/templates/${f}`)];
   for (const f of files) assert.doesNotMatch(read(f), /(?<![\w-])(?:T|D)-\d+\b/, `${f} shows a pre-0.13 id`);
 });
+
+test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate, trigger split, docs; §4 heading; parent 🔗 lines", () => {
+  const fm = (s) => frontmatter(read(`skills/${s}/SKILL.md`));
+  const o = read("skills/overlap/SKILL.md"), of = fm("overlap");
+  assert.equal(of.name, "overlap");
+  assert.match(of["argument-hint"], /<change-id> \[<other-id> …\] \| <change-id> --with <id>\[,<id>…\]/);
+  assert.equal(of["allowed-tools"], "Agent Bash(hitl-index *) Bash(node *hitl-index.mjs *)", "Agent + hitl-index Bash only");
+  assert.doesNotMatch(of["allowed-tools"], /\b(Write|Edit|Read|Skill)\b/, "overlap writes and reads no file itself");
+  assert.match(of.description, /chồng lấn/); assert.match(of.description, /check overlap/);
+  assert.match(of.description, /Not for new work \(\/hitl:go\), a task id or status \(\/hitl:flow\), or an archived change/);
+  for (const re of [/hitl-index overlap <A> \[--with <B,C>\] --json/, /subagent_type: hitl:spec-reviewer/, /Mode: overlap/, /never one\s+per pair/,
+    /hitl-index overlap <A> --with <candidate ids> --review --json/, /✅ <A>: no overlap with/, /no judge, no gate/,
+    /1\. adjust <one side> · 2\. both sides \(📥 source notes into the affected\s+change\(s\), which then wait until the other is archived\) · 3\. not an overlap/,
+    /"1 2, 2 3"/, /\/hitl:plan <change> amend/, /Never run the amend yourself/, /hitl-index note add --change <affected>\s+--source <other>/,
+    /\*\*3\. not an overlap\*\* → write nothing/, /🎯 next: \/hitl:flow/, /🎯 next: \/hitl:go/, /This skill writes no file/]) assert.match(o, re);
+  const sr = read("agents/spec-reviewer.md");
+  assert.match(sr, /\*\*Overlap mode\*\*/); assert.match(sr, /"schema": "hitl\.overlap-review\/1"/);
+  assert.match(sr, /verbatim quote from each\s+change it names/); assert.match(sr, /as one cluster/);
+  assert.match(sr, /\.hitl\/\.inbox\/overlap-review\.json/); assert.match(sr, /never write a note/);
+  // trigger routing: overlap checks → /hitl:overlap; new work stays /hitl:go
+  assert.match(fm("go").description, /checking overlap between existing changes \(\/hitl:overlap\)/);
+  assert.match(fm("flow").description, /\/hitl:overlap/);
+  assert.match(read("skills/go/SKILL.md"), /"check overlap \/ chồng lấn between <changes>" → `\/hitl:overlap`/);
+  const trig = JSON.parse(read("evals/trigger.json")).cases;
+  const want = (id) => trig.find((c) => c.id === id)?.expect;
+  for (const id of ["en-overlap-check", "vi-overlap-check", "en-overlap-merge"]) assert.equal(want(id), "hitl:overlap", id);
+  assert.equal(want("en-go-not-overlap"), "hitl:go");
+  const sc = JSON.parse(read("evals/scenarios.json")).cases;
+  assert.equal(sc.find((c) => c.id === "overlap-gate")?.fixture, "churn-overlap");
+  assert.match(read("evals/fixtures/build.sh"), /churn\|churn-noted\|churn-recheck\|churn-waiting\|churn-overlap\)/);
+  // other-changes.md: §4 is about every unlinked change; parents get 🔗 lines; §6 points at the skill
+  const oc = read("shared/other-changes.md");
+  assert.match(oc, /^## 4\. Overlap with active changes B is not linked to \(with or without `--before`\)$/m);
+  assert.doesNotMatch(oc, /Accidental overlap|B was not created with `--before`/);
+  assert.match(oc, /`🔗 parent <P> — shared: <evidence refs \(titles\)>`/);
+  assert.match(oc, /^## 6\. On demand: `\/hitl:overlap <A> \[<B> <C> …\]`/m);
+  assert.match(oc, /branch merge/);
+  assert.match(read("skills/plan/SKILL.md"), /`🔗 parent <P> — shared: <evidence refs \(titles\)>`/);
+  assert.match(read("skills/plan/SKILL.md"), /`parent: true`/);
+  assert.match(read("skills/design/SKILL.md"), /`🔗 parent <P> — shared: <the new contract\/file refs>`/);
+  // docs
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:overlap <id> \[<id> …\]` \|/m);
+  assert.match(read("README.md"), /^\| `\/hitl:overlap <change-id> \[<change khác> …\]` · `--with B,C` \|/m);
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.13\.0/m);
+  assert.doesNotMatch(read("README.md"), /B không tạo với `--before`/);
+  assert.match(read("HUONG-DAN.md"), /^\/hitl:overlap feat-fee feat-waive feat-report/m);
+  assert.doesNotMatch(read("HUONG-DAN.md"), /Chồng lấn tình cờ/);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.13.1");
+});

@@ -206,3 +206,46 @@ sB4() {
   afile "$W/b4c.json" '!d.changes.find((c) => c.id === "feat-fee").wait'
 }
 step BF4 "before: a source change that is gone keeps A blocked until the human dismisses its note" sB4
+
+sB5() {
+  cd "$BF"
+  # 0.13.1 /hitl:overlap: feat-fee against two unlinked changes — feat-waive (a task on the same settle) and feat-audit
+  # (nothing shared). --with filters the targets; the code section names the shared symbol and file, and drift on
+  # feat-fee's locked settle once its body changes.
+  mkdir -p .hitl/changes/feat-waive/specs/billing .hitl/changes/feat-audit/specs/audit
+  bf_proposal feat-waive "Premium settles free" billing WAV "" included > .hitl/changes/feat-waive/proposal.md
+  printf '%s\n' '<!-- audience: business -->' '# Delta: Billing' '> capability: billing | change: feat-waive' '' '## ADDED Requirements' \
+    '### Requirement: WAV-R1 Premium settles free' "When a premium customer's charge is settled, the system SHALL NOT add the fee." '' \
+    '#### Scenario: WAV-R1.S1 No fee' '- GIVEN a premium amount of 10' '- WHEN it is settled' '- THEN the result is 10' > .hitl/changes/feat-waive/specs/billing/spec.md
+  printf '%s\n' '# Premium settles free Tasks' '← Change: feat-waive' '> status: approved' '' '## WAV-T1 Premium settles free' \
+    '- prio: P1 | risk: high (money) | impl: agent | blocked-by: none | status: todo' '' '### Acceptance criteria' \
+    '- [ ] WAV-T1.AC1 (WAV-R1.S1) Given a premium 10 When settle Then 10' '' '### Symbols' \
+    '1. [ ] `settle` | modify | `src/settle.ts` | impl: agent | no fee for premium' > .hitl/changes/feat-waive/tasks.md
+  bf_proposal feat-audit "Audit log" audit AUD "" skipped > .hitl/changes/feat-audit/proposal.md
+  printf '%s\n' '<!-- audience: business -->' '# Delta: Audit' '> capability: audit | change: feat-audit' '' '## Purpose' 'Who did what.' '' '## ADDED Requirements' \
+    '### Requirement: AUD-R1 Sign-in audit' 'When a user signs in, the system SHALL record it.' '' \
+    '#### Scenario: AUD-R1.S1 Recorded' '- GIVEN a user' '- WHEN they sign in' '- THEN one audit entry is recorded' > .hitl/changes/feat-audit/specs/audit/spec.md
+  CLI overlap feat-fee --with feat-waive,feat-audit --json > "$W/b5a.json"
+  afile "$W/b5a.json" 'd.with && d.targets.join() === "feat-audit,feat-waive" && d.candidates.length === 1 && d.candidates[0].other === "feat-waive" && !d.candidates[0].linked'
+  afile "$W/b5a.json" '((c) => c.symbols[0].ref === "settle" && c.symbols[0].a.join() === "BIL-T1" && c.symbols[0].b.join() === "WAV-T1" && c.files[0].file === "src/settle.ts" && c.drift.length === 0)(d.candidates[0].code)'
+  CLI overlap feat-fee --with feat-audit > "$W/b5b.txt"
+  contains "$W/b5b.txt" "✅ feat-fee: no overlap with feat-audit"
+  expect_exit 1 CLI overlap feat-fee --with feat-nope
+  expect_exit 1 CLI overlap feat-fee --with feat-report        # archived in BF2
+  bf_src '  // 1. add the fee
+  return amount + 3;'
+  CLI index > /dev/null
+  CLI overlap feat-fee --with feat-waive --json > "$W/b5c.json"
+  afile "$W/b5c.json" '((x) => x.ref === "settle" && x.changed.includes("body") && x.tasks.join() === "BIL-T1" && x.b.join() === "WAV-T1")(d.candidates[0].code.drift[0])'
+  CLI overlap feat-fee --with feat-waive > "$W/b5d.txt"
+  contains "$W/b5d.txt" "🧩 code: symbols settle (feat-fee BIL-T1 · feat-waive WAV-T1)"
+  # the judge's verdict → gate lines; "both sides" writes a source note through the CLI
+  mkdir -p .hitl/.inbox
+  printf '%s' '{"schema":"hitl.overlap-review/1","change":"feat-fee","targets":["feat-waive"],"findings":[{"id":"O-1","changes":["feat-fee","feat-waive"],"type":"contradiction","given":"a premium amount of 10","when":"it is settled","then":"feat-fee adds the fee, feat-waive does not","quotes":{"feat-fee":"THEN the result is 12","feat-waive":"SHALL NOT add the fee"},"refs":{"feat-fee":["BIL-R1.S1"],"feat-waive":["WAV-R1"]},"source":"feat-waive","affected":["feat-fee"],"adjust":"feat-waive","kind":"spec","confidence":90},{"id":"O-2","changes":["feat-fee","feat-waive"],"given":"x","when":"y","then":"z","quotes":{"feat-fee":"made up text here"},"confidence":95}]}' > .hitl/.inbox/overlap-review.json
+  CLI overlap feat-fee --with feat-waive --review --json > "$W/b5e.json"
+  afile "$W/b5e.json" 'd.findings.length === 1 && d.findings[0].id === "O-1" && d.dropped[0].id === "O-2" && /^⚠️ 1\. feat-fee \+ feat-waive — .* 3\. not an overlap$/.test(d.findings[0].line) && d.findings[0].notes[0].change === "feat-fee"'
+  [ ! -f .hitl/.inbox/overlap-review.json ] || { echo "verdict not removed"; return 1; }
+  CLI note add --change feat-fee --source feat-waive --kind spec --refs BIL-R1.S1 --text "Premium settlements pay no fee." --from "/hitl:overlap feat-fee" > "$W/b5f.txt"
+  contains "$W/b5f.txt" "⏳ feat-fee now waits for feat-waive"
+}
+step BF5 "overlap (0.13.1): --with B,C filters targets; code section (shared symbol/file, drift on A's locked symbol); --review keeps witnessed findings; both sides → source note" sB5

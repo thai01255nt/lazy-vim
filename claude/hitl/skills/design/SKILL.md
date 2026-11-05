@@ -104,10 +104,13 @@ The user may reply with changes (`PWR-D3: …`); apply them and show the gate ag
    No `proposed` decision is left at the gate: each is accepted or rejected.
 2. Coverage: every ADDED/MODIFIED `must` requirement has an accepted D that serves it, or is trivially covered
    (say which in one line). The trace reports `REQ_NO_DEC` later; fix it now.
-2b. Overlap recheck: `hitl-index overlap <id> --json`; judge only its new `contract` and `file` evidence (both changes
-   name the same contract or source file) with the witness rule of other-changes.md §4, and put each real overlap in the
-   gate below as its `⚠️ Overlap with … (1/2/3)` line. A decision that changes another change's contract → a `design`
-   note there (owner check §3), never an edit of its files.
+2b. Overlap recheck: `hitl-index overlap <id> --json`. A candidate with `parent: true` and new `contract` or `file`
+   evidence → its line `🔗 parent <P> — shared: <the new contract/file refs>` in the gate below and the owner check of
+   other-changes.md §3 on exactly those refs (a decision that changes what P owns → a `📥 For <P>` question). Every other
+   candidate with `linked: false`: judge only its new `contract` and `file` evidence (both changes name the same
+   contract or source file) with the witness rule of other-changes.md §4, and put each real overlap in the gate below
+   as its `⚠️ Overlap with … (1/2/3)` line. A decision that changes another change's contract → a `design` note there
+   (owner check §3), never an edit of its files.
 3. ⛔ GATE:
    ```
    🏗️ Design feat-password-reset — D: 5 (accepted 5) · components: 3 (2 new) · contracts: 1 · data-model ✅

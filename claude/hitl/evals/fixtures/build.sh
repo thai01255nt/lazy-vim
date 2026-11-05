@@ -13,6 +13,9 @@
 #         churn-recheck = churn-noted, amended (FEE-R1.S2 THEN 12) and applied → recheck N-2 waits for reopen
 #         churn-waiting = churn + active change feat-report created `--before feat-fee`: feat-fee holds the order note
 #                   N-1 (source: feat-report), so every task approval of feat-fee waits until feat-report is archived (0.12)
+#         churn-overlap = churn + two unlinked active changes on the same code (0.13.1, /hitl:overlap): feat-waive (premium
+#                   customers settle without the fee: contradicts FEE-R1) and feat-report (the monthly report shows the fee
+#                   of each settlement), both with a task on settle in src/settle.ts
 # The plugin under test is never touched; the CLI used for set-up is this plugin's own hitl-index.
 set -euo pipefail
 H="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -55,7 +58,7 @@ case "$kind" in
     CLI index >/dev/null; CLI test --task QT-T1 --json >/dev/null
     rm -rf variants
     gitc ;;
-  churn|churn-noted|churn-recheck|churn-waiting)
+  churn|churn-noted|churn-recheck|churn-waiting|churn-overlap)
     cp -R "$HERE/churn-app/." "$dest/"
     mkdir -p "$dest/.hitl/docs"; cp "$HERE"/docs/*.md "$dest/.hitl/docs/"
     cd "$dest"
@@ -77,6 +80,27 @@ case "$kind" in
         '## Artifacts' '| artifact | decision | why |' '|---|---|---|' '| spec delta | included | always |' > .hitl/changes/feat-report/proposal.md
       CLI note add --change feat-fee --source feat-report --kind order --text "Monthly settlement report: feat-fee waits until it is archived." \
         --from "/hitl:plan feat-report --before feat-fee" >/dev/null
+    elif [ "$kind" = churn-overlap ]; then
+      ov_change() { # ov_change <id> <key> <title> <cap> <requirement> <given> <when> <then>
+        mkdir -p ".hitl/changes/$1/specs/$4"
+        printf '%s\n' '<!-- audience: business -->' "# $3" "> change: $1 | key: $2 | status: approved | created: 2026-11-05 | updated: 2026-11-05" '' \
+          '## Why' "$3." '' '## What changes' "- $3." '' '## Capabilities' '| capability | change | requirements |' '|---|---|---|' \
+          "| $4 | new | +$2-R1 |" '' '## Artifacts' '| artifact | decision | why |' '|---|---|---|' \
+          '| spec delta | included | always |' '| design | skipped | small |' '| tasks | included | small |' > ".hitl/changes/$1/proposal.md"
+        printf '%s\n' '<!-- audience: business -->' "# Delta: $4" "> capability: $4 | change: $1" '' '## Purpose' "$3." '' '## ADDED Requirements' \
+          "### Requirement: $2-R1 $3" "$5" '' "#### Scenario: $2-R1.S1 $3" "- GIVEN $6" "- WHEN $7" "- THEN $8" > ".hitl/changes/$1/specs/$4/spec.md"
+        printf '%s\n' "# $3 Tasks" "← Change: $1" '> status: approved' '' "## $2-T1 $3" \
+          '- prio: P1 | risk: high (money) | impl: agent | blocked-by: none | status: todo' '' '### Acceptance criteria' \
+          "- [ ] $2-T1.AC1 ($2-R1.S1) Given $6 When $7 Then $8" '' '### Test plan' '| ac | kind | oracle | seam | author |' \
+          '|----|------|--------|------|--------|' '| AC1 | example | spec | settle | test-author |' '' '### Symbols' \
+          "1. [ ] \`settle\` | modify | \`src/settle.ts\` | impl: agent | $3" > ".hitl/changes/$1/tasks.md"
+      }
+      ov_change feat-waive WAV "Premium customers settle free" billing \
+        "When a premium customer's charge is settled, the system SHALL NOT add the settlement fee." \
+        "a premium customer with an amount of 10" "it is settled" "the result is 10"
+      ov_change feat-report REP "Monthly settlement report" reporting \
+        "When a month ends, the system SHALL list every settlement of that month with the settlement fee it paid." \
+        "a settlement of 10 in May" "the May report is made" "it shows a fee of 1"
     elif [ "$kind" != churn ]; then
       CLI note add --change feat-fee --kind spec --refs FEE-R1.S2 --text "The settlement fee is 2, not 1. Finance changed it on 2026-11-04." \
         --from "user, during /hitl:implement FEE-T2" >/dev/null

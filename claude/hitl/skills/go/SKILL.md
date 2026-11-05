@@ -1,6 +1,6 @@
 ---
 name: go
-description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself; "--before <change-id>" plans a prerequisite change that change waits for. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a task id, or status/what next (/hitl:flow).
+description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself; "--before <change-id>" plans a prerequisite change that change waits for. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a task id, status/what next (/hitl:flow), or checking overlap between existing changes (/hitl:overlap).
 argument-hint: "<description> [--plan|--quick|--tdd] [--before <change-id>[,…]]"
 allowed-tools: Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -71,4 +71,5 @@ Two or more flags → ⛔ GATE `Pick one: 1. --plan · 2. --quick · 3. --tdd` (
 ## Rules
 - One 🧭 line, then the next skill runs in the same turn. Its gates are the next stop.
 - An id always with its title (`feat-password-reset (Password reset by email)`, `ACC-R3.S2 (Reset link expires)`).
-- Explicit asks skip this skill: "plan …" → `/hitl:plan`, "TDD this" → `/hitl:tdd`, "tasks quick …" → `/hitl:tasks`.
+- Explicit asks skip this skill: "plan …" → `/hitl:plan`, "TDD this" → `/hitl:tdd`, "tasks quick …" → `/hitl:tasks`,
+  "check overlap / chồng lấn between <changes>" → `/hitl:overlap`.

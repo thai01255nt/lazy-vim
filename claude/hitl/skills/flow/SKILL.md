@@ -1,6 +1,6 @@
 ---
 name: flow
-description: Hitl workflow status: active changes, task status, drift, notes, and the next command; also task id routing and the workflow help. Use when the user asks "status", "where are we", "what next", "tiếp theo làm gì", "đang ở đâu", names a task id without a phase, or asks how the hitl workflow works. Not for describing new work to build or fix (/hitl:go).
+description: Hitl workflow status: active changes, task status, drift, notes, and the next command; also task id routing and the workflow help. Use when the user asks "status", "where are we", "what next", "tiếp theo làm gì", "đang ở đâu", names a task id without a phase, or asks how the hitl workflow works. Not for describing new work to build or fix (/hitl:go) or checking overlap between changes (/hitl:overlap).
 argument-hint: "[task-id|help]"
 allowed-tools: Read Glob Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---

@@ -10,13 +10,13 @@ supported way to start a case from a fixture project. This runner covers both. C
 ## Files
 | file | what |
 |---|---|
-| `trigger.json` | Suite A: ~55 VI/EN prompts → the skill that should fire first (`null` / `"nohitl"` for negatives); 0.11: a bare description of new work → `hitl:go`, explicit asks ("plan …", "TDD …", "tasks quick …", status) → their own skill |
-| `scenarios.json` | Suite B: one slash-command turn per case on a fixture, with named deterministic checks (`go-*`: dry-graded in `tests/unit/go.test.mjs`; `expectSkill` = the Skill `/hitl:go` must call after its 🧭 line) |
+| `trigger.json` | Suite A: ~55 VI/EN prompts → the skill that should fire first (`null` / `"nohitl"` for negatives); 0.11: a bare description of new work → `hitl:go`, explicit asks ("plan …", "TDD …", "tasks quick …", status) → their own skill; 0.13.1: "check overlap / chồng lấn between changes" → `hitl:overlap` |
+| `scenarios.json` | Suite B: one slash-command turn per case on a fixture, with named deterministic checks (`go-*`: dry-graded in `tests/unit/go.test.mjs`, `overlap-*` in `tests/unit/overlap.test.mjs`; `expectSkill` = the Skill `/hitl:go` must call after its 🧭 line) |
 | `grade.mjs` | the checks (spec validate, tasks --check, trace, gate shape, files written, tool calls) |
 | `ab.mjs` | runner: builds fixtures, runs variants, grades, `summary.json`, cost cap, resumable |
 | `regrade.mjs` | re-grade finished runs after editing `grade.mjs` (no new claude calls) |
 | `judge.mjs` | Suite C: blind pairwise LLM judge of plan / design / skeleton outputs, both orders |
-| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: FEE-T1 done with locked tests, then an open note, then a recheck waiting for reopen), and `churn-waiting` (0.12: churn + a change `feat-report` created `--before feat-fee`, so feat-fee waits) |
+| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: FEE-T1 done with locked tests, then an open note, then a recheck waiting for reopen), and `churn-waiting` (0.12: churn + a change `feat-report` created `--before feat-fee`, so feat-fee waits), and `churn-overlap` (0.13.1: churn + two unlinked changes `feat-waive` and `feat-report` with tasks on the same `settle`, for `/hitl:overlap`) |
 
 ## Run
 ```sh

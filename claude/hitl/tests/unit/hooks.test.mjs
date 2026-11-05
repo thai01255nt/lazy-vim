@@ -488,6 +488,12 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Bash", { command: "hitl-index spec validate feat-x --json" }, SR));
     assertDeny(pre(root, "Bash", { command: "hitl-index spec archive feat-x" }, SR), /spec-reviewer may run only/);
     assertDeny(pre(root, "Bash", { command: "cat src/svc.ts" }, SR), /spec-reviewer may run only/);
+    // 0.13.1 /hitl:overlap: the overlap verdict goes to the inbox; the reviewer never runs `overlap --review` itself
+    assertSilent(W(".hitl/.inbox/overlap-review.json", SR));
+    assertDeny(W(".hitl/.inbox/route.json", SR), /spec-reviewer may write only/);
+    assertDeny(W(".hitl/.inbox/overlap-review.json", SC), /spec-scout may write only/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index overlap feat-x --with feat-y,feat-z --json" }, SR));
+    assertDeny(pre(root, "Bash", { command: "hitl-index overlap feat-x --with feat-y --review --json" }, SR), /spec-reviewer may run only/);
     // reads: the scout reads code; the reviewer reads only .hitl/ (plus files outside the project)
     assertSilent(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, SC));
     assertSilent(pre(root, "Read", { file_path: path.join(root, ".hitl/changes/feat-x/proposal.md") }, SR));

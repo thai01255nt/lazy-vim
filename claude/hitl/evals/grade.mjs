@@ -314,6 +314,15 @@ const CHECKS = {
     const t = ev.slice(0, i < 0 ? ev.length : i).filter((e) => e.kind === "text").map((e) => e.text).join("\n");
     return ok(!/\bGo\?|\(Y\/n\)/.test(t), "asked Go?/(Y/n) before running the route");
   },
+  // ---- overlap (0.13.1): deterministic pass first, one cluster judge only when there is evidence, a gate, no writes
+  overlap_cli: (S) => ok(bashCalls(S).some((c) => /hitl-index(?:\.mjs)?\s+overlap\s+feat-fee\b(?!.*--review)/.test(c)), "no hitl-index overlap feat-fee"),
+  overlap_one_judge: (S) => { const n = S.tools.filter((t) => t.name === "Agent" && /spec-reviewer/.test(JSON.stringify(t.input))).length; return ok(n === 1, `spec-reviewer spawned ${n}×`); },
+  overlap_judge_cluster: (S) => { const a = S.tools.find((t) => t.name === "Agent" && /spec-reviewer/.test(JSON.stringify(t.input))); const p = String(a?.input?.prompt ?? ""); return ok(/Mode: overlap/.test(p) && /feat-waive/.test(p) && /feat-report/.test(p), "the judge prompt is not one overlap cluster with feat-waive and feat-report"); },
+  overlap_review_cli: (S) => ok(bashCalls(S).some((c) => /hitl-index(?:\.mjs)?\s+overlap\s+feat-fee\b.*--review/.test(c)), "no hitl-index overlap feat-fee --review"),
+  overlap_gate: (S) => ok(/⚠️/.test(S.text) && /feat-waive/.test(S.text) && /1\.\s*adjust/i.test(S.text) && /2\.\s*both sides/i.test(S.text) && /3\.\s*not an overlap/i.test(S.text), "no ⚠️ gate line with 1. adjust · 2. both sides · 3. not an overlap"),
+  overlap_no_judge: (S) => ok(!S.tools.some((t) => t.name === "Agent"), "spawned a subagent with no evidence"),
+  overlap_clean_line: (S) => ok(/✅/.test(S.text) && /no overlap/i.test(S.text), "no ✅ … no overlap line"),
+  overlap_no_writes: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs", ".hitl/index/skeleton.lock.json", "src", "tests"]); const w = S.tools.find((t) => t.main && ["Write", "Edit"].includes(t.name)); return ok(d === "" && !w, d ? `changed before the gate: ${d}` : `main thread used ${w?.name}`); },
   flow_no_edits: (S, P) => ok(gitDirty(P, ["src", "tests", ".hitl/changes"]) === "", "flow edited files"),
   tickets_off: (S) => ok(/off|tắt|init/i.test(S.text), "no 'Linear off / init' message"),
   tickets_no_linear_calls: (S) => ok(!S.tools.some((t) => /linear/i.test(t.name) && t.name.startsWith("mcp__")), "called a Linear MCP tool"),

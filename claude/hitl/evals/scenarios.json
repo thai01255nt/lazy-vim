@@ -332,6 +332,34 @@
     "tdd_no_writes_before_gate"
    ],
    "expectSkill": "hitl:tdd"
+  },
+  {
+   "id": "overlap-gate",
+   "fixture": "churn-overlap",
+   "runs": 1,
+   "maxTurns": 20,
+   "prompt": "/hitl:overlap feat-fee feat-waive feat-report",
+   "checks": [
+    "overlap_cli",
+    "overlap_one_judge",
+    "overlap_judge_cluster",
+    "overlap_review_cli",
+    "overlap_gate",
+    "overlap_no_writes"
+   ]
+  },
+  {
+   "id": "overlap-none",
+   "fixture": "churn",
+   "runs": 1,
+   "maxTurns": 8,
+   "prompt": "/hitl:overlap feat-fee",
+   "checks": [
+    "overlap_cli",
+    "overlap_no_judge",
+    "overlap_clean_line",
+    "overlap_no_writes"
+   ]
   }
  ]
 }
