@@ -232,9 +232,18 @@ before(() => {
   fs.mkdirSync(HOOKS, { recursive: true }); fs.mkdirSync(LIB, { recursive: true });
   for (const f of fs.readdirSync(path.join(PLUGIN, "scripts/hooks"))) fs.copyFileSync(path.join(PLUGIN, "scripts/hooks", f), path.join(HOOKS, f));
   fs.writeFileSync(path.join(LIB, "api.mjs"), STUB_API);
-  for (const f of ["status.mjs", "lock.mjs", "nextstep.mjs", "paths.mjs"]) {
+  // Real P2 libs plus everything they import (static `from "./x.mjs"`), so their imports resolve; api.mjs stays the stub.
+  const queue = ["status.mjs", "lock.mjs", "nextstep.mjs", "paths.mjs"], seen = new Set(["api.mjs"]);
+  while (queue.length) {
+    const f = queue.shift(); if (seen.has(f)) continue; seen.add(f);
     const src = path.join(PLUGIN, "scripts/lib", f);
-    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(LIB, f));
+    if (!fs.existsSync(src)) continue;
+    fs.mkdirSync(path.dirname(path.join(LIB, f)), { recursive: true });
+    fs.copyFileSync(src, path.join(LIB, f));
+    for (const m of fs.readFileSync(src, "utf8").matchAll(/(?:from\s+|import\(\s*)"(\.\.?\/[\w./-]+\.mjs)"/g)) {
+      const dep = path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1]));
+      if (!dep.startsWith("..")) queue.push(dep);
+    }
   }
   fs.writeFileSync(path.join(pr, "scripts/hitl-index.mjs"), STUB_CLI);
 });
