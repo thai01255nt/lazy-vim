@@ -1,7 +1,7 @@
 ---
 name: plan
-description: Spec-only planning (WHAT and WHY) for a hitl change: grill-style interview → business-readable proposal + spec deltas (requirements, scenarios); also "<change-id> amend". Use when the user describes something to build or fix, or says "plan", "spec", "requirements", "lên plan", "yêu cầu", "viết spec". Not for architecture or implementation choices (/hitl:design).
-argument-hint: "[description | <change-id> [amend [N-k]]]"
+description: Spec-only planning (WHAT and WHY) for a hitl change: grill-style interview → business-readable proposal + spec deltas (requirements, scenarios); also "<change-id> amend" and "<change-id> reconcile <other>". Use when the user describes something to build or fix, or says "plan", "spec", "requirements", "lên plan", "yêu cầu", "viết spec". Not for architecture or implementation choices (/hitl:design).
+argument-hint: "[description | <change-id> [amend [N-k] | reconcile <other>]]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -21,8 +21,8 @@ Interview: the `hitl:grilling` skill + `${CLAUDE_PLUGIN_ROOT}/shared/interview.m
 - `${CLAUDE_SKILL_DIR}/references/migrate.md` — only when `.hitl/planning/*.md` (v0.5 legacy) exists.
 - `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — amend mode (§7) only.
 
-Arguments: `$ARGUMENTS` — a description, a change id, `<change-id> amend [N-k]`, or empty.
-`<change-id> amend [N-k]` → section 7 only. Empty and no work described in this conversation → ⛔ GATE
+Arguments: `$ARGUMENTS` — a description, a change id, `<change-id> amend [N-k]`, `<change-id> reconcile <other>`, or empty.
+`<change-id> amend [N-k]` → section 7 only. `<change-id> reconcile <other>` → section 8 only. Empty and no work described in this conversation → ⛔ GATE
 `Please describe what you want to build or fix (or a change id):` END THE TURN.
 
 **Audience rule.** Everything this skill writes is business-readable (b): a BA or PO must understand it. No code names,
@@ -75,7 +75,10 @@ Output: .hitl/changes/<id>/.scout.json   CLI: <hitl-index | node …/hitl-index.
 ```
 **Never read source code or tests yourself, and never write `.scout.json`** — that is the scout's job and keeps this
 conversation small. When it reports: facts → proposal `## Assumptions` in business words (never the `source` path);
-`unknowns` → frontier questions; `overlaps` → one `⚠️ overlaps <change>: <ids>` line in round 1; `vocabulary` rows
+`unknowns` → frontier questions; `overlaps` → `hitl-index coupling <id> --json`: each pair with `understated` or no
+`declared` link → one line in round 1 `⚠️ overlaps <other>: <evidence ids (titles)> — link? 1. after: <other> (strong) ·
+2. relates: <other> (low) · 3. none` (💡 on its `suggest`; strong = this change waits). On 1 or 2 append
+`| after: <other> (strong)` or `| relates: <other> (low)` to the proposal meta line; `vocabulary` rows
 with `maps: null` or a clash with a glossary term → `[T]` questions (interview.md §10). Scout failed or
 unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions from `spec list` alone (the user may answer
 "don't know"; record it as an assumption).
@@ -156,6 +159,17 @@ change is that note from the inbox (`hitl-index note show --change <id> N-k --js
 3. On Y apply per amend-spec.md (active change → its delta; archived → a mini change `fix-<slug>`). New behaviour or a
    new capability → proposal `status: draft` and `🎯 next: /hitl:tasks <id> (update)`; else `✅ Amended (<n> changes).`
    and the next step from amend-spec.md §5 (`note apply` records the impact; a recheck → `/hitl:approve <id> reopen`).
+
+## 8. Reconcile mode (`/hitl:plan <change-id> reconcile <other>`)
+What `<other>` changed that this change must take in (0.10). Logic is in the CLI; `<other>`'s files are never edited.
+1. `hitl-index reconcile <id> --from <other> --dry-run --json`. No findings → run it without `--dry-run` (records the
+   run), print `✅ nothing to take in from <other>` and the next step from `hitl-index status --json`. Stop.
+2. ⛔ GATE: one line per finding `RC-n <type> <ref (title)> — <what changed> → refs <ids> · <class>` (the `diff` lines of
+   a spec finding under it, max 6), `already noted: N-k` ones dimmed, `closesOrder` → `order note N-k closes (<other> is
+   archived)`, then `Add <n> notes to <id>? (Y/n/pick)`. END THE TURN.
+3. Y → `hitl-index reconcile <id> --from <other> --json`; `pick RC-1,RC-3` → add `--pick RC-1,RC-3`; n → nothing is
+   written and the reconcile stays pending. Print the added `📌 N-k` lines and `🎯 next: <next>` (an amend of a note, or
+   `/hitl:approve <id> reopen N-k` for a recheck: only the human runs that).
 
 ## Rules
 - Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, and design.md

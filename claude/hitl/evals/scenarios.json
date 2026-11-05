@@ -267,6 +267,17 @@
     "reopen_applied",
     "reopen_next_test"
    ]
+  },
+  {
+   "id": "link-reconcile",
+   "fixture": "link",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-receipt reconcile feat-fee",
+   "checks": [
+    "reconcile_dry_run",
+    "reconcile_gate",
+    "reconcile_no_writes"
+   ]
   }
  ]
 }

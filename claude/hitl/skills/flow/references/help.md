@@ -18,6 +18,10 @@ blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> ame
 the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
 reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
 `… <id> defer N-k <other-change>`.
+**Two changes at once** (0.10): link them in the dependent proposal's meta line, `| after: feat-b (strong)` (contracts,
+shared code, a changed flow: its overlapping tasks pause until feat-b is archived) or `| relates: feat-b (low)` (parallel).
+`hitl-index coupling <id>` shows the evidence. The change that archives second owns the reconcile:
+`/hitl:plan <id> reconcile <other>` turns the other change's impact into notes here; archive waits for it.
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 
@@ -35,6 +39,7 @@ ids with titles) and asks the same question again.
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
    Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
    Changed requirement mid-change → 📌 note → /hitl:plan <id> amend N-k ⛔ (🔁 Impact) → /hitl:approve <id> reopen → /hitl:test T
+   Linked change archived first → 🔄 /hitl:plan <id> reconcile <other> ⛔ → 📌 notes → amend / reopen as above
 ```
 
 | command | purpose | gate |
@@ -42,6 +47,7 @@ ids with titles) and asks the same question again.
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend [N-k]` | ⛔ each round |
+| `/hitl:plan <id> reconcile <other>` | take in what a linked change did (spec ids, shared contracts, drifted locked symbols) as notes in `<id>` | ⛔ add notes |
 | `/hitl:design` | HOW: design.md (D-n), data-model, contracts — module level; `--auto` | ⛔ each round |
 | `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | ⛔ quiz |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |

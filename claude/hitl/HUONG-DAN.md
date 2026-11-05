@@ -106,6 +106,19 @@ Cứ nói trong chat, ví dụ "link reset giờ hết hạn sau 15 phút". Clau
 Không muốn áp dụng: `/hitl:approve <change> dismiss N-1 <lý do>`, `/hitl:approve <change> defer N-1 <change khác>`,
 hoặc cho riêng một task đi tiếp: `/hitl:approve T-12 tests --ack N-1`.
 
+## 5b. Hai change cùng lúc
+
+Change B phải chờ change A (đổi contract, code dùng chung)? Thêm vào dòng meta proposal của B: `| after: feat-a (strong)`.
+Chỉ liên quan ít: `| relates: feat-a (low)`. Claude cũng đề nghị khi thấy chồng lấn (`⚠️ overlaps … link? (1/2/3)`).
+- `after`: chỉ các task của B chạm phần chồng lấn bị dừng (note `order`), phần còn lại làm tiếp.
+- Change nào archive trước thì change còn lại phải reconcile trước khi archive:
+```
+/hitl:archive feat-a                          (in ra 🎯 next: /hitl:plan feat-b reconcile feat-a)
+/hitl:plan feat-b reconcile feat-a            (xem các RC-n → Add <n> notes? (Y/n/pick))
+/hitl:plan feat-b amend N-2 · /hitl:approve feat-b reopen N-3   (như mục 5a)
+```
+Xem bằng chứng: `hitl-index coupling feat-b`.
+
 ## 6. Trả lời ở các cổng (⛔)
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.

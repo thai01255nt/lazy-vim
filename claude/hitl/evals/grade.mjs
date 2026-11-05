@@ -159,6 +159,10 @@ const CHECKS = {
     return ok(n === 1 && st?.tasks?.["T-1"]?.status === "reopened", `reopened tests ${n}, T-1 ${st?.tasks?.["T-1"]?.status}`);
   },
   reopen_next_test: (S) => ok(/\/hitl:test T-1/.test(S.text), "next is not /hitl:test T-1"),
+  // ---- coupling (0.10): reconcile gate (dry run only, nothing written before the Y)
+  reconcile_dry_run: (S) => ok(bashCalls(S).some((c) => /reconcile\s+feat-receipt\b.*--from\s+feat-fee\b.*--dry-run|reconcile\s+feat-receipt\b.*--dry-run.*--from\s+feat-fee/.test(c)), "no hitl-index reconcile feat-receipt --from feat-fee --dry-run"),
+  reconcile_gate: (S) => ok(/RC-1/.test(S.text) && /BIL-R1/.test(S.text) && /settle/.test(S.text) && /\(Y\/n\/pick\)/.test(S.text), "no gate listing RC-1 (BIL-R1), the settle recheck and (Y/n/pick)"),
+  reconcile_no_writes: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/archive", ".hitl/specs", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `changed before the gate: ${d}`); },
   // ---- design --auto
   design_written: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/changes/feat-password-reset/design.md")), "no design.md"),
   design_validate_0_errors: (S, P) => {

@@ -163,7 +163,8 @@ export function notesByTask(changeNotes, tasks, index, lock, api) {
   const out = {};
   for (const { change, notes } of changeNotes || []) for (const t of (tasks || []).filter((x) => x.change === change && !x.archived)) {
     const b = blockingNotes(notes, noteCtxFor(index, lock, t, api)).block;
-    if (b.length) out[t.id] = b.map((x) => ({ id: x.note.id, title: x.note.title, kind: x.note.kind, status: x.note.status, change, via: x.via, apply: applyCommand(change, x.note) }));
+    if (b.length) out[t.id] = b.map((x) => ({ id: x.note.id, title: x.note.title, kind: x.note.kind, status: x.note.status, change, via: x.via, apply: applyCommand(change, x.note),
+      ...(x.note.kind === "order" && x.note.meta?.coupling?.from ? { waitFor: x.note.meta.coupling.from } : {}) }));
   }
   return out;
 }

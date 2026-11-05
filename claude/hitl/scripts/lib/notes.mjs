@@ -35,13 +35,14 @@ const clean = (s) => String(s ?? "").replace(/[()]/g, "").replace(/\s+/g, " ").t
 
 /** parseNotes(text) -> {title, notes:[note]}; note = {id, title, kind, refs, refTitles, status, deferredTo, from, at, acks, reason, resolved, text, meta}. */
 export function parseNotes(text) {
-  const out = { title: null, notes: [] };
+  const out = { title: null, notes: [], meta: {} };
   let cur = null, body = null;
   const flush = () => { if (cur) { cur.text = body.join("\n").trim(); out.notes.push(cur); } cur = null; body = null; };
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.replace(/\s+$/, "");
     let m;
     if (!cur && out.title === null && (m = line.match(/^# (.+)$/))) { out.title = m[1].trim(); continue; }
+    if (!cur && (m = line.match(/^<!-- hitl-notes (\{.*\}) -->$/))) { try { out.meta = JSON.parse(m[1]); } catch { out.meta = {}; } continue; }
     if ((m = line.match(/^## (N-\d+)(?: (.*))?$/))) {
       flush();
       cur = { id: m[1], title: (m[2] || "").trim(), kind: null, refs: [], refTitles: {}, status: "open", deferredTo: null, from: null, at: null, acks: [], reason: null, resolved: null, text: "", meta: {} };
@@ -91,9 +92,17 @@ export function reopensLine(reopen) {
   }).join(" · ");
 }
 
-/** renderNotes(changeId, notes) -> notes.md text. */
-export function renderNotes(changeId, notes) {
+/** Readable lines of the file-level record (0.10): one per change reconciled from. */
+export function reconciledLines(meta) {
+  return Object.entries(meta?.reconciled || {}).sort(([a], [b]) => a.localeCompare(b)).map(([from, r]) =>
+    `> Reconciled: ${from} ${r.at || "?"} (${r.archived ? "archived" : "active"}) · ${r.notes?.length ? r.notes.join(", ") : "no new notes"}${r.skipped?.length ? ` · ${r.skipped.length} skipped` : ""}`);
+}
+
+/** renderNotes(changeId, notes, fileMeta?) -> notes.md text. */
+export function renderNotes(changeId, notes, fileMeta = {}) {
   const L = [`# Notes — ${changeId}`, "", HEADER_NOTE];
+  const rl = reconciledLines(fileMeta);
+  if (rl.length) L.push(...rl, `<!-- hitl-notes ${JSON.stringify({ reconciled: fileMeta.reconciled })} -->`);
   for (const n of [...notes].sort((a, b) => noteNum(a.id) - noteNum(b.id))) {
     L.push("", `## ${n.id} ${clean(n.title) || "(untitled)"}`);
     L.push(`- kind: ${n.kind}`);
@@ -253,6 +262,7 @@ export function blockingNotes(notes, ctx) {
 /** Command that resolves a note (apply path), for messages and routing. */
 export function applyCommand(changeId, note) {
   if (note.status === "reopen pending") return `/hitl:approve ${changeId} reopen ${note.id}`;
+  if (note.kind === "order" && note.meta?.coupling?.from) return `/hitl:plan ${changeId} reconcile ${note.meta.coupling.from}`;
   if (note.kind === "design") return `/hitl:design ${changeId} amend ${note.id}`;
   if (note.kind === "order") return `/hitl:tasks ${changeId} update`;
   return `/hitl:plan ${changeId} amend ${note.id}`;
@@ -277,16 +287,23 @@ export const notesRel = (changeDir) => `${changeDir}/${NOTES_FILE}`;
 
 /** Notes of a change folder ({dir}); [] when the file does not exist. */
 export async function readNotes(root, changeDir) {
-  const text = await readText(join(root, notesRel(changeDir)), null);
-  return text === null ? [] : parseNotes(text).notes;
+  return (await readNotesDoc(root, changeDir)).notes;
 }
 
-/** Read-modify-write notes.md of a change under the index lock. fn(notes) returns the value to return. */
+/** {notes, meta} of a change folder (meta = the file-level record, 0.10). */
+export async function readNotesDoc(root, changeDir) {
+  const text = await readText(join(root, notesRel(changeDir)), null);
+  if (text === null) return { notes: [], meta: {} };
+  const p = parseNotes(text);
+  return { notes: p.notes, meta: p.meta };
+}
+
+/** Read-modify-write notes.md of a change under the index lock. fn(notes, doc) returns the value to return. */
 export async function updateNotes(root, changeDir, changeId, fn) {
   return withIndexLock(root, async () => {
-    const notes = await readNotes(root, changeDir);
-    const out = await fn(notes);
-    await writeTextAtomic(join(root, notesRel(changeDir)), renderNotes(changeId, notes));
+    const doc = await readNotesDoc(root, changeDir);
+    const out = await fn(doc.notes, doc);
+    await writeTextAtomic(join(root, notesRel(changeDir)), renderNotes(changeId, doc.notes, doc.meta));
     return out;
   });
 }

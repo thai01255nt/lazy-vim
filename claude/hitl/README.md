@@ -89,6 +89,16 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.9
+
+0.10 thêm **liên kết hai change và reconcile** (mục 4d). Không cần migrate: proposal không có `after:`/`relates:` thì
+không có gì đổi.
+- Header mới trong dòng meta của proposal: `| after: <change> (strong)` · `| relates: <change> (low)`.
+- Lệnh mới `hitl-index coupling <id> [<other>]` (bằng chứng + mức gợi ý) và `hitl-index reconcile <id> --from <other>`
+  (`--dry-run`, `--pick`). `spec validate` có thêm mã `COUPLING_*`, `RECONCILE_PENDING` và tự giữ note `order`.
+- `spec archive` ghi thêm `.prev.json` trong thư mục archive; bị chặn bởi `RECONCILE_PENDING` (kể cả `--force`).
+- `change --json` / `status --json` có `links`, `reconcilePending`; `status --brief` có dòng `🔄 reconcile pending: …`.
+
 ### Nâng cấp từ 0.8
 
 0.9 thêm **hộp ghi chú (notes) và reopen** cho yêu cầu đổi giữa chừng (mục 4c). Không cần migrate: project chưa có
@@ -241,6 +251,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; `doneAt` chuyển vào `reopened[]`. Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:plan <change-id> reconcile <change khác>` | Đưa ảnh hưởng của change kia vào change này dưới dạng note (spec id nó đổi mà change này dùng, contract chung, symbol đã khoá bị nó sửa); một cổng `Add <n> notes? (Y/n/pick)` | ⛔ | bạn / Claude |
 | `/hitl:approve <change-id> dismiss N-k <lý do>` · `defer N-k <change khác>` · `/hitl:approve <T> <stage> --ack N-k` | Đóng note (bỏ qua có lý do / chuyển sang change khác) · cho task T đi tiếp dù note còn mở | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
@@ -355,6 +366,26 @@ Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, v
   `/hitl:skeleton`, rồi implement → review → done như thường. Change đã archive không bao giờ reopen (dùng claim/accept).
 - **Lối thoát, cũng chỉ bạn:** `--ack N-k` (cho task đó đi tiếp; note vẫn mở), `dismiss N-k <lý do>`,
   `defer N-k <change khác>` (copy note sang change đó).
+
+### 4d. Hai change chạy cùng lúc: liên kết và reconcile (0.10)
+
+- **Không liên quan** → làm song song, không cần gì.
+- **Liên quan ít** (cùng capability, không đổi contract hay luồng) → thêm `| relates: feat-b (low)` vào dòng meta của
+  proposal; làm song song, reconcile ở cuối như gộp merge conflict.
+- **Liên quan mạnh** (contract, code dùng chung, chuỗi luồng đổi nhiều) → change phụ thuộc thêm `| after: feat-b (strong)`.
+  `spec validate` giữ một note `order` trong change đó với refs là phần chồng lấn: **chỉ** các task chạm tới bị dừng;
+  task khác, plan, design, amend vẫn chạy. Note này không bao giờ tự mất: chỉ bạn dismiss, hoặc nó đóng khi reconcile
+  sau khi feat-b archive.
+- **Bằng chứng**: `hitl-index coupling <id> [<other>]` — cùng id MODIFIED/REMOVED, id một bên đổi mà AC/`serves`/`Rules:`
+  bên kia dùng, symbol chung (đã khoá hoặc cùng có trong `### Symbols`), cùng file contract → gợi ý strong; chỉ cùng
+  capability → low. Bạn quyết mức. `spec validate` cảnh báo `COUPLING_UNDERSTATED` khi bằng chứng mạnh mà header là low
+  hoặc không có; `COUPLING_UNKNOWN|ARCHIVED|CYCLE|SELF` là lỗi. `/hitl:plan` và `/hitl:design` đề nghị header ở cổng.
+- **Reconcile**: change archive **sau** chịu trách nhiệm. Archive change đầu in `🎯 next: /hitl:plan <khác> reconcile <này>`;
+  change còn lại bị chặn archive (`RECONCILE_PENDING`, kể cả `--force`) cho tới khi chạy reconcile. Reconcile liệt kê
+  phát hiện `RC-n` (spec + diff so với text trước khi change kia merge, quyết định contract chung, drift trên symbol đã
+  khoá) → một cổng → note trong change này (kind spec, design, recheck). Áp dụng như mục 4c: amend → 🔁 Impact →
+  `/hitl:approve <id> reopen` (chỉ bạn). Chạy lại không tạo note trùng; chạy được bất cứ lúc nào, cả hai chiều.
+- Luật: change kia **không bao giờ** sửa file của change này; ảnh hưởng chỉ đi qua note.
 
 ### 4b. Ticket tracker: Linear, Jira, GitHub Issues (tuỳ chọn)
 

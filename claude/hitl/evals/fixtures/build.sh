@@ -11,6 +11,8 @@
 #         churn     churn-app (node:test) with approved change feat-fee: T-1 settle done (2 locked tests), T-2 todo
 #         churn-noted   = churn + open note N-1 "the fee is 2, not 1" (refs BIL-R1.S2; touches T-1)
 #         churn-recheck = churn-noted, amended (BIL-R1.S2 THEN 12) and applied → recheck N-2 waits for reopen
+#         link      link-app (0.10): feat-receipt `after: feat-fee (strong)` with its order note N-1; T-1 skeleton of settle
+#                   locked (acked); feat-fee changed settle's signature and was archived first → reconcile pending
 # The plugin under test is never touched; the CLI used for set-up is this plugin's own hitl-index.
 set -euo pipefail
 H="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -74,6 +76,17 @@ case "$kind" in
       sed -i 's/Given 10 When settle Then 11/Given 10 When settle Then 12/' .hitl/changes/feat-fee/tasks.md
       CLI note apply --change feat-fee N-1 --impact BIL-R1.S2=behaviour --from "/hitl:plan feat-fee amend N-1" >/dev/null
     fi
+    gitc ;;
+  link)
+    cp -R "$HERE/link-app/." "$dest/"
+    mkdir -p "$dest/.hitl/docs"; cp "$HERE"/docs/*.md "$dest/.hitl/docs/"
+    cd "$dest"
+    CLI init --json >/dev/null; CLI index --all >/dev/null
+    CLI spec validate >/dev/null
+    HITL_E2E=1 CLI approve T-1 --stage skeleton --by human --ack N-1 >/dev/null
+    sed -i 's/export function settle(amount: number): number {/export function settle(amount: number, fee = 1): number {/' src/settle.ts
+    CLI index >/dev/null
+    CLI spec archive feat-fee --force >/dev/null
     gitc ;;
   lua)
     cp -R "$HERE/lua-app/." "$dest/"

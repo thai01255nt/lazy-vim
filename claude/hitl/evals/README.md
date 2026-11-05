@@ -16,7 +16,7 @@ supported way to start a case from a fixture project. This runner covers both. C
 | `ab.mjs` | runner: builds fixtures, runs variants, grades, `summary.json`, cost cap, resumable |
 | `regrade.mjs` | re-grade finished runs after editing `grade.mjs` (no new claude calls) |
 | `judge.mjs` | Suite C: blind pairwise LLM judge of plan / design / skeleton outputs, both orders |
-| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: T-1 done with locked tests, then an open note, then a recheck waiting for reopen) |
+| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: T-1 done with locked tests, then an open note, then a recheck waiting for reopen), and `link` from `fixtures/link-app` (0.10: two linked changes, the first archived, reconcile pending) |
 
 ## Run
 ```sh

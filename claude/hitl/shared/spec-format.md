@@ -104,7 +104,10 @@ Rules: ACC-BR1                   (optional)
 - Glossary delta `changes/<id>/glossary.md`: `## ADDED|MODIFIED|REMOVED Terms` with `### Term: <term>` blocks.
 
 ## Proposal (`changes/<id>/proposal.md`)
-Meta `> change: <id> | status: draft|approved | created: … | updated: …`. Required sections: `## Why`, `## What changes`,
+Meta `> change: <id> | status: draft|approved | created: … | updated: …` plus optional coupling segments (0.10)
+`| after: <change> (strong)` (this change waits; an order note pauses its overlapping tasks) and `| relates: <change> (low)`
+(comma lists allowed). Codes: `COUPLING_BAD|SELF|UNKNOWN|ARCHIVED|CYCLE` (error), `COUPLING_UNDERSTATED`,
+`RECONCILE_PENDING` (warn). Required sections: `## Why`, `## What changes`,
 `## Capabilities` (table `capability | key | change | requirements`; change `new|modified|retired`; or the line
 "none (no behaviour change)" for docs/chore/refactor/test/perf), `## Artifacts` (`artifact | decision | why`).
 Optional: Unchanged behaviour, Success criteria, Out of scope, Assumptions, Coverage, Deferred, Open questions.

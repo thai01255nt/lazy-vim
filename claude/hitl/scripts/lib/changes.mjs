@@ -263,7 +263,7 @@ export function changePhase({ archived, proposal, design, tasks, tasksSkipped = 
 }
 
 /** One hitl.change/1 entry. */
-export async function changeInfo(root, config, ch) {
+export async function changeInfo(root, config, ch, { graph = null } = {}) {
   const proposal = ch.proposal ? ch.proposal.status || "draft" : "missing";
   const design = designState(ch);
   const tasks = ch.tasksDoc ? ch.tasksDoc.status || "draft" : "missing";
@@ -273,11 +273,17 @@ export async function changeInfo(root, config, ch) {
   const notes = await readNotes(root, ch.dir).catch(() => []);
   const open = [...notes.filter((n) => n.status === "reopen pending"), ...notes.filter((n) => n.status === "open")];
   // an open note blocks archive: an archive-ready change routes to resolving it first
-  const next = phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
+  // 0.10 links: declared (proposal header) both ways; a linked archived change not reconciled yet blocks archive
+  const cp = await import("./coupling.mjs");
+  const g = graph || await cp.loadLinkGraph(root);
+  const links = ch.archived ? (ch.proposal?.links || []).map((l) => ({ change: l.change, rel: l.rel, level: l.level, declaredIn: ch.id })) : cp.linksOf(g, ch.id);
+  const reconcilePending = ch.archived ? [] : cp.reconcilePending(g, ch.id);
+  const next = phase === "archive-ready" && reconcilePending.length ? reconcilePending[0].command
+    : phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
     : { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
   return { id: ch.id, dir: ch.dir, archived: ch.archived, title: ch.proposal?.title ?? null, proposal, design,
     capabilities: ch.deltas.map((d) => d.capability || d.folder), contracts: ch.contracts.length, tasksFile: ch.tasksFile, tasks,
-    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), phase, next };
+    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), links, reconcilePending, phase, next };
 }
 
 // ---------------------------------------------------------------- validation (§6.1)
@@ -448,15 +454,24 @@ export async function validate(root, config, { change = null, livingOnly = false
     if (!ch) throw Object.assign(new Error(`no active change ${change} in ${CHANGES_REL}/`), { code: 1 });
   }
   if (!change) { const lv = validateLiving(living); items.push(...lv.items); targets.push(...lv.targets); }
-  if (!livingOnly) for (const ch of active) {
-    if (change && ch.id !== change) continue;
-    const r = validateChange({ change: ch, living, others: active.filter((o) => o !== ch), config });
-    if (record) await recordBase(root, ch, r.baseMissing);
-    items.push(...r.items); targets.push(r.target); summary.push(...r.summary);
+  let orderNotes = [];
+  if (!livingOnly) {
+    // 0.10 coupling: header targets, cycles, understated links, pending reconciles; `after:` links keep an order note
+    const cp = await import("./coupling.mjs");
+    const graph = await cp.loadLinkGraph(root);
+    const ectx = await cp.evidenceContext(root);
+    for (const ch of active) {
+      if (change && ch.id !== change) continue;
+      const others = active.filter((o) => o !== ch);
+      const r = validateChange({ change: ch, living, others, config });
+      if (record) await recordBase(root, ch, r.baseMissing);
+      items.push(...r.items, ...cp.couplingItems(graph, ch, others, ectx)); targets.push(r.target); summary.push(...r.summary);
+    }
+    if (record) orderNotes = await cp.syncOrderNotes(root, { graph, active, living, ectx, only: change });
   }
   sortItems(items);
   const counts = countItems(items);
-  return { schema: "hitl.spec-validate/1", ok: counts.error === 0, targets, counts, items, summary };
+  return { schema: "hitl.spec-validate/1", ok: counts.error === 0, targets, counts, items, summary, ...(orderNotes.length ? { orderNotes } : {}) };
 }
 
 // ---------------------------------------------------------------- conflicts (§6.3)
@@ -563,7 +578,7 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
   }
   const m = mergeChange({ changeId: id, deltas: ch.deltas, glossaryDelta: ch.glossaryDelta, proposal: ch.proposal, living: living.specs, glossary: living.glossary,
     base: ch.base, acceptBase, renumber, reserved, date });
-  let tasksPre = null; let tasksOk = true; let bodyDrift = []; let notesPre = null;
+  let tasksPre = null; let tasksOk = true; let bodyDrift = []; let notesPre = null; let reconcilePre = null; let reconcileNext = [];
   if (archive) {
     const tc = await taskCounts(root, config, ch.tasksDoc);
     tasksPre = { total: tc.total, done: tc.done, notDone: tc.notDone };
@@ -573,16 +588,21 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
     const notes = await readNotes(root, ch.dir);
     const open = notes.filter((n) => BLOCKING.has(n.status));
     notesPre = { open: open.map((n) => ({ id: n.id, title: n.title, status: n.status, kind: n.kind, apply: applyCommand(id, n) })) };
+    // 0.10: the change that archives second owns the reconcile with every linked change already archived
+    const cp = await import("./coupling.mjs");
+    const graph = await cp.loadLinkGraph(root);
+    reconcilePre = { pending: cp.reconcilePending(graph, id) };
+    reconcileNext = cp.linksOf(graph, id).filter((l) => !l.archived && !l.unknown).map((l) => ({ change: l.change, command: `/hitl:plan ${l.change} reconcile ${id}` }));
   }
   const archiveTo = `${ARCHIVE_REL}/${archiveDirName(date, id)}`;
   const conflicts = [...m.conflicts];
   if (archive && (await isDir(join(root, archiveTo)))) conflicts.push({ code: "ARCHIVE_EXISTS", ref: id, capability: null, message: `${archiveTo} already exists` });
-  const ok = !vErrors.length && tasksOk && !conflicts.length && !(notesPre?.open.length);
+  const ok = !vErrors.length && tasksOk && !conflicts.length && !(notesPre?.open.length) && !(reconcilePre?.pending.length);
   const out = {
     schema: "hitl.spec-merge/1", change: id, dryRun: !!dryRun, ok,
     capabilities: m.capabilities, glossary: m.glossary, conflicts,
-    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre, ...(notesPre ? { notes: notesPre } : {}) },
-    archive: archive ? { from: ch.dir, to: archiveTo, moved: false } : null,
+    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre, ...(notesPre ? { notes: notesPre } : {}), ...(reconcilePre ? { reconcile: reconcilePre } : {}) },
+    archive: archive ? { from: ch.dir, to: archiveTo, moved: false, reconcile: reconcileNext } : null,
   };
   if (vErrors.length) out.errors = vErrors;
   const warnings = [...m.warnings, ...bodyDrift.map((d) => ({ code: "DONE_BODY_DRIFT", ref: d.name, capability: null, changes: [id], symbol: d.id, task: d.task,
@@ -598,6 +618,15 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
     }
   }
   if (acceptBase.length && JSON.stringify(m.base) !== JSON.stringify(ch.base)) writes.push({ file: `${ch.dir}/.base.json`, text: stableJson({ schema: BASE_SCHEMA, blocks: m.base }) });
+  // 0.10: the living text of every MODIFIED/REMOVED id before the merge, kept in the archived folder for reconcile diffs
+  if (archive) {
+    const prev = {};
+    for (const d of ch.deltas) for (const b of d.blocks) if (b.op !== "ADDED") {
+      const lb = living.specs.get(d.capability || d.folder)?.doc.blocks.find((x) => x.id === b.id);
+      if (lb) prev[b.id] = lb.livingText;
+    }
+    if (Object.keys(prev).length) writes.push({ file: `${ch.dir}/.prev.json`, text: stableJson({ schema: "hitl.spec-prev/1", blocks: prev }) });
+  }
   const tx = await commitWrites(root, writes, io);
   if (archive) {
     try {

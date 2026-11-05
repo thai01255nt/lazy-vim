@@ -75,6 +75,8 @@ Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered 
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
 - Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply` and `/hitl:approve` write it), or add `--ack`, or run
   the `reopen`, `dismiss` or `defer` approve forms unless the user typed them.
+- Edit another change's files to carry this change's impact: it reaches the other change only as notes there
+  (`/hitl:plan <other> reconcile <this>`, 0.10).
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or
   `--feature <change-id> --lane fast`) for that task. Never suggest `--lane fast` to get past a gate.
 - Use line numbers in ids, docs or tasks. Refer to symbols as `Class.method` or `path#Class.method`.

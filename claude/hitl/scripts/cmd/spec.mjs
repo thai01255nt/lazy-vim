@@ -41,6 +41,7 @@ async function cmdValidate(argv, ctx) {
   else if (!ctx.quiet || !r.ok) {
     for (const i of r.items) console.log(`${ICON[i.level]} ${i.code} ${i.file ?? ""}${i.line ? `:${i.line}` : ""}${i.ref ? ` [${i.ref}]` : ""} — ${i.message}`);
     for (const s of r.summary) console.log(`📐 ${s.change} · ${s.capability ?? "(glossary)"}${s.key ? ` (${s.key})` : ""}${s.new ? " new" : ""}: +${s.added.length} ~${s.modified.length} -${s.removed.length}`);
+    for (const o of r.orderNotes || []) console.log(`📌 ${o.change} ${o.note} ${o.created ? "order note added" : "order note grew"} (after ${o.from}): refs ${o.added.join(", ") || "none"}`);
     console.log(`${r.ok ? "✅" : "❌"} spec validate: ${r.counts.error} error(s), ${r.counts.warn} warning(s) · ${r.targets.length} target(s)`);
   }
   return r.ok ? 0 : 1;
@@ -153,8 +154,12 @@ async function cmdMerge(argv, ctx, archive) {
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
   for (const n of r.preconditions.notes?.open || []) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
+  for (const p of r.preconditions.reconcile?.pending || []) console.log(`❌ 🔄 RECONCILE_PENDING: ${p.from} is archived and ${r.change} never reconciled against it → ${p.command} (--force does not skip it)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
   else if (r.dryRun) console.log(`🔎 dry run: spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
-  else console.log(`✅ spec ${verb} ${r.change}${r.archive?.moved ? ` → ${r.archive.to}` : ""}`);
+  else {
+    console.log(`✅ spec ${verb} ${r.change}${r.archive?.moved ? ` → ${r.archive.to}` : ""}`);
+    if (r.archive?.moved) for (const x of r.archive.reconcile || []) console.log(`🎯 next: ${x.command} (${x.change} is linked to ${r.change} and owns the reconcile)`);
+  }
   return r.ok ? 0 : 1;
 }

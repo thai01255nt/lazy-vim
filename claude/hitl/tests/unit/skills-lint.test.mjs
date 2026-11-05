@@ -153,3 +153,22 @@ test("churn (0.9): capture rule next to Plain replies, Impact block, approve for
   assert.match(read("README.md"), /^### 4c\. Yêu cầu đổi giữa chừng/m);
   assert.match(read("HUONG-DAN.md"), /^## 5a\. Khi yêu cầu đổi giữa chừng/m);
 });
+
+test("coupling (0.10): reconcile mode in plan, overlap offer, archive/flow/help rows, conventions rule, docs sections", () => {
+  const plan = read("skills/plan/SKILL.md");
+  assert.match(frontmatter(plan)["argument-hint"], /reconcile <other>/);
+  assert.match(plan, /^## 8\. Reconcile mode \(`\/hitl:plan <change-id> reconcile <other>`\)/m);
+  assert.match(plan, /hitl-index reconcile <id> --from <other> --dry-run --json/);
+  assert.match(plan, /Add <n> notes to <id>\? \(Y\/n\/pick\)/);
+  assert.match(plan, /hitl-index coupling <id> --json/);
+  assert.match(read("skills/design/SKILL.md"), /hitl-index coupling <id> --json/);
+  const arch = read("skills/archive/SKILL.md");
+  assert.match(arch, /preconditions\.reconcile\.pending/);
+  assert.match(arch, /archive\.reconcile\[\]/);
+  assert.match(read("skills/flow/SKILL.md"), /reconcilePending/);
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:plan <id> reconcile <other>` \|/m);
+  assert.match(read("shared/conventions.md"), /Edit another change's files to carry this change's impact/);
+  assert.match(read("shared/spec-format.md"), /COUPLING_UNDERSTATED/);
+  assert.match(read("README.md"), /^### 4d\. Hai change chạy cùng lúc/m);
+  assert.match(read("HUONG-DAN.md"), /^## 5b\. Hai change cùng lúc/m);
+});

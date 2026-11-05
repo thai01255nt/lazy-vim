@@ -45,6 +45,8 @@ Arguments: `$ARGUMENTS`
    - Notes (0.9): `.changes[].notes` with `open` or `reopenPending` > 0 → one line per change
      `📌 feat-x — 2 open notes, 1 reopen pending`. Then every task with `tasks[T].notes` non-empty, even when not in the
      table: `📌 T-14 blocked by N-3 (<title>) → <apply>` (routing skips it while another task can go on).
+   - Links (0.10): each `.changes[].links[]` → `🔗 <id> <rel> <change> (<level>)` + ` · <n> tasks paused` when `paused`
+     is non-empty; each `.changes[].reconcilePending[]` → `🔄 <id>: reconcile pending from <from> → <command>`.
    - `tasks[T].status` `reopened` → status cell `🔁 reopened (<reopen.stage>)` and one line
      `🔁 T-12 reopened by <reopen.note> — <tests to rewrite for reopen.acs | skeleton of reopen.symbols> → <next>`.
    - Several unfinished tasks in one change → mention once `💡 build then review: /hitl:implement --feature <change-id>`.

@@ -100,6 +100,8 @@ The user may reply with changes (`D-3: …`); apply them and show the gate again
    No `proposed` decision is left at the gate: each is accepted or rejected.
 2. Coverage: every ADDED/MODIFIED `must` requirement has an accepted D that serves it, or is trivially covered
    (say which in one line). The trace reports `REQ_NO_DEC` later; fix it now.
+2b. Coupling: `hitl-index coupling <id> --json`; a pair with `understated` (e.g. both changes have the same contract file)
+   → the `⚠️ overlaps … link? (1/2/3)` line of `/hitl:plan` §3 in the gate below; on 1 or 2 add the header to the proposal.
 3. ⛔ GATE:
    ```
    🏗️ Design feat-password-reset — D: 5 (accepted 5) · components: 3 (2 new) · contracts: 1 · data-model ✅

@@ -43,6 +43,7 @@ Apply? (Y/n)
 | `DELTA_ID_TAKEN` (another branch archived the same new id) | 1. 💡 renumber inside this change (`--renumber`; rewrites deltas, design `serves`, task AC refs in the change folder only; code is never touched) · 2. stop |
 | `BASE_CHANGED` (a living requirement changed after this change copied it) | show the living text vs the delta text; 1. 💡 update the delta to include the living change (I edit `specs/<cap>/spec.md` of this change, re-run validate and the preview) · 2. keep the delta as is (`--accept-base <IDs>`) · 3. stop |
 | `CROSS_CHANGE_CONFLICT` / `DELTA_TARGET_MISSING` / `CAP_*` / `ARCHIVE_EXISTS` | explain in one line each; 1. 💡 stop and fix (`/hitl:plan <id> amend`) |
+| `preconditions.reconcile.pending` (a linked change was archived first; this one never reconciled) | one line each `🔄 <from> — <command>`; `--force` never skips it; 1. 💡 run it (`/hitl:plan <id> reconcile <from>`) |
 | `preconditions.notes.open` (an open note or a recheck waiting for reopen) | one line each `📌 N-k (<title>) — <apply>`; `--force` never skips it; 1. 💡 apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
 END THE TURN.
 
@@ -66,6 +67,8 @@ On Y (or the chosen option):
 - One line: `💡 /hitl:tidy <id>, then hitl-index strip <id>` (optional, yours to run: tidy rewrites the intents to one
   current contract per symbol and stops for `/hitl:approve <id> intent`; strip removes @task/@impl/@status/@prio/@dec/@risk
   from the change's done functions, lock, drift and statuses unchanged). Never run strip yourself.
+- `archive.reconcile[]` (active changes linked to this one) → one line each `🎯 next: <command>` (that change owns the
+  reconcile; it never edits this archived one).
 - 🎯 next: `hitl-index status --json` `.next` (another change, or `/hitl:plan <description>`).
 
 ## Rules

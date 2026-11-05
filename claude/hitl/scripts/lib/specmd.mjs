@@ -382,7 +382,7 @@ const sectionText = (s) => (s ? trimBlank(s.lines.filter((L) => !L.comment).map(
  *  artifacts[], deferred[], clarifications[], items}. */
 export function parseProposal(text, file) {
   const doc = { file, title: null, change: null, status: null, created: null, updated: null, sections: {}, capabilities: [],
-    noBehaviourChange: false, artifacts: [], deferred: [], clarifications: findClarifications(text), items: [] };
+    noBehaviourChange: false, artifacts: [], deferred: [], clarifications: findClarifications(text), items: [], links: [] };
   const add = item(doc.items, file);
   const lines = scanLines(text);
   for (const L of lines) {
@@ -395,6 +395,19 @@ export function parseProposal(text, file) {
       doc.created = L.text.match(new RegExp(`\\| created: (${DATE})`))?.[1] ?? null;
       doc.updated = L.text.match(new RegExp(`\\| updated: (${DATE})`))?.[1] ?? null;
       if (!doc.status) add("error", "SPEC_PARSE", doc.change, L.n, `proposal meta needs "| status: draft|approved"`);
+      // 0.10 coupling header: `| after: feat-b (strong)` / `| relates: feat-c (low)`, repeatable, comma lists
+      for (const seg of L.text.split("|").slice(1).map((s) => s.trim())) {
+        const lm = seg.match(/^(after|relates):\s*(.*)$/);
+        if (!lm) continue;
+        for (const part of lm[2].split(",").map((s) => s.trim()).filter(Boolean)) {
+          const pm = part.match(/^([a-z0-9][a-z0-9-]*)(?:\s*\((strong|low)\))?$/);
+          const want = lm[1] === "after" ? "strong" : "low";
+          if (!pm) { add("error", "COUPLING_BAD", part, L.n, `"${lm[1]}: ${part}" is not "<change-id> (${want})"`); continue; }
+          if (pm[2] && pm[2] !== want) { add("error", "COUPLING_BAD", pm[1], L.n, `"${lm[1]}: ${pm[1]} (${pm[2]})": ${lm[1]} is always (${want}); use ${want === "strong" ? "relates" : "after"}: for ${pm[2]}`); continue; }
+          if (!doc.links.some((x) => x.change === pm[1])) doc.links.push({ rel: lm[1], change: pm[1], level: want, line: L.n });
+          else add("error", "COUPLING_BAD", pm[1], L.n, `${pm[1]} is linked twice`);
+        }
+      }
     }
   }
   if (!doc.title) add("error", "SPEC_PARSE", null, 1, "proposal has no # title");
