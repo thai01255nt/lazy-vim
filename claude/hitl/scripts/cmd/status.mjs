@@ -11,6 +11,7 @@ import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
 import { workOrder } from "../lib/workorder.mjs";
 import { resolveWith, notesByTask } from "../lib/lock.mjs";
 import { readActiveNotes, noteCounts, applyCommand, changeWait, waitReasons } from "../lib/notes.mjs";
+import { compareTaskIds } from "../lib/specids.mjs";
 
 /**
  * Notes of the active changes for status/next (0.9): {changes:[{change, counts, first}], byTask:{T:[…]},
@@ -76,9 +77,8 @@ export function taskWorkOrder(ids, index, task, api) {
 
 /** Task ids by number (T-2 before T-10); with `prioOf`, by priority first (P0, P1, …; none last). */
 export function sortTaskIds(ids, prioOf) {
-  const num = (id) => Number(/^T-(\d+)$/.exec(id)?.[1] ?? Infinity);
   const pr = (id) => { const m = /^P(\d+)$/.exec(prioOf?.(id) || ""); return m ? Number(m[1]) : Infinity; };
-  return [...ids].sort((a, b) => (prioOf ? pr(a) - pr(b) : 0) || num(a) - num(b) || a.localeCompare(b));
+  return [...ids].sort((a, b) => (prioOf ? pr(a) - pr(b) : 0) || compareTaskIds(a, b));
 }
 
 /**
@@ -175,7 +175,11 @@ export async function run(argv, ctx) {
     const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
     const ni = await notesInfo(ctx.root, g);
-    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
+    let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
+    // 0.13: pre-0.13 ids (T-n, D-n, keyless changes, a hitl.lock/1 with T-n) route to /hitl:migrate first
+    const legacy = await (await import("../lib/migrateids.mjs")).legacyIdState(ctx.root).catch(() => ({ legacy: false, reasons: [] }));
+    const idsLegacy = legacy.legacy ? { code: "IDS_LEGACY", reasons: legacy.reasons } : null;
+    if (idsLegacy) next = { ...next, task: null, command: "/hitl:migrate", reason: `IDS_LEGACY: pre-0.13 ids (${legacy.reasons[0]})` };
     const waitOf = (id) => { const c = tmeta(id).change; const x = c && (ni.waits || []).find((y) => y.change === c); return x ? { change: c, for: x.for, amend: x.amend.map((n) => n.id) } : null; };
     const ld = lockedDrift(drift, lock);
     if (T && !statuses.tasks[T]) {
@@ -198,11 +202,12 @@ export async function run(argv, ctx) {
       console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc, notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
         wait: (({ change, ...w }) => w)((ni.waits || []).find((x) => x.change === id) || { change: null }) })).map((c) => (Object.keys(c.wait).length ? c : (({ wait, ...r }) => r)(c))), drift: drift ? drift.summary : null, lockedDrift: ld.length,
         trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
-        tickets,
+        tickets, ...(idsLegacy ? { idsLegacy } : {}),
         ...(sync ? { syncTags: { files: sync.files, tags: sync.tags, tasksFiles: sync.tasksFiles } } : {}) }, null, 2));
       return 0;
     }
     if (v.brief) {
+      if (idsLegacy) console.log(`⚠️ HITL: pre-0.13 ids (${idsLegacy.reasons[0]}) — run /hitl:migrate`);
       const ft = next.task ? statuses.tasks[next.task] : null;
       const m = next.task ? tmeta(next.task) : {};
       console.log(next.task ? `HITL: ${next.task} ${m.title || ""} — ${ft?.status} (${m.prio || "P?"}, ${ft?.risk}) · next: ${next.command}`.replace(/\s+—/, " —")

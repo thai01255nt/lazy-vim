@@ -41,22 +41,37 @@ Không cần tự chọn lệnh đầu tiên. Mô tả việc cần làm, Claude
 - Tự chọn đường: thêm `--plan`, `--quick` hoặc `--tdd` (bỏ qua phân tích).
 - Gõ thẳng `/hitl:plan …`, `/hitl:tdd …`, `/hitl:tasks quick …` vẫn chạy như cũ.
 
+## 1b. Nâng cấp từ 0.12
+
+Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy **một lần**:
+```
+/hitl:migrate      # chạy thử → bảng key cho mọi change (nhận/sửa cả bảng) → bản đồ đổi tên → Apply? (Y/n)
+```
+- Mọi mã được đánh số lại theo key của change đã tạo ra nó: `T-12` → `PWR-T1`, `ACC-R3` → `PWR-R1`, `D-1` → `PWR-D1`;
+  mã không rõ nguồn (có trước hitl) nhận key legacy như `LACC-R1`; task quick dùng key `QT`.
+- Nên commit hết trước khi chạy (nó từ chối khi `.hitl/` hoặc code có tag còn thay đổi chưa commit). Xong thì commit
+  một lần. Mã cũ trong chat/commit: `hitl-index context T-12` vẫn tra được (qua `.hitl/index/id-map.json`).
+- Chưa migrate thì các lệnh khác báo `IDS_LEGACY` và chỉ sang `/hitl:migrate`.
+
 ## 2. Một feature, 4 bước
 
 ```
 /hitl:plan thêm chức năng đặt lại mật khẩu qua email     # LÀM GÌ, VÌ SAO (hoặc /hitl:go … tự chọn plan)
 /hitl:design feat-password-reset                         # LÀM THẾ NÀO (cho dev); change nhỏ thì tự bỏ qua
-/hitl:tasks feat-password-reset                          # chia task T-1, T-2… (low/high risk)
+/hitl:tasks feat-password-reset                          # chia task PWR-T1, PWR-T2… (low/high risk)
 /hitl:flow                                               # không nhớ bước tiếp? gõ cái này
 ```
 - Claude hỏi từng vòng, mỗi câu có sẵn đáp án gợi ý 💡. Gõ `y` để nhận hết, hoặc `Q2: <ý bạn>`.
 - Plan tự dùng grilling, không cần gọi riêng `/hitl:grilling`.
+- Ở gate đầu tiên plan gợi ý **key** cho change (2–5 chữ in hoa, vd. `PWR` cho feat-password-reset); gõ `y` để nhận
+  hoặc `K <KEY>` để đổi. Mọi mã của change bắt đầu bằng key này: `PWR-R1` (yêu cầu), `PWR-R1.S1` (scenario),
+  `PWR-D1` (quyết định thiết kế), `PWR-T1` (task), `PWR-T1.AC2` (tiêu chí nghiệm thu).
 - Kết quả nằm trong `.hitl/changes/feat-password-reset/` (proposal, spec, design, tasks).
 
 ### Plan hỏi rộng và hỏi sâu
 - **Độ phủ**: mỗi vòng có dòng `Độ phủ: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
 - **🔥** đánh dấu chỗ quan trọng mà còn mơ hồ: Claude hỏi sâu chỗ đó trước.
-- **`deep <ID>`** (vd. `deep ACC-R3`): bạn tự chọn đào sâu (ví dụ cụ thể, 5 whys, edge case, pre-mortem, bảng quyết định…).
+- **`deep <ID>`** (vd. `deep PWR-R3`): bạn tự chọn đào sâu (ví dụ cụ thể, 5 whys, edge case, pre-mortem, bảng quyết định…).
 - **Điều kiện dừng**: plan chỉ xong khi mọi nhóm ✅ hoặc — và không còn `[NEEDS CLARIFICATION]` ở yêu cầu bắt buộc;
   muốn chốt sớm thì chọn "force" (được ghi lại).
 - **Viết theo chuẩn** (`shared/formats/`): mỗi yêu cầu một `SHALL`, không từ mơ hồ ("nhanh", "dễ dùng", "v.v."); NFR có
@@ -68,8 +83,8 @@ Không cần tự chọn lệnh đầu tiên. Mô tả việc cần làm, Claude
 - Bạn dùng từ khác glossary (vd. "user record" thay cho *Account*) → Claude hỏi một câu `[T]` để chốt một từ.
 - 0.8.x: `spec validate` và review (gate `terms`) cũng tự cảnh báo khi spec hay docstring dùng từ trong `_Avoid_`
   (`"user record" → use Account`); chỉ cảnh báo, không chặn. Sau khi test xanh, review liệt kê **gợi ý cấu trúc**
-  (lặp code, tên lệch glossary, lồng sâu…); `/hitl:review T-2 fix F-3` refactor mà test vẫn xanh, không sửa test.
-- Mã như `ACC-R4`, `F-1` luôn đi kèm tiêu đề ngắn để bạn khỏi phải tra.
+  (lặp code, tên lệch glossary, lồng sâu…); `/hitl:review PWR-T2 fix F-3` refactor mà test vẫn xanh, không sửa test.
+- Mã như `PWR-R4`, `F-1` luôn đi kèm tiêu đề ngắn để bạn khỏi phải tra.
 - Không hiểu câu trả lời? Ở bất kỳ cổng nào gõ `?`, `wait`, `hả`, `giải thích` hoặc `không hiểu`: Claude giải thích lại
   (thêm ngữ cảnh, câu ngắn) rồi hỏi lại đúng câu đó. Câu này không tính là trả lời.
 
@@ -77,25 +92,25 @@ Không cần tự chọn lệnh đầu tiên. Mô tả việc cần làm, Claude
 
 ### Task rủi ro thấp (low): một lệnh
 ```
-/hitl:implement T-1      # Claude tự viết skeleton + test + code
-/hitl:review T-1         # review tự động; PASS thì tự done
+/hitl:implement PWR-T1      # Claude tự viết skeleton + test + code
+/hitl:review PWR-T1         # review tự động; PASS thì tự done
 ```
 
 ### Task rủi ro cao (high): bạn duyệt từng bước (mặc định)
 ```
-/hitl:skeleton T-2           # khung hàm (chữ ký + mô tả), chưa có code → bạn xem/sửa trong nvim
-/hitl:approve T-2            # khoá khung
-/hitl:test T-2               # Claude viết test (phải fail trước khi có code)
-/hitl:approve T-2 tests      # khoá test
-/hitl:implement T-2          # Claude code hàm `@impl agent`; hàm `@impl manual` là của bạn
-/hitl:review T-2             # finding quan trọng sẽ hỏi bạn
-/hitl:approve T-2 done       # bạn chốt
+/hitl:skeleton PWR-T2           # khung hàm (chữ ký + mô tả), chưa có code → bạn xem/sửa trong nvim
+/hitl:approve PWR-T2            # khoá khung
+/hitl:test PWR-T2               # Claude viết test (phải fail trước khi có code)
+/hitl:approve PWR-T2 tests      # khoá test
+/hitl:implement PWR-T2          # Claude code hàm `@impl agent`; hàm `@impl manual` là của bạn
+/hitl:review PWR-T2             # finding quan trọng sẽ hỏi bạn
+/hitl:approve PWR-T2 done       # bạn chốt
 ```
 Chỉ **bạn** gõ được `/hitl:approve`.
 
 ### Để Claude build hết rồi review một lần (nâng cao)
 ```
-/hitl:implement T-2 --lane fast                          # một task, không gate, review ở cuối
+/hitl:implement PWR-T2 --lane fast                          # một task, không gate, review ở cuối
 /hitl:implement --feature feat-password-reset --lane fast   # cả change, một report gộp ở cuối
 ```
 
@@ -117,16 +132,16 @@ Claude so code với khung đã duyệt: duyệt lại / hoàn tác / để sau 
 
 Cứ nói trong chat, ví dụ "link reset giờ hết hạn sau 15 phút". Claude hỏi:
 ```
-📌 Note for feat-password-reset, refs ACC-R5.S2 (Unknown email reveals nothing)? (Y/n)
+📌 Note for feat-password-reset, refs PWR-R5.S2 (Unknown email reveals nothing)? (Y/n)
 ```
 `y` → ghi note; task bị đụng tới sẽ không duyệt được cho tới khi note được xử lý. Áp dụng khi bạn sẵn sàng:
 ```
 /hitl:plan feat-password-reset amend N-1      (xem delta + 🔁 Impact: mở lại test/skeleton nào)
 /hitl:approve feat-password-reset reopen      (chỉ bạn gõ; wording thì chỉ xác nhận "không ảnh hưởng")
-/hitl:test T-12                               (test viết lại phải đỏ) → /hitl:approve T-12 tests → implement → review → done
+/hitl:test PWR-T12                               (test viết lại phải đỏ) → /hitl:approve PWR-T12 tests → implement → review → done
 ```
 Không muốn áp dụng: `/hitl:approve <change> dismiss N-1 <lý do>`, `/hitl:approve <change> defer N-1 <change khác>`,
-hoặc cho riêng một task đi tiếp: `/hitl:approve T-12 tests --ack N-1`.
+hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`.
 
 ## 5b. Hai change cùng lúc (change tiên quyết)
 
@@ -151,7 +166,7 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve T-12 tests --ack N-1`.
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.
 - `?` / `wait` / `hả` = giải thích lại rồi hỏi lại (không phải câu trả lời).
-- Finding trong review: `accept F-1`, `reject F-2 <lý do>`, `defer F-3`, `amend F-4`; sửa: `/hitl:review T-2 fix F-1`.
+- Finding trong review: `accept F-1`, `reject F-2 <lý do>`, `defer F-3`, `amend F-4`; sửa: `/hitl:review PWR-T2 fix F-1`.
 
 ## 7. Tuỳ chọn
 

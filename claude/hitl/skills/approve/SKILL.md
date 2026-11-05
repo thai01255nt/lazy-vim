@@ -1,7 +1,7 @@
 ---
 name: approve
 description: Human approval gate that locks a task's reviewed skeleton (signatures, intents, TODO flow, test stubs), its red tests, or its final verified result into skeleton.lock.json and advances its status; "<change-id> intent" re-locks the tidied intents of a done change; "<change-id> accept" accepts later drift on an archived change; "<change-id> reopen" unlocks what an amendment changed; "dismiss|defer N-k" and "--ack N-k" decide a blocking note (dismissing a note from another change ends its wait). Only the human runs this.
-argument-hint: "<T-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept [symbols...] | <change-id> reopen [N-k] | <change-id> dismiss N-k <reason> | <change-id> defer N-k <change>"
+argument-hint: "<task-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept [symbols...] | <change-id> reopen [N-k] | <change-id> dismiss N-k <reason> | <change-id> defer N-k <change>"
 disable-model-invocation: true
 allowed-tools: Read Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -12,7 +12,7 @@ Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`.
 
 The user typing `/hitl:approve` IS the approval. There is no extra question. The UserPromptSubmit hook has issued a
 one-time approve token for this turn; the PreToolUse hook lets exactly one `--by human` approve through. The token is
-bound to what the user typed: a `T-<n>` token never approves a change, a `<change-id> intent|accept|reopen|dismiss|defer`
+bound to what the user typed: a `<KEY>-T<n>` token never approves a change, a `<change-id> intent|accept|reopen|dismiss|defer`
 token never approves a task, and one change stage never runs another. `--ack`, `reopen`, `dismiss` and `defer` are bound
 to the note ids (and defer target) the user typed.
 
@@ -20,24 +20,24 @@ Arguments: `$ARGUMENTS`
 
 ## 1. Build the command
 Parse the arguments (whitespace or comma separated). The first token decides the form:
-- first token not `T-<n>` and second token `intent` → **change form** (intent re-approval of a done change, e.g. after
+- first token not `<KEY>-T<n>` and second token `intent` → **change form** (intent re-approval of a done change, e.g. after
   `/hitl:tidy <id>`): change id = first token; remaining tokens → `--symbols a,b`.
   `CMD = hitl-index approve --change <id> --stage intent [--symbols a,b] --by human` (exactly this shape; never `--force`,
   never `--by auto` or `human-override`: the hook refuses them). Go to step 2, skip step 3 and step 5.
-- first token not `T-<n>` and second token `accept` → **change form, accept** (later drift on an archived change, from
+- first token not `<KEY>-T<n>` and second token `accept` → **change form, accept** (later drift on an archived change, from
   `/hitl:sync`): change id = first token; remaining tokens → `--symbols a,b` (symbols or locked test titles).
   `CMD = hitl-index approve --change <id> --stage accept [--symbols a,b] --by human` (same shape rules as intent: never
   `--force`, never `--by auto` or `human-override`). Go to step 2, skip step 3 and step 5.
-- first token not `T-<n>` and second token `reopen` → **change form, reopen** (0.9: the human confirms what an amendment
+- first token not `<KEY>-T<n>` and second token `reopen` → **change form, reopen** (0.9: the human confirms what an amendment
   reopens — the recheck note's list): optional third token `N-k` → `--note N-k`.
   `CMD = hitl-index approve --change <id> --stage reopen [--note N-k] --by human`. Go to step 2, skip step 3; step 5
   pushes each reopened task.
-- first token not `T-<n>` and second token `dismiss` → **note decision**: third token `N-k` (required), the rest is the
+- first token not `<KEY>-T<n>` and second token `dismiss` → **note decision**: third token `N-k` (required), the rest is the
   reason (required; drop `` ` ``, `$`, `;`, `&`, `|`, `<`, `>` and quotes from it).
   `CMD = hitl-index approve --change <id> --stage dismiss --note N-k --reason "<reason>" --by human`. Step 2 only.
-- first token not `T-<n>` and second token `defer` → **note decision**: third token `N-k`, fourth token the target change
+- first token not `<KEY>-T<n>` and second token `defer` → **note decision**: third token `N-k`, fourth token the target change
   id (both required). `CMD = hitl-index approve --change <id> --stage defer --note N-k --to <target> --by human`. Step 2 only.
-- first token `T-<n>` → task (required; missing → `❌ Usage: /hitl:approve <T-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept|reopen|dismiss|defer …`, stop);
+- first token `<KEY>-T<n>` → task (required; missing → `❌ Usage: /hitl:approve <task-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept|reopen|dismiss|defer …`, stop);
 - next token ∈ {skeleton, tests, done} → `--stage <it>` (omitted → the CLI picks the first stage not yet done);
 - `--ack` and the token after it (`N-k` or `N-k,N-m`) → `--ack <ids>` (releases those notes for this task: all its
   stages; the note stays open for other tasks and archive). Never add `--ack` yourself;
@@ -50,7 +50,7 @@ Run `CMD --json` once, as a plain single command (no `;`, `&&`, pipes, `2>&1` or
 approve commands). No separate `--dry-run` preview is needed: the real call returns the same `changes`, and the
 CLI checks preconditions before writing and writes nothing when they fail. (`--dry-run` does not consume the token.)
 - Exit 1 (preconditions failed) → print `🛑 Cannot approve <T> <stage>:` + each reason + the CLI's suggested command
-  (e.g. `/hitl:skeleton T-12`, `/hitl:test T-12`, `/hitl:review T-12`). Stop. Change form: the CLI refuses unless every
+  (e.g. `/hitl:skeleton PWR-T12`, `/hitl:test PWR-T12`, `/hitl:review PWR-T12`). Stop. Change form: the CLI refuses unless every
   owning task is done and only intents moved (signature, TODO steps and the done or accepted body unchanged); print the
   reasons. Accept: the CLI refuses unless the change is archived, no open task owns, tags or lists the symbol, the
   signature is unchanged and the covering tests ran fresh and passed (else `hitl-index test`); print the reasons.
@@ -72,7 +72,7 @@ On success: `hitl-index status <T> --sync-tags`.
 <re-approved items: Symbol — sig ⚠️→✅ / intent ⚠️→✅>
 🗑️ Removed from lock: <ids>
 ✏️ Renamed in lock: <old → new>
-📐 <symbol> linked D-1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
+📐 <symbol> linked PWR-D1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
 ```
 The `🗑️` line: only when the JSON `changes.symbols.removed` / `changes.tests.removed` is non-empty (locked items of the task deleted or renamed in code).
 The `✏️` line: one entry per JSON `changes.symbols.renamed` item (`from → to`); empty → no line.
@@ -90,8 +90,8 @@ Accept form:
 Reopen form (JSON `reopened`, `nothing`, `empty`):
 ```
 ✅ N-4 reopened (confirmed by human):
-🔁 T-12 tests: 2 test(s) (T-12.AC2) — rewrite them to the new AC
-🔁 T-14 skeleton: 1 symbol (ResetService.request) + 1 test
+🔁 PWR-T12 tests: 2 test(s) (PWR-T12.AC2) — rewrite them to the new AC
+🔁 PWR-T14 skeleton: 1 symbol (ResetService.request) + 1 test
 ```
 `empty: true` → exactly `✅ N-4 closed: wording only, nothing to unlock (confirmed by human)` (it confirms no impact; it
 reopens nothing). 🎯 next: the JSON `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`).
@@ -108,7 +108,7 @@ Task approvals print `📌 acked for <T>: N-k` (JSON `acked`) and one `⚠️` l
 🎯 next:
 - skeleton → `/hitl:test <T>`
 - tests → `/hitl:implement <T>`
-- done → the next frontier task from `hitl-index status --json` (`.next`), e.g. `/hitl:skeleton T-13`
+- done → the next frontier task from `hitl-index status --json` (`.next`), e.g. `/hitl:skeleton PWR-T13`
 
 ## 5. Ticket tracker (optional, fail-open; Linear, Jira or GitHub)
 `hitl-index tickets status --json`. If `enabled && configured && autoPush.onApprove` → invoke the Skill `hitl:tickets`

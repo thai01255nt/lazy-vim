@@ -45,9 +45,9 @@ test("route order and skill/args per route", () => {
 });
 
 test("note: the 📌 gate with refs and kind, no skill; no refs → a warning hint", () => {
-  const r = resolveRoute(V({ route: "note", change: "feat-reset", kind: "design", refs: ["ACC-R3.S2 (Reset link expires)", "D-2 (hash the token)"] }), CH);
+  const r = resolveRoute(V({ route: "note", change: "feat-reset", kind: "design", refs: ["PWR-R3.S2 (Reset link expires)", "PWR-D2 (hash the token)"] }), CH);
   assert.equal(r.action, "note"); assert.equal(r.skill, null); assert.equal(r.args, null); assert.equal(r.noteKind, "design");
-  assert.equal(r.gate, "📌 Note for feat-reset (Password reset), refs ACC-R3.S2 (Reset link expires), D-2 (hash the token)? (Y/n)");
+  assert.equal(r.gate, "📌 Note for feat-reset (Password reset), refs PWR-R3.S2 (Reset link expires), PWR-D2 (hash the token)? (Y/n)");
   assert.equal(r.line, "🧭 📌 note for feat-reset — why");
   const n = resolveRoute(V({ route: "note", change: "feat-reset", kind: "bogus" }), CH);
   assert.equal(n.noteKind, "spec");

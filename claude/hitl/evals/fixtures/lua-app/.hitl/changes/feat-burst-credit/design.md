@@ -11,17 +11,17 @@
 ## Decisions
 | id | decision | why | alternatives | cost if wrong | serves | status |
 |----|----------|-----|--------------|---------------|--------|--------|
-| D-1 | Track borrowed tokens as a separate `debt` field on the bucket, never as negative `tokens` | keeps the RL-R1 invariant tokens >= 0 readable | negative token balance | silent over-admission, broken refill math | RL-R3, RL-BR1 | accepted |
-| D-2 | Plan first (pure, no writes), then apply | a refused request must change nothing (RL-BR1) | check-and-write in one pass | partial writes on refusal | RL-R3, RL-BR1 | accepted |
+| BURST-D1 | Track borrowed tokens as a separate `debt` field on the bucket, never as negative `tokens` | keeps the LRL-R1 invariant tokens >= 0 readable | negative token balance | silent over-admission, broken refill math | BURST-R1, BURST-BR1 | accepted |
+| BURST-D2 | Plan first (pure, no writes), then apply | a refused request must change nothing (BURST-BR1) | check-and-write in one pass | partial writes on refusal | BURST-R1, BURST-BR1 | accepted |
 
 ## Components
-- bucket_util — bucket helpers — modified — D-1, D-2
+- bucket_util — bucket helpers — modified — BURST-D1, BURST-D2
 
 ## Data model
 - Bucket gains `debt` (number, >= 0, tokens borrowed) and `burstLimit` (number, >= 0, 0 = no burst).
 
 ## Test strategy
-- RL-R3, RL-R2: busted unit tests on bucket tables with a fixed clock.
+- BURST-R1, LRL-R2: busted unit tests on bucket tables with a fixed clock.
 
 ## Risks
 - correctness: refill must repay debt before adding tokens, else clients borrow forever.

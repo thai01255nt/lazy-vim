@@ -8,7 +8,7 @@ import { readJson, readText, writeTextAtomic } from "./fsutil.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
 import { parsePlanningMd, planningRel } from "./planningmd.mjs";
 import { parseTasksMd } from "./tasksmd.mjs";
-import { CAP_RE, KEY_RE, allocate, isChangeId, today as todayOf } from "./specids.mjs";
+import { CAP_RE, CHANGE_KEY_RE, allocate, isChangeId, today as todayOf } from "./specids.mjs";
 
 export const SCHEMA = "hitl.migrate-specs/1";
 const PLANNING_REL = `${HITL_PREFIX}planning`;
@@ -19,7 +19,8 @@ const LEGACY_SECTIONS_RE = /^(Level \d|Other Components)/;
 /** Capability derived from a change id: the slug after the type prefix (`feat-user-register` → `user-register`). */
 export const deriveCapability = (name) => String(name).split("-").slice(1).join("-");
 
-/** Key derived from a capability: initials of up to 4 words (`user-register` → `UR`); one word → its first 4 letters. */
+/** Key derived from a capability: initials of up to 4 words (`user-register` → `UR`); one word → its first 4 letters.
+ *  0.13: it becomes the new change's key when it is 2–5 letters and free (else keys.suggestKey picks one). */
 export function deriveKey(capability) {
   const words = String(capability).split("-").filter(Boolean);
   let k = words.length > 1 ? words.slice(0, 4).map((w) => w[0]).join("") : (words[0] || "").slice(0, 4);
@@ -96,7 +97,7 @@ export function stepsOf(text) {
 const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").trim();
 const capTitle = (cap) => { const t = cap.replace(/-/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
 const demote = (lines) => lines.map((l) => (/^#{2,4} /.test(l) ? "##" + l : l));
-const AC_LINE = /^(- \[(?: |x)\] )(T-\d+\.AC\d+)(?: \(([^)]*)\))?( .+)$/;
+const AC_LINE = /^(- \[(?: |x)\] )((?:[A-Z]{2,5}-T|T-)\d+\.AC\d+)(?: \(([^)]*)\))?( .+)$/;
 
 // ---------------------------------------------------------------- one planning file (pure)
 /**
@@ -110,7 +111,7 @@ export function planChange(o) {
   const secs = sectionsOf(o.planningText);
   const warnings = [];
   const status = doc.status || "draft";
-  const tasksDoc = o.tasksText !== null && o.tasksText !== undefined ? parseTasksMd(o.tasksText, o.tasksFile) : null;
+  const tasksDoc = o.tasksText !== null && o.tasksText !== undefined ? parseTasksMd(o.tasksText, o.tasksFile, { legacy: true }) : null;
 
   // requirements: R-n → <KEY>-R<n> (n kept unless taken in an existing capability)
   const used = new Set(o.used?.R || []);
@@ -153,7 +154,7 @@ export function planChange(o) {
   const retiredReqs = doc.requirements.filter((r) => r.status === "dropped" || r.status === "superseded");
   const hasDelta = active.length > 0;
   if (hasDelta) {
-    const L = ["<!-- audience: business -->", `# Delta: ${capTitle(cap)}`, `> capability: ${cap} | key: ${key} | change: ${name}`, ""];
+    const L = ["<!-- audience: business -->", `# Delta: ${capTitle(cap)}`, `> capability: ${cap} | change: ${name}`, ""];
     if (o.newCapability) L.push("## Purpose", goal.split(/\n\s*\n/)[0] || `Behaviour migrated from the v0.5 planning file ${name}.`, "");
     L.push("## ADDED Requirements");
     for (const r of active) {
@@ -174,11 +175,11 @@ export function planChange(o) {
   const title = doc.title || name;
   const reqList = active.map((r) => `+${ids[r.id]}`).join(" ");
   const deferred = doc.requirements.filter((r) => r.status === "deferred");
-  const P = ["<!-- audience: business -->", `# ${title}`, `> change: ${name} | status: ${hasDelta ? status : "draft"} | created: ${doc.updated || date} | updated: ${date}`, "",
+  const P = ["<!-- audience: business -->", `# ${title}`, `> change: ${name} | key: ${key} | status: ${hasDelta ? status : "draft"} | created: ${doc.updated || date} | updated: ${date}`, "",
     "## Why", goal || `Migrated from the v0.5 planning file ${name}.`, "",
     "## What changes", ...(active.length ? active.map((r) => `- ${shortTitle(r.text, 100)}`) : ["- [NEEDS CLARIFICATION: no requirement was recorded in the v0.5 planning file]"]), "",
-    "## Capabilities", "| capability | key | change | requirements |", "|---|---|---|---|",
-    hasDelta ? `| ${cap} | ${key} | ${o.newCapability ? "new" : "modified"} | ${reqList} |` : "<!-- none yet: write the spec delta -->", ""];
+    "## Capabilities", "| capability | change | requirements |", "|---|---|---|",
+    hasDelta ? `| ${cap} | ${o.newCapability ? "new" : "modified"} | ${reqList} |` : "<!-- none yet: write the spec delta -->", ""];
   const oos = secs.get("Out of scope") || [];
   if (oos.length) P.push("## Out of scope", ...oos, "");
   P.push("## Artifacts", "| artifact | decision | why |", "|---|---|---|", "| spec delta | " + (hasDelta ? "included" : "missing") + " | migrated from v0.5 planning |",
@@ -258,8 +259,10 @@ export async function planMigrateSpecs(root, config, { names = [], map = {}, arc
   const want = names.length ? names.map((n) => String(n).replace(/^.*\//, "").replace(/\.md$/, "")) : all;
   const out = { schema: SCHEMA, dryRun: true, plan: [], conflicts: [], warnings: [] };
   const conflict = (code, ref, message) => out.conflicts.push({ code, ref, message });
-  // keys/capabilities already taken: living + active deltas
-  const keyOwner = new Map();
+  // 0.13: the key is the new change's key (proposal meta), unique forever: every change key, legacy key, quick key and
+  // ≤ 0.12 capability key is taken
+  const { readKeyRegistry, suggestKey } = await import("./keys.mjs");
+  const keyOwner = new Map([...(await readKeyRegistry(root)).byKey].map(([k, os]) => [k, os[0]?.change || os[0]?.source || "?"]));
   for (const [cap, l] of living.specs) if (l.doc.key) keyOwner.set(l.doc.key, cap);
   for (const c of active) for (const d of c.deltas) if (d.key && !keyOwner.has(d.key)) keyOwner.set(d.key, d.capability || d.folder);
   const capsTaken = new Set([...living.specs.keys(), ...active.flatMap((c) => c.deltas.map((d) => d.capability || d.folder))]);
@@ -276,27 +279,27 @@ export async function planMigrateSpecs(root, config, { names = [], map = {}, arc
     if (tasksText === null) tasksFile = null;
     let cap, key; const m = map[name] || map[`${name}.md`];
     if (m) {
-      cap = m.capability; key = m.key;
+      cap = m.capability; key = m.key || null;
       if (!CAP_RE.test(String(cap || ""))) { conflict("CAP_BAD_FORMAT", name, `--map ${name}.capability "${cap}" must match ${CAP_RE}`); continue; }
-      if (!key && living.specs.get(cap)) key = living.specs.get(cap).doc.key;
-      if (!KEY_RE.test(String(key || ""))) { conflict("ID_BAD_FORMAT", name, `--map ${name}.key "${key}" must match ${KEY_RE}`); continue; }
-      const owner = keyOwner.get(key);
-      if (owner && owner !== cap) { conflict("CAP_KEY_DUP", key, `key ${key} is already used by capability ${owner}`); continue; }
-      const lk = living.specs.get(cap)?.doc.key;
-      if (lk && lk !== key) { conflict("CAP_KEY_CHANGED", cap, `capability ${cap} has key ${lk}, --map says ${key}`); continue; }
+      if (key && !CHANGE_KEY_RE.test(String(key))) { conflict("ID_BAD_FORMAT", name, `--map ${name}.key "${key}" must be a change key (2–5 upper-case letters)`); continue; }
+      if (key && keyOwner.has(key)) { conflict("CHANGE_KEY_TAKEN", key, `key ${key} is already taken by ${keyOwner.get(key)}`); continue; }
     } else {
       cap = freeName(deriveCapability(name), capsTaken, "-");
-      key = freeName(deriveKey(cap), new Set(keyOwner.keys()));
       if (!CAP_RE.test(cap)) { conflict("CAP_BAD_FORMAT", name, `derived capability "${cap}" is invalid; give --map`); continue; }
     }
+    if (!key) { const d = deriveKey(cap); key = CHANGE_KEY_RE.test(d) && !keyOwner.has(d) ? d : suggestKey(name, null, keyOwner); }
     keyOwner.set(key, cap); capsTaken.add(cap);
     const newCapability = !living.specs.has(cap);
-    const used = { R: new Set() };
-    if (!newCapability || active.some((c) => c.deltas.some((d) => (d.capability || d.folder) === cap))) used.R = ch.usedForCapability(living, active, cap).R;
-    for (const it of items) if (it.capability === cap) for (const v of Object.values(it.res.ids)) used.R.add(Number(v.split("-R")[1]));
+    const used = { R: new Set() }; // the key is new and unique: R-n keeps its number
     const res = planChange({ name, planningText, tasksText, tasksFile, capability: cap, key, newCapability, used, date });
     let target = "changes";
-    if (archiveDone && res.tasksDoc?.tasks.length) {
+    const legacyT = (res.tasksDoc?.tasks || []).map((t) => t.id).filter((T) => /^T-\d+$/.test(T));
+    if (archiveDone && legacyT.length) { // pre-0.13 T-n (migrate --ids renumbers them before the archive): done = a done record in the lock
+      const lock = await readJson(join(P.index, "skeleton.lock.json"), null);
+      const notDone = legacyT.filter((T) => !lock?.tasks?.[T]?.doneAt);
+      if (!notDone.length) target = "archive";
+      else out.warnings.push(`${name}: not archived (--archive-done) — tasks not done: ${notDone.join(", ")}`);
+    } else if (archiveDone && res.tasksDoc?.tasks.length) {
       const tc = await ch.taskCounts(root, config, res.tasksDoc);
       if (tc.total && !tc.notDone.length) target = "archive";
       else out.warnings.push(`${name}: not archived (--archive-done) — tasks not done: ${tc.notDone.join(", ")}`);
@@ -315,7 +318,7 @@ export async function planMigrateSpecs(root, config, { names = [], map = {}, arc
 }
 
 /** Write the planned change folders, remove the moved v0.5 files, migrate linear.map.json, archive done changes. */
-export async function applyMigrateSpecs(root, config, planned, { date = todayOf() } = {}) {
+export async function applyMigrateSpecs(root, config, planned, { date = todayOf(), idsFirst = null } = {}) {
   const P = paths(root);
   const written = []; const archived = [];
   for (const it of planned.items) {
@@ -333,11 +336,15 @@ export async function applyMigrateSpecs(root, config, planned, { date = todayOf(
   }
   const ch = await import("./changes.mjs");
   ch.resetStatusCache();
-  for (const it of planned.items.filter((x) => x.target === "archive")) {
+  // 0.13: an archive needs change keys and 0.13 ids — `idsFirst()` runs migrate --ids before the done changes archive
+  const toArchive = planned.items.filter((x) => x.target === "archive");
+  let ids = null;
+  if (toArchive.length && idsFirst) { ids = await idsFirst(); ch.resetStatusCache(); }
+  for (const it of toArchive) {
     try {
       const r = await ch.runMerge(root, config, it.name, { archive: true, date });
       archived.push({ change: it.name, ok: r.ok, to: r.archive?.to ?? null, ...(r.ok ? {} : { conflicts: r.conflicts, errors: r.errors || [], preconditions: r.preconditions }) });
     } catch (e) { archived.push({ change: it.name, ok: false, error: String(e.message || e) }); }
   }
-  return { written, archived };
+  return { written, archived, ids };
 }

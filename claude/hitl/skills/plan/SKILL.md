@@ -44,6 +44,10 @@ Not initialized → per conventions (`/hitl:setup`), stop.
      id, no name question.
    - Partial matches → they go into the gate below as `Continue with existing change? (1/2/new)`.
    - Otherwise propose `<type>-<slug>` (type from the request: feat/fix/refactor/perf/docs/test/chore; slug ≤ 4 words).
+   - A new change also needs its **change key** (2–5 capitals, unique forever, the prefix of every id of the change:
+     `PWR-R1`, `PWR-T1`, `PWR-D1`): `hitl-index spec key <id> --title "<title>"` prints a free suggestion → the `K.`
+     line of the gate. A resumed change whose proposal has no `| key:` (or `IDS_LEGACY` from the CLI) → 🛑
+     `pre-0.13 ids: run /hitl:migrate first`, stop.
 2. **Legacy v0.5 planning** (`.hitl/planning/*.md` exists): read `references/migrate.md` and follow its steps 1–2 (dry
    run, conflicts, the migration block `M.` in the gate below). None → skip.
 3. ⛔ GATE — one gate for everything still open (skip it when nothing is open):
@@ -52,18 +56,20 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    <migration block, if any>
    M. 💡 migrate with these names (Y) · rename: "M 1 accounts ACC" · "M skip"
    C. Create change `feat-deactivate-user`? (Y/n) or enter a different id      (or: Continue with existing change? (1/2/new))
-   Reply e.g. "Y" (all recommendations) · "M skip, C Y" · "M 1 accounts ACC".
+   K. Change key `DU`? (Y) or enter 2–5 capitals (e.g. "K DEACT")
+   Reply e.g. "Y" (all recommendations) · "M skip, C Y, K DUS" · "M 1 accounts ACC".
    ```
    END THE TURN.
 4. On the reply:
    - Migrate (`M` reply): per `references/migrate.md` step 3.
-   - Create the change: `.hitl/changes/<id>/proposal.md` from the template (`status: draft`, today, title from the
-     request). `--before P[,…]` given → other-changes.md §2 now (`| before: …` meta, one `order` note per parent through
+   - Create the change: `.hitl/changes/<id>/proposal.md` from the template (`| key: <KEY>`, `status: draft`, today,
+     title from the request). An edited key → `hitl-index spec key --check <KEY> --change <id>` first; exit 1
+     (`CHANGE_KEY_TAKEN`, or not 2–5 capitals) → say so with the CLI's next free suggestion and ask `K.` again. `--before P[,…]` given → other-changes.md §2 now (`| before: …` meta, one `order` note per parent through
      `hitl-index note add --change P --source <id> --kind order …`). Then step 2.
 
 ## 2. Load (no questions)
 - `.hitl/docs/BUSINESS-CONTEXT.md`, `.hitl/specs/GLOSSARY.md` (if present), `hitl-index spec list --json`
-  (capabilities, keys, requirement titles), `hitl-index change --json` (other active changes).
+  (capabilities, requirement titles), `hitl-index change --json` (other active changes).
 - A resumed change: its proposal, deltas, glossary delta (`glossary.md`) and `## Open questions`. Its open notes from
   another change (`hitl-index note list --change <id> --json`, notes with `source`) are round-1 items: take them into
   the delta now (other-changes.md §5); `note apply` at §6 close marks them applied. The living glossary +
@@ -96,8 +102,8 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
    `${CLAUDE_SKILL_DIR}/references/elicitation.md` and `${CLAUDE_PLUGIN_ROOT}/shared/artifacts.md` (all three, every
    new conversation). The other files of the header list are read only at the moment it names.
 2. **Draft only what the user already said** (new change): proposal `## Why` and `## What changes`; a delta per
-   capability that is already clear (write `> capability: … | key: … | change: <id>` and `## Purpose` for a new
-   capability **before** `hitl-index spec next-id <cap> --kind R`); one requirement per behaviour the user stated, each
+   capability that is already clear (write `> capability: … | change: <id>` and `## Purpose` for a new
+   capability; ids from `hitl-index spec next-id <id> --kind R` — they carry the change key); one requirement per behaviour the user stated, each
    with ≥ 1 scenario (`hitl-index spec next-id --scenario <REQ-ID>`). A guess → `[NEEDS CLARIFICATION: …]` + a round-1
    question. Behaviour the user did not ask for is never written: it becomes a question with a recommendation.
    Add the proposal `## Coverage` table with a first status per category (elicitation.md §1); score hotspots (§2).
@@ -107,7 +113,7 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
 ## 5. Round loop (one ⛔ GATE per round, interview.md format)
 - Round 1: `[R]` behaviour — actors, triggers, states, unwanted behaviour (errors, abuse), optional features, out of
   scope — plus `[S]` capability mapping once the scout answered (existing capability → MODIFIED; new business area →
-  new capability + key, recommended from `spec list`).
+  new capability, recommended from `spec list`).
 - Later rounds: ❌ then ⚠️ coverage categories, hotspots 🔥 drilled into first (elicitation.md §1–2). A ✅ or —
   category asks nothing. `deep <ID|topic>` → the technique menu (`references/deep.md`).
 - Header `🌳 Round <n> — [R][S][A][T]   (settled: <ids> · S: <scenarios> · open: <n> · 🔥 <hotspots>)` + the coverage
@@ -180,5 +186,5 @@ change is that note from the inbox (`hitl-index note show --change <id> N-k --js
   merge|archive` writes them), never code, never a v0.5 `.hitl/planning/` file.
 - Another change's files are never edited: its share of an overlap goes in as a note there (`hitl-index note add
   --change <other> --source <id>`, after the user's `--before` or Y; other-changes.md §2–§4).
-- Ids only from `hitl-index spec next-id`; ids never change. Keep the template headings exactly (the CLI parses them).
+- Ids only from `hitl-index spec next-id <change-id>` (they carry the change key); ids never change. Keep the template headings exactly (the CLI parses them).
 - No invented metrics, estimates or scores. Numbers in requirements only when the user gave or accepted them.

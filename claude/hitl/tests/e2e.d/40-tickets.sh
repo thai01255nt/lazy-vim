@@ -54,32 +54,32 @@ sL3() {
   cd "$LIN"
   CLI tickets plan --json > "$W/l3p.json"
   afile "$W/l3p.json" 'd.configured === true && d.ops.length === 2 && d.ops[0].op === "ensureProject"'
-  afile "$W/l3p.json" '(() => { const c = d.ops.find((o) => o.op === "createIssue" && o.task === "T-1"); return c && c.needsGate === true && c.payload.priority === 2 && c.payload.description.includes("hitl:task=T-1") && c.payload.stateType === "started"; })()'
+  afile "$W/l3p.json" '(() => { const c = d.ops.find((o) => o.op === "createIssue" && o.task === "QT-T1"); return c && c.needsGate === true && c.payload.priority === 2 && c.payload.description.includes("hitl:task=QT-T1") && c.payload.stateType === "started"; })()'
   [ -f "$LPLAN" ] || { echo "plan file missing"; return 1; }
 }
-step L3 "tickets plan: ensureProject + gated createIssue T-1 (P1 → 2, started, marker)" sL3
+step L3 "tickets plan: ensureProject + gated createIssue QT-T1 (P1 → 2, started, marker)" sL3
 
 sL4() {
   cd "$LIN"
   lin_results .hitl/.inbox/tickets-push.json
   CLI tickets record --in .hitl/.inbox/tickets-push.json --json > "$W/l4r.json"
   afile "$W/l4r.json" 'd.applied === 2 && d.failed === 0'
-  afile "$LMAP" 'd.tasks["T-1"].issue === "ENG-1" && d.tasks["T-1"].branch === "eng-1-register" && d.changes["feat-user-register"].id === "proj-uuid-1" && !("planning" in d)'
+  afile "$LMAP" 'd.tasks["QT-T1"].issue === "ENG-1" && d.tasks["QT-T1"].branch === "eng-1-register" && d.changes["feat-user-register"].id === "proj-uuid-1" && !("planning" in d)'
   CLI tickets plan --json > "$W/l4p.json"
   afile "$W/l4p.json" 'd.ops.length === 0'
   CLI status --json > "$W/l4s.json"
-  afile "$W/l4s.json" 'd.tasks["T-1"].linear && d.tasks["T-1"].linear.issue === "ENG-1" && d.tickets.mapped === 1'
+  afile "$W/l4s.json" 'd.tasks["QT-T1"].linear && d.tasks["QT-T1"].linear.issue === "ENG-1" && d.tickets.mapped === 1'
   CLI tickets status --json > "$W/l4t.json"
   afile "$W/l4t.json" 'd.tasks[0].synced === true && d.tasks[0].prLine === "Part of ENG-1"'
 }
-step L4 "tickets record push → T-1 mapped to ENG-1; plan again is empty; status --json shows linear" sL4
+step L4 "tickets record push → QT-T1 mapped to ENG-1; plan again is empty; status --json shows linear" sL4
 
 sL5() {
   cd "$LIN"
-  sed -i.bak -E 's/^(- \[ \] T-1\.AC2 .*)$/\1 (edited)/' .hitl/tasks/feat-user-register.md && rm -f .hitl/tasks/feat-user-register.md.bak
+  sed -i.bak -E 's/^(- \[ \] QT-T1\.AC2 .*)$/\1 (edited)/' .hitl/tasks/feat-user-register.md && rm -f .hitl/tasks/feat-user-register.md.bak
   grep -q '(edited)$' .hitl/tasks/feat-user-register.md || { echo "AC2 edit failed"; return 1; }
   CLI tickets plan --json > "$W/l5p.json"
-  afile "$W/l5p.json" 'd.ops.length === 1 && d.ops[0].op === "updateIssue" && d.ops[0].task === "T-1" && "description" in d.ops[0].payload.fields && !("stateId" in d.ops[0].payload.fields)'
+  afile "$W/l5p.json" 'd.ops.length === 1 && d.ops[0].op === "updateIssue" && d.ops[0].task === "QT-T1" && "description" in d.ops[0].payload.fields && !("stateId" in d.ops[0].payload.fields)'
   lin_results .hitl/.inbox/tickets-push.json "MCP not connected"
   CLI tickets record --in .hitl/.inbox/tickets-push.json --json > "$W/l5r.json"
   afile "$W/l5r.json" 'd.queued === 1'
@@ -104,10 +104,10 @@ sL7() {
   cp .hitl/tasks/feat-user-register.md "$W/l7-before.md"
   CLI tickets diff --in "$LINF/remote.json" --json > "$W/l7d.json"
   afile "$W/l7d.json" 'd.schema === "hitl.tickets-diff/1" && d.items.some((i) => i.code === "LINEAR_DONE_EARLY") && d.items.some((i) => i.code === "LINEAR_DRIFT" && i.field === "priority")'
-  afile "$W/l7d.json" 'd.remote["T-1"].assignee === "Thai"'
+  afile "$W/l7d.json" 'd.remote["QT-T1"].assignee === "Thai"'
   cmp .hitl/tasks/feat-user-register.md "$W/l7-before.md"
   [ -f "$LINF/remote.json" ] || { echo "fixture outside .inbox must not be deleted"; return 1; }
-  afile .hitl/index/linear.remote.json 'd.schema === "hitl.linear-remote/1" && !!d.tasks["T-1"]'
+  afile .hitl/index/linear.remote.json 'd.schema === "hitl.linear-remote/1" && !!d.tasks["QT-T1"]'
 }
 step L7 "tickets diff: LINEAR_DONE_EARLY + priority drift; tasks md unchanged" sL7
 

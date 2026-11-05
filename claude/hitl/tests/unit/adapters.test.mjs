@@ -18,7 +18,7 @@ export class UserService {
 
   /**
    * Registers a user.
-   * @task T-1 @impl agent @status skeleton @prio 1
+   * @task QT-T1 @impl agent @status skeleton @prio 1
    * @calls UserRepo.findByEmail
    */
   async createUser(email: string, opts: { a: number }): Promise<User> {
@@ -40,8 +40,8 @@ export interface Shape { w: number }
 `;
 const TEST = `import { describe, it } from "node:test";
 describe("UserService.createUser", () => {
-  /** @covers UserService.createUser @ac T-1.AC1 @kind example @origin skeleton */
-  it.todo("T-1.AC1 rejects duplicate");
+  /** @covers UserService.createUser @ac QT-T1.AC1 @kind example @origin skeleton */
+  it.todo("QT-T1.AC1 rejects duplicate");
   it.skip("skipped", () => {});
   it("active", async () => { await svc.createUser("a"); });
 });
@@ -63,7 +63,7 @@ test("ts-lite recognizes classes, methods, overloads, arrows, types, imports", a
   assert.equal(cu.stub, true);
   assert.deepEqual(cu.commentLines.map((c) => c.text), ["TODO(impl): 1. reject duplicates", "TODO(impl): 2. save"]);
   assert.deepEqual(cu.locals, { "this.repo": "UserRepo" });
-  assert.match(cu.doc, /@task T-1/);
+  assert.match(cu.doc, /@task QT-T1/);
   assert.match(by.fmt.sigText, /^export function fmt\(x: string\): string;\nexport function fmt\(x: any\): string$/);
   assert.deepEqual(by.fmt.calleesRaw, [{ name: "join", qualifier: "path" }, { name: "replace", qualifier: "(expr)" }]);
   assert.equal(by.add.bodyText, "a + b");
@@ -77,7 +77,7 @@ test("ts-lite recognizes test calls with modes and title paths", async () => {
   const [r] = await lite.parse([{ path: "tests/userService.test.ts", content: TEST }], ctx);
   assert.deepEqual(r.symbols.map((s) => [s.kind, s.name, s.test.mode]), [
     ["suite", "UserService.createUser", "active"],
-    ["test", "UserService.createUser > T-1.AC1 rejects duplicate", "todo"],
+    ["test", "UserService.createUser > QT-T1.AC1 rejects duplicate", "todo"],
     ["test", "UserService.createUser > skipped", "skip"],
     ["test", "UserService.createUser > active", "active"],
   ]);
@@ -110,7 +110,7 @@ class Order:
     def apply(order: "Order", pct: Decimal) -> "Order":
         """Apply pct.
 
-        @task T-2 @impl manual @prio 2
+        @task QT-T2 @impl manual @prio 2
         @calls round_money
         """
         # TODO(impl): 1. validate pct
@@ -126,9 +126,9 @@ async def fetch(x: int) -> int:
 const PYTEST = `import unittest
 
 class TestOrders(unittest.TestCase):
-    @unittest.skip("TODO(test): T-2.AC1")
+    @unittest.skip("TODO(test): QT-T2.AC1")
     def test_T2_AC1_x(self):
-        """@covers Order.apply @ac T-2.AC1 @kind example @origin skeleton"""
+        """@covers Order.apply @ac QT-T2.AC1 @kind example @origin skeleton"""
 
     def test_ok(self):
         self.assertEqual(1, 1)
@@ -141,7 +141,7 @@ test("py-ast adapter: qualnames, docstrings, stubs, locals, calls, tests", { ski
   const ap = by["Order.apply"];
   assert.equal(ap.sigText, '@staticmethod\n    def apply(order: "Order", pct: Decimal) -> "Order"');
   assert.equal(ap.stub, true);
-  assert.match(ap.doc, /^Apply pct\.\n\n@task T-2/);
+  assert.match(ap.doc, /^Apply pct\.\n\n@task QT-T2/);
   assert.deepEqual(ap.commentLines.map((c) => c.text), ["TODO(impl): 1. validate pct"]);
   assert.equal(ap.locals.pct, "Decimal");
   assert.equal(ap.locals["self.repo"], "Repo");

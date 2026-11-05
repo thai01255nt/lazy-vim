@@ -21,7 +21,7 @@ If any finding in a batch is unclear, ask about it **before** fixing any of them
 ## 2. Push back when
 
 - the suggestion breaks behaviour required by an AC or by a caller's expectations
-- the reviewer lacked context (e.g. the behaviour is in the plan's Out of scope, or a decision `D-n` chose it —
+- the reviewer lacked context (e.g. the behaviour is in the plan's Out of scope, or a decision `<KEY>-D<n>` chose it —
   unless the finding shows that decision is wrong: then propose `amend F-n`)
 - it adds unused "proper" features (YAGNI: grep for real usage first)
 - it is wrong for this stack/version

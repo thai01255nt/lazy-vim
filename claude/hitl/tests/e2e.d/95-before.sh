@@ -1,5 +1,5 @@
 # Prerequisite changes (0.12) — sourced by tests/e2e.sh (interface I4).
-# A = feat-fee in implement (T-1 settle done with locked tests, T-2 todo). B = feat-report is created `--before feat-fee`:
+# A = feat-fee in implement (BIL-T1 settle done with locked tests, BIL-T2 todo). B = feat-report is created `--before feat-fee`:
 # the CLI writes an order note (source: feat-report) into A, and all of A waits (task approvals, --force/--ack too, the
 # archive). B's plan finds that A's fee rule must change: a spec note (source: feat-report) goes into A, never into A's
 # files. B is archived → A no longer waits, but the unapplied note forces A's amend first → recheck → the human reopens →
@@ -7,16 +7,16 @@
 # human dismisses its note.
 BF="$W/before-app"
 
-bf_src() { printf '/**\n * Settles a charge: the amount plus the fee.\n * @task T-1 @impl agent @status skeleton @prio 1\n */\nexport function settle(amount: number): number {\n%s\n}\n' "$1" > src/settle.ts; }
+bf_src() { printf '/**\n * Settles a charge: the amount plus the fee.\n * @task BIL-T1 @impl agent @status skeleton @prio 1\n */\nexport function settle(amount: number): number {\n%s\n}\n' "$1" > src/settle.ts; }
 bf_tests() { # bf_tests <expected for 10>
   printf 'import { describe, it } from "node:test";\nimport assert from "node:assert/strict";\nimport { settle } from "../src/settle.ts";\n\ndescribe("settle", () => {\n' > tests/settle.test.ts
-  printf '  /** @covers settle @ac T-1.AC1 @kind example @origin test-author */\n  it("T-1.AC1 adds the fee", () => { assert.equal(settle(10), %s); });\n});\n' "$1" >> tests/settle.test.ts
+  printf '  /** @covers settle @ac BIL-T1.AC1 @kind example @origin test-author */\n  it("BIL-T1.AC1 adds the fee", () => { assert.equal(settle(10), %s); });\n});\n' "$1" >> tests/settle.test.ts
 }
 bf_proposal() { # bf_proposal <id> <title> <cap> <key> <meta-extra> <tasks-decision>
   cat <<EOF
 <!-- audience: business -->
 # $2
-> change: $1 | status: approved | created: 2026-11-01 | updated: 2026-11-01$5
+> change: $1 | key: $4 | status: approved | created: 2026-11-01 | updated: 2026-11-01$5
 
 ## Why
 The business needs it.
@@ -47,7 +47,7 @@ sB1() {
   cat > .hitl/changes/feat-fee/specs/billing/spec.md <<'EOF'
 <!-- audience: business -->
 # Delta: Billing
-> capability: billing | key: BIL | change: feat-fee
+> capability: billing | change: feat-fee
 
 ## Purpose
 How a charge is settled.
@@ -74,22 +74,22 @@ EOF
 ← Change: feat-fee
 > status: approved
 
-## T-1 Settle with a fee
+## BIL-T1 Settle with a fee
 - prio: P0 | risk: high (money) | impl: agent | blocked-by: none | status: todo
 **Why**: fee on every settlement
 
 ### Acceptance criteria
-- [ ] T-1.AC1 (BIL-R1.S1) Given 10 When settle Then 11
+- [ ] BIL-T1.AC1 (BIL-R1.S1) Given 10 When settle Then 11
 
 ### Symbols
 1. [ ] `settle` | new | `src/settle.ts` | impl: agent | settle with the fee
 
-## T-2 Record a receipt
-- prio: P1 | risk: high (money) | impl: agent | blocked-by: T-1 | status: todo
+## BIL-T2 Record a receipt
+- prio: P1 | risk: high (money) | impl: agent | blocked-by: BIL-T1 | status: todo
 **Why**: audit
 
 ### Acceptance criteria
-- [ ] T-2.AC1 (BIL-R2.S1) Given 10 When settle Then one receipt
+- [ ] BIL-T2.AC1 (BIL-R2.S1) Given 10 When settle Then one receipt
 EOF
   bf_src '  // TODO(impl): 1. add the fee
   throw new Error("TODO(impl): settle");'
@@ -97,20 +97,20 @@ EOF
   CLI init --quiet
   CLI index --all --quiet
   CLI spec validate feat-fee --json > "$W/b1v.json" || { cat "$W/b1v.json"; return 1; }
-  CLI approve T-1 --stage skeleton --by human > /dev/null
-  CLI test --task T-1 --json > /dev/null
-  CLI approve T-1 --stage tests --by human > /dev/null
+  CLI approve BIL-T1 --stage skeleton --by human > /dev/null
+  CLI test --task BIL-T1 --json > /dev/null
+  CLI approve BIL-T1 --stage tests --by human > /dev/null
   bf_src '  // 1. add the fee
   return amount + 1;'
-  CLI index > /dev/null; CLI test --task T-1 --json > /dev/null
-  CLI approve T-1 --stage done --by human --force > /dev/null
+  CLI index > /dev/null; CLI test --task BIL-T1 --json > /dev/null
+  CLI approve BIL-T1 --stage done --by human --force > /dev/null
   # B = feat-report, created with --before feat-fee (what /hitl:plan does: proposal, then one order note per parent)
   mkdir -p .hitl/changes/feat-report/specs/reporting
   bf_proposal feat-report "Monthly settlement report" reporting REP " | before: feat-fee" skipped > .hitl/changes/feat-report/proposal.md
   cat > .hitl/changes/feat-report/specs/reporting/spec.md <<'EOF'
 <!-- audience: business -->
 # Delta: Reporting
-> capability: reporting | key: REP | change: feat-report
+> capability: reporting | change: feat-report
 
 ## Purpose
 Reports for finance.
@@ -131,12 +131,12 @@ EOF
   contains "$W/b1a.txt" "⏳ feat-fee now waits for feat-report"
   contains .hitl/changes/feat-fee/notes.md "- source: feat-report"
   # all of A waits: every stage and approver, --force and --ack included
-  CLI approve T-2 --stage skeleton --by human --force --json > "$W/b1b.json" && { echo "T-2 approval must be refused"; return 1; } || true
+  CLI approve BIL-T2 --stage skeleton --by human --force --json > "$W/b1b.json" && { echo "BIL-T2 approval must be refused"; return 1; } || true
   afile "$W/b1b.json" 'd.ok === false && /⏳ feat-fee waits for feat-report \(N-1\)/.test(d.reasons[0]) && d.blockedBy[0].source === "feat-report"'
-  CLI approve T-2 --stage skeleton --by human --ack N-1 --json > "$W/b1c.json" && { echo "--ack must not release a wait"; return 1; } || true
+  CLI approve BIL-T2 --stage skeleton --by human --ack N-1 --json > "$W/b1c.json" && { echo "--ack must not release a wait"; return 1; } || true
   afile "$W/b1c.json" 'd.reasons.some((r) => /cannot be acked/.test(r))'
   CLI status --json > "$W/b1d.json"
-  afile "$W/b1d.json" 'd.tasks["T-2"].wait.for[0].change === "feat-report" && d.next.command === "/hitl:archive feat-report"'
+  afile "$W/b1d.json" 'd.tasks["BIL-T2"].wait.for[0].change === "feat-report" && d.next.command === "/hitl:archive feat-report"'
   CLI status --brief > "$W/b1e.txt"
   contains "$W/b1e.txt" "⏳ feat-fee waits for feat-report (N-1)"
   CLI change --json > "$W/b1f.json"
@@ -152,7 +152,7 @@ sB2() {
   local before; before="$(cat .hitl/changes/feat-fee/specs/billing/spec.md .hitl/changes/feat-fee/tasks.md .hitl/changes/feat-fee/proposal.md | sha256sum)"
   CLI note add --change feat-fee --source feat-report --kind spec --refs BIL-R1.S1 \
     --text "The report shows fees of 2. The settlement fee must be 2, not 1." --from "/hitl:plan feat-report" --json > "$W/b2a.json"
-  afile "$W/b2a.json" 'd.note.id === "N-2" && d.note.source === "feat-report" && d.blocks.join() === "T-1,T-2"'
+  afile "$W/b2a.json" 'd.note.id === "N-2" && d.note.source === "feat-report" && d.blocks.join() === "BIL-T1,BIL-T2"'
   [ "$before" = "$(cat .hitl/changes/feat-fee/specs/billing/spec.md .hitl/changes/feat-fee/tasks.md .hitl/changes/feat-fee/proposal.md | sha256sum)" ] || { echo "A's files changed"; return 1; }
   CLI spec archive feat-report --json > "$W/b2c.json" || { cat "$W/b2c.json"; return 1; }
   afile "$W/b2c.json" 'd.archive.moved && d.archive.unblocked.length === 1 && d.archive.unblocked[0].change === "feat-fee" && d.archive.unblocked[0].amend.map((n) => n.id).join() === "N-2" && d.archive.unblocked[0].stillBlocked === true'
@@ -161,7 +161,7 @@ sB2() {
   afile "$W/b2d.json" 'd.changes[0].notes.find((n) => n.id === "N-1").wait === null && d.changes[0].notes.find((n) => n.id === "N-2").wait === "amend"'
   CLI status --json > "$W/b2e.json"
   afile "$W/b2e.json" 'd.next.command === "/hitl:plan feat-fee amend N-2"'
-  CLI approve T-2 --stage skeleton --by human --json > "$W/b2f.json" && { echo "T-2 must wait for the amend"; return 1; } || true
+  CLI approve BIL-T2 --stage skeleton --by human --json > "$W/b2f.json" && { echo "BIL-T2 must wait for the amend"; return 1; } || true
   afile "$W/b2f.json" 'd.reasons.some((r) => /📥 N-2 from feat-report \(archived\) is not applied yet/.test(r))'
 }
 step BF2 "before: B's plan writes a source note into A (A's files untouched); B archived → wait lifts, N-2 forces A's amend" sB2
@@ -169,27 +169,27 @@ step BF2 "before: B's plan writes a source note into A (A's files untouched); B 
 sB3() {
   cd "$BF"
   sed -i 's/- THEN the result is 11/- THEN the result is 12/' .hitl/changes/feat-fee/specs/billing/spec.md
-  sed -i 's/T-1.AC1 (BIL-R1.S1) Given 10 When settle Then 11/T-1.AC1 (BIL-R1.S1) Given 10 When settle Then 12/' .hitl/changes/feat-fee/tasks.md
+  sed -i 's/BIL-T1.AC1 (BIL-R1.S1) Given 10 When settle Then 11/BIL-T1.AC1 (BIL-R1.S1) Given 10 When settle Then 12/' .hitl/changes/feat-fee/tasks.md
   CLI note apply --change feat-fee N-2 --impact BIL-R1.S1=behaviour --json > "$W/b3a.json"
   afile "$W/b3a.json" 'd.recheck === "N-3" && d.counts.tests === 1'
   CLI status --json > "$W/b3b.json"
   afile "$W/b3b.json" 'd.next.command === "/hitl:approve feat-fee reopen N-3" && !(d.changes.find((c) => c.id === "feat-fee").wait)'
   CLI approve --change feat-fee --stage reopen --note N-3 --by human --json > "$W/b3c.json"
-  afile "$W/b3c.json" 'd.ok && d.reopened[0].task === "T-1" && d.next === "/hitl:test T-1"'
+  afile "$W/b3c.json" 'd.ok && d.reopened[0].task === "BIL-T1" && d.next === "/hitl:test BIL-T1"'
   bf_tests 12
-  CLI index > /dev/null; CLI test --task T-1 --json > /dev/null
-  CLI approve T-1 --stage tests --by human --json > "$W/b3d.json"
+  CLI index > /dev/null; CLI test --task BIL-T1 --json > /dev/null
+  CLI approve BIL-T1 --stage tests --by human --json > "$W/b3d.json"
   afile "$W/b3d.json" 'd.ok === true'
   bf_src '  // 1. add the fee
   return amount + 2;'
-  CLI index > /dev/null; CLI test --task T-1 --json > /dev/null
-  CLI approve T-1 --stage done --by human --force > /dev/null
-  CLI status T-1 --json > "$W/b3e.json"
-  afile "$W/b3e.json" 'taskStatus(d, "T-1") === "done" && !d.tasks["T-1"].wait'
-  CLI approve T-2 --stage skeleton --by human --dry-run --json > "$W/b3f.json" || true
+  CLI index > /dev/null; CLI test --task BIL-T1 --json > /dev/null
+  CLI approve BIL-T1 --stage done --by human --force > /dev/null
+  CLI status BIL-T1 --json > "$W/b3e.json"
+  afile "$W/b3e.json" 'taskStatus(d, "BIL-T1") === "done" && !d.tasks["BIL-T1"].wait'
+  CLI approve BIL-T2 --stage skeleton --by human --dry-run --json > "$W/b3f.json" || true
   afile "$W/b3f.json" '!d.reasons.some((r) => /waits for|📥/.test(r))'
 }
-step BF3 "before: A amends N-2 → recheck → the human reopens → rewritten test red → re-locked → done; T-2 no longer waits" sB3
+step BF3 "before: A amends N-2 → recheck → the human reopens → rewritten test red → re-locked → done; BIL-T2 no longer waits" sB3
 
 sB4() {
   cd "$BF"
@@ -197,7 +197,7 @@ sB4() {
   bf_proposal feat-gone "Dropped idea" other OTH "" skipped > .hitl/changes/feat-gone/proposal.md
   CLI note add --change feat-fee --source feat-gone --kind order --text "wait for feat-gone" > /dev/null
   rm -rf .hitl/changes/feat-gone
-  CLI approve T-2 --stage skeleton --by human --json > "$W/b4a.json" && { echo "a gone source still blocks"; return 1; } || true
+  CLI approve BIL-T2 --stage skeleton --by human --json > "$W/b4a.json" && { echo "a gone source still blocks"; return 1; } || true
   afile "$W/b4a.json" 'd.reasons.some((r) => /feat-gone is gone/.test(r))'
   CLI status --json > "$W/b4b.json"
   afile "$W/b4b.json" 'd.next.command === "/hitl:approve feat-fee dismiss N-4 <reason>"'

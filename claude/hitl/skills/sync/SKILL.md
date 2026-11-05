@@ -1,7 +1,7 @@
 ---
 name: sync
 description: Reconciles manual edits with the HITL index — reindexes the project, shows the full drift report against approved skeletons (signature/intent changes with affected callers, orphan symbols, deleted-but-referenced symbols, edited locked tests, stale @status tags), flags broken requirement/decision links (trace), walks the user through re-reviewing each change (accept, revert, defer, or accept + amend the change's spec delta / design decision), regenerates CODEBASE-MAP, and offers approval. Run by the user after editing code outside Claude.
-argument-hint: "[--files <paths...>] [<T-id>]"
+argument-hint: "[--files <paths...>] [<task-id>]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -10,7 +10,7 @@ allowed-tools: Read Glob Grep Edit Bash(hitl-index *) Bash(node *hitl-index.mjs 
 
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-spec.md`. Reply in the user's language.
 
-Arguments: `$ARGUMENTS` → `[--files <paths...>] [<T-id>]`, or `context <T-id|ref>`.
+Arguments: `$ARGUMENTS` → `[--files <paths...>] [<task-id>]`, or `context <task-id|ref>`.
 - `context <ref>` → run `hitl-index context <ref>` and print its markdown as-is. Done (no gate).
 
 ## Iron rules
@@ -33,31 +33,31 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 ## Step 2 — Drift report (grouped by task)
 
 ```
-## T-12 Register user with unique email
+## PWR-T12 Register user with unique email
 ⛔ DELETED_REFERENCED UserRepo.findByEmail — src/repo/userRepo.ts — still called by UserService.createUser
 ⚠️ SIG_CHANGED UserService.createUser — src/services/userService.ts — callers: AuthController.register
    approved: createUser(email: string, passwordHash: string): User
    current : createUser(email: string, passwordHash: string, role: string): User
-   spec: D-1 (Duplicate check before saving) · ACC-R1.S1, ACC-R1.S2 (change feat-user-register)
+   spec: PWR-D1 (Duplicate check before saving) · ACC-R1.S1, ACC-R1.S2 (change feat-user-register)
 ⚠️ INTENT_CHANGED …   approved: "<intent>"  →  current: "<intent>"
 ⚠️ RENAMED UserService.createUser → UserService.registerUser (sig changed) — update the tasks md Symbols row + @covers
-⚠️ TEST_CHANGED tests/userService.test.ts "T-12.AC2 …"
+⚠️ TEST_CHANGED tests/userService.test.ts "PWR-T12.AC2 …"
 ⚠️ ORPHAN UserService.helper — no @task
 ℹ️ STATUS_TAG_STALE UserService.createUser — source says green, computed red
-⛔ DEC_UNKNOWN D-9 — UserService.createUser @dec D-9 not in changes/feat-user-register/design.md   (trace)
-⛔ SCN_UNKNOWN ACC-R1.S4 — T-12.AC3 refs a scenario not in the change's spec view               (trace)
-⚠️ DEC_SUPERSEDED_REF D-1 — superseded by D-4                                                  (trace)
+⛔ DEC_UNKNOWN PWR-D9 — UserService.createUser @dec PWR-D9 not in changes/feat-user-register/design.md   (trace)
+⛔ SCN_UNKNOWN ACC-R1.S4 — PWR-T12.AC3 refs a scenario not in the change's spec view               (trace)
+⚠️ DEC_SUPERSEDED_REF PWR-D1 — superseded by PWR-D4                                                  (trace)
 ## refactor-lua-const-mirror (archived)
-⚠️ ARCHIVED_BODY_CHANGED beginGranting — done in T-13; test runs stale (run hitl-index test)
+⚠️ ARCHIVED_BODY_CHANGED beginGranting — done in PWR-T13; test runs stale (run hitl-index test)
 ⚠️ INTENT_CHANGED beginGranting — approved: "<intent>"  →  current: "<intent>"
-⚠️ TEST_CHANGED tests/test_wallet.py "T-13.AC1 …"
+⚠️ TEST_CHANGED tests/test_wallet.py "PWR-T13.AC1 …"
 ## (no task)
 ⚠️ ORPHAN src/util/email.ts#normalize
 ```
 - Order: ⛔ block, ⚠️ warn, ℹ️ info. Collapse info rows into one count line per task unless there are ≤5.
 - For SIG_CHANGED / INTENT_CHANGED show `approved → current` from the drift item's `approved`/`current` fields.
 - For DELETED_LOCKED with a MOVED info item, say where it moved.
-- Items with `spec` → one extra line `   spec: D-1 (<decision text, ≤60 chars>) · <scenario/requirement ids> (change <id>)`.
+- Items with `spec` → one extra line `   spec: PWR-D1 (<decision text, ≤60 chars>) · <scenario/requirement ids> (change <id>)`.
 - Trace items go under their `task` group (no task → `## (no task)`), marked `(trace)`.
 - Items with `task: null` and a `change` (an archived change's symbol or locked test: ARCHIVED_BODY_CHANGED, SIG_CHANGED,
   INTENT_CHANGED, TODO_FLOW_CHANGED, TEST_CHANGED, TEST_DELETED, TEST_SKIPPED) go under `## <change> (archived)`. An
@@ -71,10 +71,10 @@ No drift warn/block items and no trace block items → `✅ in sync` plus `hitl-
 ```
 For each changed contract: 1. accept (re-approve)  2. revert (I restore the approved signature/doc)  3. defer
                             4. accept + amend spec (only items with spec: <symbols>)
-Orphans: tag with task? (T-id / ignore). Locked tests changed: accept (re-lock) / revert by hand / defer.
-Trace ⛔ items: I fix the reference (spec id / D-n / @dec / @ac / @covers) unless you say otherwise.
+Orphans: tag with task? (task id / ignore). Locked tests changed: accept (re-lock) / revert by hand / defer.
+Trace ⛔ items: I fix the reference (spec id / <KEY>-D<n> / @dec / @ac / @covers) unless you say otherwise.
 Archived (<change>): claim <T> (into an open task) / accept / revert / defer — accept is not offered for SIG_CHANGED.
-Reply e.g. "1 all", "2 UserService.createUser", "4 UserService.createUser", "orphans T-12".
+Reply e.g. "1 all", "2 UserService.createUser", "4 UserService.createUser", "orphans PWR-T12".
 ```
 💡 Recommend per item in one line (e.g. revert when callers would break and no caller was updated; accept when the user
 clearly intended the change and callers were updated too; accept + amend spec when the change contradicts a linked
@@ -92,7 +92,7 @@ edit is a small follow-up the archived contract still describes and its tests pa
 | revert | For each symbol: show a compact diff `current → approved` of the signature/docstring (from the lock's `signature`/`intent`), then Edit only those lines back (no second gate). Keep the body and the `@task/@impl/@status/@prio` tags. Then `hitl-index index <file> --json` and confirm the item disappeared from `hitl-index drift --files <file> --json`. If the body no longer fits the old signature, say so (it will show as red tests). |
 | accept + amend spec | Follow `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` with the item's `spec` block: show the 📐 Spec delta and 🔁 Impact, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN. On Y apply it, then print `/hitl:approve <T> skeleton <symbols…>` for the user to type. |
 | defer | Leave it; it stays in drift and in `/hitl:flow`. |
-| orphan → T-id | Add `@task <T> @impl <agent|manual> @status skeleton` to the symbol's docstring (create a minimal docstring if none; ask nothing — default `@impl manual` because the human wrote it). Reindex. Tell the user it joins the task at the next `/hitl:approve <T> skeleton <symbol>`. |
+| orphan → task id | Add `@task <T> @impl <agent|manual> @status skeleton` to the symbol's docstring (create a minimal docstring if none; ask nothing — default `@impl manual` because the human wrote it). Reindex. Tell the user it joins the task at the next `/hitl:approve <T> skeleton <symbol>`. |
 | orphan → ignore | Nothing (orphans are warnings only). |
 | trace ⛔ (DEC_UNKNOWN, REQ_UNKNOWN, SCN_UNKNOWN, RULE_UNKNOWN, REQ_INACTIVE, SPEC_STALE, AC_UNKNOWN, …) | Fix the dangling reference: Edit the `@dec`/`@ac`/`@covers` tag line or the tasks md AC ref group `(ACC-R3.S1)`/Why text to an id in the change's spec view (never status or boxes; never `.hitl/specs/**` — a missing behaviour goes through accept + amend spec). `@dec` is not hashed. Reindex, re-run `hitl-index trace --json`; if drift now shows TEST_CHANGED/INTENT_CHANGED for it, print the matching `/hitl:approve` command. |
 | claim (archived item) → open task `<T>` | Add a `modify` row for the symbol to `<T>`'s `### Symbols` and `@task <T>` to its docstring (a test: tag it `@ac <T>.ACn` or `@task <T>`). Reindex, then print the command for the user to type: `/hitl:approve <T> skeleton <symbol>` (a test: `/hitl:approve <T> tests`). The lock entry moves to `<T>` (history keeps the archived task, which stays done). |

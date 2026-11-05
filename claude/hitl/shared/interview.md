@@ -5,7 +5,7 @@ questions with a recommended answer, "yes" accepts the recommendation, facts are
 user's, done when the frontier is empty and the user confirms. This file only says how hitl **formats and records**
 those rounds. Where this file and the grilling skill differ, this file wins (format, caps, recording). Own text, except
 § Shared language:
-<!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (D-n rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
+<!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (<KEY>-D<n> rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
 
 Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags `[D]`, `[A]`).
 
@@ -31,9 +31,9 @@ There is **no design tree of components and no levels**. The frontier is a set o
 | tag | asked by | about | becomes |
 |---|---|---|---|
 | `[R]` | plan | observable behaviour: actors, triggers, states, unwanted behaviour, optional features, out of scope | requirement + scenarios in a spec delta |
-| `[S]` | plan | scope mapping: which capability (business area) a behaviour belongs to, new vs existing capability, its key | delta file + proposal `## Capabilities` row |
+| `[S]` | plan | scope mapping: which capability (business area) a behaviour belongs to, new vs existing capability | delta file + proposal `## Capabilities` row |
 | `[A]` | plan, design | whether to add an optional artifact (`shared/artifacts.md`); max 2 per round | proposal / design `## Artifacts` row |
-| `[D]` | design | how: components (module level), data, contracts, errors, test strategy, risks, rollout | `D-n` row in design.md |
+| `[D]` | design | how: components (module level), data, contracts, errors, test strategy, risks, rollout | `<KEY>-D<n>` row in design.md |
 | `[T]` | plan (design: `💡 Needs term`) | a term: the canonical word, what it IS, its boundary with a neighbour term; max 2 per round | `### Term:` block in glossary.md with `_Avoid_` (§10) |
 - Plan never asks `[D]`. Design never asks `[R]`: a design answer that needs new behaviour becomes `💡 Needs spec: …`
   (amend the delta in the same gate, `shared/amend-spec.md`).
@@ -71,7 +71,7 @@ Reply: "Y" (accept all) · "Q2: <your answer>" · "Q2: <your question>" (we disc
 - `💡 Recommended:` replaces upstream's `➡️`. Word each question so "yes" accepts the recommendation.
 - Header counts: plan → `settled: <first…last requirement id> · S: <scenario count> · open: <open questions> · 🔥 <hotspots>`
   plus the coverage line (category labels may be shortened; written in the user's language);
-  design → `settled: D-1…D-<n> · open: <n>`.
+  design → `settled: <KEY>-D1…<KEY>-D<n> · open: <n>`.
 - Plan questions use business words only (no code names, file paths, libraries). Design questions may name code.
 - Each round is one ⛔ GATE: END THE TURN after the `Reply:` line.
 
@@ -111,17 +111,17 @@ Reply: "Y" (accept all) · "Q2: <your answer>" · "Q2: <your question>" (we disc
 ## 7. Recording (settled answers only, after the reply, before the next round; a discussion records nothing)
 Plan writes only the change's business files; design writes only its dev files (see each SKILL.md):
 - `[R]` → a requirement block in `specs/<capability>/spec.md` (ADDED, or MODIFIED with the full block + `Changed:`),
-  id from `hitl-index spec next-id <capability> --kind R`. Statement = one EARS sentence with one RFC 2119 keyword in
+  id from `hitl-index spec next-id <change-id> --kind R` (the change key prefixes it: `PWR-R1`). Statement = one EARS sentence with one RFC 2119 keyword in
   English (`When <trigger>, the system SHALL …` · `While <state>, …` · `If <unwanted>, then the system SHALL …` ·
   `Where <feature>, …`). ≥ 1 scenario each (`spec next-id --scenario <REQ-ID>`), and ≥ 1 failure/edge scenario when it
   validates input or handles errors. Numbers only if the user gave them or accepted a recommended number.
-- `[S]` → the delta file header (`> capability: … | key: … | change: …`), `## Purpose` for a new capability, the
+- `[S]` → the delta file header (`> capability: … | change: …`), `## Purpose` for a new capability, the
   proposal `## Capabilities` row.
 - `[A]` → the `## Artifacts` row (`assumed`, `asked → included`, `asked → skipped`).
 - `[T]` → a `### Term:` block in the change's `glossary.md` (ADDED; MODIFIED with the full text when a living term
   changes; REMOVED + `Reason:`) with `_Avoid_:`, written the moment the term is settled (never batched at close). Reword
   every requirement and scenario of the change that used an avoided word.
-- `[D]` → `| D-n | decision | why | alternatives | cost if wrong | serves | accepted |` in design.md. An accepted
+- `[D]` → `| <KEY>-D<n> | decision | why | alternatives | cost if wrong | serves | accepted |` in design.md (id from `hitl-index spec next-id <change-id> --kind D`). An accepted
   recommendation still gets a row. A reversal before approval: edit the row; after approval: supersede
   (`shared/amend-spec.md`).
 - Unknown → `[NEEDS CLARIFICATION: <question>]` inline + a `- [ ] Qn …` line under `## Open questions`; resolved

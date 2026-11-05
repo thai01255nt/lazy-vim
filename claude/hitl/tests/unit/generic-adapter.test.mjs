@@ -68,7 +68,7 @@ test("generic kotlin: companion transparent, expression bodies, suspend, backtic
   assert.equal(by.formatEmail.kind, "function");
   assert.equal(by.formatEmail.stub, true);
   const t = parse(KT, "kotlin");
-  assert.deepEqual(t.symbols.map((s) => [s.kind, s.name]), [["suite", "AccountServiceTest"], ["test", "AccountServiceTest.T-2 AC1 rejects duplicate email"]]);
+  assert.deepEqual(t.symbols.map((s) => [s.kind, s.name]), [["suite", "AccountServiceTest"], ["test", "AccountServiceTest.QT-T2 AC1 rejects duplicate email"]]);
 });
 
 test("generic go: receiver methods, exported by case, `//` docs, testing.T tests", () => {
@@ -80,7 +80,7 @@ test("generic go: receiver methods, exported by case, `//` docs, testing.T tests
   assert.equal(cu.stub, true);
   assert.equal(cu.locals.s, "Service");
   assert.equal(cu.locals["s.repo"], "Repo");
-  assert.match(cu.doc, /^CreateUser registers a user; rejects duplicate emails\.\n@task T-3/);
+  assert.match(cu.doc, /^CreateUser registers a user; rejects duplicate emails\.\n@task QT-T3/);
   assert.equal(by.normalize.exported, false);
   assert.deepEqual(by.normalize.bodySpan, { start: 36, end: 40 }, "raw string `}{` ignored");
   const t = parse(GT, "go");
@@ -116,22 +116,22 @@ test("generic ruby: module/class nesting, end matching (modifiers, do-blocks, he
   const t = parse(RBS, "ruby");
   assert.deepEqual(t.symbols.map((s) => [s.kind, s.name, s.test.mode]), [
     ["suite", "Acme.UserService", "active"], ["suite", "Acme.UserService > #create_user", "active"],
-    ["test", "Acme.UserService > #create_user > T-5.AC1 rejects duplicate email", "todo"], ["test", "Acme.UserService > #create_user > counts", "active"]]);
+    ["test", "Acme.UserService > #create_user > QT-T5.AC1 rejects duplicate email", "todo"], ["test", "Acme.UserService > #create_user > counts", "active"]]);
   assert.match(t.symbols[2].doc, /@covers UserService\.create_user/);
 });
 
 const SNIPPETS = {
-  c: ["a.c", "#include <stdio.h>\n/** Adds. @task T-9 */\nstatic int add(int a, int b)\n{\n  const char *s = \"}\";\n  return a + b;\n}\nint main(void) { return add(1, 2); }\n", ["add", "main"]],
+  c: ["a.c", "#include <stdio.h>\n/** Adds. @task QT-T9 */\nstatic int add(int a, int b)\n{\n  const char *s = \"}\";\n  return a + b;\n}\nint main(void) { return add(1, 2); }\n", ["add", "main"]],
   cpp: ["b.cpp", "namespace geo {\nclass Shape {\n public:\n  virtual double area() const { return 0; }\n};\n}\ndouble geo::Shape::perimeter() const { auto s = R\"x(})x\"; return 1; }\n", ["Shape", "Shape.area", "Shape.perimeter"]],
-  csharp: ["c.cs", "namespace Acme\n{\n    public class Svc\n    {\n        /// @task T-7\n        public async Task<User> Create(string e)\n        {\n            var s = $\"{e} }}\";\n            throw new NotImplementedException(\"TODO(impl): Create\");\n        }\n        public int Count() => repo.Size();\n    }\n}\n", ["Svc", "Svc.Create", "Svc.Count"]],
+  csharp: ["c.cs", "namespace Acme\n{\n    public class Svc\n    {\n        /// @task QT-T7\n        public async Task<User> Create(string e)\n        {\n            var s = $\"{e} }}\";\n            throw new NotImplementedException(\"TODO(impl): Create\");\n        }\n        public int Count() => repo.Size();\n    }\n}\n", ["Svc", "Svc.Create", "Svc.Count"]],
   swift: ["d.swift", "struct Repo {\n  func find(email: String) -> User? { let s = \"\\(email) }\"; return nil }\n}\nextension Repo {\n  mutating func save(_ u: User) { }\n}\n", ["Repo", "Repo.find", "Repo.save"]],
-  php: ["e.php", "<?php\n#[Attr]\nfinal class Svc {\n    /** @task T-8 */\n    public function create(string $e): User {\n        # comment }\n        throw new \\Exception('TODO(impl): create');\n    }\n}\nfunction helper($x) { return $x; }\n", ["Svc", "Svc.create", "helper"]],
+  php: ["e.php", "<?php\n#[Attr]\nfinal class Svc {\n    /** @task QT-T8 */\n    public function create(string $e): User {\n        # comment }\n        throw new \\Exception('TODO(impl): create');\n    }\n}\nfunction helper($x) { return $x; }\n", ["Svc", "Svc.create", "helper"]],
   scala: ["f.scala", "object Main {\n  def run(args: Array[String]): Unit = {\n    println(s\"${args.length} }\")\n  }\n  def add(a: Int, b: Int): Int = a + b\n}\n", ["Main", "Main.run", "Main.add"]],
-  dart: ["g.dart", "class Svc {\n  /// @task T-11\n  Future<User> create(String e) async {\n    throw UnimplementedError('TODO(impl): create');\n  }\n}\nvoid main() { print('${1} }'); }\n", ["Svc", "Svc.create", "main"]],
-  lua: ["h.lua", "local M = {}\n--- @task T-12\nfunction M.add(a, b)\n  if a then return a + b end\n  --[[ long } end ]]\n  return 0\nend\nlocal function helper() return [[ end ]] end\nreturn M\n", ["M.add", "helper"]],
-  shell: ["i.sh", "#!/usr/bin/env bash\n# @task T-13\ngreet() {\n  echo \"hi ${1} }\" # not } a brace\n  case \"$1\" in a) echo a ;; esac\n}\nfunction other {\n  cat <<EOF\n } }\nEOF\n}\n", ["greet", "other"]],
-  sql: ["j.sql", "-- @task T-14\nCREATE OR REPLACE FUNCTION order_total(o_id int) RETURNS numeric AS $$\nBEGIN\n  RAISE EXCEPTION 'TODO(impl): order_total';\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TABLE users (id int, email text);\n", ["order_total", "users"]],
-  elixir: ["k.ex", "defmodule Acme.Users do\n  @doc \"\"\"\n  Registers.\n  @task T-15\n  \"\"\"\n  def create(attrs) do\n    raise \"TODO(impl): create\"\n  end\n\n  defp helper(x), do: {:ok, x}\n  def go(x) do\n    Enum.map(x, fn y -> y end)\n  end\nend\n", ["Acme.Users", "Acme.Users.create", "Acme.Users.helper", "Acme.Users.go"]],
+  dart: ["g.dart", "class Svc {\n  /// @task QT-T11\n  Future<User> create(String e) async {\n    throw UnimplementedError('TODO(impl): create');\n  }\n}\nvoid main() { print('${1} }'); }\n", ["Svc", "Svc.create", "main"]],
+  lua: ["h.lua", "local M = {}\n--- @task QT-T12\nfunction M.add(a, b)\n  if a then return a + b end\n  --[[ long } end ]]\n  return 0\nend\nlocal function helper() return [[ end ]] end\nreturn M\n", ["M.add", "helper"]],
+  shell: ["i.sh", "#!/usr/bin/env bash\n# @task QT-T13\ngreet() {\n  echo \"hi ${1} }\" # not } a brace\n  case \"$1\" in a) echo a ;; esac\n}\nfunction other {\n  cat <<EOF\n } }\nEOF\n}\n", ["greet", "other"]],
+  sql: ["j.sql", "-- @task QT-T14\nCREATE OR REPLACE FUNCTION order_total(o_id int) RETURNS numeric AS $$\nBEGIN\n  RAISE EXCEPTION 'TODO(impl): order_total';\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TABLE users (id int, email text);\n", ["order_total", "users"]],
+  elixir: ["k.ex", "defmodule Acme.Users do\n  @doc \"\"\"\n  Registers.\n  @task QT-T15\n  \"\"\"\n  def create(attrs) do\n    raise \"TODO(impl): create\"\n  end\n\n  defp helper(x), do: {:ok, x}\n  def go(x) do\n    Enum.map(x, fn y -> y end)\n  end\nend\n", ["Acme.Users", "Acme.Users.create", "Acme.Users.helper", "Acme.Users.go"]],
 };
 
 test("generic: language table covers C, C++, C#, Swift, PHP, Scala, Dart, Lua, Shell, SQL, Elixir", () => {
@@ -164,7 +164,7 @@ test("hashes: stable across parses; comments/whitespace/@status ignored; signatu
   assert.notEqual(commented.todoHash, base.todoHash);
   const status = edit(src.replace("@status skeleton @prio 1", "@status green @prio 3"));
   assert.equal(status.intentHash, base.intentHash);
-  assert.deepEqual(status.tags.task, ["T-1"]);
+  assert.deepEqual(status.tags.task, ["QT-T1"]);
   assert.deepEqual(status.tags.calls, ["UserRepo.findByEmail", "UserRepo.save"]);
   assert.equal(status.tags.concurrency, "none");
   assert.equal(base.signature, "@Override public User createUser(String email) throws DuplicateEmailException");
@@ -190,7 +190,7 @@ test("GENERIC_APPROX once per file, adapter marked approx, tagged-doc fallback f
   assert.equal(generic.approx, true);
   const res = await generic.parse([{ path: J, content: read(J) }, { path: RB, content: read(RB) }], { config: DEFAULTS });
   for (const r of res) assert.equal(r.warnings.filter((w) => w.code === "GENERIC_APPROX").length, 1);
-  const odd = "val handler = run {\n}\n/**\n * Odd shape.\n * @task T-3 @impl agent\n */\nval register: (String) -> Unit = { email ->\n  TODO(\"TODO(impl): register\")\n}\n";
+  const odd = "val handler = run {\n}\n/**\n * Odd shape.\n * @task QT-T3 @impl agent\n */\nval register: (String) -> Unit = { email ->\n  TODO(\"TODO(impl): register\")\n}\n";
   const r = parseGeneric({ path: "o.kt", content: odd }, "kotlin", DEFAULTS);
   assert.deepEqual(r.symbols.map((s) => s.name), ["register"]);
   assert.equal(r.symbols[0].stub, true);

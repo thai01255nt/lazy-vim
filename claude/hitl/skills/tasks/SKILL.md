@@ -14,7 +14,7 @@ read `${CLAUDE_SKILL_DIR}/references/slicing-and-risk.md` before drafting. Forma
 Arguments: `$ARGUMENTS`
 
 ## 1. Resolve the source
-- `quick <description>` → quick mode: no change. Target `.hitl/tasks/quick-<slug>.md`, header `← Change: none`, one task.
+- `quick <description>` → quick mode: no change. Target `.hitl/tasks/quick-<slug>.md`, header `← Change: none`, one task, id `QT-T<n>` (`hitl-index next-id --quick`; every quick file shares the key `QT`).
 - Else the change id = argument, else the one used in this conversation, else `hitl-index change --json` and the active
   changes in phase `tasks` (or matching the user's words). Several → ⛔ GATE `Use which change? (1/2/…)` END THE TURN.
 - None → `🛑 No change. Run /hitl:plan first.` Stop. A v0.5 planning file name → `🛑 v0.5 planning — migrate first
@@ -35,7 +35,8 @@ Arguments: `$ARGUMENTS`
 - `.hitl/specs/GLOSSARY.md` and the change's `glossary.md` (if present): the words for titles and ACs.
 - `docs/PATTERNS-CONVENTIONS.md`, `docs/CODEBASE-MAP.md` (if present), `.hitl/hitl.config.json`
   (`risk.corePaths`, `risk.securityPaths`).
-- `hitl-index tasks --json` (existing tasks and ids). `hitl-index next-id` → first new id; number further tasks sequentially.
+- `hitl-index tasks --json` (existing tasks and ids). `hitl-index next-id <change-id>` → first new id
+  `<KEY>-T<n>` (the change key; quick mode: `hitl-index next-id --quick` → `QT-T<n>`); number further tasks sequentially.
 
 ## 3. Facts (never guess)
 For every candidate target symbol: `hitl-index context <ref> --json` (exists? file? callers?) or Grep.
@@ -44,21 +45,21 @@ write its exact path. Many unknowns → one Explore subagent (thoroughness: medi
 
 ## 4. Draft
 Per `slicing-and-risk.md`: vertical slices (prefactor first, expand–contract for wide refactors), `blocked-by` edges,
-prio P0–P3, risk with reasons, 2–6 ACs `T-n.ACk`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), test-plan row per AC.
+prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), test-plan row per AC.
 - Tasks come from the **scenarios** (behaviour) sliced along the design's **components** (where it lives).
-- Each AC carries the scenario it instantiates right after its id: `- [ ] T-12.AC1 (ACC-R3.S1) Given … When … Then …`.
-  Only ADDED/MODIFIED (or living, for a regression AC) ids of the change's view. A requirement-level ref `(ACC-R3)` is
-  allowed but gives `AC_REQ_LEVEL` info; prefer the scenario. Several refs: `(ACC-R3.S1, ACC-BR1)`.
-- `**Why**` cites the design decisions it implements: `… (D-1, D-2)`. No design (skipped) → cite the requirement ids.
+- Each AC carries the scenario it instantiates right after its id: `- [ ] PWR-T12.AC1 (PWR-R3.S1) Given … When … Then …`.
+  Only ADDED/MODIFIED (or living, for a regression AC) ids of the change's view. A requirement-level ref `(PWR-R3)` is
+  allowed but gives `AC_REQ_LEVEL` info; prefer the scenario. Several refs: `(PWR-R3.S1, SGN-BR1)` (spec ids carry the key of the change that created them).
+- `**Why**` cites the design decisions it implements: `… (PWR-D1, PWR-D2)`. No design (skipped) → cite the requirement ids.
 - Symbols (`### Symbols`) are the first place code names appear: they belong here, not in the spec or design.
-- Quick mode: one task, no spec refs, no `D-n`; risk per the rules; high → tell the user and recommend `/hitl:plan` at the gate.
+- Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high → tell the user and recommend `/hitl:plan` at the gate.
 
 ## 5. Write and validate (loop until clean)
 1. 📝 Write the file: header (`# <Title> Tasks`, `← Change: <id>`, `> status: draft`), then tasks sorted by prio.
-   Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: T-11 | status: todo`
-   (`blocked-by: none` when empty; new tasks start `status: todo`; boxes `[ ]`).
+   Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
+   (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
-   `new` symbol already exists, AC without test-plan row, bad ref form, unknown/removed scenario or requirement, unknown `D-n`) and re-run.
+   `new` symbol already exists, AC without test-plan row, bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`) and re-run.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.
@@ -70,8 +71,8 @@ prio P0–P3, risk with reasons, 2–6 ACs `T-n.ACk`, symbols with owner (caller
 
 | id   | title                         | prio | risk (reasons)        | impl   | blocked-by |
 |------|-------------------------------|------|-----------------------|--------|------------|
-| T-11 | Extract PasswordHasher        | P0   | low                   | agent  | —          |
-| T-12 | Register user (unique email)  | P1   | high (security, api)  | mixed  | T-11       |
+| PWR-T11 | Extract PasswordHasher        | P0   | low                   | agent  | —          |
+| PWR-T12 | Register user (unique email)  | P1   | high (security, api)  | mixed  | PWR-T11       |
 
 <consistency lines: trace warn/info (one line per code: ids) + semantic checks from slicing-and-risk.md §8, if any>
 1. Granularity ok?  2. Blocking edges right?  3. Merge/split?  4. Owners (agent/manual) ok?

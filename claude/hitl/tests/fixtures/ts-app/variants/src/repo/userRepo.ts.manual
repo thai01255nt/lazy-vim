@@ -11,7 +11,7 @@ export class UserRepo {
    * Finds a user by email, case-insensitive.
    * @param email - email in any case
    * @returns the stored user, or undefined when none matches
-   * @task T-1 @impl manual @status skeleton @prio 2
+   * @task QT-T1 @impl manual @status skeleton @prio 2
    * @concurrency none
    */
   findByEmail(email: string): User | undefined {

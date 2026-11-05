@@ -47,7 +47,7 @@ review finding to reproduce.
 2. Check the framework and existing test style (contract `import paths:`, PATTERNS-CONVENTIONS, manifest devDependencies).
    Property-test libraries (fast-check, Hypothesis) only if already a dependency; otherwise table-driven cases.
 3. Per row: turn the stub (`it.todo` / skip) into an active test. Keep `@covers @ac @kind`, set `@origin test-author`.
-   Title keeps the `T-n.ACk` prefix. Add extra tests (edge checklist, `@kind concurrency` when `@concurrency` ≠ none)
+   Title keeps the `<KEY>-T<n>.AC<k>` prefix. Add extra tests (edge checklist, `@kind concurrency` when `@concurrency` ≠ none)
    with full tags. One behaviour per test. Keep AC order, AC1 first. Per test-patterns: names from `## Terms`, never an
    avoid word (§1); doubles by dependency (§3); enter at the row's seam (§5). Seam unreachable or wrong → `needsHuman`,
    never test a lower symbol silently.

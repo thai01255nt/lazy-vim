@@ -13,8 +13,8 @@ Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_P
 ## 1. Tags and naming (all kinds)
 
 - Keep the stub's tags; change only `@origin skeleton` → `@origin test-author`. New tests get the full set:
-  `@covers <ref> @ac T-n.ACk @kind <kind> @origin test-author`.
-- Title starts with the AC id: `T-12.AC1 rejects duplicate email in any case`. Python function: `test_T12_AC1_<behaviour>`.
+  `@covers <ref> @ac <KEY>-T<n>.AC<k> @kind <kind> @origin test-author`.
+- Title starts with the AC id: `PWR-T12.AC1 rejects duplicate email in any case`. Python function: `test_T12_AC1_<behaviour>`.
 - Turn `it.todo(...)` / `@unittest.skip("TODO(test)…")` / `@pytest.mark.skip` into an active test. Do not leave skips.
 - Import the unit under test through the `import paths:` line of the contract pack. Never import private internals.
 - Use the project's framework and style (contract pack + `docs/PATTERNS-CONVENTIONS.md`). Do not add dependencies.

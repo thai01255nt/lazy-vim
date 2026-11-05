@@ -19,11 +19,11 @@ C4Context
 ## Decisions
 | id | decision | why | alternatives | cost if wrong | serves | status |
 |----|----------|-----|--------------|---------------|--------|--------|
-| D-1 | Keep the order state in one column with a check constraint | simple, queryable | event log | slow audits | — | accepted |
-| D-2 | Event-sourced orders | full audit | state column | complexity | — | superseded by D-1 |
-| D-3 | Cache order pages | speed | none | stale pages | — | proposed |
+| ORD-D1 | Keep the order state in one column with a check constraint | simple, queryable | event log | slow audits | — | accepted |
+| ORD-D2 | Event-sourced orders | full audit | state column | complexity | — | superseded by ORD-D1 |
+| ORD-D3 | Cache order pages | speed | none | stale pages | — | proposed |
 
-### D-1 Order state in one column
+### ORD-D1 Order state in one column
 - **Context and problem**: orders move through five states; support needs to query by state.
 - **Decision drivers**: query by state; low complexity.
 - **Considered options**: (1) state column + check constraint (2) event log (3) one table per state.

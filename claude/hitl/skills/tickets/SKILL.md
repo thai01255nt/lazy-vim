@@ -1,7 +1,7 @@
 ---
 name: tickets
 description: Optional one-way mirror of approved hitl tasks to a ticket tracker — Linear, Jira or GitHub Issues (issues, status, labels, relations, verdicts); reports drift; never blocks a gate. Use for "push to Linear/Jira/GitHub", "sync tickets", "tickets status", "linear status", or when another hitl skill asks to push.
-argument-hint: "init [linear|jira|github] [--relink] | push [T-id…|change-id] [--auto] | pull [--relink] | status"
+argument-hint: "init [linear|jira|github] [--relink] | push [task-id…|change-id] [--auto] | pull [--relink] | status"
 allowed-tools: Read Write ToolSearch Bash(hitl-index *) Bash(node *hitl-index.mjs *) Bash(gh *)
 ---
 
@@ -15,7 +15,7 @@ The CLI decides **what** to send (`hitl-index tickets plan`), you only **execute
 hand the results back (`hitl-index tickets record`). Never decide state, labels or text yourself. The tracker is never a
 gate: this skill never fails, blocks or changes the result of the skill that called it.
 
-First token ∈ {`init`, `push`, `pull`, `status`} (none → `status`). `push`: `T-<n>` tokens → task scope; another token
+First token ∈ {`init`, `push`, `pull`, `status`} (none → `status`). `push`: `<KEY>-T<n>` tokens → task scope; another token
 → a change id (`feat-x`; a legacy tasks file name or path also works); `--auto` → automatic mode (called by
 `/hitl:tasks`, `/hitl:approve`, `/hitl:review`). `init`: optional provider name, `--relink`. `pull`: `--relink`.
 
@@ -61,7 +61,7 @@ push`. `enabled && !server` → `💡 pin the <Tracker> MCP server: /hitl:ticket
    /hitl:tickets push later`. Never retry in a loop.
 6. `replan: true` → repeat from step 1 (max 3 passes per invocation; gated ops still need the gate). A new pass reuses
    this run's server and identity object (no new verify).
-7. Report per created/updated task `T-1 → <issue> (<state name>) <url>` (state name as the tool returned it, else the
+7. Report per created/updated task `PWR-T1 → <issue> (<state name>) <url>` (state name as the tool returned it, else the
    plan's `stateType`, else omit); then from `hitl-index tickets status --json` `🎯 branch: git switch -c <branch>` for
    mapped tasks in `todo|skeleton|approved` and the `PR: <prLine>` lines. `--auto`: at most 3 lines (`🔗 <Tracker>: <n>
    updated · <m> queued`, the gated hint, the PR line).

@@ -6,7 +6,7 @@ import acme.repo.UserRepo
 class AccountService(private val repo: UserRepo) {
     /**
      * Registers a user; rejects duplicate emails.
-     * @task T-2 @impl agent @status skeleton @prio 1
+     * @task QT-T2 @impl agent @status skeleton @prio 1
      * @calls UserRepo.findByEmail
      * @concurrency async
      */
@@ -31,7 +31,7 @@ data class User(val email: String)
 
 /**
  * Formats an email for display.
- * @task T-2 @impl manual @status skeleton @prio 2
+ * @task QT-T2 @impl manual @status skeleton @prio 2
  */
 fun formatEmail(email: String): String {
     TODO("TODO(impl): formatEmail")

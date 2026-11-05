@@ -8,6 +8,7 @@ import { planningRel, readPlanning } from "../lib/planningmd.mjs";
 import { buildTrace, loadTraceInputs, renderTraceMd } from "../lib/trace.mjs";
 import { outPath } from "./context.mjs";
 import { HITL_PREFIX } from "../lib/paths.mjs";
+import { TASK_ID_RE } from "../lib/specids.mjs";
 
 async function findPlanning(root, x) {
   const cands = [];
@@ -32,7 +33,7 @@ export async function run(argv, ctx) {
     const known = inputs.spec.living.specs.has(cap) || inputs.spec.entries.some((x) => x.change.deltas.some((d) => (d.capability || d.folder) === cap));
     if (!known) { console.error(`capability ${cap} not found`); return 1; }
     scope = { kind: "capability", id: cap };
-  } else if (pos && /^T-\d+$/.test(pos)) {
+  } else if (pos && TASK_ID_RE.test(pos)) {
     if (!inputs.tasks.some((t) => t.id === pos)) { console.error(`task ${pos} not found`); return 1; }
     scope = { kind: "task", id: pos };
   } else if (pos && !pos.includes("/") && !pos.endsWith(".md") && findEntry(pos)) {

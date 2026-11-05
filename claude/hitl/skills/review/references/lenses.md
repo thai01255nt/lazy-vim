@@ -54,7 +54,7 @@ dropped silently. A spec's silence is not permission: judge such behaviour by wh
 
 **Output** (`hitl.findings/1`), written to the path you were given:
 ```json
-{ "schema": "hitl.findings/1", "task": "T-1", "lens": "contract",
+{ "schema": "hitl.findings/1", "task": "PWR-T1", "lens": "contract",
   "findings": [ { "key": "contract-1", "lens": "contract", "symbol": "src/services/userService.ts#UserService.createUser",
                   "file": "src/services/userService.ts", "line": 52, "severity": "critical", "confidence": 85,
                   "category": "intent", "title": "…", "evidence": "…", "suggestedFix": "…", "fixOwner": "agent" } ],
@@ -75,7 +75,7 @@ Per task symbol (approved lock entry → current):
 - **Signature** unchanged vs lock (L0 drift also shows it; report only consequences, e.g. callers now broken).
 - **Scope creep**: undeclared callees (not in `@calls`) — acceptable when marked `// REUSE:` and it fits a step (then minor);
   new public/exported symbols; new modules; helpers without `@task`/`@impl`/`@status` tags.
-- **ACs**: each `T-n.ACk` is actually satisfied by the code (not just by a test name).
+- **ACs**: each `<KEY>-T<n>.AC<k>` is actually satisfied by the code (not just by a test name).
 - **Callers**: changed behaviour still matches what callers expect (their intents in the context).
 - Quality checklist (only real defects): input validation at boundaries, structured errors, cleanup on every path,
   existing patterns followed.

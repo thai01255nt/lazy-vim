@@ -1,6 +1,6 @@
 <!-- audience: business -->
 # Burst credit for trusted clients
-> change: feat-burst-credit | status: approved | created: 2026-10-28 | updated: 2026-10-28
+> change: feat-burst-credit | key: BURST | status: approved | created: 2026-10-28 | updated: 2026-10-28
 
 ## Why
 Trusted clients send short bursts (a page load fans out into many calls) and get refused although their average use is low.
@@ -10,9 +10,9 @@ Trusted clients send short bursts (a page load fans out into many calls) and get
 - Borrowed tokens are paid back first when the bucket refills.
 
 ## Capabilities
-| capability | key | change | requirements |
-|---|---|---|---|
-| ratelimit | RL | modified | +RL-R3 +RL-BR1 ~RL-R2 |
+| capability | change | requirements |
+|---|---|---|
+| ratelimit | modified | +BURST-R1 +BURST-BR1 ~LRL-R2 |
 
 ## Success criteria
 - SC-1 Trusted clients see no refusals during page loads whose average use is within their rate.

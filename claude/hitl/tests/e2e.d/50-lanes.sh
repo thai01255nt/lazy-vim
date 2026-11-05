@@ -1,5 +1,5 @@
 # Fast-lane human override + feature-level run — sourced by tests/e2e.sh (interface I4).
-# Works on its own copy of the ts-app fixture (T-1 high risk) plus an appended low-risk T-2 blocked by T-1.
+# Works on its own copy of the ts-app fixture (QT-T1 high risk) plus an appended low-risk QT-T2 blocked by QT-T1.
 LN="$W/lanes-app"
 FEAT=.hitl/planning/feat-user-register.md
 
@@ -20,48 +20,48 @@ sV1() {
   cd "$LN"
   git init -q
   CLI init --quiet
-  printf '\n## T-2 Show the registered user\n- prio: P2 | risk: low | impl: agent | blocked-by: T-1 | status: todo\n**Why**: follow-up\n\n### Acceptance criteria\n- [ ] T-2.AC1 Given a user When shown Then it prints the email\n' >> .hitl/tasks/feat-user-register.md
+  printf '\n## QT-T2 Show the registered user\n- prio: P2 | risk: low | impl: agent | blocked-by: QT-T1 | status: todo\n**Why**: follow-up\n\n### Acceptance criteria\n- [ ] QT-T2.AC1 Given a user When shown Then it prints the email\n' >> .hitl/tasks/feat-user-register.md
   CLI index --all --quiet
-  expect_exit 1 CLI approve T-1 --stage skeleton --by auto
-  ov_pre v1 "hitl-index approve T-1 --stage skeleton --by human-override --json" "$W/v1a.out"
+  expect_exit 1 CLI approve QT-T1 --stage skeleton --by auto
+  ov_pre v1 "hitl-index approve QT-T1 --stage skeleton --by human-override --json" "$W/v1a.out"
   is_deny "$W/v1a.out"
   contains "$W/v1a.out" "override is human-only"
-  ov_prompt v1 "/hitl:implement T-1 --lane fast"
-  ov_pre v1 "hitl-index approve T-1 --stage skeleton --by human-override --json" "$W/v1b.out" hitl:implementer
+  ov_prompt v1 "/hitl:implement QT-T1 --lane fast"
+  ov_pre v1 "hitl-index approve QT-T1 --stage skeleton --by human-override --json" "$W/v1b.out" hitl:implementer
   is_deny "$W/v1b.out"
-  ov_pre v1 "hitl-index approve T-2 --stage skeleton --by human-override --json" "$W/v1c.out"
+  ov_pre v1 "hitl-index approve QT-T2 --stage skeleton --by human-override --json" "$W/v1c.out"
   is_deny "$W/v1c.out"
-  ov_pre v1 "hitl-index approve T-1 --stage skeleton --by human-override --json" "$W/v1d.out"
+  ov_pre v1 "hitl-index approve QT-T1 --stage skeleton --by human-override --json" "$W/v1d.out"
   is_allow "$W/v1d.out"
 }
-step V1 "lane override: /hitl:implement T-1 --lane fast issues a token for T-1 only (main thread)" sV1
+step V1 "lane override: /hitl:implement QT-T1 --lane fast issues a token for QT-T1 only (main thread)" sV1
 
 sV2() {
   cd "$LN"
-  CLI approve T-1 --stage skeleton --by human-override --json > "$W/v2a.json"
+  CLI approve QT-T1 --stage skeleton --by human-override --json > "$W/v2a.json"
   afile "$W/v2a.json" 'd.ok === true && d.by === "human-override" && d.override === true'
-  afile "$LOCK" 'd.tasks["T-1"].override === true && Object.values(d.symbols).filter((s) => s.task === "T-1").every((s) => s.approvedBy === "human-override")'
+  afile "$LOCK" 'd.tasks["QT-T1"].override === true && Object.values(d.symbols).filter((s) => s.task === "QT-T1").every((s) => s.approvedBy === "human-override")'
   CLI status --json > "$W/v2s.json"
-  afile "$W/v2s.json" 'd.tasks["T-1"].override === true && d.tasks["T-1"].status === "approved"'
-  CLI risk T-1 --json > "$W/v2r.json"
+  afile "$W/v2s.json" 'd.tasks["QT-T1"].override === true && d.tasks["QT-T1"].status === "approved"'
+  CLI risk QT-T1 --json > "$W/v2r.json"
   afile "$W/v2r.json" 'd.override === true && Object.values(d.symbols).length > 0 && Object.values(d.symbols).every((s) => s.route === "HUMAN")'
-  expect_exit 1 CLI approve T-1 --stage done --by human-override
-  expect_exit 2 CLI approve T-1 --by robot
+  expect_exit 1 CLI approve QT-T1 --stage done --by human-override
+  expect_exit 2 CLI approve QT-T1 --by robot
 }
 step V2 "approve --by human-override: lock records it, status override:true, risk routes HUMAN, never done" sV2
 
 sV3() {
   cd "$LN"
   CLI feature "$FEAT" --json > "$W/v3a.json"
-  afile "$W/v3a.json" 'd.name === "feat-user-register" && d.items.map((i) => i.id).join() === "T-1,T-2" && d.items[0].lane === "normal" && d.items[0].action === "test" && d.items[1].lane === "fast" && d.current.id === "T-1"'
+  afile "$W/v3a.json" 'd.name === "feat-user-register" && d.items.map((i) => i.id).join() === "QT-T1,QT-T2" && d.items[0].lane === "normal" && d.items[0].action === "test" && d.items[1].lane === "fast" && d.current.id === "QT-T1"'
   CLI feature feat-user-register --lane fast --json > "$W/v3b.json"
-  afile "$W/v3b.json" 'd.items[0].lane === "override" && d.items[0].action === "implement" && d.items[0].override === true && d.overrideTasks.join() === "T-1"'
+  afile "$W/v3b.json" 'd.items[0].lane === "override" && d.items[0].action === "implement" && d.items[0].override === true && d.overrideTasks.join() === "QT-T1"'
   expect_exit 1 CLI feature nope.md
   ov_prompt v3 "/hitl:implement --feature $FEAT --lane fast"
-  ov_pre v3 "hitl-index approve T-2 --stage tests --by human-override" "$W/v3c.out"
+  ov_pre v3 "hitl-index approve QT-T2 --stage tests --by human-override" "$W/v3c.out"
   is_allow "$W/v3c.out"
   ov_prompt v3 "/hitl:status"
-  ov_pre v3 "hitl-index approve T-2 --stage tests --by human-override" "$W/v3d.out"
+  ov_pre v3 "hitl-index approve QT-T2 --stage tests --by human-override" "$W/v3d.out"
   is_deny "$W/v3d.out"
 }
 step V3 "feature plan: topological order, lanes (normal/override/fast), token bound to the feature's tasks" sV3
@@ -71,7 +71,7 @@ sV4() {
   CLI feature "$FEAT" --report --json > "$W/v4.json"
   afile "$W/v4.json" 'd.feature === "feat-user-register" && d.report === ".hitl/reviews/feature-feat-user-register.md" && d.verdict === "not reviewed" && d.humanRequired >= 1'
   contains .hitl/reviews/feature-feat-user-register.md "# Feature feat-user-register: 2 tasks"
-  contains .hitl/reviews/feature-feat-user-register.md "| T-1 | Register user with unique email | high (security) | ⚠️ yes |"
+  contains .hitl/reviews/feature-feat-user-register.md "| QT-T1 | Register user with unique email | high (security) | ⚠️ yes |"
   contains .hitl/reviews/feature-feat-user-register.md "human-override (fast lane forced; risk: security)"
   local in
   in=$(P="$PWD" js '{session_id:"v4",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:process.env.P+"/.hitl/reviews/feature-feat-user-register.md",content:"x"}}')

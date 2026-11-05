@@ -19,7 +19,7 @@ type Repo struct {
 type User struct{ Email string }
 
 // CreateUser registers a user; rejects duplicate emails.
-// @task T-3 @impl agent @status skeleton @prio 1
+// @task QT-T3 @impl agent @status skeleton @prio 1
 // @calls Repo.FindByEmail
 // @concurrency none
 func (s *Service) CreateUser(email string) (*User, error) {

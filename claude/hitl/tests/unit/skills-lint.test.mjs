@@ -147,7 +147,7 @@ test("churn (0.9): capture rule next to Plain replies, Impact block, approve for
   for (const s of ["plan", "design"]) assert.match(read(`skills/${s}/SKILL.md`), /amend \[N-k\]/, `${s} amend N-k`);
   assert.match(read("skills/test/SKILL.md"), /\*\*reopen fill\*\*/);
   assert.match(read("skills/skeleton/SKILL.md"), /\*\*reopen mode\*\*/);
-  assert.match(read("skills/flow/SKILL.md"), /📌 T-14 blocked by N-3/);
+  assert.match(read("skills/flow/SKILL.md"), /📌 PWR-T14 blocked by N-3/);
   assert.match(read("skills/archive/SKILL.md"), /preconditions\.notes\.open/);
   assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:approve <id> reopen \[N-k\]` \|/m);
   assert.match(read("README.md"), /^### 4c\. Yêu cầu đổi giữa chừng/m);
@@ -236,4 +236,23 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.equal(want("en-quick-explicit"), "hitl:tasks");
   assert.equal(want("vi-tdd-explicit"), "hitl:tdd");
   assert.equal(want("en-status-not-go"), "hitl:flow");
+});
+
+test("0.13: /hitl:migrate skill gates the id migration; docs use change-key ids", () => {
+  const m = read("skills/migrate/SKILL.md");
+  assert.equal(frontmatter(m).name, "migrate");
+  assert.match(m, /hitl-index migrate --ids --dry-run --json/);
+  assert.match(m, /Apply\? \(Y\/n\)/);
+  assert.match(m, /id-map\.json/);
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:migrate` \|/m);
+  assert.match(read("skills/flow/SKILL.md"), /IDS_LEGACY[\s\S]*\/hitl:migrate/);
+  assert.match(read("skills/plan/SKILL.md"), /hitl-index spec key <id> --title/);
+  assert.match(read("shared/templates/proposal.md"), /\| key: \{KEY\}/);
+  assert.doesNotMatch(read("shared/templates/spec.md"), /\| key:/, "capability keys left the living spec meta");
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.12/m);
+  assert.match(read("HUONG-DAN.md"), /^## 1b\. Nâng cấp từ 0\.12/m);
+  // no pre-0.13 task/decision ids in skill and shared examples (the migrate skill and legacy notes name them on purpose)
+  const files = [...skills.filter((d) => !VENDORED.has(d) && d !== "migrate" && d !== "tdd").map((d) => `skills/${d}/SKILL.md`),
+    ...fs.readdirSync(path.join(ROOT, "shared/templates")).filter((f) => f.endsWith(".md")).map((f) => `shared/templates/${f}`)];
+  for (const f of files) assert.doesNotMatch(read(f), /(?<![\w-])(?:T|D)-\d+\b/, `${f} shows a pre-0.13 id`);
 });

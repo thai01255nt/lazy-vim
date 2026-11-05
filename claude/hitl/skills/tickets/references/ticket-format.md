@@ -11,16 +11,17 @@ The task title from tasks.md, as is: verb first, ≤ 60 characters, one behaviou
 
 ## Body (description)
 ```
-**Why**: <1–2 lines> (D-1, D-3)
+**Why**: <1–2 lines> (PWR-D1, PWR-D3)
 Risk reasons: security, concurrency          ← only for high risk
 
 ### Acceptance criteria
-- T-1.AC1 (BILL-R9.S1) Given … When … Then …   ← plain bullets: a box ticked in the tracker would be overwritten
+- PWR-T1.AC1 (BILL-R9.S1) Given … When … Then …   ← plain bullets: a box ticked in the tracker would be overwritten
 
-<!-- hitl:task=T-1 repo=<owner/name> file=.hitl/changes/<id>/tasks.md -->
+<!-- hitl:task=PWR-T1 repo=<owner/name> file=.hitl/changes/<id>/tasks.md -->
 _Managed by hitl — edit .hitl/changes/<id>/tasks.md in the repo, not this issue._
 ```
-The marker lets `pull --relink` find the task again; never remove it.
+The marker lets `pull --relink` find the task again; never remove it. A pre-0.13 marker (`hitl:task=T-12`) is read through
+`.hitl/index/id-map.json` after `/hitl:migrate` and rewritten on the next push.
 
 ## Field mapping (native fields first; never repeat them as body text)
 | hitl | Linear | Jira | GitHub |

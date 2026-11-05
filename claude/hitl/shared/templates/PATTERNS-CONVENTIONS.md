@@ -24,7 +24,7 @@
 <!-- AUTO-GENERATED:BEGIN testing-conventions -->
 - **Framework**: [node:test | vitest | jest | pytest | unittest] (+ property lib if present: fast-check / hypothesis)
 - **Location**: [tests/ | __tests__/ | next to source]
-- **Naming**: [*.test.ts | test_*.py], titles `T-n.ACk …` for HITL tests
+- **Naming**: [*.test.ts | test_*.py], titles `<KEY>-T<n>.AC<k> …` for HITL tests
 - **Fixtures**: [factories / fixtures dir / none]
 <!-- AUTO-GENERATED:END testing-conventions -->
 

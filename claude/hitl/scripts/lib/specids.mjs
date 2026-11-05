@@ -8,8 +8,55 @@ export const CHANGE_ID_RE = /^(feat|fix|refactor|perf|docs|test|chore)-[a-z0-9]+
 export const CHANGE_ID_MAX = 48;
 export const ARCHIVE_DIR_RE = /^(\d{4}-\d{2}-\d{2})-((?:feat|fix|refactor|perf|docs|test|chore)-[a-z0-9]+(?:-[a-z0-9]+)*)$/;
 export const CAP_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+/** Legacy (≤ 0.12) capability key, still read by `migrate --ids`. */
 export const KEY_RE = /^[A-Z][A-Z0-9]{1,5}$/;
 const K = "[A-Z][A-Z0-9]{1,5}";
+// 0.13: every id is scoped by the change key (proposal meta `| key: PWR`), unique forever. Spec ids keep the shape
+// `<KEY>-R<n>` (the key is now a change key, not a capability key); tasks, ACs and decisions gain it.
+/** Change key: 2–5 upper-case letters. */
+export const CHANGE_KEY_RE = /^[A-Z]{2,5}$/;
+/** Reserved key of every quick task file (`.hitl/tasks/*.md`): `QT-T<n>`. */
+export const QUICK_KEY = "QT";
+export const KEY_SRC = "[A-Z]{2,5}";
+/** Source of a task id `PWR-T3` / an AC id `PWR-T3.AC2` / a task-or-AC ref / a decision id `PWR-D1` (embed in larger regexes). */
+export const TASK_ID_SRC = `${KEY_SRC}-T\\d+`;
+export const AC_ID_SRC = `${TASK_ID_SRC}\\.AC\\d+`;
+export const TASK_REF_SRC = `${TASK_ID_SRC}(?:\\.AC\\d+)?`;
+export const DEC_ID_SRC = `${KEY_SRC}-D\\d+`;
+export const TASK_ID_RE = new RegExp(`^${TASK_ID_SRC}$`);
+export const AC_ID_RE = new RegExp(`^${AC_ID_SRC}$`);
+export const DEC_ID_RE = new RegExp(`^${DEC_ID_SRC}$`);
+/** Global matchers for prose. */
+export const TASK_REF_G = () => new RegExp(`\\b${TASK_REF_SRC}\\b`, "g");
+export const DEC_REF_G = () => new RegExp(`\\b${DEC_ID_SRC}\\b`, "g");
+/** Pre-0.13 ids (global `T-n`, per-design `D-n`): read only to point at `/hitl:migrate`. */
+export const LEGACY_TASK_RE = /^T-\d+$/;
+export const LEGACY_AC_RE = /^T-\d+\.AC\d+$/;
+export const LEGACY_DEC_RE = /^D-\d+$/;
+export const LEGACY_HINT = "pre-0.13 id: run /hitl:migrate";
+export const isTaskId = (s) => TASK_ID_RE.test(String(s ?? ""));
+export const isAcId = (s) => AC_ID_RE.test(String(s ?? ""));
+export const isDecId = (s) => DEC_ID_RE.test(String(s ?? ""));
+export const isChangeKey = (s) => CHANGE_KEY_RE.test(String(s ?? ""));
+/** parseTaskId("PWR-T3.AC2") -> {key:"PWR", n:3, ac:2|null, task:"PWR-T3"}; null when not a task/AC id. */
+export function parseTaskId(id) {
+  const m = /^([A-Z]{2,5})-T(\d+)(?:\.AC(\d+))?$/.exec(String(id ?? ""));
+  return m ? { key: m[1], n: Number(m[2]), ac: m[3] ? Number(m[3]) : null, task: `${m[1]}-T${m[2]}` } : null;
+}
+/** Key of any 0.13 id (task, AC, decision, spec id); null otherwise. */
+export function keyOf(id) {
+  const s = String(id ?? "");
+  const m = /^([A-Z][A-Z0-9]{1,5})-(?:T\d+|D\d+|R\d+|BR\d+|UC\d+)\b/.exec(s);
+  return m ? m[1] : null;
+}
+export const formatTaskId = (key, n) => `${key}-T${n}`;
+export const formatDecId = (key, n) => `${key}-D${n}`;
+/** Sort order for task ids: key, then number (AC ids after their task). */
+export function compareTaskIds(a, b) {
+  const x = parseTaskId(a), y = parseTaskId(b);
+  if (!x || !y) return String(a).localeCompare(String(b), "en", { numeric: true });
+  return x.key.localeCompare(y.key) || x.n - y.n || (x.ac ?? 0) - (y.ac ?? 0);
+}
 export const REQ_ID_RE = new RegExp(`^(${K})-R(\\d+)$`);
 export const SCN_ID_RE = new RegExp(`^(${K})-R(\\d+)\\.S(\\d+)$`);
 export const BR_ID_RE = new RegExp(`^(${K})-BR(\\d+)$`);
@@ -79,5 +126,5 @@ export function rewriteIds(text, map) {
   const keys = Object.keys(map || {});
   if (!keys.length) return text;
   const alt = keys.sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  return String(text).replace(new RegExp(`(?<![A-Za-z0-9-])(${alt})(?![0-9])`, "g"), (m) => map[m] ?? m);
+  return String(text).replace(new RegExp(`(?<![A-Za-z0-9])(${alt})(?![0-9])`, "g"), (m) => map[m] ?? m);
 }

@@ -13,7 +13,7 @@ export class UserService {
    * @param passwordHash - already hashed password
    * @returns the saved user
    * @throws Error "duplicate" when the email already exists
-   * @task T-1 @impl agent @status skeleton @prio 1
+   * @task QT-T1 @impl agent @status skeleton @prio 1
    * @dec D-1
    * @calls UserRepo.findByEmail, UserRepo.save
    * @concurrency none

@@ -17,7 +17,7 @@ async function overrideToken(root, args) {
   const f = FEATURE_ARG.exec(args);
   const base = { at: Date.now(), args: args.trim().slice(0, 200) };
   if (!f) {
-    const t = /\bT-\d+\b/.exec(args);
+    const t = /\b[A-Z]{2,5}-T\d+\b/.exec(args);
     return t ? { ...base, tasks: [t[0]], feature: null } : null;
   }
   const lib = await optionalLib("feature.mjs");
@@ -34,7 +34,7 @@ async function main(input) {
   const prompt = typeof input.prompt === "string" ? input.prompt : "";
   const m = APPROVE_PROMPT.exec(prompt);
   if (m) {
-    // bound to a task (`T-n …`) or to a change's intent stage (`<change-id> intent …`); PreToolUse re-derives it from args
+    // bound to a task (`<KEY>-T<n> …`) or to a change's intent stage (`<change-id> intent …`); PreToolUse re-derives it from args
     const args = m[1].trim().slice(0, 200);
     const b = approveBinding(args);
     await updateSession(root, sid, (s) => { s.approveToken = { at: Date.now(), args, ...(b.kind === "change" ? { change: b.change, stage: b.stage } : {}) }; return s; });

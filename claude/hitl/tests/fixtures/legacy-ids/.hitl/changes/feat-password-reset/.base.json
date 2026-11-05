@@ -1,0 +1,7 @@
+{
+  "blocks": {
+    "ACC-R1": "sha256:0b82d19335e996a8024a58253848ed13f231240c5cfc5dc25e07291962975b2a",
+    "ACC-R2": "sha256:47b8786d9b319f68c5601b216c6d7c3514ffbeb1af300527692e8f61f4304dcf"
+  },
+  "schema": "hitl.spec-base/1"
+}

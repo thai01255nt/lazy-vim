@@ -1,7 +1,7 @@
 ---
 name: review
-description: Reviews a hitl task's implementation against its approved skeleton (L0 gates, lens reviewer subagents, report, fix loop "fix/amend F-2"); "--security-audit" audits a change or the repo. Use for "review T-12", "kiểm tra", after implementation turns green, or "security audit feat-x".
-argument-hint: "<T-id> [fix F-n|amend F-n|recheck] [--in-feature] | --security-audit [<change-id>|repo] [--out <dir>]"
+description: Reviews a hitl task's implementation against its approved skeleton (L0 gates, lens reviewer subagents, report, fix loop "fix/amend F-2"); "--security-audit" audits a change or the repo. Use for "review PWR-T12", "kiểm tra", after implementation turns green, or "security audit feat-x".
+argument-hint: "<task-id> [fix F-n|amend F-n|recheck] [--in-feature] | --security-audit [<change-id>|repo] [--out <dir>]"
 allowed-tools: Read Glob Grep Edit Write Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *) Bash(git diff *) Bash(git log *) Bash(git rev-parse *) Bash(git status *) Bash(mkdir *) Bash(node *validate-findings.cjs *) Bash(node *validate-coverage-ledger.cjs *)
 ---
 
@@ -13,7 +13,7 @@ Fix loop: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/fix-loop.md` (read bef
 Amend spec: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (read before `amend`).
 Security lens + full audit: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/security.md` (read before a security lens or `--security-audit`).
 
-Arguments: `$ARGUMENTS` → `<T-id>` (full review) · `<T-id> fix F-n[,F-m]` · `<T-id> recheck` ·
+Arguments: `$ARGUMENTS` → `<task-id>` (full review) · `<task-id> fix F-n[,F-m]` · `<task-id> recheck` ·
 `--security-audit [<change-id>|repo] [--out <dir>] [--profile quick|standard|deep]` (section "Full security audit").
 `--in-feature` (from `/hitl:implement --feature`): run the full review but skip step 8's gate question and the
 "next frontier" line; the feature run asks once for all tasks. Low-risk PASS still auto-approves `done`.
@@ -72,7 +72,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    and continue with the others.
 7. **Report**: `hitl-index report <T> --json` (writes `.hitl/reviews/<T>.review.md`, records the review).
    Print the report's top block: verdict line (and the `⚠️ human-override` line when present), Gates table, the `## Trace` block, Functions table, and the
-   "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint), and the
+   "Findings needing a decision" cards (a card may carry `spec: PWR-D1 · ACC-R3.S1` and the `amend F-n` hint), and the
    `## Structure (suggestions)` list when present (never gated).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:

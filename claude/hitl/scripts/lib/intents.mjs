@@ -5,7 +5,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 import { proseIds } from "./drift.mjs";
 import { collaboratorsOf } from "./context.mjs";
-import { SPECREF_SRC } from "./specids.mjs";
+import { DEC_ID_SRC, SPECREF_SRC, TASK_ID_RE, TASK_REF_SRC } from "./specids.mjs";
 import { taskSymbolIds, lockedTasks, resolveWith, isTest, intentLines, loadApi, readLock } from "./lock.mjs";
 
 export const SCHEMA = "hitl.intents/1";
@@ -21,7 +21,7 @@ const STOP = new Set(("a an the and or but nor of to in on at by for with from i
   "also just same other another such own very can could may might must shall should will would do does did done has have had having here " +
   "per via up out off over under about after before again once more most less few many much some there via vs e g i e etc").split(/\s+/));
 
-const ID_TEXT = new RegExp(`\\b(?:T-\\d+(?:\\.AC\\d+)?|D-\\d+|${SPECREF_SRC})\\b`, "g");
+const ID_TEXT = new RegExp(`\\b(?:${TASK_REF_SRC}|${DEC_ID_SRC}|T-\\d+(?:\\.AC\\d+)?|D-\\d+|${SPECREF_SRC})\\b`, "g");
 /** Normalized content tokens of a text: ids removed (reported apart), lower-cased word pieces, stopwords and 1-char
  *  pieces dropped, plural "s" folded. */
 export function tokens(text) {
@@ -106,7 +106,7 @@ function touchingTasks(index, lock, allTasks, id, api) {
   const s = index.symbols[id];
   const out = new Set([...lockedTasks(lock?.symbols?.[id]), ...(s?.tags?.task || [])]);
   for (const t of allTasks) if ((t.symbols || []).some((r) => resolveWith(api, index, r.ref, r.file)?.id === id)) out.add(t.id);
-  const num = (t) => Number(/^T-(\d+)$/.exec(t)?.[1] ?? Infinity);
+  const num = (t) => Number(/^[A-Z]{2,5}-T(\d+)$/.exec(t)?.[1] ?? Infinity);
   return [...out].sort((a, b) => num(a) - num(b) || a.localeCompare(b));
 }
 
@@ -180,7 +180,7 @@ export async function intents(root, { target, config } = {}) {
   const index = (await api.readIndex(root)) || { symbols: {}, files: {} };
   const lock = await readLock(root);
   const tasks = (await api.readTasks(root).catch(() => [])) || [];
-  const kind = /^T-\d+$/.test(target || "") ? "task" : "change";
+  const kind = TASK_ID_RE.test(target || "") ? "task" : "change";
   const scopeTasks = tasks.filter((t) => (kind === "task" ? t.id === target : t.change === target));
   const cfg = config.intent || {};
   const overlap = Number.isFinite(cfg.restateOverlap) ? cfg.restateOverlap : DEFAULT_RESTATE_OVERLAP;

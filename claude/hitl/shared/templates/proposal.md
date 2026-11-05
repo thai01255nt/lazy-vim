@@ -1,8 +1,10 @@
 <!-- audience: business -->
 <!-- Adapted from github/spec-kit (MIT) and mattpocock/skills (MIT) — see NOTICE.md. Source: templates/spec-template.md @ ee94598, to-spec @ 5beb35b. Changes: business-only proposal with capabilities, artifacts and deferred sections. -->
 # {Change title}
-> change: {change-id} | status: draft | created: {YYYY-MM-DD} | updated: {YYYY-MM-DD}
+> change: {change-id} | key: {KEY} | status: draft | created: {YYYY-MM-DD} | updated: {YYYY-MM-DD}
 
+<!-- {KEY}: 2–5 upper-case letters, unique forever (hitl-index spec key <change-id> --title "…"); every id of this
+     change starts with it ({KEY}-R1, {KEY}-T1, {KEY}-D1). -->
 <!-- WHAT / WHY only, in the user's words. No file names, code names, libraries, SQL or HTTP verbs (BIZ_CODE_TOKEN). -->
 ## Why
 {1–5 sentences: the problem, who is affected, why now}
@@ -14,9 +16,9 @@
 <!-- one row per capability with a delta in specs/<capability>/spec.md; change: new | modified | retired.
      A docs/chore/refactor/test/perf change with no observable behaviour change writes the single line
      "none (no behaviour change)" instead of the table. -->
-| capability | key | change | requirements |
-|---|---|---|---|
-| {capability} | {KEY} | modified | +{KEY}-R{n} |
+| capability | change | requirements |
+|---|---|---|
+| {capability} | modified | +{KEY}-R{n} ~{OTHER}-R{m} |
 
 ## Unchanged behaviour
 <!-- fix/refactor/perf only: what must keep working -->

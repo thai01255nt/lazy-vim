@@ -19,7 +19,7 @@ const GRAPH_CODES = new Set(["AMBIGUOUS_REF", "UNRESOLVED_CALLS_TAG", "UNRESOLVE
 const FN_KINDS = new Set(["function", "method", "test"]);
 // languages hashed with the generic comment stripper (ts/py keep their own, unchanged)
 const genericLang = (lang) => lang !== "ts" && lang !== "py" && !!LANGS[lang];
-const TODO_LINE = /TODO\(impl(?:\s+(T-\d+))?\):\s*(.*)/;
+const TODO_LINE = /TODO\(impl(?:\s+([A-Z]{2,5}-T\d+|T-\d+))?\):\s*(.*)/;
 const TODO_ANY = /TODO\(impl[\s)]/;
 const lastSeg = (name) => String(name).split(/\.| > /).at(-1);
 
@@ -41,7 +41,7 @@ export function toIndexSymbols(res, lang) {
     const { prose, tags, errors } = parseDoc(s.doc);
     for (const e of errors) warnings.push({ code: "BAD_TAG", file: res.path, symbol: id, message: e.message });
     const lines = (s.commentLines || []).map((c) => c.text);
-    // `TODO(impl): n. step` (plain) or `TODO(impl T-3): n. step` (scoped to one task); todos keep the step text only
+    // `TODO(impl): n. step` (plain) or `TODO(impl PWR-T3): n. step` (scoped to one task); todos keep the step text only
     const todoHits = lines.map((t) => t.match(TODO_LINE)).filter(Boolean);
     const todos = todoHits.map((m) => m[2].trim());
     const todoTasks = todoHits.some((m) => m[1]) ? todoHits.map((m) => m[1] || null) : undefined;

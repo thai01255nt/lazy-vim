@@ -10,28 +10,28 @@ const st = (o) => ({ tasks: Object.fromEntries(Object.entries(o).map(([id, [stat
 const T = (id, prio = "P1", blockedBy = []) => ({ id, prio, blockedBy });
 
 test("computeNext: reopen pending first; blocked frontier tasks are skipped; all blocked → apply the first note", () => {
-  const tasks = [T("T-1"), T("T-2"), T("T-3", "P2")];
-  const statuses = st({ "T-1": ["red", "/hitl:implement T-1"], "T-2": ["todo", "/hitl:skeleton T-2"], "T-3": ["todo", "/hitl:skeleton T-3"] });
+  const tasks = [T("QT-T1"), T("QT-T2"), T("QT-T3", "P2")];
+  const statuses = st({ "QT-T1": ["red", "/hitl:implement QT-T1"], "QT-T2": ["todo", "/hitl:skeleton QT-T2"], "QT-T3": ["todo", "/hitl:skeleton QT-T3"] });
   const n1 = { id: "N-1", title: "Link lasts 15 minutes", apply: "/hitl:plan feat-x amend N-1", change: "feat-x" };
-  assert.equal(computeNext({ tasks, statuses }).command, "/hitl:implement T-1");
-  let r = computeNext({ tasks, statuses, notes: { byTask: { "T-1": [n1] } } });
-  assert.equal(r.command, "/hitl:skeleton T-2"); assert.match(r.reason, /skipped T-1 \(N-1\): blocked by notes/);
-  r = computeNext({ tasks, statuses, notes: { byTask: { "T-1": [n1], "T-2": [n1], "T-3": [n1] } } });
-  assert.deepEqual([r.task, r.command, r.change], ["T-1", "/hitl:plan feat-x amend N-1", "feat-x"]); assert.match(r.reason, /T-1 is blocked by N-1 \(Link lasts 15 minutes\)/);
-  r = computeNext({ tasks, statuses, notes: { byTask: { "T-1": [n1] }, pending: [{ change: "feat-x", id: "N-2", title: "Recheck after N-1" }] } });
+  assert.equal(computeNext({ tasks, statuses }).command, "/hitl:implement QT-T1");
+  let r = computeNext({ tasks, statuses, notes: { byTask: { "QT-T1": [n1] } } });
+  assert.equal(r.command, "/hitl:skeleton QT-T2"); assert.match(r.reason, /skipped QT-T1 \(N-1\): blocked by notes/);
+  r = computeNext({ tasks, statuses, notes: { byTask: { "QT-T1": [n1], "QT-T2": [n1], "QT-T3": [n1] } } });
+  assert.deepEqual([r.task, r.command, r.change], ["QT-T1", "/hitl:plan feat-x amend N-1", "feat-x"]); assert.match(r.reason, /QT-T1 is blocked by N-1 \(Link lasts 15 minutes\)/);
+  r = computeNext({ tasks, statuses, notes: { byTask: { "QT-T1": [n1] }, pending: [{ change: "feat-x", id: "N-2", title: "Recheck after N-1" }] } });
   assert.deepEqual([r.command, r.change], ["/hitl:approve feat-x reopen N-2", "feat-x"]);
-  const drift = { items: [{ level: "warn", code: "SIG_CHANGED", symbol: "a#b", task: "T-1" }] };
+  const drift = { items: [{ level: "warn", code: "SIG_CHANGED", symbol: "a#b", task: "QT-T1" }] };
   assert.equal(computeNext({ tasks, statuses, drift, lock: {}, notes: { pending: [{ change: "feat-x", id: "N-2", title: "x" }] } }).command, "/hitl:sync", "locked drift still first");
 });
 
 test("status --json/--brief and change --json show notes; archive refuses open notes even with --force", () => {
   const root = specProject();
-  assert.equal(cli(root, "note", "add", "--change", "feat-password-reset", "--kind", "spec", "--refs", "ACC-R6.S1", "--text", "A new password must differ from the old one.").code, 0);
+  assert.equal(cli(root, "note", "add", "--change", "feat-password-reset", "--kind", "spec", "--refs", "PWR-R2.S1", "--text", "A new password must differ from the old one.").code, 0);
   const s = cli(root, "status", "--json").json();
-  assert.deepEqual(s.tasks["T-13"].notes.map((n) => [n.id, n.apply]), [["N-1", "/hitl:plan feat-password-reset amend N-1"]]);
-  assert.deepEqual(s.tasks["T-12"].notes, []);
+  assert.deepEqual(s.tasks["PWR-T2"].notes.map((n) => [n.id, n.apply]), [["N-1", "/hitl:plan feat-password-reset amend N-1"]]);
+  assert.deepEqual(s.tasks["PWR-T1"].notes, []);
   assert.deepEqual(s.changes[0].notes, { open: 1, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 1, incoming: 0 });
-  assert.equal(s.next.command, "/hitl:plan feat-password-reset amend N-1", "T-13 is the only frontier task and it is blocked");
+  assert.equal(s.next.command, "/hitl:plan feat-password-reset amend N-1", "PWR-T2 is the only frontier task and it is blocked");
   const brief = cli(root, "status", "--brief").out;
   assert.match(brief, /📌 notes: feat-password-reset 1 open → \/hitl:plan feat-password-reset amend N-1/);
   assert.match(cli(root, "status").out, /\| todo 📌 N-1 \|/);

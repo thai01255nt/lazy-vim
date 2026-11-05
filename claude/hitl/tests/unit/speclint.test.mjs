@@ -29,8 +29,8 @@ test("good fixtures: no standards warnings (spec delta, design, contracts)", () 
   assert.doesNotMatch(r2.statement, /Fit:/);
   const ds = parseDesign(rd("good/design.md"), "good/design.md");
   assert.deepEqual(ds.items, []);
-  assert.deepEqual(ds.decisions.map((x) => [x.id, x.status, x.supersededBy]), [["D-1", "accepted", null], ["D-2", "superseded", "D-1"], ["D-3", "proposed", null]]);
-  assert.deepEqual(ds.decisionDetails.map((x) => [x.id, [...x.fields].length]), [["D-1", 6]]);
+  assert.deepEqual(ds.decisions.map((x) => [x.id, x.status, x.supersededBy]), [["ORD-D1", "accepted", null], ["ORD-D2", "superseded", "ORD-D1"], ["ORD-D3", "proposed", null]]);
+  assert.deepEqual(ds.decisionDetails.map((x) => [x.id, [...x.fields].length]), [["ORD-D1", 6]]);
   assert.deepEqual(lintStateMachines(rd("good/design.md")), []);
   for (const f of fs.readdirSync(path.join(STD, "good/contracts"))) assert.deepEqual(lintContract(`contracts/${f}`, rd(`good/contracts/${f}`)), [], f);
 });
@@ -142,9 +142,9 @@ test("contracts: JSON parse, OpenAPI/AsyncAPI/JSON Schema versions, structure, C
 test("MADR decisions: statuses, supersede target, detail blocks (tables inside them are not D rows)", () => {
   const ds = parseDesign(rd("bad/design.md"), "bad/design.md");
   const c = ds.items.map((i) => `${i.level} ${i.code} ${i.ref}`).sort();
-  assert.deepEqual(c, ["warn DESIGN_DEC_DETAIL_UNKNOWN D-7", "warn DESIGN_DEC_INCOMPLETE D-1", "warn DESIGN_DEC_INCOMPLETE D-7", "warn DESIGN_DEC_SUPERSEDE_UNKNOWN D-1"]);
-  assert.equal(ds.decisions.find((d) => d.id === "D-2").status, "deprecated");
-  const withTable = "# Design: x\n> change: feat-x | status: draft\n## Decisions\n| id | decision | why | status |\n|---|---|---|---|\n| D-1 | a | b | accepted |\n\n### D-1 A\n- **Context and problem**: c\n- **Considered options**:\n\n| option | pro | con |\n|---|---|---|\n| one | x | y |\n\n- **Decision outcome**: one\n- **Consequences**: Good: x. Bad: y.\n";
+  assert.deepEqual(c, ["warn DESIGN_DEC_DETAIL_UNKNOWN ORD-D7", "warn DESIGN_DEC_INCOMPLETE ORD-D1", "warn DESIGN_DEC_INCOMPLETE ORD-D7", "warn DESIGN_DEC_SUPERSEDE_UNKNOWN ORD-D1"]);
+  assert.equal(ds.decisions.find((d) => d.id === "ORD-D2").status, "deprecated");
+  const withTable = "# Design: x\n> change: feat-x | status: draft\n## Decisions\n| id | decision | why | status |\n|---|---|---|---|\n| ORD-D1 | a | b | accepted |\n\n### ORD-D1 A\n- **Context and problem**: c\n- **Considered options**:\n\n| option | pro | con |\n|---|---|---|\n| one | x | y |\n\n- **Decision outcome**: one\n- **Consequences**: Good: x. Bad: y.\n";
   const w = parseDesign(withTable, "d");
   assert.deepEqual([w.items, w.decisions.length], [[], 1]);
   assert.equal(parseDesign(withTable.replace("| accepted |", "| maybe |"), "d").items[0].code, "DESIGN_DEC_STATUS");
@@ -159,7 +159,7 @@ function project(extra) {
   return root;
 }
 const OC = ".hitl/changes/feat-order-lifecycle";
-const proposal = (id, cap = "orders", key = "ORD") => `# ${id}\n> change: ${id} | status: draft\n\n## Why\nCustomers want orders.\n\n## What changes\n- Orders.\n\n## Capabilities\n| capability | key | change | requirements |\n|---|---|---|---|\n| ${cap} | ${key} | new | +${key}-R1 |\n\n## Artifacts\n| artifact | decision | why |\n|---|---|---|\n| design | included | new API |\n`;
+const proposal = (id, cap = "orders", key = "ORD") => `# ${id}\n> change: ${id} | key: ${key} | status: draft\n\n## Why\nCustomers want orders.\n\n## What changes\n- Orders.\n\n## Capabilities\n| capability | key | change | requirements |\n|---|---|---|---|\n| ${cap} | ${key} | new | +${key}-R1 |\n\n## Artifacts\n| artifact | decision | why |\n|---|---|---|\n| design | included | new API |\n`;
 const files = (kind) => {
   const out = { [`${OC}/proposal.md`]: proposal("feat-order-lifecycle"), [`${OC}/specs/orders/spec.md`]: rd(`${kind}/spec.md`), [`${OC}/design.md`]: rd(`${kind}/design.md`) };
   for (const f of fs.readdirSync(path.join(STD, kind, "contracts"))) out[`${OC}/contracts/${f}`] = rd(`${kind}/contracts/${f}`);
@@ -185,7 +185,7 @@ test("spec validate: good change has no warnings; bad change only warnings from 
 });
 
 test("CAP_DUP_NEW: two active changes both create the same not-yet-living capability (warning, conflicts exit unchanged)", async () => {
-  const delta = (id) => `# Delta: Orders\n> capability: orders | key: ORD | change: ${id}\n\n## Purpose\nOrders.\n\n## ADDED Requirements\n### Requirement: ORD-R${id.endsWith("a") ? 1 : 2} X\nThe system SHALL keep 1 order.\n\n#### Scenario: ORD-R${id.endsWith("a") ? 1 : 2}.S1 x\n- WHEN a\n- THEN b\n`;
+  const delta = (id) => `# Delta: Orders\n> capability: orders | change: ${id}\n\n## Purpose\nOrders.\n\n## ADDED Requirements\n### Requirement: ORD-R${id.endsWith("a") ? 1 : 2} X\nThe system SHALL keep 1 order.\n\n#### Scenario: ORD-R${id.endsWith("a") ? 1 : 2}.S1 x\n- WHEN a\n- THEN b\n`;
   const root = project({
     ".hitl/changes/feat-orders-a/proposal.md": proposal("feat-orders-a"), ".hitl/changes/feat-orders-a/specs/orders/spec.md": delta("feat-orders-a"),
     ".hitl/changes/feat-orders-b/proposal.md": proposal("feat-orders-b"), ".hitl/changes/feat-orders-b/specs/orders/spec.md": delta("feat-orders-b"),
@@ -204,7 +204,7 @@ test("CAP_DUP_NEW: two active changes both create the same not-yet-living capabi
 
 test("templates follow the standards: filled spec-delta/spec/design and the contract skeletons lint clean", () => {
   const T = path.resolve(HERE, "../../shared/templates");
-  const fill = (s) => s.replace(/\{KEY\}/g, "ACC").replace(/\{n\}/g, "3").replace(/\{p\}/g, "4").replace(/\{m\}/g, "1").replace(/\{r\}/g, "2")
+  const fill = (s) => s.replace(/\{KEY\}/g, "ACC").replace(/\{OTHER\}/g, "LACC").replace(/\{n\}/g, "3").replace(/\{p\}/g, "4").replace(/\{m\}/g, "1").replace(/\{r\}/g, "2")
     .replace(/\{capability\}/g, "accounts").replace(/\{change-id\}/g, "feat-x");
   const d = parseDelta(fill(fs.readFileSync(path.join(T, "spec-delta.md"), "utf8")), "d");
   assert.deepEqual(d.items, []);

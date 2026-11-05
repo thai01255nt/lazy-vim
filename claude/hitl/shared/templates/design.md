@@ -1,5 +1,5 @@
 <!-- audience: dev -->
-<!-- Adapted from github/spec-kit (MIT) — see NOTICE.md. Source: templates/plan-template.md @ ee94598. Changes: hitl decision table (D-n, serves), module-level components only, risks and test strategy. -->
+<!-- Adapted from github/spec-kit (MIT) — see NOTICE.md. Source: templates/plan-template.md @ ee94598. Changes: hitl decision table (<KEY>-D<n>, serves), module-level components only, risks and test strategy. -->
 # Design: {Change title}
 > change: {change-id} | status: draft | updated: {YYYY-MM-DD}
 
@@ -18,13 +18,14 @@
 
 ## Decisions
 <!-- the decision log (parsed): serves = requirement/rule ids of the change's spec view;
-     status (MADR): proposed | accepted | rejected | deprecated | superseded by D-n. Never edit an approved row: supersede it. -->
+     status (MADR): proposed | accepted | rejected | deprecated | superseded by {KEY}-D<n>. Ids {KEY}-D<n> from
+     `hitl-index spec next-id {change-id} --kind D`. Never edit an approved row: supersede it. -->
 | id | decision | why | alternatives | cost if wrong | serves | status |
 |----|----------|-----|--------------|---------------|--------|--------|
-| D-1 | {decision} | {why} | {alternatives} | {cost if wrong} | — | accepted |
+| {KEY}-D1 | {decision} | {why} | {alternatives} | {cost if wrong} | — | accepted |
 
 <!-- MADR 4 record (shared/formats/decisions.md) for each decision with ≥ 2 real options or a high cost if wrong -->
-### D-1 {short title: problem and solution}
+### {KEY}-D1 {short title: problem and solution}
 - **Context and problem**: {forces; cite ## Context facts or requirement ids}
 - **Decision drivers**: {driver}, {driver}
 - **Considered options**: (1) {option} (2) {option}
@@ -34,7 +35,7 @@
 
 ## Components
 <!-- module/service level only. NO function signatures, NO per-file symbol lists -->
-- {component} — {responsibility} — new|changed — (D-1)
+- {component} — {responsibility} — new|changed — ({KEY}-D1)
 
 ## Data model
 <!-- or "see data-model.md" -->

@@ -47,14 +47,14 @@ Criteria:
 2. hotspot_depth — does it find and drill into the risky/uncertain parts (security, data, conflicts with existing behaviour), marked 🔥?
 3. spec_completeness — does the draft capture everything the user said, as testable requirements with scenarios, without inventing unrequested behaviour?
 4. format_correctness — business-readable (no code names), EARS-style SHALL statements, GIVEN/WHEN/THEN scenarios, coverage line/table, round format.`,
-  design: `This is a technical design written in --auto mode (/hitl:design): decisions D-n with alternatives, components,
+  design: `This is a technical design written in --auto mode (/hitl:design): decisions <KEY>-D<n> with alternatives, components,
 data model, contracts, test strategy, risks — module level, no function signatures.
 Criteria:
 1. question_sharpness — are the decisions the right ones, with real alternatives and reasons tied to requirements?
 2. hotspot_depth — depth on the risky parts (security of reset links, token storage, enumeration, expiry, concurrency).
-3. spec_completeness — does the design cover every requirement/rule of the spec (ACC-R5, ACC-R6, ACC-R1 change, ACC-BR1, ACC-UC1, removal of ACC-R2)?
+3. spec_completeness — does the design cover every requirement/rule of the spec (reset password by email, set a new password, the sign-in change, the reset-link validity rule, the recover-access flow, removal of remember me)?
 4. format_correctness — MADR records, D table with serves, contracts in a standard format, no function signatures.`,
-  skeleton: `This is a code skeleton (/hitl:skeleton T-1) for a Lua task: signatures with LuaLS annotations, intent prose
+  skeleton: `This is a code skeleton (/hitl:skeleton BURST-T1) for a Lua task: signatures with LuaLS annotations, intent prose
 (the contract a separate test author writes tests from), hitl tags, numbered TODO(impl) steps and a failing sentinel;
 existing working code must be kept; one pending test stub per acceptance criterion. The task: burst credit for a token
 bucket (borrow up to a burst limit, refused requests change nothing, refill repays debt first).

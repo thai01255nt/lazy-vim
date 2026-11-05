@@ -1,0 +1,7 @@
+{
+  "schema": "hitl.config/1",
+  "adapters": {
+    "ts": "ts-lite",
+    "py": "py-ast"
+  }
+}

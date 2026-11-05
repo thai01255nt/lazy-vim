@@ -65,10 +65,15 @@ sM4() {
   [ -f .hitl/changes/feat-user-register/.legacy/planning.md ] && [ ! -e .hitl/planning/feat-user-register.md ] || { echo "planning not moved"; return 1; }
   contains .hitl/changes/feat-user-register/tasks.md "← Change: feat-user-register"
   contains .hitl/.gitignore ".spec-review.json"
+  contains .hitl/changes/feat-user-register/proposal.md "> change: feat-user-register | key: UR |"
+  contains "$W/m4c.out" "/hitl:migrate"
+  CLI migrate --ids --json > "$W/m4i.json"   # 0.13: the moved quick task + D-n take the change key
+  afile "$W/m4i.json" 'd.status === "applied" && d.map.tasks["QT-T1"] === "UR-T1" && d.map.decisions["feat-user-register/D-1"] === "UR-D1"'
+  contains src/services/userService.ts "@dec UR-D1"
   CLI spec validate --quiet
   CLI tasks --check --quiet
   CLI trace --check --json > "$W/m4d.json"
-  afile "$W/m4d.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.changes[0].id === "feat-user-register" && d.rows.some((r) => r.req && r.req.id === "UR-R1" && r.scenarios[0].acs.some((a) => a.id === "T-1.AC1"))'
+  afile "$W/m4d.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.changes[0].id === "feat-user-register" && d.rows.some((r) => r.req && r.req.id === "UR-R1" && r.scenarios[0].acs.some((a) => a.id === "UR-T1.AC1"))'
   CLI feature feat-user-register --json > "$W/m4e.json"
   afile "$W/m4e.json" 'd.name === "feat-user-register" && d.file === ".hitl/changes/feat-user-register/tasks.md"'
   hook session-start "$(P="$PWD" js '{session_id:"m4b",cwd:process.env.P,hook_event_name:"SessionStart"}')" "$W/m4f.out"
@@ -78,4 +83,4 @@ sM4() {
   hook pre-tool "$in" "$W/m4g.out"
   is_deny "$W/m4g.out"
 }
-step M4 "migrate --specs: dry-run no-op; change folder + moved files; validate/tasks/trace clean; feature by change id; living specs hook-protected" sM4
+step M4 "migrate --specs (+ --ids): dry-run no-op; change folder + moved files; validate/tasks/trace clean; feature by change id; living specs hook-protected" sM4

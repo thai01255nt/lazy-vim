@@ -13,7 +13,7 @@ import { today } from "../../scripts/lib/specids.mjs";
 const FIX = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../fixtures/spec-app");
 const D = "2026-11-02";
 const LIVING = `# Accounts
-> capability: accounts | key: ACC | updated: 2026-10-20
+> capability: accounts | updated: 2026-10-20
 
 ## Purpose
 Sign in.
@@ -46,7 +46,7 @@ The system SHOULD remember.
 `;
 const REQ = (id, title = "Title", stmt = "The system SHALL do it.", scn = [[`${id}.S1`, "Ex"]]) =>
   `### Requirement: ${id} ${title}\n${stmt}\n\n${scn.map(([s, t]) => `#### Scenario: ${s} ${t}\n- WHEN a\n- THEN b\n`).join("\n")}`;
-const delta = (body, cap = "accounts", key = "ACC") => parseDelta(`# Delta: Accounts\n> capability: ${cap} | key: ${key} | change: feat-y\n\n${body}`, "d.md");
+const delta = (body, cap = "accounts", key = "ACC") => parseDelta(`# Delta: Accounts\n> capability: ${cap} | change: feat-y\n\n${body}`, "d.md");
 const living = (text = LIVING) => parseLivingSpec(text, ".hitl/specs/accounts/spec.md");
 const plan = (d, extra = {}) => planCapability({ living: living(), delta: d, change: "feat-y", date: D, ...extra });
 
@@ -81,22 +81,18 @@ test("idempotent re-run: everything alreadyApplied, no change, no write", () => 
 });
 
 test("new capability: created with Purpose; non-ADDED and missing Purpose are conflicts", () => {
-  const d = parseDelta(`# Delta: Billing\n> capability: billing | key: BIL | change: feat-y\n\n## Purpose\nInvoices.\n\n## ADDED Requirements\n${REQ("BIL-R1")}`, "d");
+  const d = parseDelta(`# Delta: Billing\n> capability: billing | change: feat-y\n\n## Purpose\nInvoices.\n\n## ADDED Requirements\n${REQ("BIL-R1")}`, "d");
   const m = mergeChange({ changeId: "feat-y", deltas: [d], living: new Map(), date: D });
   assert.deepEqual(m.conflicts, []);
   assert.equal(m.capabilities[0].created, true);
   assert.equal(m.writes[0].file, ".hitl/specs/billing/spec.md");
   const doc = parseLivingSpec(m.writes[0].text, "x");
   assert.equal(doc.purpose, "Invoices.");
-  assert.equal(doc.key, "BIL");
   assert.deepEqual(doc.items.filter((i) => i.level === "error"), []);
-  const bad = parseDelta(`# Delta: Billing\n> capability: billing | key: BIL | change: feat-y\n\n## MODIFIED Requirements\n${REQ("BIL-R1")}Changed: x\n`, "d");
+  const bad = parseDelta(`# Delta: Billing\n> capability: billing | change: feat-y\n\n## MODIFIED Requirements\n${REQ("BIL-R1")}Changed: x\n`, "d");
   const r = planCapability({ living: null, delta: bad, change: "feat-y", date: D });
   assert.deepEqual(r.conflicts.map((c) => c.code).sort(), ["DELTA_NEW_CAP_NOT_ADDED_ONLY", "PURPOSE_MISSING"]);
-  const dup = parseDelta(`# Delta: Billing\n> capability: billing | key: ACC | change: feat-y\n\n## Purpose\nx\n\n## ADDED Requirements\n${REQ("ACC-R9")}`, "d");
-  const m2 = mergeChange({ changeId: "feat-y", deltas: [dup], living: new Map([["accounts", { doc: living(), text: LIVING }]]), date: D });
-  assert.ok(m2.conflicts.some((c) => c.code === "CAP_KEY_DUP"));
-  assert.deepEqual(m2.writes, []);
+  assert.doesNotMatch(m.writes[0].text, /\| key:/, "0.13: the living meta has no capability key");
 });
 
 test("retire: an emptied capability is CAP_EMPTY unless the proposal marks it retired (then deleted)", () => {
@@ -197,7 +193,7 @@ test("runner: preconditions block (nothing written), merge then archive, re-merg
   const before = snapshot(root);
   const blocked = await runMerge(root, {}, "feat-password-reset", { archive: true, date: D });
   assert.equal(blocked.ok, false);
-  assert.deepEqual(blocked.preconditions.tasks, { total: 2, done: 1, notDone: ["T-13"] });
+  assert.deepEqual(blocked.preconditions.tasks, { total: 2, done: 1, notDone: ["PWR-T2"] });
   assert.deepEqual(snapshot(root), before);
   const relaxed = await runMerge(root, { spec: { archiveRequiresDone: false } }, "feat-password-reset", { archive: true, dryRun: true, date: D });
   assert.equal(relaxed.ok, true);
@@ -206,7 +202,7 @@ test("runner: preconditions block (nothing written), merge then archive, re-merg
   assert.deepEqual(merged.written.sort(), [".hitl/specs/GLOSSARY.md", ".hitl/specs/accounts/spec.md"]);
   const again = await runMerge(root, {}, "feat-password-reset", { date: D });
   assert.deepEqual(again.written, []);
-  assert.deepEqual(again.capabilities[0].alreadyApplied.sort(), ["ACC-BR1", "ACC-R1", "ACC-R2", "ACC-R5", "ACC-R6", "ACC-UC1"]);
+  assert.deepEqual(again.capabilities[0].alreadyApplied.sort(), ["LACC-R1", "LACC-R2", "PWR-BR1", "PWR-R1", "PWR-R2", "PWR-UC1"]);
   fs.writeFileSync(path.join(root, ".hitl/changes/feat-password-reset/.scout.json"), "{}");
   const arch = await runMerge(root, {}, "feat-password-reset", { archive: true, force: true, date: today() });
   assert.equal(arch.archive.moved, true);
@@ -220,45 +216,45 @@ test("archive: the lock's tasks follow the move (file, archivedAt, change) and n
   const root = copyFixture();
   const lockFile = path.join(root, ".hitl/index/skeleton.lock.json");
   const lock0 = JSON.parse(fs.readFileSync(lockFile, "utf8"));
-  lock0.tasks["T-12"].doneBodyHashes = { "src/gone.ts#gone": "h1" }; // the code moved on (here: the symbol is gone)
-  lock0.symbols = { "src/gone.ts#gone": { task: "T-12", sigHash: "s", intentHash: "i" } };
+  lock0.tasks["PWR-T1"].doneBodyHashes = { "src/gone.ts#gone": "h1" }; // the code moved on (here: the symbol is gone)
+  lock0.symbols = { "src/gone.ts#gone": { task: "PWR-T1", sigHash: "s", intentHash: "i" } };
   fs.writeFileSync(lockFile, JSON.stringify(lock0, null, 2));
   const dry = await runMerge(root, {}, "feat-password-reset", { archive: true, force: true, dryRun: true, date: D });
-  assert.deepEqual(dry.warnings.filter((w) => w.code === "DONE_BODY_DRIFT").map((w) => [w.ref, w.task]), [["gone", "T-12"]]);
-  assert.match(dry.warnings.find((w) => w.code === "DONE_BODY_DRIFT").message, /gone since T-12 was done.*\/hitl:sync offers claim or accept/);
+  assert.deepEqual(dry.warnings.filter((w) => w.code === "DONE_BODY_DRIFT").map((w) => [w.ref, w.task]), [["gone", "PWR-T1"]]);
+  assert.match(dry.warnings.find((w) => w.code === "DONE_BODY_DRIFT").message, /gone since PWR-T1 was done.*\/hitl:sync offers claim or accept/);
   assert.deepEqual(JSON.parse(fs.readFileSync(lockFile, "utf8")), lock0, "dry run: lock untouched");
   const r = await runMerge(root, {}, "feat-password-reset", { archive: true, force: true, date: D });
   assert.equal(r.archive.moved, true);
-  assert.deepEqual(r.archive.lockTasks, ["T-12"]);
+  assert.deepEqual(r.archive.lockTasks, ["PWR-T1"]);
   const lock1 = JSON.parse(fs.readFileSync(lockFile, "utf8"));
-  const t12 = lock1.tasks["T-12"];
+  const t12 = lock1.tasks["PWR-T1"];
   assert.equal(t12.file, `${r.archive.to}/tasks.md`);
   assert.equal(t12.change, "feat-password-reset");
   assert.match(t12.archivedAt, /^\d{4}-\d{2}-\d{2}T/);
   const { file, change, archivedAt, ...rest } = t12;
-  const { file: f0, ...rest0 } = lock0.tasks["T-12"];
-  assert.deepEqual(rest, rest0, "no other field of T-12 moves");
-  assert.deepEqual(lock1.tasks["T-10"], lock0.tasks["T-10"]);
+  const { file: f0, ...rest0 } = lock0.tasks["PWR-T1"];
+  assert.deepEqual(rest, rest0, "no other field of PWR-T1 moves");
+  assert.deepEqual(lock1.tasks["TFA-T1"], lock0.tasks["TFA-T1"]);
   assert.deepEqual([lock1.symbols, lock1.tests], [lock0.symbols, lock0.tests]);
-  assert.equal(lock1.tasks["T-13"], undefined, "tasks without a lock entry are not created");
+  assert.equal(lock1.tasks["PWR-T2"], undefined, "tasks without a lock entry are not created");
 });
 
 test("runner: --renumber rewrites ids inside the change folder only", async () => {
   const root = copyFixture();
   const delta = path.join(root, ".hitl/changes/feat-password-reset/specs/accounts/spec.md");
-  // another branch already archived ACC-R5 with a different text
+  // another branch already archived PWR-R1 with a different text
   const liv = path.join(root, ".hitl/specs/accounts/spec.md");
-  fs.writeFileSync(liv, fs.readFileSync(liv, "utf8").replace("## Retired IDs", "### Requirement: ACC-R5 Export data\nThe system SHALL export data.\n\n#### Scenario: ACC-R5.S1 Export\n- WHEN asked\n- THEN a file is given\n\n## Retired IDs"));
+  fs.writeFileSync(liv, fs.readFileSync(liv, "utf8").replace("## Retired IDs", "### Requirement: PWR-R1 Export data\nThe system SHALL export data.\n\n#### Scenario: PWR-R1.S1 Export\n- WHEN asked\n- THEN a file is given\n\n## Retired IDs"));
   const blocked = await runMerge(root, {}, "feat-password-reset", { date: D });
-  assert.deepEqual(blocked.conflicts.map((c) => `${c.code} ${c.ref}`), ["DELTA_ID_TAKEN ACC-R5"]);
+  assert.deepEqual(blocked.conflicts.map((c) => `${c.code} ${c.ref}`), ["DELTA_ID_TAKEN PWR-R1"]);
   const r = await runMerge(root, {}, "feat-password-reset", { renumber: true, date: D });
   assert.equal(r.ok, true);
-  assert.deepEqual(r.capabilities[0].renumbered, { "ACC-R5": "ACC-R7" });
+  assert.deepEqual(r.capabilities[0].renumbered, { "PWR-R1": "PWR-R4" });
   const dt = fs.readFileSync(delta, "utf8");
-  assert.match(dt, /### Requirement: ACC-R7 Reset password by email/);
-  assert.match(dt, /#### Scenario: ACC-R7\.S2/);
-  assert.match(dt, /\(ACC-R7\)/, "flow refs rewritten");
-  assert.match(fs.readFileSync(path.join(root, ".hitl/changes/feat-password-reset/tasks.md"), "utf8"), /T-12\.AC1 \(ACC-R7\.S1\)/);
-  assert.match(fs.readFileSync(path.join(root, ".hitl/changes/feat-password-reset/design.md"), "utf8"), /\| ACC-R7, ACC-BR1 \|/);
-  assert.match(fs.readFileSync(liv, "utf8"), /### Requirement: ACC-R5 Export data[\s\S]*### Requirement: ACC-R7 Reset password by email/);
+  assert.match(dt, /### Requirement: PWR-R4 Reset password by email/);
+  assert.match(dt, /#### Scenario: PWR-R4\.S2/);
+  assert.match(dt, /\(PWR-R4\)/, "flow refs rewritten");
+  assert.match(fs.readFileSync(path.join(root, ".hitl/changes/feat-password-reset/tasks.md"), "utf8"), /PWR-T1\.AC1 \(PWR-R4\.S1\)/);
+  assert.match(fs.readFileSync(path.join(root, ".hitl/changes/feat-password-reset/design.md"), "utf8"), /\| PWR-R4, PWR-BR1 \|/);
+  assert.match(fs.readFileSync(liv, "utf8"), /### Requirement: PWR-R1 Export data[\s\S]*### Requirement: PWR-R4 Reset password by email/);
 });

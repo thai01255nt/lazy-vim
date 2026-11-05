@@ -13,13 +13,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const RUNNER = join(HERE, "..", "..", "scripts", "runners", "py_unittest_junit.py");
 const ROOT = "/work/ts-app";
 const TF = "tests/userService.test.ts", PF = "tests/test_orders.py";
-const A1 = `${TF}#UserService.createUser > T-1.AC1 rejects duplicate email in any case`;
-const A2 = `${TF}#UserService.createUser > T-1.AC2 returns the saved user`;
+const A1 = `${TF}#UserService.createUser > QT-T1.AC1 rejects duplicate email in any case`;
+const A2 = `${TF}#UserService.createUser > QT-T1.AC2 returns the saved user`;
 const P1 = `${PF}#TestOrders.test_T2_AC1_rejects_bad_pct`, P2 = `${PF}#TestOrders.test_T2_AC2_rounds_half_up`;
 const t = (id, file, titlePath) => [id, { id, kind: "test", file, name: titlePath.join(" > "), test: { titlePath, mode: "active", coversResolved: [] } }];
 const INDEX = { symbols: Object.fromEntries([
-  t(A1, TF, ["UserService.createUser", "T-1.AC1 rejects duplicate email in any case"]),
-  t(A2, TF, ["UserService.createUser", "T-1.AC2 returns the saved user"]),
+  t(A1, TF, ["UserService.createUser", "QT-T1.AC1 rejects duplicate email in any case"]),
+  t(A2, TF, ["UserService.createUser", "QT-T1.AC2 returns the saved user"]),
   t(P1, PF, ["TestOrders", "test_T2_AC1_rejects_bad_pct"]),
   t(P2, PF, ["TestOrders", "test_T2_AC2_rounds_half_up"]),
 ]) };
@@ -28,13 +28,13 @@ const byId = (r) => Object.fromEntries(r.matched.map((m) => [m.testId, m]));
 const NODE = `<?xml version="1.0" encoding="utf-8"?>
 <testsuites>
 	<testsuite name="UserService.createUser" time="0.001751" disabled="0" errors="0" tests="2" failures="1" skipped="0" hostname="h">
-		<testcase name="T-1.AC1 rejects duplicate email in any case" time="0.000380" classname="test" file="${ROOT}/${TF}" failure="TODO(impl): UserService.createUser">
+		<testcase name="QT-T1.AC1 rejects duplicate email in any case" time="0.000380" classname="test" file="${ROOT}/${TF}" failure="TODO(impl): UserService.createUser">
 			<failure type="testCodeFailure" message="TODO(impl): UserService.createUser">
 Error [ERR_TEST_FAILURE]: TODO(impl): UserService.createUser
     at new Promise (&lt;anonymous>)
 			</failure>
 		</testcase>
-		<testcase name="T-1.AC2 returns the saved user" time="0.0004" classname="test" file="${ROOT}/${TF}"/>
+		<testcase name="QT-T1.AC2 returns the saved user" time="0.0004" classname="test" file="${ROOT}/${TF}"/>
 	</testsuite>
 	<testcase name="top level orphan" time="0.0005" classname="test" file="${ROOT}/${TF}"/>
 	<!-- tests 3 -->
@@ -43,12 +43,12 @@ Error [ERR_TEST_FAILURE]: TODO(impl): UserService.createUser
 const VITEST = `<?xml version="1.0" encoding="UTF-8" ?>
 <testsuites name="vitest tests" tests="2" failures="1" errors="0" time="0.01">
     <testsuite name="${TF}" timestamp="2026-01-01T00:00:00" hostname="h" tests="2" failures="1" errors="0" skipped="0" time="0.01">
-        <testcase classname="${TF}" name="UserService.createUser &gt; T-1.AC1 rejects duplicate email in any case" time="0.002">
+        <testcase classname="${TF}" name="UserService.createUser &gt; QT-T1.AC1 rejects duplicate email in any case" time="0.002">
             <failure message="expected [Function] to throw error matching /duplicate/" type="AssertionError">
 AssertionError: expected [Function] to throw error matching /duplicate/
             </failure>
         </testcase>
-        <testcase classname="${TF}" name="UserService.createUser &gt; T-1.AC2 returns the saved user" time="0.001">
+        <testcase classname="${TF}" name="UserService.createUser &gt; QT-T1.AC2 returns the saved user" time="0.001">
             <skipped/>
         </testcase>
     </testsuite>
@@ -57,11 +57,11 @@ AssertionError: expected [Function] to throw error matching /duplicate/
 const JEST = `<?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="jest tests" tests="2" failures="1" errors="0" time="0.5">
   <testsuite name="UserService.createUser" errors="0" failures="1" skipped="0" timestamp="2026-01-01T00:00:00" time="0.4" tests="2">
-    <testcase classname="UserService.createUser T-1.AC1 rejects duplicate email in any case" name="UserService.createUser T-1.AC1 rejects duplicate email in any case" time="0.003">
+    <testcase classname="UserService.createUser QT-T1.AC1 rejects duplicate email in any case" name="UserService.createUser QT-T1.AC1 rejects duplicate email in any case" time="0.003">
       <failure>Error: TODO(impl): UserService.createUser
     at Object.&lt;anonymous&gt; (src/services/userService.ts:20:11)</failure>
     </testcase>
-    <testcase classname="UserService.createUser T-1.AC2 returns the saved user" name="UserService.createUser T-1.AC2 returns the saved user" time="0.001">
+    <testcase classname="UserService.createUser QT-T1.AC2 returns the saved user" name="UserService.createUser QT-T1.AC2 returns the saved user" time="0.001">
     </testcase>
   </testsuite>
 </testsuites>`;

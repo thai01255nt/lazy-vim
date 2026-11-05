@@ -21,7 +21,7 @@ Plugin vocabulary for skeleton, test, implement and review. It is **not** the pr
 "Component" (the C4 level in `design.md`) and "trust boundary" (security) keep their meaning.
 
 ## 1. Names
-- Title = `T-n.ACk` + the capability in domain words: WHAT, not HOW (`T-12.AC2 unknown email gets the same message`,
+- Title = `<KEY>-T<n>.AC<k>` + the capability in domain words: WHAT, not HOW (`PWR-T12.AC2 unknown email gets the same message`,
   not `calls mailer 0 times`). One behaviour per title; "and" → split.
 - Use the contract pack's `## Terms` (glossary order, ≤ 8): write each **term** as given, never a word from its
   `(avoid: …)` list, in `describe`/`it` titles and test helper names. No `## Terms` → the AC's own words.

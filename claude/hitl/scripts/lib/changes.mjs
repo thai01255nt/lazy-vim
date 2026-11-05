@@ -20,7 +20,7 @@ export const BASE_SCHEMA = "hitl.spec-base/1";
 /** Scratch files removed by archive (§4.5). */
 export const SCRATCH = [".scout.json", ".spec-review.json"];
 /** Codes the merge itself reports as conflicts; validate errors with these codes do not fail the merge precondition. */
-const MERGE_CODES = new Set(["DELTA_ID_TAKEN", "DELTA_TARGET_MISSING", "DELTA_NEW_CAP_NOT_ADDED_ONLY", "PURPOSE_MISSING", "CAP_KEY_CHANGED", "CAP_EMPTY", "CAP_KEY_DUP", "BASE_CHANGED"]);
+const MERGE_CODES = new Set(["DELTA_ID_TAKEN", "DELTA_TARGET_MISSING", "DELTA_NEW_CAP_NOT_ADDED_ONLY", "PURPOSE_MISSING", "CAP_EMPTY", "BASE_CHANGED"]);
 
 const ls = async (dir) => (await fs.readdir(dir, { withFileTypes: true }).catch(() => []));
 const isDir = async (p) => !!(await fs.stat(p).catch(() => null))?.isDirectory();
@@ -111,11 +111,11 @@ const viewBlock = (b, capability, origin) => ({ kind: b.kind, id: b.id, title: b
  *  Active change: living ⊕ its deltas (REMOVED absent, MODIFIED replaced, ADDED appended). Archived/none: living only. */
 export function effectiveView(living, change = null) {
   const caps = new Map();
-  for (const [cap, l] of living.specs) caps.set(cap, { key: l.doc.key, blocks: l.doc.blocks.map((b) => viewBlock(b, cap, "living")), retired: new Set(l.doc.retired.map((r) => r.id)) });
+  for (const [cap, l] of living.specs) caps.set(cap, { blocks: l.doc.blocks.map((b) => viewBlock(b, cap, "living")), retired: new Set(l.doc.retired.map((r) => r.id)) });
   const active = change && !change.archived;
   if (active) for (const d of change.deltas) {
     const cap = d.capability || d.folder;
-    if (!caps.has(cap)) caps.set(cap, { key: d.key, blocks: [], retired: new Set() });
+    if (!caps.has(cap)) caps.set(cap, { blocks: [], retired: new Set() });
     const c = caps.get(cap);
     for (const b of d.blocks) {
       const i = c.blocks.findIndex((x) => x.id === b.id);
@@ -197,25 +197,36 @@ export function resolveSpecRef(view, id, change = null) {
 /** Trace/check code for an unresolved spec ref kind. */
 export const unknownCode = (kind) => (kind === "S" ? "SCN_UNKNOWN" : kind === "R" ? "REQ_UNKNOWN" : "RULE_UNKNOWN");
 
-// ---------------------------------------------------------------- id allocation (§2.2)
-/** Capability key from the living spec or any active delta; null when unknown. */
-export function capabilityKey(living, changes, cap) {
-  return living.specs.get(cap)?.doc.key || changes.flatMap((c) => c.deltas).find((d) => d.capability === cap && d.key)?.key || null;
+// ---------------------------------------------------------------- id allocation (§2.2; 0.13 change keys)
+/**
+ * Numbers in use under `key` for a kind ("R"|"BR"|"UC"|"D"): living specs (blocks, scenarios' requirements, retired),
+ * every given change's deltas and design decisions. Numbers are per key: the key is unique forever, so the numbers of a
+ * change never collide with another change's, on any branch.
+ */
+export function usedForKey(living, changes, key, kind) {
+  const used = new Set();
+  const take = (id) => { const p = parseId(id); if (p && p.key === key && (p.kind === kind || (kind === "R" && p.kind === "S"))) used.add(p.n); };
+  const docs = [...[...living.specs.values()].map((l) => l.doc), ...changes.flatMap((c) => c.deltas)];
+  for (const d of docs) { for (const b of d.blocks || []) { take(b.id); for (const sc of b.scenarios || []) take(sc.id); } for (const r of d.retired || []) take(r.id); }
+  if (kind === "D") for (const c of changes) for (const d of c.design?.decisions || []) { const m = /^([A-Z]{2,5})-D(\d+)$/.exec(d.id); if (m && m[1] === key) used.add(Number(m[2])); }
+  return used;
 }
 
-/** Numbers in use for a capability: living (blocks, scenarios, retired) + every active change's delta. */
+/** ≤ 0.12 numbers in use for a capability (living + active deltas), by kind; used by `migrate --specs` only. */
 export function usedForCapability(living, changes, cap) {
   const used = usedIds(living.specs.get(cap)?.doc || null);
   for (const c of changes) for (const d of c.deltas) if (d.capability === cap) usedIds(d, used);
   return used;
 }
 
-/** nextSpecIds(living, changes, cap, kind "R"|"BR"|"UC", count) -> ["ACC-R5", …]; throws when the key is unknown. */
-export function nextSpecIds(living, changes, cap, kind = "R", count = 1) {
-  const key = capabilityKey(living, changes, cap);
-  if (!key) throw Object.assign(new Error(`capability ${cap} has no key yet (no living spec and no delta declares one)`), { code: 1 });
-  if (!["R", "BR", "UC"].includes(kind)) throw Object.assign(new Error("--kind takes R|BR|UC"), { usage: true });
-  return allocate(usedForCapability(living, changes, cap)[kind], count).map((n) => formatId(key, kind, n));
+/** nextSpecIds(living, changes, changeId, kind "R"|"BR"|"UC"|"D", count) -> ["PWR-R5", …]; throws when the change has no key. */
+export function nextSpecIds(living, changes, changeId, kind = "R", count = 1) {
+  const ch = changes.find((c) => c.id === changeId);
+  if (!ch) throw Object.assign(new Error(`no active change ${changeId}`), { code: 1 });
+  const key = ch.proposal?.key;
+  if (!key) throw Object.assign(new Error(`change ${changeId} has no key yet (proposal meta "| key: <KEY>"; a pre-0.13 project: run /hitl:migrate)`), { code: 1 });
+  if (!["R", "BR", "UC", "D"].includes(kind)) throw Object.assign(new Error("--kind takes R|BR|UC|D"), { usage: true });
+  return allocate(usedForKey(living, changes, key, kind), count).map((n) => formatId(key, kind, n));
 }
 
 /** nextScenarioIds(living, changes, reqId, count) -> ["ACC-R3.S3", …] (living + every active delta + retired scenarios). */
@@ -305,16 +316,12 @@ const IT = (level, code, file, ref, line, message) => ({ level, code, file: file
 /** validateLiving(living) -> {items, targets} */
 export function validateLiving(living) {
   const items = []; const targets = [];
-  const keyOwner = new Map(); const rules = new Set();
+  const rules = new Set();
   for (const l of living.specs.values()) for (const b of l.doc.blocks) if (b.kind === "rule") rules.add(b.id);
   for (const [cap, l] of living.specs) {
     targets.push({ kind: "living", id: cap, files: [l.file] });
     items.push(...l.doc.items);
     if (l.doc.capability && l.doc.capability !== cap) items.push(IT("error", "SPEC_PARSE", l.file, cap, null, `meta capability "${l.doc.capability}" ≠ folder "${cap}"`));
-    if (l.doc.key) {
-      if (keyOwner.has(l.doc.key)) items.push(IT("error", "CAP_KEY_DUP", l.file, l.doc.key, null, `key ${l.doc.key} is used by ${keyOwner.get(l.doc.key)} and ${cap}`));
-      else keyOwner.set(l.doc.key, cap);
-    }
     for (const b of l.doc.blocks) for (const r of b.rules) if (!rules.has(r)) items.push(IT("error", "RULE_UNKNOWN", l.file, b.id, b.line, `${b.id} applies unknown rule ${r}`));
   }
   if (living.glossary) { targets.push({ kind: "living", id: "GLOSSARY", files: [living.glossary.file] }); items.push(...living.glossary.doc.items); }
@@ -325,7 +332,7 @@ export function validateLiving(living) {
  * validateChange({change, living, others, config}) -> {items, summary[], baseMissing{ID: hash}, target}.
  * Pure given parsed inputs; `others` = the other active changes.
  */
-export function validateChange({ change: ch, living, others = [], config = {} }) {
+export function validateChange({ change: ch, living, others = [], config = {}, keys = null }) {
   const items = []; const summary = []; const baseMissing = {};
   const push = (...a) => items.push(IT(...a));
   const proposalFile = `${ch.dir}/proposal.md`;
@@ -334,11 +341,19 @@ export function validateChange({ change: ch, living, others = [], config = {} })
   else {
     items.push(...ch.proposal.items);
     if (ch.proposal.change && ch.proposal.change !== ch.id) push("error", "SPEC_PARSE", proposalFile, ch.proposal.change, null, `proposal change "${ch.proposal.change}" ≠ folder "${ch.id}"`);
+    // 0.13: the change key scopes every id the change adds; unique forever (active, archived, legacy, quick)
+    const key = ch.proposal.key;
+    if (!key && !ch.proposal.items.some((i) => i.code === "CHANGE_KEY_BAD"))
+      push("error", "CHANGE_KEY_MISSING", proposalFile, ch.id, null, `proposal meta has no "| key: <KEY>" (2–5 upper-case letters; /hitl:plan suggests one; a pre-0.13 project: run /hitl:migrate)`);
+    if (key) {
+      const taken = others.find((o) => o.proposal?.key === key);
+      const owner = taken ? `change ${taken.id}` : (keys?.get(key) || []).filter((o) => o.change !== ch.id).map((o) => (o.source === "quick" ? "the quick tasks (reserved)" : o.change ? `${o.archived ? "archived " : ""}change ${o.change}` : `legacy ids in ${o.source}`))[0];
+      if (owner) push("error", "CHANGE_KEY_TAKEN", proposalFile, key, null, `key ${key} is taken by ${owner}; pick another (hitl-index spec key ${ch.id})`);
+    }
   }
   if (ch.glossaryDelta) items.push(...ch.glossaryDelta.items);
   const approved = ch.proposal?.status === "approved";
   const view = effectiveView(living, ch);
-  const keyOwner = new Map([...living.specs].map(([cap, l]) => [l.doc.key, cap]));
   const termsAdded = { added: [], modified: [], removed: [] };
   for (const t of ch.glossaryDelta?.terms || []) termsAdded[t.op.toLowerCase()]?.push(t.term);
   let blockCount = 0;
@@ -353,11 +368,10 @@ export function validateChange({ change: ch, living, others = [], config = {} })
     // ## Purpose for an existing capability (it replaces the living Purpose) — warn so one of them becomes "modified"
     if (!cur) for (const o of others) if (o.deltas.some((od) => (od.capability || od.folder) === cap))
       push("warn", "CAP_DUP_NEW", d.file, cap, null, `new capability ${cap} is also created by ${o.id}; archive one first, then turn the other's delta into a modification (drop its ## Purpose, capability change "modified")`);
-    if (!cur && d.key) {
-      if (keyOwner.has(d.key) && keyOwner.get(d.key) !== cap) push("error", "CAP_KEY_DUP", d.file, d.key, null, `key ${d.key} already belongs to living capability ${keyOwner.get(d.key)}`);
-      for (const o of others) for (const od of o.deltas) if (od.key === d.key && od.capability !== cap && !living.specs.has(od.capability))
-        push("error", "CAP_KEY_DUP", d.file, d.key, null, `key ${d.key} is also taken by new capability ${od.capability} in ${o.id}`);
-    }
+    // ADDED ids (and their scenarios) carry the change key; MODIFIED/REMOVED keep the original id
+    const ckey = ch.proposal?.key;
+    if (ckey) for (const b of d.blocks) if (b.op === "ADDED" && parseId(b.id) && parseId(b.id).key !== ckey)
+      push("error", "DELTA_KEY_MISMATCH", d.file, b.id, b.line, `ADDED ${b.id} does not use the change key ${ckey} (ids added by ${ch.id} are ${ckey}-R<n>, ${ckey}-BR<n>, ${ckey}-UC<n>; hitl-index spec next-id ${ch.id})`);
     blockCount += d.blocks.length;
     const r = planCapability({ living: cur?.doc || null, delta: d, change: ch.id, date: "0000-00-00", base: ch.base, retire: (ch.proposal?.capabilities || []).some((c) => c.capability === cap && c.change === "retired") });
     for (const c of r.conflicts) {
@@ -373,10 +387,10 @@ export function validateChange({ change: ch, living, others = [], config = {} })
     // rules referenced by requirements must exist in the effective view
     for (const b of d.blocks) if (b.op !== "REMOVED") for (const ref of b.rules || []) if (!view.ids.has(ref)) push("error", "RULE_UNKNOWN", d.file, b.id, b.line, `${b.id} applies unknown rule ${ref}`);
     const ids = (op) => sortIds(d.blocks.filter((b) => b.op === op).map((b) => b.id));
-    summary.push({ change: ch.id, capability: cap, key: d.key || cur?.doc.key || null, new: !cur, added: ids("ADDED"), modified: ids("MODIFIED"), removed: ids("REMOVED"), terms: termsAdded });
+    summary.push({ change: ch.id, capability: cap, key: ch.proposal?.key || null, new: !cur, added: ids("ADDED"), modified: ids("MODIFIED"), removed: ids("REMOVED"), terms: termsAdded });
   }
   if (!ch.deltas.length && (termsAdded.added.length + termsAdded.modified.length + termsAdded.removed.length))
-    summary.push({ change: ch.id, capability: null, key: null, new: false, added: [], modified: [], removed: [], terms: termsAdded });
+    summary.push({ change: ch.id, capability: null, key: ch.proposal?.key || null, new: false, added: [], modified: [], removed: [], terms: termsAdded });
   const hasDelta = blockCount > 0 || (ch.glossaryDelta?.terms?.length || 0) > 0;
   if (!hasDelta) {
     const okNone = ch.proposal?.noBehaviourChange && NO_BEHAVIOUR_TYPES.has(changeType(ch.id));
@@ -404,6 +418,9 @@ export function validateChange({ change: ch, living, others = [], config = {} })
   // design
   if (ch.design) {
     items.push(...ch.design.items);
+    const ckey = ch.proposal?.key;
+    if (ckey) for (const dec of ch.design.decisions) if (!dec.id.startsWith(`${ckey}-D`))
+      push("error", "DELTA_KEY_MISMATCH", ch.design.file, dec.id, dec.line, `decision ${dec.id} does not use the change key ${ckey} (${ckey}-D<n>; hitl-index spec next-id ${ch.id} --kind D)`);
     for (const dec of ch.design.decisions) for (const s of dec.serves) if (!view.ids.has(s) || parseId(s)?.kind === "S")
       push("error", "DESIGN_SERVES_UNKNOWN", ch.design.file, dec.id, dec.line, `${dec.id} serves ${s}, which is not a requirement or rule in the change's spec view`);
     const listed = new Set(ch.design.contracts.map((c) => c.file));
@@ -464,6 +481,7 @@ export async function recordBase(root, ch, missing) {
  */
 export async function validate(root, config, { change = null, livingOnly = false, record = true } = {}) {
   const living = await readLiving(root);
+  const keys = (await (await import("./keys.mjs")).readKeyRegistry(root)).byKey;
   const active = await readActiveChanges(root);
   const items = []; const targets = []; const summary = [];
   if (change) {
@@ -475,7 +493,7 @@ export async function validate(root, config, { change = null, livingOnly = false
     for (const ch of active) {
       if (change && ch.id !== change) continue;
       const others = active.filter((o) => o !== ch);
-      const r = validateChange({ change: ch, living, others, config });
+      const r = validateChange({ change: ch, living, others, config, keys });
       if (record) await recordBase(root, ch, r.baseMissing);
       items.push(...r.items); targets.push(r.target); summary.push(...r.summary);
     }
@@ -508,13 +526,10 @@ export async function findConflicts(root) {
       if (lb && blockHash(lb.livingText) !== c.base[b.id] && lb.livingText !== b.livingText) conflicts.push({ code: "BASE_CHANGED", ref: b.id, capability: d.capability, changes: [c.id] });
     }
   }
+  // two active changes with the same key (e.g. created on two branches): both would mint the same ids
   const keys = new Map();
-  for (const [cap, l] of living.specs) if (l.doc.key) keys.set(l.doc.key, { caps: new Set([cap]), changes: new Set() });
-  for (const c of active) for (const d of c.deltas) if (d.key && !living.specs.has(d.capability)) {
-    if (!keys.has(d.key)) keys.set(d.key, { caps: new Set(), changes: new Set() });
-    keys.get(d.key).caps.add(d.capability); keys.get(d.key).changes.add(c.id);
-  }
-  for (const [key, g] of keys) if (g.caps.size > 1) conflicts.push({ code: "CAP_KEY_DUP", ref: key, capability: [...g.caps].sort().join(","), changes: [...g.changes].sort() });
+  for (const c of active) if (c.proposal?.key) { if (!keys.has(c.proposal.key)) keys.set(c.proposal.key, new Set()); keys.get(c.proposal.key).add(c.id); }
+  for (const [key, g] of keys) if (g.size > 1) conflicts.push({ code: "CHANGE_KEY_TAKEN", ref: key, capability: null, changes: [...g].sort() });
   conflicts.sort((a, b) => a.code.localeCompare(b.code) || a.ref.localeCompare(b.ref));
   // warnings (never change the exit code): the same not-yet-living capability declared new by ≥ 2 changes
   const warnings = []; const newCaps = new Map();
@@ -579,7 +594,8 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
   const active = await readActiveChanges(root);
   const ch = active.find((c) => c.id === id);
   const others = active.filter((c) => c !== ch);
-  const v = validateChange({ change: ch, living, others, config });
+  const keys = (await (await import("./keys.mjs")).readKeyRegistry(root)).byKey;
+  const v = validateChange({ change: ch, living, others, config, keys });
   const vErrors = v.items.filter((i) => i.level === "error" && !MERGE_CODES.has(i.code));
   const reserved = new Map();
   for (const d of ch.deltas) {

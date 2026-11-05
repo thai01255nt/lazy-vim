@@ -23,3 +23,5 @@ v0.5 `.hitl/planning/*.md` files are legacy and read-only; they are migrated to 
      `(not stated in the v0.5 acceptance criterion)`, appended `(SHALL)`): recommend better titles and wording per id;
      on Y edit those migrated deltas (ids never change). It may share a gate with round 1 of the new change
      (number its questions `M1…`).
+4. The migrated change folders still carry pre-0.13 ids (capability keys, `T-n`, `D-n`): finish with `/hitl:migrate`
+   (0.13 change keys) before planning further.

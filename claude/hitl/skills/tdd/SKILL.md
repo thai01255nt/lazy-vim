@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Quick test-first mode for a small fix or feature with no hitl change or task — agree the test seams in one round, then red→green one test at a time. Use for "TDD this", "test-first fix", "red-green-refactor", "làm TDD", "viết test trước", or when /hitl:go routes here. Not for a bare bug or feature description without a test-first ask (/hitl:go), a T-id or a task's tests (/hitl:test), a feature that needs a spec (/hitl:plan), or status/what next (/hitl:flow).
+description: Quick test-first mode for a small fix or feature with no hitl change or task — agree the test seams in one round, then red→green one test at a time. Use for "TDD this", "test-first fix", "red-green-refactor", "làm TDD", "viết test trước", or when /hitl:go routes here. Not for a bare bug or feature description without a test-first ask (/hitl:go), a task id or a task's tests (/hitl:test), a feature that needs a spec (/hitl:plan), or status/what next (/hitl:flow).
 argument-hint: "<what to build or fix>"
 allowed-tools: Read Glob Grep Edit Write Bash
 ---
@@ -20,7 +20,7 @@ Arguments: `$ARGUMENTS` = the behaviour to build or fix. No spec, no tasks.md, n
 files and the code they drive, never `.hitl/`.
 
 ## 1. Guard
-- A T-id in the request, or `.hitl/` exists and the work belongs to a hitl change (`hitl-index status --brief --soft`
+- A task id in the request, or `.hitl/` exists and the work belongs to a hitl change (`hitl-index status --brief --soft`
   lists the active changes; Grep the files you will touch for `@task`: a symbol tagged with an unfinished task) →
   `🛑 This is part of <T or change>: /hitl:flow routes it (/hitl:test, then /hitl:implement).` Stop.
 - Never edit locked tests or `@impl manual` bodies (the hooks deny it anyway).

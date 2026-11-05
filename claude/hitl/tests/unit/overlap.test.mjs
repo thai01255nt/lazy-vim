@@ -12,11 +12,11 @@ const task = (id, reqs, symbols = []) => ({ id, acs: reqs.map((r, i) => ({ id: `
 
 test("overlapEvidence: same id, AC ref, serves, Rules:, symbol, contract, capability; refs in the other change's words", () => {
   const a = { id: "feat-a", deltas: [{ capability: "acc", blocks: [blk("ACC-R1", "MODIFIED"), blk("ACC-R7", "ADDED", { rules: ["ACC-BR1"] })] }],
-    tasksDoc: { tasks: [task("T-20", ["ACC-R2.S1"]), task("T-21", ["ACC-R7.S1"])] },
-    design: { decisions: [{ id: "D-1", decision: "use the mail.yaml contract", why: "", serves: ["ACC-R3"], status: "accepted" }] }, contracts: ["contracts/mail.yaml"] };
+    tasksDoc: { tasks: [task("QT-T20", ["ACC-R2.S1"]), task("QT-T21", ["ACC-R7.S1"])] },
+    design: { decisions: [{ id: "PWR-D1", decision: "use the mail.yaml contract", why: "", serves: ["ACC-R3"], status: "accepted" }] }, contracts: ["contracts/mail.yaml"] };
   const b = { id: "feat-b", deltas: [{ capability: "acc", blocks: [blk("ACC-R1", "REMOVED"), blk("ACC-R2", "MODIFIED"), blk("ACC-R3", "MODIFIED"), blk("ACC-BR1", "MODIFIED", { kind: "rule" })] }],
-    tasksDoc: { tasks: [task("T-30", ["ACC-R9.S1"])] }, design: { decisions: [] }, contracts: ["contracts/mail.yaml"] };
-  const lock = { symbols: { "src/a.ts#Svc.run": { tasks: ["T-21", "T-30"] } } };
+    tasksDoc: { tasks: [task("QT-T30", ["ACC-R9.S1"])] }, design: { decisions: [] }, contracts: ["contracts/mail.yaml"] };
+  const lock = { symbols: { "src/a.ts#Svc.run": { tasks: ["QT-T21", "QT-T30"] } } };
   const index = { symbols: { "src/a.ts#Svc.run": { name: "run", kind: "method" } } };
   const ev = overlapEvidence(a, b, { index, lock, resolve: (r) => (r === "Svc.run" ? { id: "src/a.ts#Svc.run" } : null) });
   assert.equal(ev.shared, true);
@@ -32,7 +32,7 @@ test("overlapEvidence: glossary terms (both define, one uses the other's) and fi
     glossaryDelta: { terms: [{ term: "Premium customer", op: "ADDED" }] }, design: { decisions: [], sections: { Components: "- `src/billing/settle.ts` — the settle step" } } };
   const b = { id: "feat-b", deltas: [{ capability: "rcpt", blocks: [blk("RCPT-R1", "ADDED", { text: "A receipt SHALL list each premium customer discount." })] }],
     glossaryDelta: { terms: [{ term: "Settlement fee", op: "ADDED" }, { term: "Premium customer", op: "ADDED" }] },
-    tasksDoc: { tasks: [{ ...task("T-1", []), symbols: [{ ref: "settle", file: "src/billing/settle.ts" }] }] } };
+    tasksDoc: { tasks: [{ ...task("QT-T1", []), symbols: [{ ref: "settle", file: "src/billing/settle.ts" }] }] } };
   const ev = overlapEvidence(a, b, { scoutA: { behaviourFacts: [{ text: "x", source: "src/receipt/print.ts" }] } });
   const got = ev.evidence.map((e) => `${e.type}:${e.ref}`);
   assert.ok(got.includes("term:Premium customer"), got.join(" "));
@@ -44,11 +44,11 @@ test("overlapEvidence: glossary terms (both define, one uses the other's) and fi
 
 test("overlapPack: named blocks first, then the other change's ADDED blocks in a shared capability; capped", () => {
   const b = { id: "feat-b", deltas: [{ capability: "acc", blocks: [blk("ACC-R2", "MODIFIED"), blk("ACC-R4", "ADDED"), blk("ACC-R5", "ADDED")] }, { capability: "zzz", blocks: [blk("ZZZ-R1", "ADDED")] }],
-    design: { decisions: [{ id: "D-2", decision: "mail.yaml goes to v2", why: "", serves: [], status: "accepted" }] } };
+    design: { decisions: [{ id: "PWR-D2", decision: "mail.yaml goes to v2", why: "", serves: [], status: "accepted" }] } };
   const p = overlapPack({ id: "feat-a" }, b, [{ type: "ac-ref", ref: "ACC-R2" }, { type: "capability", ref: "acc" }, { type: "contract", ref: "contracts/mail.yaml" }]);
   assert.deepEqual(p.blocks.map((x) => x.id), ["ACC-R2", "ACC-R4", "ACC-R5"]);
   assert.equal(p.blocks[0].text, "text of ACC-R2");
-  assert.deepEqual(p.decisions.map((d) => d.id), ["D-2"]);
+  assert.deepEqual(p.decisions.map((d) => d.id), ["PWR-D2"]);
   assert.equal(p.truncated, false);
 });
 

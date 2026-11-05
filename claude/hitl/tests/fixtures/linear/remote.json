@@ -21,7 +21,7 @@
       "identifier": "ENG-9",
       "url": "https://linear.app/acme/issue/ENG-9/other",
       "title": "Something else",
-      "description": "<!-- hitl:task=T-7 file=.hitl/tasks/other.md -->\n**Why**: —",
+      "description": "<!-- hitl:task=QT-T7 file=.hitl/tasks/other.md -->\n**Why**: —",
       "priority": 3,
       "state": { "id": "st-todo", "name": "Todo", "type": "unstarted" },
       "labels": [],

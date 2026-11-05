@@ -1,4 +1,4 @@
-// P2 — skeleton.lock.json (hitl.lock/1) IO + approve planning (§E.5).
+// P2 — skeleton.lock.json (hitl.lock/2; /1 = pre-0.13 ids, read until `migrate --ids` re-keys it) IO + approve planning (§E.5).
 // Also hosts the small shared helpers used by the other P2 modules (paths, sorted atomic JSON, index lock,
 // lazy P1 api loader) so that P2 code is testable without P1 being present.
 import { promises as fsp } from "node:fs";
@@ -8,7 +8,7 @@ import { archivedChangeOf } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
 import { blockingNotes, applyCommand, changeWait, waitReasons } from "./notes.mjs";
 
-export const LOCK_SCHEMA = "hitl.lock/1";
+export const LOCK_SCHEMA = "hitl.lock/2";
 
 // ---------------------------------------------------------------- shared helpers
 /** Fixed per-project layout (§A). Mirrors P1 api.paths for the files P2 owns/reads. */
@@ -95,10 +95,21 @@ export function normalizeLock(l) {
   const lock = l && typeof l === "object" ? l : {};
   if (lock.schema && lock.schema !== LOCK_SCHEMA) {
     const major = String(lock.schema).split("/")[1];
-    if (Number(major) > 1) throw new Error(`skeleton.lock.json has newer schema ${lock.schema}; update the hitl plugin`);
+    if (Number(major) > 2) throw new Error(`skeleton.lock.json has newer schema ${lock.schema}; update the hitl plugin`);
   }
   return { schema: LOCK_SCHEMA, symbols: lock.symbols || {}, tests: lock.tests || {}, tasks: lock.tasks || {} };
 }
+
+/** Pre-0.13 task ids (`T-n`) still in a lock: [] once `migrate --ids` re-keyed it. */
+export function lockLegacyIds(lock) {
+  const out = new Set();
+  const t = (x) => { if (/^T-\d+(\.AC\d+)?$/.test(String(x || ""))) out.add(String(x).replace(/\.AC\d+$/, "")); };
+  for (const k of Object.keys(lock?.tasks || {})) t(k);
+  for (const s of Object.values(lock?.symbols || {})) { t(s.task); for (const x of s.tasks || []) t(x); }
+  for (const s of Object.values(lock?.tests || {})) { t(s.task); for (const a of s.ac || []) t(a); }
+  return [...out].sort();
+}
+export const LEGACY_LOCK_MESSAGE = "skeleton.lock.json holds pre-0.13 task ids (T-n): run /hitl:migrate (hitl-index migrate --ids) first";
 
 export async function readLock(root) { return normalizeLock(await readJsonFile(p2paths(root).lock, null)); }
 export async function writeLock(root, lock) {
@@ -253,7 +264,7 @@ export function testOwner(index, lock, id) {
   return (t?.tags?.task || [])[0] || lock?.tests?.[id]?.task || null;
 }
 
-const taskNum = (t) => Number(/^T-(\d+)$/.exec(t)?.[1] ?? -1);
+const taskNum = (t) => Number(/^[A-Z]{2,5}-T(\d+)$/.exec(t)?.[1] ?? -1);
 /**
  * The task a symbol is currently worked under: of its `@task` tags and lock approvals, the newest (highest T number)
  * that is not done, else the newest overall; null when it has none. Used where one task must be picked for a symbol

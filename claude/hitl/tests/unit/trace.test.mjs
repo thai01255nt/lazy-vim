@@ -6,27 +6,27 @@ import { buildTrace, specLinksFor, renderTraceMd } from "../../scripts/lib/trace
 const P = ".hitl/planning/feat-users.md";
 const SVC = "src/services/userService.ts", REPO = "src/repo/userRepo.ts", TF = "tests/userService.test.ts";
 const CU = `${SVC}#UserService.createUser`, FE = `${REPO}#UserRepo.findByEmail`;
-const T1 = `${TF}#UserService.createUser > T-1.AC1 rejects`, T2 = `${TF}#UserService.createUser > T-1.AC2 returns`;
+const T1 = `${TF}#UserService.createUser > QT-T1.AC1 rejects`, T2 = `${TF}#UserService.createUser > QT-T1.AC2 returns`;
 
 const sym = (id, o) => ({ id, name: id.split("#")[1], file: id.split("#")[0], callers: [], callees: [], ...o });
 const tst = (id, ac, covers, o = {}) => sym(id, { kind: "test", name: id.split("#")[1], bodyHash: `tb-${id}`,
   tags: { ac, covers: covers.map((c) => c.split("#")[1]), task: [], dec: [] }, test: { titlePath: ["UserService.createUser", id.split("> ")[1]], mode: "active", coversResolved: covers }, ...o });
 
-/** A clean, fully proven T-1 (green, tests locked); every case below mutates one thing. */
+/** A clean, fully proven QT-T1 (green, tests locked); every case below mutates one thing. */
 function base() {
   const index = { symbols: {
-    [CU]: sym(CU, { kind: "method", bodyHash: "bCU", callees: [FE], tags: { task: ["T-1"], dec: ["D-1"] } }),
-    [FE]: sym(FE, { kind: "method", bodyHash: "bFE", callers: [CU], tags: { task: ["T-1"], dec: [] } }),
-    [T1]: tst(T1, ["T-1.AC1"], [CU]),
-    [T2]: tst(T2, ["T-1.AC2"], [CU]),
+    [CU]: sym(CU, { kind: "method", bodyHash: "bCU", callees: [FE], tags: { task: ["QT-T1"], dec: ["D-1"] } }),
+    [FE]: sym(FE, { kind: "method", bodyHash: "bFE", callers: [CU], tags: { task: ["QT-T1"], dec: [] } }),
+    [T1]: tst(T1, ["QT-T1.AC1"], [CU]),
+    [T2]: tst(T2, ["QT-T1.AC2"], [CU]),
   }, warnings: [] };
   const run = (t, outcome = "pass") => ({ outcome, testBodyHash: index.symbols[t].bodyHash, coveredBodyHashes: Object.fromEntries(index.symbols[t].test.coversResolved.map((c) => [c, index.symbols[c].bodyHash])) });
   const state = { runs: { [T1]: run(T1), [T2]: run(T2) } };
-  const lock = { symbols: {}, tests: { [T1]: { stage: "locked" }, [T2]: { stage: "locked" } }, tasks: { "T-1": { skeletonAt: "x", testsAt: "y" } } };
-  const tasks = [{ id: "T-1", title: "Register", file: ".hitl/tasks/feat-users.md", planning: P, why: "dup check (D-1)", decisions: ["D-1"],
-    acs: [{ id: "T-1.AC1", reqs: ["R-1"], text: "Given dup Then throws", done: false }, { id: "T-1.AC2", reqs: ["R-2"], text: "Given new Then returns", done: false }],
+  const lock = { symbols: {}, tests: { [T1]: { stage: "locked" }, [T2]: { stage: "locked" } }, tasks: { "QT-T1": { skeletonAt: "x", testsAt: "y" } } };
+  const tasks = [{ id: "QT-T1", title: "Register", file: ".hitl/tasks/feat-users.md", planning: P, why: "dup check (D-1)", decisions: ["D-1"],
+    acs: [{ id: "QT-T1.AC1", reqs: ["R-1"], text: "Given dup Then throws", done: false }, { id: "QT-T1.AC2", reqs: ["R-2"], text: "Given new Then returns", done: false }],
     symbols: [], testPlan: [], parseErrors: [], blockedBy: [] }];
-  const statuses = { symbols: { [CU]: { status: "green" }, [FE]: { status: "green" } }, tasks: { "T-1": { status: "green", testsLocked: true, symbols: [CU, FE] } } };
+  const statuses = { symbols: { [CU]: { status: "green" }, [FE]: { status: "green" } }, tasks: { "QT-T1": { status: "green", testsLocked: true, symbols: [CU, FE] } } };
   const planning = { file: P, title: "Users", status: "approved", hasRequirements: true,
     requirements: [{ id: "R-1", priority: "must", text: "reject duplicates", status: "active", supersededBy: null }, { id: "R-2", priority: "must", text: "return the user", status: "active", supersededBy: null }],
     decisions: [{ id: "D-1", decision: "Check in createUser", why: "", cost: "", serves: ["R-1", "R-2"], status: "accepted", supersededBy: null }],
@@ -42,12 +42,12 @@ test("clean fully proven task: no items, proven ACs, summary and counts", () => 
   assert.equal(tr.schema, "hitl.trace/2");
   assert.deepEqual(codes(tr), []);
   assert.deepEqual(tr.counts, { block: 0, warn: 0, info: 0 });
-  assert.deepEqual(tr.rows.map((r) => [r.req?.id ?? null, r.acs.map((a) => [a.id, a.proven])]), [["R-1", [["T-1.AC1", true]]], ["R-2", [["T-1.AC2", true]]]]);
+  assert.deepEqual(tr.rows.map((r) => [r.req?.id ?? null, r.acs.map((a) => [a.id, a.proven])]), [["R-1", [["QT-T1.AC1", true]]], ["R-2", [["QT-T1.AC2", true]]]]);
   assert.deepEqual(tr.summary, { reqs: { total: 2, active: 2, covered: 2 }, scenarios: { total: 0, withAc: 0, tested: 0, proven: 0 }, acs: { total: 2, tested: 2, proven: 2 }, tasks: 1 });
   assert.deepEqual(tr.plannings, [{ file: P, status: "approved", hasRequirements: true, requirements: 2, decisions: 1, exists: true }]);
-  assert.deepEqual(tr.decisions, [{ planning: P, change: null, id: "D-1", status: "accepted", text: "Check in createUser", serves: ["R-1", "R-2"], tasks: ["T-1"], symbols: [CU] }]);
+  assert.deepEqual(tr.decisions, [{ planning: P, change: null, id: "D-1", status: "accepted", text: "Check in createUser", serves: ["R-1", "R-2"], tasks: ["QT-T1"], symbols: [CU] }]);
   const t = tr.rows[0].acs[0].tests[0];
-  assert.deepEqual(t, { id: T1, title: "T-1.AC1 rejects", mode: "active", outcome: "pass", fresh: true, locked: true });
+  assert.deepEqual(t, { id: T1, title: "QT-T1.AC1 rejects", mode: "active", outcome: "pass", fresh: true, locked: true });
   assert.deepEqual(tr.rows[0].acs[0].symbols, [{ id: CU, name: "UserService.createUser", status: "green" }]);
 });
 
@@ -75,14 +75,14 @@ test("DEC_UNKNOWN (Why and @dec), DEC_SUPERSEDED_REF, DEC_UNUSED", () => {
 
 test("AC_UNKNOWN, COVERS_UNRESOLVED, TEST_NO_COVERS, TEST_NO_AC", () => {
   const b = base();
-  const X = `${TF}#x > T-1.AC9 x`, Y = `${TF}#y > T-7.AC1 y`, Z = `${TF}#z > no covers`, N = `${TF}#n > no ac`;
-  b.index.symbols[X] = tst(X, ["T-1.AC9"], [CU]);
-  b.index.symbols[Y] = tst(Y, ["T-7.AC1"], [CU]);
-  b.index.symbols[Z] = tst(Z, ["T-1.AC1"], []);
+  const X = `${TF}#x > QT-T1.AC9 x`, Y = `${TF}#y > QT-T7.AC1 y`, Z = `${TF}#z > no covers`, N = `${TF}#n > no ac`;
+  b.index.symbols[X] = tst(X, ["QT-T1.AC9"], [CU]);
+  b.index.symbols[Y] = tst(Y, ["QT-T7.AC1"], [CU]);
+  b.index.symbols[Z] = tst(Z, ["QT-T1.AC1"], []);
   b.index.symbols[N] = tst(N, [], [CU]);
   b.index.symbols[T2].tags.covers = ["UserService.createUser", "Nope.gone"];
   const tr = all(b);
-  assert.deepEqual(only(tr, "AC_UNKNOWN"), ["block:AC_UNKNOWN:T-1.AC9", "block:AC_UNKNOWN:T-7.AC1"]);
+  assert.deepEqual(only(tr, "AC_UNKNOWN"), ["block:AC_UNKNOWN:QT-T1.AC9", "block:AC_UNKNOWN:QT-T7.AC1"]);
   assert.deepEqual(only(tr, "COVERS_UNRESOLVED"), [`block:COVERS_UNRESOLVED:${T2}`]);
   assert.deepEqual(only(tr, "TEST_NO_COVERS"), [`warn:TEST_NO_COVERS:${Z}`]);
   assert.deepEqual(only(tr, "TEST_NO_AC"), [`info:TEST_NO_AC:${N}`]);
@@ -98,32 +98,32 @@ test("PLANNING_MISSING is block with refs, info without; PLANNING_PARSE warns", 
   assert.deepEqual(only(all(b), "PLANNING_MISSING"), [`info:PLANNING_MISSING:${P}`]);
   b = base(); b.plannings.get(P).parseErrors = [{ section: "requirements", line: "- R-x", message: "malformed requirement line" }];
   assert.deepEqual(only(all(b), "PLANNING_PARSE"), [`warn:PLANNING_PARSE:${P}`]);
-  assert.deepEqual(only(buildTrace(b, { kind: "task", id: "T-1" }), "PLANNING_PARSE"), [], "planning-level check");
+  assert.deepEqual(only(buildTrace(b, { kind: "task", id: "QT-T1" }), "PLANNING_PARSE"), [], "planning-level check");
 });
 
 test("stage-dependent levels: AC_NO_TEST, AC_ONLY_STUB, SYMBOL_NO_TEST; AC_NOT_PROVEN only when late", () => {
   let b = base(); delete b.index.symbols[T2];
-  assert.deepEqual(only(all(b), "AC_NO_TEST"), ["warn:AC_NO_TEST:T-1.AC2"]);
-  assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), ["warn:AC_NOT_PROVEN:T-1.AC2"]);
-  b.lock.tasks["T-1"].skeletonAt = null; b.statuses.tasks["T-1"].status = "skeleton";
-  assert.deepEqual(only(all(b), "AC_NO_TEST"), ["info:AC_NO_TEST:T-1.AC2"]);
+  assert.deepEqual(only(all(b), "AC_NO_TEST"), ["warn:AC_NO_TEST:QT-T1.AC2"]);
+  assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), ["warn:AC_NOT_PROVEN:QT-T1.AC2"]);
+  b.lock.tasks["QT-T1"].skeletonAt = null; b.statuses.tasks["QT-T1"].status = "skeleton";
+  assert.deepEqual(only(all(b), "AC_NO_TEST"), ["info:AC_NO_TEST:QT-T1.AC2"]);
   assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), [], "not late");
 
   b = base(); for (const t of [T1, T2]) b.index.symbols[t].test.mode = "todo";
-  assert.deepEqual(only(all(b), "AC_ONLY_STUB"), ["warn:AC_ONLY_STUB:T-1.AC1", "warn:AC_ONLY_STUB:T-1.AC2"]);
-  b.statuses.tasks["T-1"].testsLocked = false;
-  assert.deepEqual(only(all(b), "AC_ONLY_STUB"), ["info:AC_ONLY_STUB:T-1.AC1", "info:AC_ONLY_STUB:T-1.AC2"]);
+  assert.deepEqual(only(all(b), "AC_ONLY_STUB"), ["warn:AC_ONLY_STUB:QT-T1.AC1", "warn:AC_ONLY_STUB:QT-T1.AC2"]);
+  b.statuses.tasks["QT-T1"].testsLocked = false;
+  assert.deepEqual(only(all(b), "AC_ONLY_STUB"), ["info:AC_ONLY_STUB:QT-T1.AC1", "info:AC_ONLY_STUB:QT-T1.AC2"]);
 
   b = base(); const X = `${SVC}#helper`;
-  b.index.symbols[X] = sym(X, { kind: "function", bodyHash: "h", tags: { task: ["T-1"], dec: [] } });
+  b.index.symbols[X] = sym(X, { kind: "function", bodyHash: "h", tags: { task: ["QT-T1"], dec: [] } });
   assert.deepEqual(only(all(b), "SYMBOL_NO_TEST"), [`warn:SYMBOL_NO_TEST:${X}`]);
-  b.lock.tasks["T-1"].skeletonAt = null;
+  b.lock.tasks["QT-T1"].skeletonAt = null;
   assert.deepEqual(only(all(b), "SYMBOL_NO_TEST"), [`info:SYMBOL_NO_TEST:${X}`]);
   assert.deepEqual(only(all(base()), "SYMBOL_NO_TEST"), [], "FE is covered indirectly via its caller's tests");
 
   b = base(); b.state.runs[T1].testBodyHash = "old";
-  assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), ["warn:AC_NOT_PROVEN:T-1.AC1"]);
-  b.statuses.tasks["T-1"].status = "red";
+  assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), ["warn:AC_NOT_PROVEN:QT-T1.AC1"]);
+  b.statuses.tasks["QT-T1"].status = "red";
   assert.deepEqual(only(all(b), "AC_NOT_PROVEN"), []);
 });
 
@@ -143,16 +143,16 @@ test("proven requires a fresh pass for every covered symbol", () => {
 test("REQ_NO_AC, AC_NO_REQ, REQ_NO_DEC; task scope omits planning-level checks", () => {
   const b = base(); const R = b.plannings.get(P).requirements;
   R.push({ id: "R-3", priority: "should", text: "s", status: "active" }, { id: "R-4", priority: "could", text: "c", status: "active" }, { id: "R-5", priority: "must", text: "d", status: "deferred" });
-  b.tasks[0].acs.push({ id: "T-1.AC3", reqs: [], text: "no req", done: false });
+  b.tasks[0].acs.push({ id: "QT-T1.AC3", reqs: [], text: "no req", done: false });
   const tr = all(b);
   assert.deepEqual(only(tr, "REQ_NO_AC"), ["warn:REQ_NO_AC:R-3", "info:REQ_NO_AC:R-4"]);
   assert.deepEqual(only(tr, "REQ_NO_DEC"), ["info:REQ_NO_DEC:R-3", "info:REQ_NO_DEC:R-4"]);
-  assert.deepEqual(only(tr, "AC_NO_REQ"), ["info:AC_NO_REQ:T-1.AC3"]);
-  const tt = buildTrace(b, { kind: "task", id: "T-1" });
+  assert.deepEqual(only(tr, "AC_NO_REQ"), ["info:AC_NO_REQ:QT-T1.AC3"]);
+  const tt = buildTrace(b, { kind: "task", id: "QT-T1" });
   assert.deepEqual(only(tt, "REQ_NO_AC"), []);
   assert.deepEqual(only(tt, "REQ_NO_DEC"), []);
-  assert.deepEqual(only(tt, "AC_NO_REQ"), ["info:AC_NO_REQ:T-1.AC3"]);
-  assert.deepEqual(tt.scope, { kind: "task", id: "T-1" });
+  assert.deepEqual(only(tt, "AC_NO_REQ"), ["info:AC_NO_REQ:QT-T1.AC3"]);
+  assert.deepEqual(tt.scope, { kind: "task", id: "QT-T1" });
   const tp = buildTrace(b, { kind: "planning", file: "feat-users.md" });
   assert.deepEqual(tp.scope, { kind: "planning", id: P });
   assert.deepEqual(only(tp, "REQ_NO_AC"), only(tr, "REQ_NO_AC"));
@@ -165,12 +165,12 @@ test("REQ_NO_AC, AC_NO_REQ, REQ_NO_DEC; task scope omits planning-level checks",
 test("row ordering (numeric R, loose ACs, quick tasks last) and item sort", () => {
   const b = base(); const R = b.plannings.get(P).requirements;
   R.push({ id: "R-10", priority: "must", text: "ten", status: "active" });
-  b.tasks[0].acs.push({ id: "T-1.AC3", reqs: ["R-10"], text: "x", done: false }, { id: "T-1.AC4", reqs: [], text: "y", done: false });
-  b.tasks.push({ id: "T-2", title: "quick", file: ".hitl/tasks/quick-x.md", planning: "none", why: null, decisions: [],
-    acs: [{ id: "T-2.AC1", reqs: [], text: "q", done: false }], symbols: [], testPlan: [], parseErrors: [], blockedBy: [] });
+  b.tasks[0].acs.push({ id: "QT-T1.AC3", reqs: ["R-10"], text: "x", done: false }, { id: "QT-T1.AC4", reqs: [], text: "y", done: false });
+  b.tasks.push({ id: "QT-T2", title: "quick", file: ".hitl/tasks/quick-x.md", planning: "none", why: null, decisions: [],
+    acs: [{ id: "QT-T2.AC1", reqs: [], text: "q", done: false }], symbols: [], testPlan: [], parseErrors: [], blockedBy: [] });
   const tr = all(b);
   assert.deepEqual(tr.rows.map((r) => [r.planning, r.req?.id ?? null, r.acs.map((a) => a.id)]),
-    [[P, "R-1", ["T-1.AC1"]], [P, "R-2", ["T-1.AC2"]], [P, "R-10", ["T-1.AC3"]], [P, null, ["T-1.AC4"]], [null, null, ["T-2.AC1"]]]);
+    [[P, "R-1", ["QT-T1.AC1"]], [P, "R-2", ["QT-T1.AC2"]], [P, "R-10", ["QT-T1.AC3"]], [P, null, ["QT-T1.AC4"]], [null, null, ["QT-T2.AC1"]]]);
   const lv = { block: 0, warn: 1, info: 2 };
   for (let i = 1; i < tr.items.length; i++) {
     const a = tr.items[i - 1], c = tr.items[i];
@@ -182,10 +182,10 @@ test("row ordering (numeric R, loose ACs, quick tasks last) and item sort", () =
 test("specLinksFor via @dec and via @covers → @ac → reqs; tests get their own @ac reqs; null without planning", () => {
   const b = base();
   assert.deepEqual(specLinksFor(b, CU), { planning: P, decisions: [{ id: "D-1", text: "Check in createUser", status: "accepted", via: "@dec" }],
-    requirements: [{ id: "R-1", text: "reject duplicates", via: "T-1.AC1" }, { id: "R-2", text: "return the user", via: "T-1.AC2" }] });
+    requirements: [{ id: "R-1", text: "reject duplicates", via: "QT-T1.AC1" }, { id: "R-2", text: "return the user", via: "QT-T1.AC2" }] });
   assert.deepEqual(specLinksFor(b, FE), { planning: P, decisions: [], requirements: [] }, "only direct @covers");
-  assert.deepEqual(specLinksFor(b, T1), { planning: P, decisions: [], requirements: [{ id: "R-1", text: "reject duplicates", via: "T-1.AC1" }] });
-  b.lock.symbols["src/x.ts#gone"] = { task: "T-1" };
+  assert.deepEqual(specLinksFor(b, T1), { planning: P, decisions: [], requirements: [{ id: "R-1", text: "reject duplicates", via: "QT-T1.AC1" }] });
+  b.lock.symbols["src/x.ts#gone"] = { task: "QT-T1" };
   assert.deepEqual(specLinksFor(b, "src/x.ts#gone"), { planning: P, decisions: [], requirements: [] });
   b.plannings.set(P, null);
   assert.equal(specLinksFor(b, CU), null);
@@ -196,10 +196,10 @@ test("renderTraceMd: header, matrix rows, decisions line, markers, no percentage
   b.index.symbols[T2].test.mode = "todo";
   const md = renderTraceMd(all(b));
   assert.match(md, /^# Trace — feat-users\.md \(planning approved · R 3 · D 1\)\n\| R \| AC \| tests \(fresh\) \| symbols \(status\) \|/);
-  assert.match(md, /\| R-1 must \| T-1\.AC1 \| "T-1\.AC1 rejects" ✅ \| UserService\.createUser \(green\) \|/);
-  assert.match(md, /\| R-2 must \| T-1\.AC2 \| "T-1\.AC2 returns" 📝 \|/);
+  assert.match(md, /\| R-1 must \| QT-T1\.AC1 \| "QT-T1\.AC1 rejects" ✅ \| UserService\.createUser \(green\) \|/);
+  assert.match(md, /\| R-2 must \| QT-T1\.AC2 \| "QT-T1\.AC2 returns" 📝 \|/);
   assert.match(md, /\| R-3 should \| — \| — \| — \|/);
-  assert.match(md, /Decisions: D-1 → T-1, UserService\.createUser \(@dec\)/);
+  assert.match(md, /Decisions: D-1 → QT-T1, UserService\.createUser \(@dec\)/);
   assert.match(md, /⚠️ REQ_NO_AC R-3 — no AC references R-3/);
   assert.match(md, /summary: 0 block · \d+ warn · \d+ info\n$/);
   assert.ok(!md.includes("%"));

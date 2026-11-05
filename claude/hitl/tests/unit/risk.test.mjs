@@ -33,7 +33,7 @@ test("routes and labels", () => {
 });
 
 test("per-symbol scoring, reasons, lenses", () => {
-  const r = computeRisk({ taskId: "T-1", symbolIds: [A, B, C], index, config, state: {}, taskRisk: "low" });
+  const r = computeRisk({ taskId: "QT-T1", symbolIds: [A, B, C], index, config, state: {}, taskRisk: "low" });
   assert.equal(r.symbols[A].score, 0);
   assert.equal(r.symbols[A].route, "AUTO");
   // security .25 + fanIn .10 + agent .05 + bodyLines .05 = .45
@@ -44,36 +44,36 @@ test("per-symbol scoring, reasons, lenses", () => {
   assert.equal(r.symbols[C].score, 0.35);
   assert.deepEqual(r.lenses, ["contract", "tests", "concurrency", "security"]);
   assert.equal(r.score, 0.45);
-  const high = computeRisk({ taskId: "T-1", symbolIds: [B], index, config, state: {}, taskRisk: "high" });
+  const high = computeRisk({ taskId: "QT-T1", symbolIds: [B], index, config, state: {}, taskRisk: "high" });
   assert.equal(high.symbols[B].score, 0.65);
   assert.equal(high.symbols[B].route, "HUMAN");
 });
 
 test("B9: task risk reasons select lenses; override selects all four", () => {
-  assert.deepEqual(computeRisk({ taskId: "T-1", symbolIds: [A], index, config, state: {}, taskRisk: "high" }).lenses, ["contract", "tests"]);
-  assert.deepEqual(computeRisk({ taskId: "T-1", symbolIds: [A], index, config, state: {}, taskRisk: "high", taskRiskReasons: ["Security"] }).lenses, ["contract", "tests", "security"]);
-  assert.deepEqual(computeRisk({ taskId: "T-1", symbolIds: [], index, config, state: {}, taskRiskReasons: ["concurrency (queue)", "perf"] }).lenses, ["contract", "tests", "concurrency"]);
-  assert.deepEqual(computeRisk({ taskId: "T-1", symbolIds: [A], index, config, state: {}, override: true }).lenses.sort(), ["concurrency", "contract", "security", "tests"]);
+  assert.deepEqual(computeRisk({ taskId: "QT-T1", symbolIds: [A], index, config, state: {}, taskRisk: "high" }).lenses, ["contract", "tests"]);
+  assert.deepEqual(computeRisk({ taskId: "QT-T1", symbolIds: [A], index, config, state: {}, taskRisk: "high", taskRiskReasons: ["Security"] }).lenses, ["contract", "tests", "security"]);
+  assert.deepEqual(computeRisk({ taskId: "QT-T1", symbolIds: [], index, config, state: {}, taskRiskReasons: ["concurrency (queue)", "perf"] }).lenses, ["contract", "tests", "concurrency"]);
+  assert.deepEqual(computeRisk({ taskId: "QT-T1", symbolIds: [A], index, config, state: {}, override: true }).lenses.sort(), ["concurrency", "contract", "security", "tests"]);
 });
 
 test("drift (own or covering-test) is a hard HUMAN flag; findings + mutation add weight; config weights override; clamp", () => {
   const drift = { items: [{ level: "warn", code: "TEST_CHANGED", symbol: TST }, { level: "info", code: "BODY_CHANGED", symbol: B }] };
-  const r = computeRisk({ taskId: "T-1", symbolIds: [A, B], index, config, state: {}, drift });
+  const r = computeRisk({ taskId: "QT-T1", symbolIds: [A, B], index, config, state: {}, drift });
   assert.equal(r.symbols[A].route, "HUMAN");
   assert.ok(r.symbols[A].reasons.includes("test drift"));
   assert.equal(r.symbols[B].route, "SKIM", "info drift is not a flag");
   const findings = { findings: [{ key: "k", symbol: B, severity: "important", confidence: 90, verifiedConfidence: 85, keep: true }, { key: "m", symbol: B, severity: "minor", verifiedConfidence: 99 }] };
   const state = { mutation: { [B]: { score: 0.5, survivors: 3, bodyHash: "b" } } };
-  const r2 = computeRisk({ taskId: "T-1", symbolIds: [B], index, config, state, findings, taskRisk: "high" });
+  const r2 = computeRisk({ taskId: "QT-T1", symbolIds: [B], index, config, state, findings, taskRisk: "high" });
   assert.equal(r2.symbols[B].score, 1, "clamped");
   assert.ok(r2.symbols[B].reasons.some((x) => /mutation 50%/.test(x)));
-  const w = computeRisk({ taskId: "T-1", symbolIds: [C], index, config: { ...config, risk: { ...config.risk, weights: { concurrency: 0.7 } } }, state: {} });
+  const w = computeRisk({ taskId: "QT-T1", symbolIds: [C], index, config: { ...config, risk: { ...config.risk, weights: { concurrency: 0.7 } } }, state: {} });
   assert.equal(w.symbols[C].route, "HUMAN");
 });
 
 test("--changed-since-review keeps only symbols whose body changed", () => {
-  const state = { reviews: { "T-1": { verdict: "PASS", bodyHashes: { [A]: "b", [B]: "old" } } } };
-  const r = computeRisk({ taskId: "T-1", symbolIds: [A, B, C], index, config, state, changedSinceReview: true });
+  const state = { reviews: { "QT-T1": { verdict: "PASS", bodyHashes: { [A]: "b", [B]: "old" } } } };
+  const r = computeRisk({ taskId: "QT-T1", symbolIds: [A, B, C], index, config, state, changedSinceReview: true });
   assert.deepEqual(Object.keys(r.symbols).sort(), [B, C].sort());
 });
 

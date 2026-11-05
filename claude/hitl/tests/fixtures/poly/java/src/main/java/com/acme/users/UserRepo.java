@@ -4,7 +4,7 @@ package com.acme.users;
 public interface UserRepo {
     /**
      * Finds a user by email.
-     * @task T-1 @impl manual @status skeleton @prio 2
+     * @task QT-T1 @impl manual @status skeleton @prio 2
      */
     User findByEmail(String email);
 

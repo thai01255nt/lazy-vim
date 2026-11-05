@@ -1,0 +1,190 @@
+{
+  "schema": "hitl.lock/1",
+  "symbols": {
+    "src/labels.py#fix_label": {
+      "approvedAt": "2026-11-05T21:49:40.291Z",
+      "approvedBy": "human",
+      "impl": "agent",
+      "intent": "Returns the label with the misspelt word corrected.",
+      "intentHash": "77eae2f2dd1f87c3",
+      "intentLog": [
+        {
+          "at": "2026-11-05T21:49:40.291Z",
+          "lines": 1,
+          "stage": "skeleton",
+          "task": "T-20"
+        }
+      ],
+      "prio": 1,
+      "sigHash": "2d98c55f090cce13",
+      "signature": "def fix_label(text)",
+      "task": "T-20",
+      "todoHash": "66cfdd194289ce3c",
+      "todos": [
+        "1. replace the misspelt word"
+      ]
+    },
+    "src/reset.ts#hashToken": {
+      "approvedAt": "2026-11-05T21:49:33.436Z",
+      "approvedBy": "human",
+      "impl": "agent",
+      "intent": "Hashes a reset token so the plain token is never stored.",
+      "intentHash": "2176fe3d961e3877",
+      "intentLog": [
+        {
+          "at": "2026-11-05T21:49:33.436Z",
+          "lines": 1,
+          "stage": "skeleton",
+          "task": "T-12"
+        }
+      ],
+      "prio": 2,
+      "sigHash": "c0520e57ed8034c9",
+      "signature": "export function hashToken(token: string): string",
+      "task": "T-12",
+      "todoHash": "afef998469e02e0d",
+      "todos": [
+        "1. sha-256 of the token"
+      ]
+    },
+    "src/reset.ts#requestReset": {
+      "approvedAt": "2026-11-05T21:49:33.436Z",
+      "approvedBy": "human",
+      "impl": "agent",
+      "intent": "Sends a reset link to a registered email; an unknown email gets the same answer.",
+      "intentHash": "a1c8bda241ebfd14",
+      "intentLog": [
+        {
+          "at": "2026-11-05T21:49:33.436Z",
+          "lines": 1,
+          "stage": "skeleton",
+          "task": "T-12"
+        }
+      ],
+      "prio": 1,
+      "sigHash": "7371dcf8f8da2423",
+      "signature": "export function requestReset(email: string): boolean",
+      "task": "T-12",
+      "todoHash": "c4eaad289d70e07f",
+      "todos": [
+        "1. find the account by the lower-cased email",
+        "2. store the hashed token and send the link"
+      ]
+    },
+    "src/reset.ts#setPassword": {
+      "approvedAt": "2026-11-05T21:49:40.207Z",
+      "approvedBy": "human",
+      "impl": "agent",
+      "intent": "Sets a new password for the account a valid link belongs to.",
+      "intentHash": "f941cb2afa49ca32",
+      "intentLog": [
+        {
+          "at": "2026-11-05T21:49:40.207Z",
+          "lines": 1,
+          "stage": "skeleton",
+          "task": "T-13"
+        }
+      ],
+      "prio": 1,
+      "sigHash": "9ee56fb7e3032577",
+      "signature": "export function setPassword(link: string, password: string): void",
+      "task": "T-13",
+      "todoHash": "6f6263a1f613cc74",
+      "todos": [
+        "1. check the link is valid and unused"
+      ]
+    }
+  },
+  "tasks": {
+    "T-10": {
+      "doneAt": "2026-10-19T10:00:00Z",
+      "doneBodyHashes": {},
+      "file": ".hitl/archive/2026-10-20-feat-2fa/tasks.md",
+      "risk": "high",
+      "skeletonAt": "2026-10-15T10:00:00Z",
+      "testsAt": "2026-10-16T10:00:00Z"
+    },
+    "T-12": {
+      "doneAt": null,
+      "doneBodyHashes": {},
+      "file": ".hitl/changes/feat-password-reset/tasks.md",
+      "risk": "high",
+      "skeletonAt": "2026-11-05T21:49:33.436Z",
+      "testsAt": null
+    },
+    "T-13": {
+      "doneAt": null,
+      "doneBodyHashes": {},
+      "file": ".hitl/changes/feat-password-reset/tasks.md",
+      "risk": "high",
+      "skeletonAt": "2026-11-05T21:49:40.207Z",
+      "testsAt": null
+    },
+    "T-20": {
+      "doneAt": null,
+      "doneBodyHashes": {},
+      "file": ".hitl/tasks/fix-label-typo.md",
+      "risk": "low",
+      "skeletonAt": "2026-11-05T21:49:40.291Z",
+      "testsAt": null
+    }
+  },
+  "tests": {
+    "tests/reset.test.ts#requestReset > an unknown email gets the same answer and no mail": {
+      "ac": [
+        "T-12.AC2"
+      ],
+      "bodyHash": "e3b0c44298fc1c14",
+      "covers": [
+        "src/reset.ts#requestReset"
+      ],
+      "intentHash": "230332cb143fc428",
+      "kind": "example",
+      "origin": "test-author",
+      "stage": "stub",
+      "task": "T-12"
+    },
+    "tests/reset.test.ts#requestReset > sends one link for a registered email in another case": {
+      "ac": [
+        "T-12.AC1"
+      ],
+      "bodyHash": "e3b0c44298fc1c14",
+      "covers": [
+        "src/reset.ts#requestReset"
+      ],
+      "intentHash": "230332cb143fc428",
+      "kind": "example",
+      "origin": "test-author",
+      "stage": "stub",
+      "task": "T-12"
+    },
+    "tests/reset.test.ts#setPassword > sign-in works with the new password": {
+      "ac": [
+        "T-13.AC1"
+      ],
+      "bodyHash": "e3b0c44298fc1c14",
+      "covers": [
+        "src/reset.ts#setPassword"
+      ],
+      "intentHash": "230332cb143fc428",
+      "kind": "example",
+      "origin": "test-author",
+      "stage": "stub",
+      "task": "T-13"
+    },
+    "tests/test_labels.py#test_label_reads_correctly": {
+      "ac": [
+        "T-20.AC1"
+      ],
+      "bodyHash": "5aa82d4e77724e5e",
+      "covers": [
+        "src/labels.py#fix_label"
+      ],
+      "intentHash": "230332cb143fc428",
+      "kind": "example",
+      "origin": "test-author",
+      "stage": "stub",
+      "task": "T-20"
+    }
+  }
+}

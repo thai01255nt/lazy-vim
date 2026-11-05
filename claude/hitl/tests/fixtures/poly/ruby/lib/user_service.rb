@@ -10,7 +10,7 @@ module Acme
     end
 
     # Registers a user; rejects duplicate emails.
-    # @task T-5 @impl agent @status skeleton @prio 1
+    # @task QT-T5 @impl agent @status skeleton @prio 1
     # @calls UserRepo.find_by_email
     # @concurrency none
     def create_user(email)
@@ -39,7 +39,7 @@ module Acme
 
   class UserRepo
     # Finds a user by email.
-    # @task T-5 @impl manual @status skeleton @prio 2
+    # @task QT-T5 @impl manual @status skeleton @prio 2
     def find_by_email(email)
       raise NotImplementedError, "TODO(impl): UserRepo#find_by_email"
     end

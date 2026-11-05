@@ -1,6 +1,6 @@
 <!-- audience: business -->
 # Delta: Orders
-> capability: orders | key: ORD | change: feat-order-lifecycle
+> capability: orders | change: feat-order-lifecycle
 
 ## Purpose
 Orders.

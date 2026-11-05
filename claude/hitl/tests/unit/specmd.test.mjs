@@ -8,7 +8,7 @@ import { parseLivingSpec, parseDelta, parseGlossary, parseProposal, parseDesign,
 import { parseId, compareIds, allocate, rewriteIds, isChangeId, SPECREF_RE, today } from "../../scripts/lib/specids.mjs";
 
 const TPL = join(dirname(fileURLToPath(import.meta.url)), "../../shared/templates");
-const FILL = { "change-id": "feat-sample", capability: "accounts", KEY: "ACC", "YYYY-MM-DD": "2026-01-01", n: "3", m: "1", r: "2", k: "1", p: "4" };
+const FILL = { "change-id": "feat-sample", capability: "accounts", KEY: "ACC", OTHER: "LACC", "YYYY-MM-DD": "2026-01-01", n: "3", m: "1", r: "2", k: "1", p: "4" };
 const fill = (t) => t.replace(/\{([^{}]+)\}/g, (_, k) => FILL[k] ?? "sample words");
 const tpl = (name) => fill(readFileSync(join(TPL, name), "utf8"));
 const codes = (doc) => doc.items.map((i) => i.code);
@@ -17,7 +17,7 @@ const has = (doc, code, level) => doc.items.some((i) => i.code === code && (!lev
 
 const LIVING = `<!-- audience: business · generated -->
 # Accounts
-> capability: accounts | key: ACC | updated: 2026-10-20
+> capability: accounts | updated: 2026-10-20
 
 ## Purpose
 Who can sign in.
@@ -47,17 +47,17 @@ Five wrong passwords lock the account.
 - 2026-10-01 feat-x: +ACC-R1 -ACC-R2
 `;
 
-const delta = (body, meta = "> capability: accounts | key: ACC | change: feat-y") => `# Delta: Accounts\n${meta}\n\n${body}`;
+const delta = (body, meta = "> capability: accounts | change: feat-y") => `# Delta: Accounts\n${meta}\n\n${body}`;
 const REQ = (id, extra = "") => `### Requirement: ${id} Title\nWhen x, the system SHALL y.\n${extra}\n#### Scenario: ${id}.S1 Ex\n- WHEN a\n- THEN b\n`;
 
 test("templates parse to zero errors after placeholder fill", () => {
   const spec = parseLivingSpec(tpl("spec.md"), "spec.md");
   assert.deepEqual(errors(spec), []);
-  assert.equal(spec.key, "ACC");
+  assert.equal(spec.key, null, "0.13: no capability key in the meta");
   assert.deepEqual(spec.blocks.map((b) => b.id), ["ACC-R3", "ACC-BR3", "ACC-UC3"]);
   const d = parseDelta(tpl("spec-delta.md"), "delta.md");
   assert.deepEqual(errors(d), []);
-  assert.deepEqual(d.blocks.map((b) => `${b.op} ${b.id}`), ["ADDED ACC-R3", "ADDED ACC-R4", "MODIFIED ACC-R1", "REMOVED ACC-R2", "ADDED ACC-BR3", "ADDED ACC-BR1", "ADDED ACC-UC3"]);
+  assert.deepEqual(d.blocks.map((b) => `${b.op} ${b.id}`), ["ADDED ACC-R3", "ADDED ACC-R4", "MODIFIED LACC-R1", "REMOVED LACC-R2", "ADDED ACC-BR3", "ADDED ACC-BR1", "ADDED ACC-UC3"]);
   assert.equal(d.change, "feat-sample");
   const p = parseProposal(tpl("proposal.md"), "proposal.md");
   assert.deepEqual(errors(p), []);
@@ -70,7 +70,7 @@ test("templates parse to zero errors after placeholder fill", () => {
   assert.equal(g.terms.length, 1, "the rules comment creates no term");
   const ds = parseDesign(tpl("design.md"), "design.md");
   assert.deepEqual(errors(ds), []);
-  assert.equal(ds.decisions[0].id, "D-1");
+  assert.equal(ds.decisions[0].id, "ACC-D1");
   for (const f of ["proposal.md", "spec.md", "spec-delta.md", "glossary.md", "design.md", "data-model.md"])
     assert.match(readFileSync(join(TPL, f), "utf8").split("\n")[0], /^<!-- audience: (business|dev)\b/, f);
 });
@@ -107,8 +107,7 @@ test("parse-level error and warning codes", () => {
   const cases = [
     ["SPEC_UNKNOWN_SECTION", parseLivingSpec(LIVING + "\n## Notes\nx\n", "s"), "error"],
     ["SPEC_UNKNOWN_SECTION", parseDelta(delta("## Notes\nx\n"), "d"), "warn"],
-    ["CAP_KEY_MISSING", parseLivingSpec("# A\n> capability: accounts\n## Requirements\n", "s"), "error"],
-    ["CAP_KEY_MISSING", parseLivingSpec("# A\n## Requirements\n", "s"), "error"],
+    ["SPEC_PARSE", parseLivingSpec("# A\n## Requirements\n", "s"), "error"],
     ["SPEC_PARSE", parseLivingSpec(LIVING.replace("### Rule: ACC-BR1 Lockout", "### Rul ACC-BR1"), "s"), "error"],
     ["SPEC_PARSE", parseLivingSpec(LIVING.replace("Quality: security", "Quality: speed"), "s"), "error"],
     ["SPEC_PARSE", parseLivingSpec(LIVING.replace("- WHEN they sign in", "- When they sign in"), "s"), "error"],
@@ -117,7 +116,6 @@ test("parse-level error and warning codes", () => {
     ["ID_BAD_FORMAT", parseDelta(delta("## ADDED Requirements\n### Requirement: R-1 T\nThe system SHALL x.\n"), "d"), "error"],
     ["ID_DUP", parseLivingSpec(LIVING.replace("## Rules", REQ("ACC-R1") + "\n## Rules"), "s"), "error"],
     ["ID_DUP", parseLivingSpec(LIVING.replace("## Rules", REQ("ACC-R2") + "\n## Rules"), "s"), "error"],
-    ["ID_KEY_MISMATCH", parseDelta(delta(`## ADDED Requirements\n${REQ("BIL-R1")}`), "d"), "error"],
     ["REQ_NO_KEYWORD", parseDelta(delta("## ADDED Requirements\n### Requirement: ACC-R1 T\nThe system sends x.\n#### Scenario: ACC-R1.S1 E\n- WHEN a\n- THEN b\n"), "d"), "error"],
     ["REQ_NO_SCENARIO", parseDelta(delta("## ADDED Requirements\n### Requirement: ACC-R1 T\nThe system SHALL x.\n"), "d"), "error"],
     ["REQ_NO_SCENARIO", parseDelta(delta("## ADDED Requirements\n### Requirement: ACC-R1 T <!-- migrated -->\nThe system SHALL x.\n"), "d"), "warn"],
@@ -131,7 +129,7 @@ test("parse-level error and warning codes", () => {
     ["MODIFIED_NO_CHANGED_LINE", parseDelta(delta(`## MODIFIED Requirements\n${REQ("ACC-R1")}`), "d"), "error"],
     ["REMOVED_NO_REASON", parseDelta(delta("## REMOVED Requirements\n### Requirement: ACC-R1 T\n"), "d"), "error"],
     ["SPEC_UNKNOWN_SECTION", parseDelta(delta("## Retired IDs\n- ACC-R9 x\n"), "d"), "error"],
-    ["SPEC_PARSE", parseDelta(delta(REQ("ACC-R1"), "> capability: accounts | key: ACC"), "d"), "error"],
+    ["SPEC_PARSE", parseDelta(delta(REQ("ACC-R1"), "> capability: accounts"), "d"), "error"],
   ];
   for (const [code, doc, level] of cases) assert.ok(has(doc, code, level), `${code}/${level}: got ${JSON.stringify(doc.items.map((i) => [i.code, i.level]))}`);
 });
@@ -183,12 +181,15 @@ test("proposal: required sections, capabilities table, none, artifacts", () => {
 });
 
 test("design: decisions table with alternatives, bad status, bad serves, contracts", () => {
-  const d = parseDesign(`# Design: X\n> change: feat-x | status: approved\n## Decisions\n| id | decision | why | alternatives | cost if wrong | serves | status |\n|---|---|---|---|---|---|---|\n| D-1 | a | b | c | d | ACC-R1, ACC-BR1 | accepted |\n| D-2 | a | b | c | d | foo | maybe |\n| D-3 | a | b | c | d | — | superseded by D-1 |\n## Contracts\n- contracts/api.yaml — public HTTP\n`, "d");
+  const d = parseDesign(`# Design: X\n> change: feat-x | status: approved\n## Decisions\n| id | decision | why | alternatives | cost if wrong | serves | status |\n|---|---|---|---|---|---|---|\n| ACC-D1 | a | b | c | d | ACC-R1, ACC-BR1 | accepted |\n| ACC-D2 | a | b | c | d | foo | maybe |\n| ACC-D3 | a | b | c | d | — | superseded by ACC-D1 |\n## Contracts\n- contracts/api.yaml — public HTTP\n`, "d");
   assert.deepEqual(d.decisions[0].serves, ["ACC-R1", "ACC-BR1"]);
   assert.equal(d.decisions[0].alternatives, "c");
-  assert.equal(d.decisions[2].supersededBy, "D-1");
+  assert.equal(d.decisions[2].supersededBy, "ACC-D1");
   assert.ok(has(d, "DESIGN_DEC_STATUS"));
   assert.ok(has(d, "DESIGN_SERVES_UNKNOWN"));
+  const legacy = parseDesign("# Design: X\n> change: feat-x | status: draft\n## Decisions\n| id | decision | why | serves | status |\n|---|---|---|---|---|\n| D-1 | a | b | — | accepted |\n", "d");
+  assert.ok(has(legacy, "IDS_LEGACY") && !legacy.decisions.length, "a pre-0.13 D-n points to /hitl:migrate");
+  assert.match(legacy.items.find((i) => i.code === "IDS_LEGACY").message, /run \/hitl:migrate/);
   assert.deepEqual(d.contracts, [{ file: "contracts/api.yaml", boundary: "public HTTP", line: 10 }]);
 });
 

@@ -68,7 +68,7 @@ validator messages in `src/core/validation/constants.ts`) into:
   the full block, `Reason:` on REMOVED, archive moves the change folder);
 - `scripts/lib/specmerge.mjs`, `scripts/lib/specmd.mjs` — apply order and validation rules re-implemented (no code copied);
 - `shared/amend-spec.md` — the 📐 Spec delta preview.
-Deviations: a stable id (`ACC-R3`) is the identity instead of the requirement name, so RENAMED is not supported (a new
+Deviations: a stable id (`PWR-R3`) is the identity instead of the requirement name, so RENAMED is not supported (a new
 title is a MODIFIED block); extra block kinds Rules / Flows / glossary Terms; `## Retired IDs` tombstones and
 `## Change History`; archive goes to `.hitl/archive/<date>-<id>/`.
 

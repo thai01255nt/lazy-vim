@@ -1,6 +1,6 @@
 <!-- audience: business -->
 # Delta: Orders
-> capability: orders | key: ORD | change: feat-order-lifecycle
+> capability: orders | change: feat-order-lifecycle
 
 ## Purpose
 How customers place orders and how an order moves from placed to delivered.

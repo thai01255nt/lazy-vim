@@ -224,8 +224,8 @@ export async function computeDriftFrom(root, index, opts = {}) {
   return { schema: SCHEMA, items: out, summary };
 }
 
-const TASK_REF_RE = /\bT-\d+(?:\.AC\d+)?\b/g;
-const DEC_REF_RE = /\bD-\d+\b/g;
+const TASK_REF_RE = /\b(?:[A-Z]{2,5}-T\d+|T-\d+)(?:\.AC\d+)?\b/g; // PWR-T3, PWR-T3.AC2 (and pre-0.13 T-3)
+const DEC_REF_RE = /\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g;
 const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Ids that do not belong in intent prose (T-n, T-n.ACk, D-n, spec ids, known change ids); text in backticks is ignored. */

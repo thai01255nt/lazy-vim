@@ -1,0 +1,8 @@
+# hitl: generated files (rebuildable) — do not commit
+index/*
+!index/skeleton.lock.json
+reviews/*/*
+!reviews/*/decisions.json
+.inbox/
+.scout.json
+.spec-review.json

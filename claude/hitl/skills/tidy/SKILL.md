@@ -39,7 +39,7 @@ Spawn one `general-purpose` subagent with: the kept symbols from the report (JSO
 > 2. RESTATES → replace the restated sentence by naming the collaborator (`already settled → checkAlreadySettled`,
 >    `refusals: SettleStatusEnum`); an orchestrator lists the outcome order, the callee states its own rules, an enum
 >    alone defines each status. Never delete the enum's or callee's own definition.
-> 3. ids (`T-n`, `T-n.ACk`, `D-n`, spec ids like `KEY-R3.S1`, change ids) leave the prose; do not touch tag lines
+> 3. ids (`<KEY>-T<n>`, `<KEY>-T<n>.AC<k>`, `<KEY>-D<n>`, spec ids like `KEY-R3.S1`, change ids) leave the prose; do not touch tag lines
 >    (`@task`, `@dec`, `@calls`, `@concurrency`, …) nor LuaLS/JSDoc annotations (`@class`, `@field`, `@param`, `@return`).
 > 4. steps: inside a function body reword a pseudo-code step into a short intent label (≤ 8 words, keep `n.`); delete
 >    numbered comments inside a class/enum body.

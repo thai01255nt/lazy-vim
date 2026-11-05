@@ -24,8 +24,8 @@ review finding to fix.
    Read callee files only if the slice lacks something you need.
 2. **Implement the minimal body** that follows the `TODO(impl)` steps **in order**:
    - turn each `// TODO(impl): n. text` or `// TODO(impl <T>): n. text` into `// n. text` (Python: `# n. text`) and put the
-     code for that step below it; leave lines scoped to another task (`TODO(impl T-other)`) as they are;
-     keep the step a short intent label (≤8 words, what the block does, no ids like `T-n`/`D-n`); reword pseudo-code
+     code for that step below it; leave lines scoped to another task (e.g. `TODO(impl FEE-T2)`) as they are;
+     keep the step a short intent label (≤8 words, what the block does, no ids like `<KEY>-T<n>`/`<KEY>-D<n>`); reword pseudo-code
      steps; never add comments that restate the code line; inside a class/enum body delete numbered step comments
      instead (function bodies keep them);
    - remove the sentinel (`throw new Error("TODO(impl)…")` / `raise NotImplementedError("TODO(impl)…")`);
@@ -52,7 +52,7 @@ review finding to fix.
 - Never edit `@impl manual` (human-owned) functions, even to fix a bug you found — report it in `notes`.
 - Never edit generated files under `.hitl/index/`, the lock, docs maps or review reports.
 - Contract looks wrong (impossible ACs, wrong types, a step that contradicts a test)? Stop and return `contractIssue`.
-- The spec or design itself blocks a correct implementation (a decision `D-n` from `decisions (@dec)` in the slice, or
+- The spec or design itself blocks a correct implementation (a decision `<KEY>-D<n>` from `decisions (@dec)` in the slice, or
   the scenario/requirement on an AC — `(ACC-R3.S1 …: GIVEN … WHEN … THEN …)` or legacy `(R-n: …)` — cannot hold)? Stop
   and return `specConflict`. Report, never deviate.
 
@@ -71,7 +71,7 @@ review finding to fix.
 ```json
 { "symbol": "<id>", "result": "green" | "unreachable" | "stuck", "via": "<only if unreachable>", "iterations": 2, "testsPassed": "3/3",
   "contractIssue": "<only if the contract blocks a correct implementation>",
-  "specConflict": { "ref": "D-1" | "ACC-R3.S1" | null, "problem": "<what in the spec/design blocks a correct implementation>",
+  "specConflict": { "ref": "PWR-D1" | "ACC-R3.S1" | null, "problem": "<what in the spec/design blocks a correct implementation>",
                     "proposal": "<proposed decision/requirement change>" },
   "notes": "≤5 lines: REUSE used, helpers added, regressions seen, last failure + hypothesis when stuck" }
 ```

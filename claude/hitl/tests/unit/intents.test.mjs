@@ -13,7 +13,7 @@ import { planApproval, emptyLock, writeLock } from "../../scripts/lib/lock.mjs";
 import { emptyState } from "../../scripts/lib/state.mjs";
 
 test("tokens / jaccard / sentences: stopwords, plurals and ids dropped; annotation lines are not prose", () => {
-  assert.deepEqual([...tokens("The stored final charges stay (T-5, D-7, BILL-R7.S1).")], ["stored", "final", "charge", "stay"]);
+  assert.deepEqual([...tokens("The stored final charges stay (QT-T5, D-7, BILL-R7.S1).")], ["stored", "final", "charge", "stay"]);
   assert.equal(jaccard(tokens("stored final charge stays"), tokens("final charge stays stored")), 1);
   assert.equal(jaccard(new Set(), tokens("x y")), 0);
   assert.deepEqual(sentences("Settles one tx. Every check runs first;\nthen writes.\n@param x the tx\n@return SettleResult"),
@@ -46,8 +46,8 @@ test("stepFindings: every numbered comment in a class body is dead; function bod
 const SRC = `/**
  * Status values of a settle.
  * ALREADY_SETTLED: settled before with the same usage hash; nothing written.
- * MISMATCH: settled before with another usage hash; the stored final charge stays (T-5, D-7).
- * @task T-1 @impl agent @status skeleton @prio 1
+ * MISMATCH: settled before with another usage hash; the stored final charge stays (QT-T5, D-7).
+ * @task QT-T1 @impl agent @status skeleton @prio 1
  */
 export class SettleStatus {
   // 1. ALREADY_SETTLED = "alreadySettled"
@@ -58,7 +58,7 @@ export class SettleStatus {
 /**
  * Reads the settled marker; writes nothing.
  * Marker with another usage hash returns MISMATCH and keeps the stored final charge.
- * @task T-1 @impl agent @status skeleton @prio 2
+ * @task QT-T1 @impl agent @status skeleton @prio 2
  */
 export function checkSettled(m: string): string {
   // 1. read marker
@@ -68,7 +68,7 @@ export function checkSettled(m: string): string {
 /**
  * Settles one transaction.
  * Settled before with another usage hash: the stored final charge stays, MISMATCH (D-7).
- * @task T-1 @impl agent @status skeleton @prio 3
+ * @task QT-T1 @impl agent @status skeleton @prio 3
  * @calls checkSettled
  */
 export function settle(m: string): string {
@@ -80,7 +80,7 @@ export function settle(m: string): string {
 
 /**
  * Formats an amount as a decimal string.
- * @task T-2 @impl agent @status skeleton @prio 1
+ * @task QT-T2 @impl agent @status skeleton @prio 1
  */
 export function fmt(n: number): string {
   // 1. format amount
@@ -91,22 +91,22 @@ const TASKS_MD = `# Settle Tasks
 ← Change: feat-s
 > status: approved
 
-## T-1 Settle
+## QT-T1 Settle
 - prio: P1 | risk: high (money) | impl: agent | blocked-by: none | status: todo
 
 ### Acceptance criteria
-- [ ] T-1.AC1 Given a settled tx When settle Then the stored charge stays
+- [ ] QT-T1.AC1 Given a settled tx When settle Then the stored charge stays
 
 ### Symbols
 1. [ ] \`SettleStatus\` | new | \`src/settle.ts\` | impl: agent | statuses
 2. [ ] \`checkSettled\` | new | \`src/settle.ts\` | impl: agent | check
 3. [ ] \`settle\` | new | \`src/settle.ts\` | impl: agent | settle
 
-## T-2 Format
+## QT-T2 Format
 - prio: P2 | risk: low | impl: agent | blocked-by: none | status: todo
 
 ### Acceptance criteria
-- [ ] T-2.AC1 Given 5 When fmt Then "5"
+- [ ] QT-T2.AC1 Given 5 When fmt Then "5"
 
 ### Symbols
 1. [ ] \`fmt\` | new | \`src/settle.ts\` | impl: agent | format
@@ -125,12 +125,12 @@ async function settleProject() {
   const config = await loadConfig(root);
   await updateIndex(root, null, { config });
   const index = await readIndex(root); const tasks = await readTasks(root);
-  const t1 = tasks.find((t) => t.id === "T-1");
-  const plan = planApproval({ taskId: "T-1", by: "human", force: true, index, lock: emptyLock(), state: emptyState(), config, task: t1, tasks });
+  const t1 = tasks.find((t) => t.id === "QT-T1");
+  const plan = planApproval({ taskId: "QT-T1", by: "human", force: true, index, lock: emptyLock(), state: emptyState(), config, task: t1, tasks });
   assert.equal(plan.ok, true, plan.reasons.join("; "));
   const id = Object.keys(index.symbols).find((k) => k.endsWith("#settle"));
-  plan.lock.symbols[id].tasks = ["T-0", "T-1"];
-  plan.lock.symbols[id].intentLog = [{ task: "T-0", stage: "skeleton", lines: 1, at: "a" }, { task: "T-1", stage: "skeleton", lines: 2, at: "b" }];
+  plan.lock.symbols[id].tasks = ["QT-T0", "QT-T1"];
+  plan.lock.symbols[id].intentLog = [{ task: "QT-T0", stage: "skeleton", lines: 1, at: "a" }, { task: "QT-T1", stage: "skeleton", lines: 2, at: "b" }];
   delete plan.lock.symbols[Object.keys(index.symbols).find((k) => k.endsWith("#SettleStatus"))].intentLog; // locked before intentLog existed
   await writeLock(root, plan.lock);
   return { root, config };
@@ -142,7 +142,7 @@ test("intents <change>: ids, restates (callee and enum term), growth and steps, 
   const r = await intents(root, { target: "feat-s", config });
   assert.equal(r.ok, true, r.error);
   assert.equal(r.overlap, DEFAULT_RESTATE_OVERLAP);
-  assert.deepEqual(r.tasks, ["T-1", "T-2"]);
+  assert.deepEqual(r.tasks, ["QT-T1", "QT-T2"]);
   const by = Object.fromEntries(r.symbols.map((s) => [s.name, s]));
   assert.deepEqual(Object.keys(by).sort(), ["SettleStatus", "checkSettled", "settle"], "fmt is clean, not listed");
   assert.equal(r.symbols[0].name, "settle", "most signals first");
@@ -153,9 +153,9 @@ test("intents <change>: ids, restates (callee and enum term), growth and steps, 
   assert.ok(s.restates.every((x) => x.sentence.startsWith("Settled before with another usage hash")));
   assert.equal(s.restates.find((x) => x.collaboratorName === "SettleStatus").term, "MISMATCH", "linked through the term the enum defines");
   assert.deepEqual({ tasks: s.growth.tasks, first: s.growth.linesFirst, now: s.growth.linesNow }, { tasks: 2, first: 1, now: 2 });
-  assert.deepEqual(s.growth.taskIds, ["T-0", "T-1"]);
+  assert.deepEqual(s.growth.taskIds, ["QT-T0", "QT-T1"]);
   assert.deepEqual(s.steps.map((x) => [x.text, x.why]), [["1. x = checkSettled(m)", "assignment"]]);
-  assert.deepEqual(by.SettleStatus.ids, ["T-5", "D-7"]);
+  assert.deepEqual(by.SettleStatus.ids, ["QT-T5", "D-7"]);
   assert.deepEqual(by.SettleStatus.steps.map((x) => x.text), ['1. ALREADY_SETTLED = "alreadySettled"']);
   assert.equal(by.SettleStatus.growth.linesFirst, null, "no intentLog: lines now only");
   assert.equal(by.checkSettled.ids.length, 0);
@@ -174,11 +174,11 @@ test("intents CLI: T-id scope, ✅ when tidy, exit 1 for an unknown target", asy
     console.log = (...a) => out.push(a.join(" ")); console.error = (...a) => out.push(a.join(" "));
     try { return { code: await intentsCmd(args, { root, config, json }), out: out.join("\n") }; } finally { console.log = log; console.error = err; }
   };
-  let r = await cli(["T-2"]);
-  assert.equal(r.code, 0); assert.match(r.out, /^✅ intents tidy: T-2/);
+  let r = await cli(["QT-T2"]);
+  assert.equal(r.code, 0); assert.match(r.out, /^✅ intents tidy: QT-T2/);
   r = await cli(["feat-s"]);
-  assert.equal(r.code, 0); assert.match(r.out, /RESTATES checkSettled/); assert.match(r.out, /ids: T-5, D-7/); assert.match(r.out, /lines 1 → 2/);
-  r = await cli(["T-1"], true);
+  assert.equal(r.code, 0); assert.match(r.out, /RESTATES checkSettled/); assert.match(r.out, /ids: QT-T5, D-7/); assert.match(r.out, /lines 1 → 2/);
+  r = await cli(["QT-T1"], true);
   assert.equal(JSON.parse(r.out).schema, "hitl.intents/1");
   r = await cli(["feat-nope"]);
   assert.equal(r.code, 1); assert.match(r.out, /no change "feat-nope"/);

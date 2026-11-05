@@ -1,7 +1,7 @@
 ---
 name: implement
-description: Implements an approved task function by function in priority order. Agent-owned (@impl agent) functions go to the implementer subagent with a precise context slice and must turn their locked failing tests green; human-owned (@impl manual) functions are handed to the user with their context and verified after the user writes them. Low-risk tasks run the fast lane (auto skeleton, tests, implementation); the user may force it on a high-risk task with --lane fast (human override, flagged for human review). --feature <change-id> builds every task of a change in order and ends with one combined review (build-then-review). Use when the user says "implement T-12", "làm T-12", "fill <function>", "implement the whole feature".
-argument-hint: "<T-id> [symbol] [--all] [--lane fast] | --feature <change-id> [--lane fast]"
+description: Implements an approved task function by function in priority order. Agent-owned (@impl agent) functions go to the implementer subagent with a precise context slice and must turn their locked failing tests green; human-owned (@impl manual) functions are handed to the user with their context and verified after the user writes them. Low-risk tasks run the fast lane (auto skeleton, tests, implementation); the user may force it on a high-risk task with --lane fast (human override, flagged for human review). --feature <change-id> builds every task of a change in order and ends with one combined review (build-then-review). Use when the user says "implement PWR-T12", "làm PWR-T12", "fill <function>", "implement the whole feature".
+argument-hint: "<task-id> [symbol] [--all] [--lane fast] | --feature <change-id> [--lane fast]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -11,10 +11,10 @@ allowed-tools: Read Glob Grep Edit Agent Skill Bash(hitl-index *) Bash(node *hit
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md` (language, CLI invocation, gate protocol, emoji, quality checklist).
 Reply in the user's language. Code, tags and identifiers stay English.
 
-Arguments: `$ARGUMENTS` → `<T-id> [symbol] [--all] [--lane fast]` or `--feature <change-id> [--lane fast]`
+Arguments: `$ARGUMENTS` → `<task-id> [symbol] [--all] [--lane fast]` or `--feature <change-id> [--lane fast]`
 (a v0.5 tasks/planning file name still works).
-No T-id → take the first frontier task from `hitl-index status --json` (`.next`), say `💡 Assumed: T-n`, continue
-(`--lane fast` without a T-id or `--feature` → 🛑 `--lane fast needs an explicit task: /hitl:implement <T> --lane fast`).
+No task id → take the first frontier task from `hitl-index status --json` (`.next`), say `💡 Assumed: <KEY>-T<n>`, continue
+(`--lane fast` without a task id or `--feature` → 🛑 `--lane fast needs an explicit task: /hitl:implement <T> --lane fast`).
 `--feature <change-id>` → follow `references/feature-run.md` instead of the steps below (it calls them per task).
 
 ## Iron rules
@@ -37,7 +37,7 @@ The user typed `/hitl:implement <T> --lane fast`: the UserPromptSubmit hook issu
 the PreToolUse hook lets `hitl-index approve <T> --stage skeleton|tests --by human-override` through for this run.
 1. Print once, before anything else (reasons from `tasks --json` `riskReasons`, plus `hitl-index risk <T> --json` reasons when symbols exist):
    ```
-   ⚠️ HUMAN OVERRIDE — fast lane forced on high-risk T-12 (security, public-api)
+   ⚠️ HUMAN OVERRIDE — fast lane forced on high-risk PWR-T12 (security, public-api)
    Skeleton and tests are approved without gates (recorded as human-override in the lock).
    Manual functions still come to you. The review will route every function to you (L2).
    ```
@@ -90,7 +90,7 @@ If `symbol` was given, the list is just that symbol (short ref is fine if unambi
 
 Print it in the v2 style, then start the first item without asking (the `/hitl:implement` call is the go-ahead):
 ```
-🎯 T-12 — 3 functions (risk high: security, public-api)
+🎯 PWR-T12 — 3 functions (risk high: security, public-api)
 1. [ ] UserService.createUser  — agent  — red   — src/services/userService.ts
 2. [ ] UserRepo.findByEmail    — manual — red   — src/repo/userRepo.ts
 3. [x] PasswordHasher.hash     — agent  — green
@@ -125,10 +125,10 @@ messages (if any), then continue with the next symbol.
    - `contractIssue` or `specConflict` → 🛑 stop the loop and print the **spec change proposal card** (spec links from
      `hitl-index context <ref> --json` / `hitl-index trace <T> --json`; omit the `conflicts with` line when none):
      ```
-     📐 Spec change proposal — T-12 UserService.createUser
-     conflicts with: D-1 "<text>" (changes/feat-auth/design.md) · ACC-R3.S1 "<text>"
+     📐 Spec change proposal — PWR-T12 UserService.createUser
+     conflicts with: PWR-D1 "<text>" (changes/feat-auth/design.md) · ACC-R3.S1 "<text>"
      problem: <…>   proposal: <…>
-     1. 💡 amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve T-12)
+     1. 💡 amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve PWR-T12)
      2. you implement it (flip @impl manual)   3. stop
      ```
      ⛔ GATE, end turn. Option 1 → `shared/amend-spec.md` (📐 Spec delta + 🔁 Impact, `Apply? (Y/n/edit)`, then the
@@ -163,7 +163,7 @@ Red after a `green` claim → treat as `stuck` (print both claims and evidence; 
 
 ## Step 5 — Finish
 
-When every task symbol is green in a fresh run **in this turn**: `✅ T-12: all functions green (n tests)` and
+When every task symbol is green in a fresh run **in this turn**: `✅ PWR-T12: all functions green (n tests)` and
 `🎯 next: /hitl:review <T>`.
 Otherwise list what is left (`manual pending`, `red`, `stuck`) and the next command. Never say "done" without the run.
 

@@ -14,13 +14,13 @@ import { fixtureIndex, TASKS } from "./status.test.mjs";
 import { cli, specProject } from "./notes.test.mjs";
 
 const NOW = "2026-11-06T00:00:00.000Z";
-const TASK = { ...TASKS[0], change: "feat-a", acs: [{ id: "T-1.AC1", reqs: ["ACC-R1.S1"], text: "x" }], decisions: [] };
+const TASK = { ...TASKS[0], change: "feat-a", acs: [{ id: "QT-T1.AC1", reqs: ["LACC-R1.S1"], text: "x" }], decisions: [] };
 const note = (id, o = {}) => ({ id, title: `note ${id}`, kind: "order", source: "feat-b", sourceState: "active", refs: [], refTitles: {}, status: "open", acks: [], meta: {}, text: "", ...o });
-const base = (o) => ({ taskId: "T-1", index: fixtureIndex(), lock: emptyLock(), state: emptyState(), config: {}, task: TASK, tasks: [TASK], now: NOW, by: "human", ...o });
+const base = (o) => ({ taskId: "QT-T1", index: fixtureIndex(), lock: emptyLock(), state: emptyState(), config: {}, task: TASK, tasks: [TASK], now: NOW, by: "human", ...o });
 
 test("source: round trip; incomingState per status and source state; counts; applyCommand", () => {
   const n = note("N-1", { sourceState: undefined, text: "B first." });
-  const text = renderNotes("feat-a", [n, { ...note("N-2", { kind: "spec", refs: ["ACC-R1"] }), source: null, sourceState: undefined }]);
+  const text = renderNotes("feat-a", [n, { ...note("N-2", { kind: "spec", refs: ["LACC-R1"] }), source: null, sourceState: undefined }]);
   assert.match(text, /## N-1 note N-1\n- kind: order\n- source: feat-b\n- refs: none/);
   assert.doesNotMatch(text.split("## N-2")[1], /source:/);
   const p = parseNotes(text);
@@ -44,7 +44,7 @@ test("source: round trip; incomingState per status and source state; counts; app
   assert.equal(applyCommand("feat-a", note("N-1", { kind: "design" })), "/hitl:design feat-a amend N-1");
   assert.equal(blocksArchive(note("N-1", { status: "applied" })), true);
   assert.equal(blocksArchive(note("N-1", { sourceState: "archived" })), false);
-  assert.equal(blockingNotes([note("N-1", { kind: "spec", refs: ["T-1"] })], { task: { id: "T-1", acs: [] }, symIds: [] }).block.length, 0, "per-task matching skips source notes");
+  assert.equal(blockingNotes([note("N-1", { kind: "spec", refs: ["QT-T1"] })], { task: { id: "QT-T1", acs: [] }, symIds: [] }).block.length, 0, "per-task matching skips source notes");
 });
 
 test("changeWait + reasons: waits grouped by source, gone, amend", () => {
@@ -70,7 +70,7 @@ test("planApproval: a wait refuses every task stage of the change, for every app
   assert.equal(ack.ok, false); assert.match(ack.reasons.join(";"), /--ack N-1: a note from another change cannot be acked/);
   // B archived: the order note clears; an unapplied spec note forces the amend; applied → free
   assert.equal(planApproval(base({ notes: [note("N-1", { sourceState: "archived" })] })).ok, true);
-  const am = planApproval(base({ notes: [note("N-2", { kind: "spec", refs: ["T-9"], sourceState: "archived" })] }));
+  const am = planApproval(base({ notes: [note("N-2", { kind: "spec", refs: ["QT-T9"], sourceState: "archived" })] }));
   assert.equal(am.ok, false); assert.match(am.reasons[0], /📥 N-2 from feat-b \(archived\) is not applied yet: \/hitl:plan feat-a amend N-2/);
   assert.equal(planApproval(base({ notes: [note("N-2", { kind: "spec", sourceState: "archived", status: "applied" })] })).ok, true);
   assert.equal(planApproval(base({ notes: [note("N-1", { status: "dismissed" })] })).ok, true);
@@ -78,11 +78,11 @@ test("planApproval: a wait refuses every task stage of the change, for every app
 
 test("computeNext: amend first; tasks of a waiting change are skipped; all waiting → the other change's next step; gone → dismiss", () => {
   const T = (id, change) => ({ id, prio: "P1", blockedBy: [], change });
-  const tasks = [T("T-1", "feat-a"), T("T-2", "feat-b")];
-  const statuses = { tasks: { "T-1": { status: "todo", next: "/hitl:skeleton T-1" }, "T-2": { status: "todo", next: "/hitl:skeleton T-2" } } };
+  const tasks = [T("QT-T1", "feat-a"), T("QT-T2", "feat-b")];
+  const statuses = { tasks: { "QT-T1": { status: "todo", next: "/hitl:skeleton QT-T1" }, "QT-T2": { status: "todo", next: "/hitl:skeleton QT-T2" } } };
   const waits = [{ change: "feat-a", for: [{ change: "feat-b", state: "active", notes: ["N-1"] }], amend: [] }];
   let r = computeNext({ tasks, statuses, notes: { waits } });
-  assert.equal(r.command, "/hitl:skeleton T-2"); assert.match(r.reason, /skipped T-1 \(waits for feat-b\)/);
+  assert.equal(r.command, "/hitl:skeleton QT-T2"); assert.match(r.reason, /skipped QT-T1 \(waits for feat-b\)/);
   r = computeNext({ tasks: [tasks[0]], statuses, notes: { waits }, changes: [{ id: "feat-b", phase: "design" }] });
   assert.deepEqual([r.command, r.change], ["/hitl:design feat-b", "feat-b"]); assert.match(r.reason, /feat-a waits for feat-b \(N-1\) until it is archived/);
   r = computeNext({ tasks: [tasks[0]], statuses, notes: { waits: [{ change: "feat-a", for: [{ change: "feat-b", state: "gone", notes: ["N-1"] }], amend: [] }] } });
@@ -119,9 +119,9 @@ test("note add --source: guards; waits show in note list, status, change and the
   assert.equal(ok.code, 0, ok.out + ok.err); assert.match(ok.out, /⏳ feat-password-reset now waits for feat-b/);
   const l = cli(root, "note", "list", "--change", C, "--json").json().changes[0].notes[0];
   assert.deepEqual([l.source, l.sourceState, l.wait], ["feat-b", "active", "wait"]);
-  assert.deepEqual(l.blocks, ["T-12", "T-13"], "every task of the change");
+  assert.deepEqual(l.blocks, ["PWR-T1", "PWR-T2"], "every task of the change");
   const s = cli(root, "status", "--json").json();
-  assert.deepEqual(s.tasks["T-13"].wait.for, [{ change: "feat-b", state: "active", notes: ["N-1"] }]);
+  assert.deepEqual(s.tasks["PWR-T2"].wait.for, [{ change: "feat-b", state: "active", notes: ["N-1"] }]);
   assert.equal(s.changes.find((c) => c.id === C).wait.for[0].change, "feat-b");
   assert.match(s.next.reason, /feat-password-reset waits for feat-b/);
   assert.equal(s.next.command, "/hitl:plan feat-b");

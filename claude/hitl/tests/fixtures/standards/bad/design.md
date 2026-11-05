@@ -5,14 +5,14 @@
 ## Decisions
 | id | decision | why | alternatives | cost if wrong | serves | status |
 |----|----------|-----|--------------|---------------|--------|--------|
-| D-1 | State column | simple | event log | audits | — | superseded by D-9 |
-| D-2 | Cache | speed | none | stale | — | deprecated |
+| ORD-D1 | State column | simple | event log | audits | — | superseded by ORD-D9 |
+| ORD-D2 | Cache | speed | none | stale | — | deprecated |
 
-### D-1 State column
+### ORD-D1 State column
 - **Context and problem**: x
 - **Decision outcome**: (1)
 
-### D-7 Ghost
+### ORD-D7 Ghost
 - **Context and problem**: y
 
 ## State machines

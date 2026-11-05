@@ -7,16 +7,17 @@ import { paths } from "./project.mjs";
 import { exists, readJson } from "./fsutil.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
-import { ARCHIVE_DIR_RE, SPECREF_SRC, isChangeId, parseId } from "./specids.mjs";
+import { AC_ID_RE, AC_ID_SRC, ARCHIVE_DIR_RE, DEC_ID_RE, LEGACY_DEC_RE, QUICK_KEY, SPECREF_SRC, TASK_ID_SRC, formatTaskId, isChangeId, parseId, parseTaskId } from "./specids.mjs";
 
 const REF = `(?:${SPECREF_SRC}|R-\\d+)`;
 const CHANGE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}changes/([^/]+)/tasks\\.md$`);
 const ARCHIVE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}archive/([^/]+)/tasks\\.md$`);
 
-const RX = {
-  heading: /^## (T-\d+) (.+)$/,
-  meta: /^- prio: (P[0-3]) \| risk: (low|high)(?: \(([^)]*)\))? \| impl: (agent|manual|mixed) \| blocked-by: (none|T-\d+(?:, ?T-\d+)*) \| status: ([a-z-]+)$/,
-  ac: new RegExp(`^- \\[( |x)\\] (T-\\d+\\.AC\\d+)(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`),
+const RXN = {
+  heading: new RegExp(`^## (${TASK_ID_SRC}) (.+)$`),
+  legacyHeading: /^## (T-\d+) (.+)$/,
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${TASK_ID_SRC}(?:, ?${TASK_ID_SRC})*) \\| status: ([a-z-]+)$`),
+  ac: new RegExp(`^- \\[( |x)\\] (${AC_ID_SRC})(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`),
   why: /^\*\*Why\*\*: ?(.*)$/,
   symbol: /^(\d+)\. \[( |x)\] `([^`]+)` \| (new|modify) \| `([^`]+)` \| impl: (agent|manual) \| (.+)$/,
   planning: /^← Planning: (\S+)$/,
@@ -24,6 +25,12 @@ const RX = {
   status: /^> status: (draft|approved)/,
 };
 const SYMREF = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)?$/;
+// `migrate --specs` reads v0.5 task files whose ids are still pre-0.13 `T-n` (migrate --ids renumbers them later)
+const LT = `(?:${TASK_ID_SRC}|T-\\d+)`;
+const RX_LEGACY = { ...RXN,
+  heading: new RegExp(`^## (${LT}) (.+)$`), legacyHeading: /^\0$/,
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${LT}(?:, ?${LT})*) \\| status: ([a-z-]+)$`),
+  ac: new RegExp(`^- \\[( |x)\\] (${LT}\\.AC\\d+)(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`) };
 
 /** Change id and archived flag implied by a tasks file location; {change:null} for `.hitl/tasks/*.md`. */
 export function changeOfFile(file) {
@@ -60,9 +67,10 @@ export const isArchivedTask = (lock, tasks, T) => !!archivedChangeOf(lock, tasks
  * `change` comes from `← Change: <id>` (else from the file location); `planning` only from the legacy `← Planning:`.
  * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them.
  */
-export function parseTasksMd(text, file) {
+export function parseTasksMd(text, file, { legacy = false } = {}) {
+  const RX = legacy ? RX_LEGACY : RXN;
   const loc = changeOfFile(file);
-  const doc = { file, planning: null, change: null, archived: loc.archived, changeDir: loc.dir, status: null, tasks: [] };
+  const doc = { file, planning: null, change: null, archived: loc.archived, changeDir: loc.dir, status: null, tasks: [], legacyIds: [] };
   let task = null, section = null;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/\s+$/, "");
@@ -74,6 +82,7 @@ export function parseTasksMd(text, file) {
       section = null;
       continue;
     }
+    if ((m = line.match(RX.legacyHeading))) { doc.legacyIds.push(m[1]); task = null; section = null; continue; }
     if (/^## /.test(line)) { task = null; section = null; continue; }
     if (!task) {
       if ((m = line.match(RX.planning))) doc.planning = m[1];
@@ -84,7 +93,7 @@ export function parseTasksMd(text, file) {
     if ((m = line.match(/^### (.+)$/))) { section = m[1].trim().toLowerCase(); continue; }
     if (!section && task.why === null && (m = line.match(RX.why))) {
       task.why = m[1].trim();
-      task.decisions = [...new Set(task.why.match(/\bD-\d+\b/g) || [])];
+      task.decisions = [...new Set(task.why.match(/\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g) || [])];
       continue;
     }
     if (!section && /^- prio:/.test(line)) {
@@ -96,7 +105,7 @@ export function parseTasksMd(text, file) {
     }
     if (section === "acceptance criteria" && (m = line.match(RX.ac))) {
       const bad = !m[3] && /^\(([A-Za-z]\w*-[A-Za-z]*\d[\w.]*(?:, ?[A-Za-z]\w*-[A-Za-z]*\d[\w.]*)*)\) /.exec(m[4]);
-      if (bad) task.parseErrors.push(`malformed AC ref (${bad[1]}) in ${m[2]}: use spec ids like ACC-R1.S1 (or legacy R-n)`);
+      if (bad) task.parseErrors.push(`malformed AC ref (${bad[1]}) in ${m[2]}: use spec ids like PWR-R1.S1 (or legacy R-n)`);
       task.acs.push({ id: m[2], reqs: m[3] ? m[3].split(/, ?/) : [], text: m[4].trim(), done: m[1] === "x" });
     }
     else if (section === "acceptance criteria" && /^- \[/.test(line)) task.parseErrors.push(`malformed AC line: ${line}`);
@@ -144,7 +153,7 @@ export async function readTasks(root) {
   return (await readTaskDocs(root)).flatMap((d) => d.tasks);
 }
 
-const acKey = (taskId, ac) => (/^T-\d+\.AC\d+$/.test(ac) ? ac : `${taskId}.${ac.replace(/^\./, "")}`);
+const acKey = (taskId, ac) => (AC_ID_RE.test(ac) ? ac : `${taskId}.${ac.replace(/^\./, "")}`);
 
 /** checkTasks(root, tasks, index) -> errors [{task, file, message}] */
 export async function checkTasks(root, tasks, index) {
@@ -154,6 +163,18 @@ export async function checkTasks(root, tasks, index) {
   const plannings = new Map();
   let specCtx = null;
   for (const t of tasks) ids.set(t.id, (ids.get(t.id) || 0) + 1);
+  // 0.13: a task id carries its change's key (proposal meta); quick tasks use the reserved key QT
+  let keys = null;
+  const keyFor = async (t) => {
+    if (!keys) { const { readKeyRegistry } = await import("./keys.mjs"); keys = (await readKeyRegistry(root)).byChange; }
+    if (t.change && (t.changeDir || !t.planning)) return keys.get(t.change) ?? null;
+    return t.changeDir ? null : QUICK_KEY;
+  };
+  for (const t of tasks) {
+    const want = await keyFor(t);
+    const k = parseTaskId(t.id)?.key;
+    if (want && k && k !== want) err(t, `TASK_KEY_MISMATCH: ${t.id} does not use ${t.change ? `the key ${want} of ${t.change}` : `the quick-task key ${want}`}`);
+  }
   for (const [id, n] of ids) if (n > 1) err(tasks.find((t) => t.id === id), `duplicate task id ${id} (${n}×)`);
   for (const t of tasks) {
     for (const e of t.parseErrors) err(t, e);
@@ -177,14 +198,17 @@ export async function checkTasks(root, tasks, index) {
       if (!c) { err(t, `change ${t.change ?? "?"} not found (needed for spec/D- refs)`); continue; }
       const id = c.change.id;
       for (const ac of t.acs) for (const r of ac.reqs || []) {
-        if (!isSpecRef(r)) { err(t, `${ac.id} references legacy ${r} (a change task refs spec ids such as ACC-R1.S1)`); continue; }
+        if (!isSpecRef(r)) { err(t, `${ac.id} references legacy ${r} (a change task refs spec ids such as PWR-R1.S1)`); continue; }
         const x = m.resolveSpecRef(c.view, r, c.change);
         if (x.status === "removed") err(t, `${ac.id} references ${r} which ${id} removes`);
         else if (x.status === "retired" && !c.change.archived) err(t, `${ac.id} references ${r} which is retired`);
         else if (x.status === "unknown") err(t, `${ac.id} references unknown ${r} (not in the spec view of ${id})`);
       }
       const D = new Set((c.change.design?.decisions || []).map((d) => d.id));
-      for (const d of t.decisions || []) if (!D.has(d)) err(t, `**Why** references unknown ${d} (not in ${c.change.dir}/design.md)`);
+      for (const d of t.decisions || []) {
+        if (LEGACY_DEC_RE.test(d)) err(t, `IDS_LEGACY: **Why** references ${d} (pre-0.13 decision id: run /hitl:migrate)`);
+        else if (!D.has(d)) err(t, `**Why** references unknown ${d} (not in ${c.change.dir}/design.md)`);
+      }
       continue;
     }
     const p = t.planning;
@@ -202,14 +226,28 @@ export async function checkTasks(root, tasks, index) {
   return errors;
 }
 
-/** Highest T-number across tasks files and the lock, +1. */
-export async function nextTaskId(root) {
+/**
+ * Next task id of a change (or of the quick tasks): `<KEY>-T<max+1>` over that key's tasks in every tasks doc and the
+ * lock. A number is never reused within a key. `target`: a change id, or "quick" / null for `.hitl/tasks/*.md` (key QT).
+ */
+export async function nextTaskId(root, target = null) {
+  let key = QUICK_KEY;
+  if (target && target !== "quick") {
+    const { readKeyRegistry } = await import("./keys.mjs");
+    key = (await readKeyRegistry(root)).byChange.get(target);
+    if (!key) throw Object.assign(new Error(`change ${target} has no key yet (proposal meta "| key: <KEY>"; a pre-0.13 project: run /hitl:migrate)`), { code: 1 });
+  }
   let max = 0;
-  const bump = (id) => { const m = /^T-(\d+)/.exec(id || ""); if (m) max = Math.max(max, Number(m[1])); };
+  const bump = (id) => { const p = parseTaskId(id || ""); if (p && p.key === key) max = Math.max(max, p.n); };
   for (const t of await readTasks(root)) bump(t.id);
   const lock = await readJson(paths(root).lock, null);
   for (const id of Object.keys(lock?.tasks || {})) bump(id);
-  for (const s of Object.values(lock?.symbols || {})) bump(s.task);
+  for (const s of Object.values(lock?.symbols || {})) { bump(s.task); for (const x of s.tasks || []) bump(x); }
   for (const s of Object.values(lock?.tests || {})) bump(s.task);
-  return `T-${max + 1}`;
+  return formatTaskId(key, max + 1);
+}
+
+/** Pre-0.13 ids in the tasks docs: [{file, ids}] (empty when current). */
+export async function legacyTaskDocs(root) {
+  return (await readTaskDocs(root)).filter((d) => d.legacyIds.length).map((d) => ({ file: d.file, ids: d.legacyIds }));
 }

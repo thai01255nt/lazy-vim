@@ -1,7 +1,7 @@
 ---
 name: test
-description: Turns a hitl task's approved test stubs into real failing tests via the isolated test-author subagent; optional mutation testing. Use for "test T-12", "viết test", "run tests", after skeleton approval, or when review asks for tests that kill surviving mutants. Not for ad-hoc test-first work outside a hitl task (hitl:tdd).
-argument-hint: "<T-id> [fill|run|mutate] [symbol] [--override]"
+description: Turns a hitl task's approved test stubs into real failing tests via the isolated test-author subagent; optional mutation testing. Use for "test PWR-T12", "viết test", "run tests", after skeleton approval, or when review asks for tests that kill surviving mutants. Not for ad-hoc test-first work outside a hitl task (hitl:tdd).
+argument-hint: "<task-id> [fill|run|mutate] [symbol] [--override]"
 allowed-tools: Read Glob Grep Agent Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -13,7 +13,7 @@ Test kinds and edge checklist: `${CLAUDE_PLUGIN_ROOT}/skills/test/references/tes
 Test patterns (passed to the test-author; §2 tells for the glance in step 3): `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md`,
 `${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md`, `${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md`.
 
-Arguments: `$ARGUMENTS` → `<T-id> [fill|run|mutate] [symbol]`.
+Arguments: `$ARGUMENTS` → `<task-id> [fill|run|mutate] [symbol]`.
 Mode default: `fill` if the task still has `todo`/`skip` test stubs written at skeleton time, else `run`.
 `--override` comes only from `/hitl:implement <T> --lane fast` (user's override of a high-risk task): lock like low risk,
 with `--by human-override`. Never add it yourself.
@@ -44,7 +44,7 @@ with `--by human-override`. Never add it yourself.
 
 1. **Contract pack**: `hitl-index context <T> --contract --out .hitl/index/contracts/<T>.md`.
    Read it. Extract the test file paths (the `tests:` lines) and the test-plan rows.
-   Rows with `author: human` are not delegated: list them as `✍️ yours: T-n.ACk (<kind>)`.
+   Rows with `author: human` are not delegated: list them as `✍️ yours: <KEY>-T<n>.AC<k> (<kind>)`.
 2. **Spawn `hitl:test-author`** (Agent tool, `subagent_type: hitl:test-author`). Prompt, nothing else:
    ```
    Task: <T>. Contract pack: .hitl/index/contracts/<T>.md (read it first).
@@ -75,7 +75,7 @@ with `--by human-override`. Never add it yourself.
      ```
      | ac | test | kind | result |
      |----|------|------|--------|
-     | T-12.AC1 | rejects duplicate email in any case | example | ❌ fail (expected throw) |
+     | PWR-T12.AC1 | rejects duplicate email in any case | example | ❌ fail (expected throw) |
      ```
      `Review tests in <files>, then /hitl:approve <T> tests  •  or tell me what to change.`
    - Risk **low** (and the RED check is clean): `hitl-index approve <T> --stage tests --by auto`, print `⚡ tests auto-locked`.

@@ -6,7 +6,7 @@
 agree on *what* (plan) and *how* (design) before any code. After that you choose how often to look:
 - **Default, step by step**: every high-risk task stops at skeleton → tests → implement → review. You approve
   contracts before code exists.
-- **Fast lane** (`/hitl:implement T-n --lane fast`): one task runs skeleton → tests → code without gates; you review
+- **Fast lane** (`/hitl:implement <KEY>-T<n> --lane fast`): one task runs skeleton → tests → code without gates; you review
   the result.
 - **Build then review** (`/hitl:implement --feature <change-id> --lane fast`, optionally after `/hitl:design --auto`):
   the whole change is built without gates, then one feature report lists everything to review and refine
@@ -16,7 +16,7 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
 **Requirement changes mid-change** (0.9): say it in chat and Claude asks `📌 Note for <change>, refs …? (Y/n)`. The note
 blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or `/hitl:design … amend N-k`):
 the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
-reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
+reopen`. Escape hatches, also yours only: `/hitl:approve <KEY>-T<n> <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
 `… <id> defer N-k <other-change>`.
 **Two changes at once** (0.12): work that is too big for change A becomes its own change, created *before* A:
 `/hitl:go <X> --before A` (several: `--before A,C`). A then waits: no task approval, implement or archive of A until the
@@ -31,6 +31,10 @@ ids with titles) and asks the same question again.
 intent uses a glossary `_Avoid_` word (`"user record" → use Account`). After green, the review lists **structure
 suggestions** (duplication, names off the glossary, pass-through functions, deep nesting, tests of private helpers):
 `fix F-n` runs a refactor pass under green, untouched tests. Never a blocker.
+
+**Ids** (0.13): every change has a short key (2–5 capitals, e.g. `PWR`, chosen at `/hitl:plan`); every id starts
+with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-D1`, tasks `PWR-T3`, ACs `PWR-T3.AC2`
+(quick tasks `QT-T<n>`). Upgrading from 0.12: run `/hitl:migrate` once.
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
 turn — a 📌 note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
@@ -66,7 +70,7 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend [N-k]` | ⛔ each round |
 | `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | ⛔ each round |
-| `/hitl:design` | HOW: design.md (D-n), data-model, contracts — module level; `--auto` | ⛔ each round |
+| `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; `--auto` | ⛔ each round |
 | `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | ⛔ quiz |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
@@ -80,4 +84,5 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
 | `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | ⛔ seams |
-| `/hitl:flow` | this status, T-id routing and help (new work → `/hitl:go`) | — |
+| `/hitl:flow` | this status, task id routing and help (new work → `/hitl:go`) | — |
+| `/hitl:migrate` | upgrade a pre-0.13 project to change-key ids (`PWR-T3`, `PWR-R1`, `PWR-D1`): dry run, one key table, rename map, then apply | ⛔ keys + `Apply? (Y/n)` |

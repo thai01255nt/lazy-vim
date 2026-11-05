@@ -13,7 +13,7 @@ Interview: the `hitl:grilling` skill + `${CLAUDE_PLUGIN_ROOT}/shared/interview.m
 `${CLAUDE_PLUGIN_ROOT}/shared/artifacts.md` (step 3.1 reads them).
 **Read only when needed** (not up front):
 - `${CLAUDE_PLUGIN_ROOT}/shared/formats/<file>` — before writing the first instance of that artifact in this change:
-  `decisions.md` (the first MADR record `### D-n`), `contracts.md` (OpenAPI 3.1 / AsyncAPI 3 / JSON Schema 2020-12 /
+  `decisions.md` (the first MADR record `### <KEY>-D<n>`), `contracts.md` (OpenAPI 3.1 / AsyncAPI 3 / JSON Schema 2020-12 /
   CLI md), `architecture-c4.md`, `state-machines.md`.
 - `${CLAUDE_PLUGIN_ROOT}/shared/spec-format.md` (§ Design: the D table and contract rules the CLI checks) — when
   `spec validate` reports an error whose fix is not clear from its message.
@@ -49,8 +49,8 @@ Dispatch **one Explore subagent** (thoroughness: medium) with the code questions
 modules in the area, reusable services, data shapes and persistence, external interfaces, test setup and seams,
 patterns to follow, and the accepted decisions in `.hitl/archive/*/design.md` (D table) that touch these modules (id,
 archived change, decision). Ask it for ≤ 20 bullet facts each with a path. Record them in `## Context` as
-`- <fact> (source: <path>)`; an archived decision as `- <archived change> D-n: <decision> (source: …)`. A new decision
-that contradicts one → Discussion Mode that quotes it ("Contradicts <change> D-3 (…); reopen because …"). Use `hitl-index context <ref> --json` for a single known symbol. Never ask the user a fact.
+`- <fact> (source: <path>)`; an archived decision as `- <archived change> <KEY>-D<n>: <decision> (source: …)`. A new decision
+that contradicts one → Discussion Mode that quotes it ("Contradicts <change> PWR-D3 (…); reopen because …"). Use `hitl-index context <ref> --json` for a single known symbol. Never ask the user a fact.
 Only the questions that depend on a pending fact wait; ask the rest of the frontier now.
 
 ## 3. Technique and artifacts
@@ -64,15 +64,16 @@ Only the questions that depend on a pending fact wait; ask the rest of the front
    (`ok` | `waived (why)`); a waiver is always a `[D]` question.
 
 ## 4. Round loop `[D]` (one ⛔ GATE per round, interview.md format)
-- Header `🌳 Round <n> — [D][A]   (settled: D-1…D-<k> · open: <n>)`.
+- Header `🌳 Round <n> — [D][A]   (settled: <KEY>-D1…<KEY>-D<k> · open: <n>)`.
 - Frontier order: parked ideas and decisions that unblock others first (boundaries and components → data and contracts
   → errors → test strategy → risks → rollout). Discussion Mode when several approaches are valid (tie the
   recommendation to a requirement id or a `## Context` fact); Suggestion Mode for clear best practice.
-- Record the settled answers after every reply (interview.md §7; a question or discussion records nothing, §6): D rows (`serves` = requirement/rule ids from the spec view; `alternatives`
-  filled; status `proposed` until the developer agrees, then `accepted`) plus a MADR record `### D-n <title>` (Context
+- Record the settled answers after every reply (interview.md §7; a question or discussion records nothing, §6): D rows (id `<KEY>-D<n>` = the change key, from
+  `hitl-index spec next-id <change-id> --kind D`; `serves` = requirement/rule ids from the spec view; `alternatives`
+  filled; status `proposed` until the developer agrees, then `accepted`) plus a MADR record `### <KEY>-D<n> <title>` (Context
   and problem, Considered options, Decision outcome, Consequences good/bad, optional Decision drivers/Confirmation) for
   every decision with ≥ 2 real options or a high cost if wrong, `## Architecture (C4)` (Context/Container mermaid, only
-  per artifacts.md), `## Components` (`- <component> — <responsibility> — new|changed — (D-n)`), `## Data model` or
+  per artifacts.md), `## Components` (`- <component> — <responsibility> — new|changed — (<KEY>-D<n>)`), `## Data model` or
   `data-model.md`, `contracts/<file>` from the matching skeleton (HTTP `*.openapi.yaml`, events `*.asyncapi.yaml`, payloads
 `*.schema.json`, CLI `cli-*.md`; only what the change adds or changes) + its `## Contracts` line
 (`- contracts/<file> — <boundary>`), `## State machines` (technical lifecycles: `stateDiagram-v2` + transition table), `## Flow / sequence`
@@ -93,8 +94,8 @@ Only the questions that depend on a pending fact wait; ask the rest of the front
 
 ## 5. `--auto` (build-then-review users)
 No rounds. Decide every frontier item with its recommendation, write all artifacts, then one ⛔ GATE listing every
-decision as `💡 Assumed: D-n <decision> (<why>)` plus the artifacts chosen, followed by the close summary (§6).
-The user may reply with changes (`D-3: …`); apply them and show the gate again.
+decision as `💡 Assumed: <KEY>-D<n> <decision> (<why>)` plus the artifacts chosen, followed by the close summary (§6).
+The user may reply with changes (`PWR-D3: …`); apply them and show the gate again.
 
 ## 6. Close
 1. `hitl-index spec validate <id> --json` (it also checks the D table, `serves` refs and contracts). Fix every error
@@ -119,8 +120,8 @@ The user may reply with changes (`D-3: …`); apply them and show the gate again
 
 ## 7. Amend (`<change-id> amend [N-k]`)
 Approved design: decisions are never edited in place — supersede per `shared/amend-spec.md` (new D row, old row
-`superseded by D-k`, Changelog line), in one ⛔ GATE with the 📐 delta, the 🔁 Impact block and `Apply? (Y/n/edit)`.
-With `N-k`, the change is that design note (`hitl-index note show --change <id> N-k --json`); superseding the `D-n` it
+`superseded by <KEY>-D<k>`, Changelog line), in one ⛔ GATE with the 📐 delta, the 🔁 Impact block and `Apply? (Y/n/edit)`.
+With `N-k`, the change is that design note (`hitl-index note show --change <id> N-k --json`); superseding the `<KEY>-D<n>` it
 names is what lets `note apply` accept it. A superseded contract decision is class `contract` (reopens the skeleton).
 A note from another change (`source: <other>`) is amended the same way; the change still waits until `<other>` is
 archived (other-changes.md §5).

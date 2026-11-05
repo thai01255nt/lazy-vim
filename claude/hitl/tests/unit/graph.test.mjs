@@ -17,7 +17,7 @@ test("index builds callees/callers, covers and is deterministic", async () => {
   assert.deepEqual(cu.callers, ["src/http/authController.ts#register"]);
   assert.deepEqual(idx.symbols["src/http/authController.ts#register"].callees, [cu.id]);
   assert.equal(idx.files["src/services/userService.ts"].imports[0].resolved, "src/repo/userRepo.ts");
-  const t = idx.symbols["tests/userService.test.ts#UserService.createUser > T-1.AC1 rejects duplicate email"];
+  const t = idx.symbols["tests/userService.test.ts#UserService.createUser > QT-T1.AC1 rejects duplicate email"];
   assert.deepEqual(t.test.coversResolved, [cu.id]);
   assert.equal(idx.adapters.ts, "ts-lite@1");
   const first = readFileSync(join(root, ".hitl/index/index.json"), "utf8");

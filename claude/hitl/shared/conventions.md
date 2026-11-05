@@ -32,7 +32,7 @@ A step marked `⛔ GATE` is a real stop:
   e.g. "*Reset link* (đường dẫn đặt lại mật khẩu) hết hạn sau 30 phút".
 - Context first: one sentence on where we are and why, then the detail or the question.
 - An id is never alone in prose: on first mention add its title, `ACC-R4 (Lock after failed sign-ins)`,
-  `D-2 (hash the reset token)`, `F-1 (duplicate email accepted)`. Tables with a title column are fine.
+  `PWR-D2 (hash the reset token)`, `F-1 (duplicate email accepted)`. Tables with a title column are fine.
 - Short sentences, one idea each, active voice, no new abbreviations (English: ASD-STE100 Simplified Technical English).
 - Restate subagent text (scout facts, review findings) this way before it reaches the user; never paste it.
 - `?`, `wait`, `hả`, `giải thích`, `không hiểu` at any gate → re-pitch your last message this way (more context, not fewer
@@ -42,7 +42,7 @@ A step marked `⛔ GATE` is a real stop:
 When the user *states* a change to approved behaviour or design during any hitl skill (a requirement, scenario, number,
 rule or decision of an active change), do not amend it now:
 - ⛔ GATE: `📌 Note for <change>, refs <ids (titles)>? (Y/n)` — one line on what you understood, then the question.
-  END THE TURN. Refs: the spec ids, `D-n`, task/AC ids or symbols it touches (`hitl-index spec show`, `trace`).
+  END THE TURN. Refs: the spec ids, `<KEY>-D<n>`, task/AC ids or symbols it touches (`hitl-index spec show`, `trace`).
 - Y → `hitl-index note add --change <id> --kind spec|design|order --refs <ids> --text "<the change, plain words>"
   --from "user, during /hitl:<skill> <arg>"`, print its `📌 N-k` line, then continue the skill where it was.
   n → continue without a note.
@@ -64,8 +64,11 @@ rule or decision of an active change), do not amend it now:
 ⚡ fast-lane/auto step · 💡 recommendation/assumption · 🎯 next step · ⛔ gate
 
 ## Ids (details: `conventions-spec.md`)
-Change id `[type]-[slug]`; spec ids `ACC-R3`, `ACC-R3.S1`, `ACC-BR1`, `ACC-UC1`; decisions `D-n` per change; tasks `T-n`.
-Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered or reused.
+Change id `[type]-[slug]` with a change key `<KEY>` (2–5 capitals, proposal meta `| key: PWR`, unique forever). Every id
+starts with the key of the change that created it: spec ids `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-UC1`; decisions
+`PWR-D1`; tasks `PWR-T3`, ACs `PWR-T3.AC2`; quick tasks `QT-T7`. Notes `N-k` and findings `F-n` stay local.
+Ids come from `hitl-index` (`spec next-id <change-id>`, `next-id <change-id>`) and are never renumbered or reused.
+Pre-0.13 ids (`T-n`, `D-n`) → `IDS_LEGACY`: run `/hitl:migrate`.
 
 ## Never
 - Edit `.hitl/specs/**`, `.hitl/archive/**` (except tooling-written status in archived `tasks.md`) or `**/.base.json`:

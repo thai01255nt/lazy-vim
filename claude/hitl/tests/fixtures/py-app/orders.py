@@ -10,7 +10,7 @@ class Order:
 def round_money(value: Decimal) -> Decimal:
     """Round a money amount to 2 decimal places, half up.
 
-    @task T-2 @impl agent @status skeleton @prio 1
+    @task QT-T2 @impl agent @status skeleton @prio 1
     @concurrency none
     """
     # TODO(impl): 1. quantize value to Decimal("0.01") with ROUND_HALF_UP
@@ -20,7 +20,7 @@ def round_money(value: Decimal) -> Decimal:
 def apply_discount(order: Order, pct: Decimal) -> Order:
     """Apply pct% discount once; total never negative.
 
-    @task T-2 @impl manual @status skeleton @prio 2
+    @task QT-T2 @impl manual @status skeleton @prio 2
     @calls round_money
     @concurrency none
     """

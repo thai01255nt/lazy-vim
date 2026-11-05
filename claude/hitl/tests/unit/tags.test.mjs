@@ -10,7 +10,7 @@ const DOC = `
  * @param email - user email
  *
  *
- * @task T-12 @impl agent @status skeleton @prio 1
+ * @task QT-T12 @impl agent @status skeleton @prio 1
  * @calls UserRepo.findByEmail, src/repo/x.ts#UserRepo.save
  * @concurrency none
  `;
@@ -18,7 +18,7 @@ const DOC = `
 test("parseDoc splits prose and reserved tag lines", () => {
   const { prose, tags, errors } = parseDoc(DOC);
   assert.equal(prose, "Registers a user; rejects duplicates.\n@param email - user email");
-  assert.deepEqual(tags.task, ["T-12"]);
+  assert.deepEqual(tags.task, ["QT-T12"]);
   assert.equal(tags.impl, "agent");
   assert.equal(tags.status, "skeleton");
   assert.equal(tags.prio, 1);
@@ -28,31 +28,31 @@ test("parseDoc splits prose and reserved tag lines", () => {
 });
 
 test("a line with any non-reserved @word stays prose", () => {
-  const { prose, tags } = parseDoc("@task T-1 @returns nothing");
-  assert.equal(prose, "@task T-1 @returns nothing");
+  const { prose, tags } = parseDoc("@task QT-T1 @returns nothing");
+  assert.equal(prose, "@task QT-T1 @returns nothing");
   assert.deepEqual(tags.task, []);
 });
 
 test("bad values become BAD_TAG errors kept in extra; lists merge, scalars keep last", () => {
-  const { tags, errors } = parseDoc("@impl robot @task T-1\n@task T-2, nope\n@kind example\n@kind golden\n@ac T-1.AC1, T-1.AC2");
+  const { tags, errors } = parseDoc("@impl robot @task QT-T1\n@task QT-T2, nope\n@kind example\n@kind golden\n@ac QT-T1.AC1, QT-T1.AC2");
   assert.equal(tags.impl, null);
-  assert.deepEqual(tags.task, ["T-1", "T-2"]);
+  assert.deepEqual(tags.task, ["QT-T1", "QT-T2"]);
   assert.equal(tags.kind, "golden");
-  assert.deepEqual(tags.ac, ["T-1.AC1", "T-1.AC2"]);
+  assert.deepEqual(tags.ac, ["QT-T1.AC1", "QT-T1.AC2"]);
   assert.deepEqual(tags.extra, { impl: ["robot"], task: ["nope"] });
   assert.equal(errors.length, 2);
 });
 
 test("python docstring (no stars) and emails are not tags", () => {
-  const { prose, tags } = parseDoc("Apply discount; mail a@b.io.\n\n@task T-2 @impl manual @prio 2");
+  const { prose, tags } = parseDoc("Apply discount; mail a@b.io.\n\n@task QT-T2 @impl manual @prio 2");
   assert.equal(prose, "Apply discount; mail a@b.io.");
   assert.equal(tags.impl, "manual");
 });
 
 test("formatStatusEdit replaces only the @status value, or appends after @task", () => {
-  const src = "/**\n * Intent.\n * @task T-1 @impl agent @status skeleton @prio 1\n */";
+  const src = "/**\n * Intent.\n * @task QT-T1 @impl agent @status skeleton @prio 1\n */";
   assert.equal(formatStatusEdit(src, "green"), src.replace("@status skeleton", "@status green"));
-  assert.equal(formatStatusEdit('"""x\n@task T-2 @impl manual\n"""', "red"), '"""x\n@task T-2 @status red @impl manual\n"""');
+  assert.equal(formatStatusEdit('"""x\n@task QT-T2 @impl manual\n"""', "red"), '"""x\n@task QT-T2 @status red @impl manual\n"""');
   assert.equal(formatStatusEdit("no tags", "red"), "no tags");
 });
 
@@ -74,7 +74,7 @@ test("features and globs", () => {
 });
 
 test("@dec is a reserved list tag (merged, deduped); bad items are BAD_TAG errors", () => {
-  const { tags, errors } = parseDoc("@task T-1 @dec D-1, D-2\n@dec D-2, D-10");
+  const { tags, errors } = parseDoc("@task QT-T1 @dec D-1, D-2\n@dec D-2, D-10");
   assert.deepEqual(tags.dec, ["D-1", "D-2", "D-10"]);
   assert.deepEqual(errors, []);
   const bad = parseDoc("@dec ADR-1\n@dec x");

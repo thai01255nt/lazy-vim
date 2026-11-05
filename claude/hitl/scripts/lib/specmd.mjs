@@ -2,7 +2,7 @@
 // proposal, design; plus blockHash and the business-language lint. Pure and line-based like planningmd.mjs.
 // Every parser returns `items` [{level, code, file, ref, line, message}] for problems local to the file.
 import { createHash } from "node:crypto";
-import { KIND_BY_WORD, KIND_BY_SECTION, KINDS, KEY_RE, CAP_RE, QUALITIES, SPECREF_RE, parseId } from "./specids.mjs";
+import { KIND_BY_WORD, KIND_BY_SECTION, KINDS, CAP_RE, CHANGE_KEY_RE, DEC_ID_RE, LEGACY_DEC_RE, QUALITIES, SPECREF_RE, parseId } from "./specids.mjs";
 import { MADR_REQUIRED } from "./speclint.mjs";
 
 export const LIVING_SECTIONS = ["Purpose", "Requirements", "Rules", "Flows", "Retired IDs", "Change History"];
@@ -161,8 +161,7 @@ export function parseSpecMd(text, file, { mode = "living" } = {}) {
       doc.updated = t.match(RX.metaUpdated)?.[1] ?? null;
       doc.change = t.match(RX.metaChange)?.[1] ?? null;
       if (!CAP_RE.test(doc.capability)) add("error", "SPEC_PARSE", doc.capability, L.n, `invalid capability name "${doc.capability}" (lower-case words joined by "-")`);
-      if (!doc.key) add("error", "CAP_KEY_MISSING", doc.capability, L.n, `meta line has no "| key: <KEY>"`);
-      else if (!KEY_RE.test(doc.key)) { add("error", "CAP_KEY_MISSING", doc.capability, L.n, `invalid capability key "${doc.key}" (2–6 upper-case letters/digits)`); doc.key = null; }
+      // 0.13: ids carry the change key; a leftover capability key (`| key: ACC`, ≤ 0.12) is ignored (migrate --ids drops it)
       continue;
     }
     if (!L.fenced && (m = t.match(RX.section))) {
@@ -208,7 +207,6 @@ export function parseSpecMd(text, file, { mode = "living" } = {}) {
       const kind = KIND_BY_WORD[m[1]]; const id = m[2]; const pid = parseId(id);
       if (kind !== section.kind) add("error", "SPEC_PARSE", id, L.n, `### ${m[1]} inside ## ${section.name}`);
       if (!pid || pid.kind === "S" || KINDS[kind].idKind !== pid.kind) { add("error", "ID_BAD_FORMAT", id, L.n, `"${id}" is not a ${m[1].toLowerCase()} id (<KEY>-${KINDS[kind].idKind}<n>)`); continue; }
-      if (doc.key && pid.key !== doc.key) add("error", "ID_KEY_MISMATCH", id, L.n, `${id} does not use the capability key ${doc.key}`);
       if (!m[3] && section.op !== "REMOVED") add("error", "SPEC_PARSE", id, L.n, `${id} has no title`);
       block = newBlock(kind, id, m[3]?.trim() ?? null, section.op ?? null, L.n);
       block.migrated = MIGRATED.test(L.raw);
@@ -260,7 +258,7 @@ export function parseSpecMd(text, file, { mode = "living" } = {}) {
   }
   close();
   if (doc.title === null) add("error", "SPEC_PARSE", null, 1, "missing # title");
-  if (!doc.hasMeta) add("error", "CAP_KEY_MISSING", null, null, `missing meta line "> capability: <name> | key: <KEY>${delta ? " | change: <id>" : ""}"`);
+  if (!doc.hasMeta) add("error", "SPEC_PARSE", null, null, `missing meta line "> capability: <name>${delta ? " | change: <id>" : ""}"`);
   else if (delta && !doc.change) add("error", "SPEC_PARSE", doc.capability, null, `delta meta line has no "| change: <id>"`);
   if (doc.retired.length && delta && !doc.migratedRetired) add("error", "SPEC_UNKNOWN_SECTION", null, null, "## Retired IDs is allowed in a delta only when written by migration (<!-- migrated -->)");
   checkBlocks(doc, add);
@@ -280,7 +278,6 @@ function checkBlocks(doc, add) {
     for (const s of b.scenarios) {
       if (scnSeen.has(s.id)) add("error", "ID_DUP", s.id, s.line, `duplicate scenario id ${s.id}`);
       scnSeen.add(s.id);
-      if (doc.key && parseId(s.id) && parseId(s.id).key !== doc.key) add("error", "ID_KEY_MISMATCH", s.id, s.line, `${s.id} does not use the capability key ${doc.key}`);
       if (b.op === "REMOVED") continue;
       const kws = new Set(s.steps.map((x) => x.kw));
       if (!kws.has("WHEN") || !kws.has("THEN")) add("error", "SCN_NO_WHEN_THEN", s.id, s.line, `${s.id} needs at least one "- WHEN" and one "- THEN" step`);
@@ -381,7 +378,7 @@ const sectionText = (s) => (s ? trimBlank(s.lines.filter((L) => !L.comment).map(
 /** parseProposal(text, file) -> {title, change, status, created, updated, sections{name:text}, capabilities[], noBehaviourChange,
  *  artifacts[], deferred[], clarifications[], items}. */
 export function parseProposal(text, file) {
-  const doc = { file, title: null, change: null, status: null, created: null, updated: null, sections: {}, capabilities: [],
+  const doc = { file, title: null, change: null, key: null, status: null, created: null, updated: null, sections: {}, capabilities: [],
     noBehaviourChange: false, artifacts: [], deferred: [], clarifications: findClarifications(text), items: [], before: [] };
   const add = item(doc.items, file);
   const lines = scanLines(text);
@@ -395,6 +392,12 @@ export function parseProposal(text, file) {
       doc.created = L.text.match(new RegExp(`\\| created: (${DATE})`))?.[1] ?? null;
       doc.updated = L.text.match(new RegExp(`\\| updated: (${DATE})`))?.[1] ?? null;
       if (!doc.status) add("error", "SPEC_PARSE", doc.change, L.n, `proposal meta needs "| status: draft|approved"`);
+      // 0.13: `| key: PWR` = the change key that scopes every id of the change (unique forever; CHANGE_KEY_TAKEN)
+      const km = L.text.match(/\| key: (\S+)/);
+      if (km) {
+        if (CHANGE_KEY_RE.test(km[1])) doc.key = km[1];
+        else add("error", "CHANGE_KEY_BAD", km[1], L.n, `change key "${km[1]}" must be 2–5 upper-case letters (A–Z)`);
+      }
       // 0.12: `| before: feat-a, feat-c` = the changes this one was created to come before (`--before`). Display only:
       // blocking lives in the notes of those changes (`source: <this change>`), never in this header.
       const bm = L.text.match(/\| before: ([^|]+)/);
@@ -502,7 +505,8 @@ export function parseDesign(text, file) {
       if (header.invalid) continue;
       const get = (k) => (k in header ? (c[header[k]] ?? "") : "");
       const id = get("id");
-      if (!/^D-\d+$/.test(id)) { add("error", "SPEC_PARSE", id, L.n, `invalid decision id "${id}"`); continue; }
+      if (LEGACY_DEC_RE.test(id)) { add("error", "IDS_LEGACY", id, L.n, `pre-0.13 decision id "${id}": run /hitl:migrate (decisions are <KEY>-D<n>)`); continue; }
+      if (!DEC_ID_RE.test(id)) { add("error", "SPEC_PARSE", id, L.n, `invalid decision id "${id}" (<KEY>-D<n>)`); continue; }
       if (seen.has(id)) { add("error", "ID_DUP", id, L.n, `duplicate decision id ${id}`); continue; }
       seen.add(id);
       const serves = [];
@@ -535,8 +539,8 @@ export function parseDesign(text, file) {
 }
 
 /** Decision statuses: MADR 4 (proposed, accepted, rejected, deprecated, superseded by …) with hitl D-n ids. */
-export const DEC_STATUS_RE = /^(proposed|accepted|rejected|deprecated|superseded by (D-\d+))$/;
-const DEC_STATUSES = "proposed|accepted|rejected|deprecated|superseded by D-n";
+export const DEC_STATUS_RE = /^(proposed|accepted|rejected|deprecated|superseded by ([A-Z]{2,5}-D\d+))$/;
+const DEC_STATUSES = "proposed|accepted|rejected|deprecated|superseded by <KEY>-D<n>";
 const MADR_LABEL = /^\s*(?:[-*]\s*)?\*\*([^*]+?)\s*:?\*\*\s*:?/;
 const MADR_ALIASES = { "context": "context and problem", "context and problem statement": "context and problem", "problem": "context and problem",
   "options": "considered options", "outcome": "decision outcome", "decision": "decision outcome" };
@@ -547,7 +551,7 @@ function parseDecisionDetails(lines, add) {
     if (L.fenced) continue;
     const h = L.text.match(/^### (\S+)(?:\s+(.*))?$/);
     if (h) {
-      if (!/^D-\d+$/.test(h[1])) { add("warn", "DESIGN_DEC_DETAIL_UNKNOWN", h[1], L.n, `"### ${h[1]}" under ## Decisions is not a decision id (### D-n <title>)`); cur = null; continue; }
+      if (!DEC_ID_RE.test(h[1])) { add("warn", "DESIGN_DEC_DETAIL_UNKNOWN", h[1], L.n, `"### ${h[1]}" under ## Decisions is not a decision id (### <KEY>-D<n> <title>)`); cur = null; continue; }
       cur = { id: h[1], title: (h[2] || "").trim() || null, line: L.n, fields: new Set() }; out.push(cur); continue;
     }
     const m = cur && L.text.match(MADR_LABEL);

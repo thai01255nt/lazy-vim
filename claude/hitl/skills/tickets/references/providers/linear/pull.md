@@ -11,4 +11,4 @@
    is Linear's: `triage | backlog | unstarted | started | completed | canceled`); Write `.hitl/.inbox/tickets-remote.json`.
 4. `hitl-index tickets diff --in .hitl/.inbox/tickets-remote.json [--relink] --json`. Print the items table
    `level | code | task | issue | field | local → remote` with the suggestion per code (SKILL.md §5), then
-   `T-1: <state> · assignee <a> · cycle <c>` per task.
+   `PWR-T1: <state> · assignee <a> · cycle <c>` per task.

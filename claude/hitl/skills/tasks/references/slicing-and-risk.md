@@ -54,7 +54,7 @@ Low-risk tasks may use the ⚡ fast lane (auto skeleton/tests approval). Never l
 `quick` tasks follow the same rules; if a quick task comes out high, say so and recommend `/hitl:plan`.
 
 ## 5. Acceptance criteria
-- 2–6 per task, id `T-n.ACk` (k from 1), Given/When/Then, one observable behaviour each, testable at a seam.
+- 2–6 per task, id `<KEY>-T<n>.AC<k>` (k from 1), Given/When/Then, one observable behaviour each, testable at a seam.
 - AC1 = the tracer: the main success path end to end through the highest seam.
 - Include at least one failure/edge AC when the task validates input or handles errors.
 - Every ADDED/MODIFIED scenario of the change has ≥1 AC that references it `(ACC-R3.S1)`; an AC instantiates its
@@ -82,7 +82,7 @@ One row per AC (more rows allowed): `| AC1 | kind | oracle | seam | author |`.
 - author: `test-author` (default) or `human`.
 
 ## 8. Consistency check (before the gate)
-Structural checks (unknown/removed scenario, requirement, rule or D-n; scenario without AC; AC without ref; unused D;
+Structural checks (unknown/removed scenario, requirement, rule or <KEY>-D<n>; scenario without AC; AC without ref; unused D;
 requirement without a serving D) come from `hitl-index trace <change-id> --json`; block items are fixed before the
 gate, warn/info items are listed there. Add these semantic checks yourself, one line each, only when non-empty:
 - design.md `## Risks` items with no high-risk task covering them

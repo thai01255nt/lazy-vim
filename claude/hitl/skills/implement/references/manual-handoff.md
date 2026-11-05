@@ -17,7 +17,7 @@ Steps (keep them as "// n. …" comments when done):
   2. return the first user whose email matches
 Calls (@calls): UserRepo.save(user: User): User — "Persists a user." [agent, green]
 Called by: UserService.createUser — "Registers a user; rejects duplicates." (expects: undefined when absent)
-Tests (locked): tests/userRepo.test.ts — "T-12.AC1 …" [red], "T-12.AC3 …" [red]
+Tests (locked): tests/userRepo.test.ts — "PWR-T12.AC1 …" [red], "PWR-T12.AC3 …" [red]
 Run: hitl-index test --symbol <ref>      (or reply "done" and I run it)
 ♻️ Reuse hints: <existing helpers found with Grep that fit a step, e.g. normalizeEmail (src/util/email.ts)>
 ⚠️ Watch: <only real risks from @concurrency, security features, or AC edge cases>

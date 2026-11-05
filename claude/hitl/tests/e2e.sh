@@ -151,8 +151,8 @@ s1a() {
   cd "$TS"
   local gi=.hitl/.gitignore l
   for l in 'index/*' '!index/skeleton.lock.json' 'reviews/*/*' '!reviews/*/decisions.json' '.inbox/'; do grep -qxF -- "$l" "$gi" || { echo "missing '$l' in $gi"; cat "$gi"; return 1; }; done
-  git check-ignore -q .hitl/reviews/T-1/l0.json || { echo "reviews/T-1/l0.json not ignored"; return 1; }
-  for l in .hitl/reviews/T-1/decisions.json .hitl/reviews/T-1.review.md .hitl/linear.map.json "$LOCK"; do
+  git check-ignore -q .hitl/reviews/QT-T1/l0.json || { echo "reviews/QT-T1/l0.json not ignored"; return 1; }
+  for l in .hitl/reviews/QT-T1/decisions.json .hitl/reviews/QT-T1.review.md .hitl/linear.map.json "$LOCK"; do
     ! git check-ignore -q "$l" || { echo "$l must not be ignored"; return 1; }
   done
 }
@@ -190,38 +190,38 @@ step 5 "tasks --check: exit 0" s5
 s5a() {
   cd "$TS"
   CLI trace --json > "$W/trace5.json"
-  afile "$W/trace5.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.rows.some((r) => r.req && r.req.id === "R-1" && r.acs.some((a) => a.id === "T-1.AC1"))'
+  afile "$W/trace5.json" 'd.schema === "hitl.trace/2" && d.counts.block === 0 && d.rows.some((r) => r.req && r.req.id === "R-1" && r.acs.some((a) => a.id === "QT-T1.AC1"))'
   local md=.hitl/tasks/feat-user-register.md
-  sed -i 's/T-1.AC1 (R-1)/T-1.AC1 (R-9)/' "$md"
+  sed -i 's/QT-T1.AC1 (R-1)/QT-T1.AC1 (R-9)/' "$md"
   expect_exit 1 CLI trace --check
   expect_exit 1 CLI tasks --check
   cp "$FIX/ts-app/$md" "$md"
   CLI tasks --check > /dev/null
 }
-step 5a "trace --json: R-1 row holds T-1.AC1, no block; unknown (R-9) fails trace --check and tasks --check" s5a
+step 5a "trace --json: R-1 row holds QT-T1.AC1, no block; unknown (R-9) fails trace --check and tasks --check" s5a
 
 s6() {
   cd "$TS"
-  expect_exit 1 CLI approve T-1 --by auto
+  expect_exit 1 CLI approve QT-T1 --by auto
   [ ! -f "$LOCK" ] || afile "$LOCK" '!d.symbols || Object.keys(d.symbols).length === 0'
 }
-step 6 "approve T-1 --by auto: refused (high risk), nothing locked" s6
+step 6 "approve QT-T1 --by auto: refused (high risk), nothing locked" s6
 
 s7() {
   cd "$TS"
-  CLI approve T-1 --stage skeleton --by human --json > "$W/approve1.json"
-  afile "$LOCK" 'd.schema === "hitl.lock/1" && Object.keys(d.symbols).length === 2'
+  CLI approve QT-T1 --stage skeleton --by human --json > "$W/approve1.json"
+  afile "$LOCK" 'd.schema === "hitl.lock/2" && Object.keys(d.symbols).length === 2'
   afile "$LOCK" '!!d.symbols["src/services/userService.ts#UserService.createUser"] && !!d.symbols["src/repo/userRepo.ts#UserRepo.findByEmail"]'
-  CLI status T-1 --json > "$W/status7.json"
-  afile "$W/status7.json" 'taskStatus(d, "T-1") === "approved"'
+  CLI status QT-T1 --json > "$W/status7.json"
+  afile "$W/status7.json" 'taskStatus(d, "QT-T1") === "approved"'
 }
-step 7 "approve T-1 skeleton --by human: 2 symbols locked, T-1 approved" s7
+step 7 "approve QT-T1 skeleton --by human: 2 symbols locked, QT-T1 approved" s7
 
 s8() {
   cd "$TS"
   cp variants/tests/userService.test.ts.red tests/userService.test.ts
   CLI index > /dev/null
-  CLI test --task T-1 --json > "$W/test8.json"
+  CLI test --task QT-T1 --json > "$W/test8.json"
   afile "$W/test8.json" 'symStatus(d, "UserService.createUser") === "red"'
   afile "$W/test8.json" 'Array.isArray(d.unmatched) && d.unmatched.length === 0'
 }
@@ -229,16 +229,16 @@ step 8 "real tests (red variant): createUser red, no unmatched JUnit cases" s8
 
 s9() {
   cd "$TS"
-  CLI approve T-1 --stage tests --by human > /dev/null
+  CLI approve QT-T1 --stage tests --by human > /dev/null
   afile "$LOCK" 'Object.keys(d.tests).length >= 2 && Object.values(d.tests).every((t) => t.stage === "locked")'
 }
-step 9 "approve T-1 tests: lock.tests stage locked" s9
+step 9 "approve QT-T1 tests: lock.tests stage locked" s9
 
 s10() {
   cd "$TS"
   cp variants/src/services/userService.ts.green src/services/userService.ts
   CLI index > /dev/null
-  CLI test --task T-1 --json > "$W/test10.json"
+  CLI test --task QT-T1 --json > "$W/test10.json"
   afile "$W/test10.json" 'symStatus(d, "UserService.createUser") === "red"'
 }
 step 10 "agent implements createUser: still red (findByEmail stub throws)" s10
@@ -247,21 +247,21 @@ s11() {
   cd "$TS"
   cp variants/src/repo/userRepo.ts.manual src/repo/userRepo.ts
   CLI index > /dev/null
-  CLI test --task T-1 --json > "$W/test11.json"
+  CLI test --task QT-T1 --json > "$W/test11.json"
   afile "$W/test11.json" 'symStatus(d, "UserService.createUser") === "green" && symStatus(d, "UserRepo.findByEmail") === "green"'
 }
 step 11 "human implements findByEmail: createUser green, findByEmail green" s11
 
 s11a() {
   cd "$TS"
-  CLI trace T-1 --json > "$W/trace11.json"
+  CLI trace QT-T1 --json > "$W/trace11.json"
   afile "$W/trace11.json" 'd.scope.kind === "task" && d.rows.flatMap((r) => r.acs).every((a) => a.proven) && !d.items.some((i) => i.code === "AC_NOT_PROVEN")'
   CLI status --json > "$W/status11.json"
-  afile "$W/status11.json" 'd.trace && d.trace.block === 0 && d.tasks["T-1"].trace.acs.proven === 2'
+  afile "$W/status11.json" 'd.trace && d.trace.block === 0 && d.tasks["QT-T1"].trace.acs.proven === 2'
   CLI trace --md > /dev/null
   contains .hitl/index/trace.md "R-1"
 }
-step 11a "trace T-1: every AC proven; status --json trace; trace --md writes index/trace.md" s11a
+step 11a "trace QT-T1: every AC proven; status --json trace; trace --md writes index/trace.md" s11a
 
 s12() {
   cd "$TS"
@@ -298,9 +298,9 @@ step 14 "pre-tool: test-author Read of src denied, Read of tests allowed" s14
 s15() {
   cd "$TS"
   local in
-  in=$(P="$PWD" js '{session_id:"e2e-15",cwd:process.env.P,hook_event_name:"UserPromptSubmit",prompt:"/hitl:approve T-1"}')
+  in=$(P="$PWD" js '{session_id:"e2e-15",cwd:process.env.P,hook_event_name:"UserPromptSubmit",prompt:"/hitl:approve QT-T1"}')
   hook prompt-submit "$in" "$W/h15p.txt"
-  in=$(P="$PWD" js '{session_id:"e2e-15",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"hitl-index approve T-1 --by human"}}')
+  in=$(P="$PWD" js '{session_id:"e2e-15",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"hitl-index approve QT-T1 --by human"}}')
   hook pre-tool "$in" "$W/h15a.json"
   is_allow "$W/h15a.json"
   hook pre-tool "$in" "$W/h15b.json"
@@ -334,9 +334,9 @@ step 17a "drift --json: SIG_CHANGED on createUser carries spec D-1 and R-1, R-2"
 
 s18() {
   cd "$TS"
-  mkdir -p .hitl/reviews/T-1
-  cat > .hitl/reviews/T-1/findings.json <<'EOF'
-{ "schema": "hitl.findings/1", "task": "T-1", "lens": "merged",
+  mkdir -p .hitl/reviews/QT-T1
+  cat > .hitl/reviews/QT-T1/findings.json <<'EOF'
+{ "schema": "hitl.findings/1", "task": "QT-T1", "lens": "merged",
   "findings": [
     { "key": "contract-1", "lens": "contract", "symbol": "src/services/userService.ts#UserService.createUser",
       "file": "src/services/userService.ts", "line": 21, "severity": "minor", "confidence": 70, "verifiedConfidence": 60, "keep": false,
@@ -344,21 +344,21 @@ s18() {
   "setAside": [ "id generation strategy: not in plan" ] }
 EOF
   local rc=0
-  CLI l0 T-1 --json > "$W/l0.json" || rc=$?
+  CLI l0 QT-T1 --json > "$W/l0.json" || rc=$?
   [ "$rc" = 0 ] || [ "$rc" = 1 ] || { echo "l0 exited $rc"; return 1; }
-  [ -f .hitl/reviews/T-1/l0.json ] || { echo "reviews/T-1/l0.json missing"; return 1; }
-  afile .hitl/reviews/T-1/l0.json 'd.schema === "hitl.l0/1" && Array.isArray(d.gates)'
-  CLI report T-1 > /dev/null
-  contains .hitl/reviews/T-1.review.md "## Gates (L0)"
-  contains .hitl/reviews/T-1.review.md "verdict:"
+  [ -f .hitl/reviews/QT-T1/l0.json ] || { echo "reviews/QT-T1/l0.json missing"; return 1; }
+  afile .hitl/reviews/QT-T1/l0.json 'd.schema === "hitl.l0/1" && Array.isArray(d.gates)'
+  CLI report QT-T1 > /dev/null
+  contains .hitl/reviews/QT-T1.review.md "## Gates (L0)"
+  contains .hitl/reviews/QT-T1.review.md "verdict:"
 }
-step 18 "l0 + report T-1: review md has Gates (L0) and verdict" s18
+step 18 "l0 + report QT-T1: review md has Gates (L0) and verdict" s18
 
 s18a() {
   cd "$TS"
-  afile .hitl/reviews/T-1/l0.json 'd.gates.some((g) => g.name === "trace" && ["pass", "warn"].includes(g.result)) && d.trace && d.trace.counts.block === 0'
-  contains .hitl/reviews/T-1.review.md "## Trace"
-  contains .hitl/reviews/T-1.review.md "| trace |"
+  afile .hitl/reviews/QT-T1/l0.json 'd.gates.some((g) => g.name === "trace" && ["pass", "warn"].includes(g.result)) && d.trace && d.trace.counts.block === 0'
+  contains .hitl/reviews/QT-T1.review.md "## Trace"
+  contains .hitl/reviews/QT-T1.review.md "| trace |"
 }
 step 18a "l0 trace gate pass|warn, no block; review md has ## Trace and the trace gate row" s18a
 
@@ -378,7 +378,7 @@ s20() {
   for h in pre-tool post-edit stop session-start prompt-submit; do
     hook "$h" '{}' "$W/h20-$h.out"
     empty_out "$W/h20-$h.out"
-    in=$(P="$EMPTY" js '{session_id:"e2e-20",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Edit",tool_input:{file_path:process.env.P+"/a.ts",old_string:"a",new_string:"b"},prompt:"/hitl:approve T-1",source:"startup"}')
+    in=$(P="$EMPTY" js '{session_id:"e2e-20",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Edit",tool_input:{file_path:process.env.P+"/a.ts",old_string:"a",new_string:"b"},prompt:"/hitl:approve QT-T1",source:"startup"}')
     hook "$h" "$in" "$W/h20b-$h.out"
     empty_out "$W/h20b-$h.out"
   done
@@ -413,24 +413,24 @@ step 21a "py: v1 .gitignore kept + v2 lines appended; legacy planning traces wit
 
 s22() {
   cd "$PY"
-  CLI approve T-2 --stage skeleton --by auto > /dev/null
+  CLI approve QT-T2 --stage skeleton --by auto > /dev/null
   afile "$LOCK" '!!d.symbols["orders.py#apply_discount"] && !!d.symbols["orders.py#round_money"]'
   if ! python3 -c 'import pytest' 2>/dev/null; then
     afile .hitl/hitl.config.json 'String(d.commands.test.py).includes("py_unittest_junit")'
   else
     echo "pytest present: runner check skipped"
   fi
-  CLI test --task T-2 --json > "$W/test22.json"
+  CLI test --task QT-T2 --json > "$W/test22.json"
   afile "$W/test22.json" 'symStatus(d, "round_money") === "red" && symStatus(d, "apply_discount") === "red"'
   afile "$W/test22.json" 'd.runs.length >= 2 && d.runs.every((r) => r.outcome === "error" && String(r.message).includes("TODO(impl)"))'
 }
-step 22 "py approve T-2 --by auto (low risk) + test: both red with TODO(impl) errors" s22
+step 22 "py approve QT-T2 --by auto (low risk) + test: both red with TODO(impl) errors" s22
 
 s23() {
   cd "$PY"
   cp variants/orders.py.impl orders.py
   CLI index > /dev/null
-  CLI test --task T-2 --json > "$W/test23.json"
+  CLI test --task QT-T2 --json > "$W/test23.json"
   afile "$W/test23.json" 'symStatus(d, "round_money") === "green" && symStatus(d, "apply_discount") === "green"'
 }
 step 23 "py implemented: both green" s23
@@ -440,9 +440,9 @@ s24() {
   CLI status --brief --soft > "$W/brief.txt"
   local n; n=$(wc -l < "$W/brief.txt")
   [ "$n" -le 3 ] || { echo "status --brief printed $n lines"; cat "$W/brief.txt"; return 1; }
-  contains "$W/brief.txt" "T-2"
+  contains "$W/brief.txt" "QT-T2"
 }
-step 24 "status --brief --soft: ≤3 lines, mentions T-2" s24
+step 24 "status --brief --soft: ≤3 lines, mentions QT-T2" s24
 
 # ---------------------------------------------------------------- includes (tests/e2e.d/*.sh, sourced; interface I4)
 INCLUDES=0

@@ -50,13 +50,13 @@ export function rewriteTasksMd(text, info) {
   for (const ln of lines) {
     const l = ln[0];
     let m;
-    if ((m = /^## (T-\d+) /.exec(l))) { T = m[1]; section = null; continue; }
+    if ((m = /^## ([A-Z]{2,5}-T\d+) /.exec(l))) { T = m[1]; section = null; continue; }
     if (/^## /.test(l)) { T = null; section = null; continue; }
     if ((m = /^### (.+)$/.exec(l))) { section = m[1].trim().toLowerCase(); continue; }
     if (!T || !info[T]) continue;
     const I = info[T];
     if (/^- prio: P[0-3] \|/.test(l) && I.status) { ln[0] = l.replace(/\| status: [a-z-]+$/, `| status: ${I.status}`); continue; }
-    if (section === "acceptance criteria" && (m = /^- \[( |x)\] (T-\d+\.AC\d+) /.exec(l)) && I.acDone && m[2] in I.acDone) {
+    if (section === "acceptance criteria" && (m = /^- \[( |x)\] ([A-Z]{2,5}-T\d+\.AC\d+) /.exec(l)) && I.acDone && m[2] in I.acDone) {
       ln[0] = l.replace(/^- \[( |x)\]/, `- [${I.acDone[m[2]] ? "x" : " "}]`); continue;
     }
     if (section === "symbols" && (m = /^(\d+)\. \[( |x)\] /.exec(l)) && I.symDone && m[1] in I.symDone) {

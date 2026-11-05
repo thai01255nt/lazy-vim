@@ -21,7 +21,7 @@ import { run as approveCmd } from "../../scripts/cmd/approve.mjs";
 
 const { CU, FE, T1, T2 } = IDS;
 const NOW = "2026-10-25T00:00:00.000Z";
-const base = (o) => ({ taskId: "T-1", index: fixtureIndex(), lock: emptyLock(), state: emptyState(), config: {}, task: TASKS[0], tasks: TASKS, now: NOW, ...o });
+const base = (o) => ({ taskId: "QT-T1", index: fixtureIndex(), lock: emptyLock(), state: emptyState(), config: {}, task: TASKS[0], tasks: TASKS, now: NOW, ...o });
 const runs = (index, outcome, message = "") => applyRuns(emptyState(), buildRunRecords(index, [T1, T2].map((testId) => ({ testId, outcome, message }))));
 
 test("skeleton: locks tagged symbols + test stubs; dry-run style change lists", () => {
@@ -32,9 +32,9 @@ test("skeleton: locks tagged symbols + test stubs; dry-run style change lists", 
   assert.equal(r.lock.symbols[CU].sigHash, "sigCU");
   assert.equal(r.lock.symbols[FE].impl, "manual");
   assert.equal(r.lock.tests[T1].stage, "stub");
-  assert.equal(r.lock.tasks["T-1"].skeletonAt, NOW);
+  assert.equal(r.lock.tasks["QT-T1"].skeletonAt, NOW);
   assert.deepEqual(r.changes.symbols.new.sort(), [FE, CU].sort());
-  assert.deepEqual(r.changes.acCoverage["T-1.AC1"], [T1]);
+  assert.deepEqual(r.changes.acCoverage["QT-T1.AC1"], [T1]);
   // re-approval after sig drift reports "changed"
   const idx = fixtureIndex(); idx.symbols[CU].sigHash = "sigCU-new";
   const r2 = planApproval(base({ index: idx, lock: r.lock, stage: "skeleton" }));
@@ -50,8 +50,8 @@ test("skeleton preconditions: missing @task tag, AC without stub, unknown symbol
   const r = planApproval(base({ index: idx, task }));
   assert.equal(r.ok, false);
   const all = r.reasons.join("\n");
-  assert.match(all, /UserRepo\.findByEmail has no @task T-1/);
-  assert.match(all, /T-1\.AC2 has no test stub/);
+  assert.match(all, /UserRepo\.findByEmail has no @task QT-T1/);
+  assert.match(all, /QT-T1\.AC2 has no test stub/);
   assert.match(all, /Nope\.fn not found/);
   assert.match(all, /parse errors: bad meta/);
   assert.equal(planApproval(base({ index: idx, task, force: true })).ok, true, "--force overrides");
@@ -75,13 +75,13 @@ test("--symbols limits the symbols written", () => {
 test("tests stage: requires fresh red (fail, or error with sentinel); vacuous/stale/bad errors refused", () => {
   const sk = planApproval(base()).lock;
   const idx = fixtureIndex({ mode: "active" });
-  assert.equal(defaultStage(sk, "T-1"), "tests");
+  assert.equal(defaultStage(sk, "QT-T1"), "tests");
   let r = planApproval(base({ index: idx, lock: sk, state: runs(idx, "fail", "expected throw") }));
   assert.equal(r.ok, true, r.reasons.join("; "));
   assert.equal(r.lock.tests[T1].stage, "locked");
   assert.equal(r.lock.tests[T1].bodyHash, idx.symbols[T1].bodyHash);
   assert.equal(r.lock.tests[T1].lockedBy, "human");
-  assert.equal(r.lock.tasks["T-1"].testsAt, NOW);
+  assert.equal(r.lock.tasks["QT-T1"].testsAt, NOW);
   assert.equal(planApproval(base({ index: idx, lock: sk, state: runs(idx, "error", "TODO(impl): UserService.createUser") })).ok, true);
   r = planApproval(base({ index: idx, lock: sk, state: runs(idx, "error", "SyntaxError: x") }));
   assert.equal(r.ok, false); assert.match(r.reasons[0], /without the TODO\(impl\) sentinel/);
@@ -95,7 +95,7 @@ test("tests stage: requires fresh red (fail, or error with sentinel); vacuous/st
   r = planApproval(base({ index: fixtureIndex(), lock: sk, stage: "tests" }));
   assert.match(r.reasons.join(), /no active tests/);
   r = planApproval(base({ index: idx, lock: emptyLock(), stage: "tests", state: runs(idx, "fail") }));
-  assert.match(r.reasons.join(), /skeleton of T-1 not approved/);
+  assert.match(r.reasons.join(), /skeleton of QT-T1 not approved/);
 });
 
 test("tests stage re-lock: green tests allowed once tests were locked before (mutation killers / fix-loop tests)", () => {
@@ -117,14 +117,14 @@ test("done stage: requires verified symbols; auto requires review PASS; records 
   let statuses = computeStatuses(idx, lock, st, {}, TASKS);
   let r = planApproval(base({ index: idx, lock, state: st, statuses, stage: "done" }));
   assert.equal(r.ok, false); assert.match(r.reasons.join(), /status green \(needs verified\)/);
-  st.reviews["T-1"] = { verdict: "PASS", bodyHashes: { [CU]: "bodyCU2", [FE]: "bodyFE2" } };
+  st.reviews["QT-T1"] = { verdict: "PASS", bodyHashes: { [CU]: "bodyCU2", [FE]: "bodyFE2" } };
   statuses = computeStatuses(idx, lock, st, {}, TASKS);
   r = planApproval(base({ index: idx, lock, state: st, statuses, stage: "done" }));
   assert.equal(r.ok, true, r.reasons.join("; "));
-  assert.deepEqual(r.lock.tasks["T-1"].doneBodyHashes, { [CU]: "bodyCU2", [FE]: "bodyFE2" });
-  assert.equal(computeStatuses(idx, r.lock, st, {}, TASKS).tasks["T-1"].status, "done");
+  assert.deepEqual(r.lock.tasks["QT-T1"].doneBodyHashes, { [CU]: "bodyCU2", [FE]: "bodyFE2" });
+  assert.equal(computeStatuses(idx, r.lock, st, {}, TASKS).tasks["QT-T1"].status, "done");
   const lowTask = { ...TASKS[0], risk: "low" };
-  st.reviews["T-1"].verdict = "WITH FIXES";
+  st.reviews["QT-T1"].verdict = "WITH FIXES";
   r = planApproval(base({ index: idx, lock, state: st, statuses, stage: "done", by: "auto", task: lowTask }));
   assert.equal(r.ok, false); assert.match(r.reasons[0], /requires review verdict PASS/);
 });
@@ -139,11 +139,11 @@ test("lock/state IO: sorted keys, 2-space JSON, trailing newline, atomic writes 
     assert.ok(text.endsWith("}\n"));
     assert.ok(text.indexOf('"schema"') < text.indexOf('"symbols"') && text.indexOf('"symbols"') < text.indexOf('"tasks"') && text.indexOf('"tasks"') < text.indexOf('"tests"'));
     assert.deepEqual(await readLock(root), JSON.parse(text));
-    await Promise.all([recordRuns(root, [{ testId: "a", outcome: "pass", message: "x".repeat(300) }]), recordRuns(root, [{ testId: "b", outcome: "fail" }]), recordReview(root, "T-1", { verdict: "PASS" })]);
+    await Promise.all([recordRuns(root, [{ testId: "a", outcome: "pass", message: "x".repeat(300) }]), recordRuns(root, [{ testId: "b", outcome: "fail" }]), recordReview(root, "QT-T1", { verdict: "PASS" })]);
     const st = await readState(root);
     assert.deepEqual(Object.keys(st.runs).sort(), ["a", "b"]);
     assert.equal(st.runs.a.message.length, 200);
-    assert.equal(st.reviews["T-1"].verdict, "PASS");
+    assert.equal(st.reviews["QT-T1"].verdict, "PASS");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -175,7 +175,7 @@ test("forged status: source says verified but computed lower → block item", ()
 test("B8: recorded done/verified tag after a body-only edit is not forged; a hand-raised tag still is", async () => {
   const { wasRecorded } = await import("../../scripts/lib/drift.mjs");
   const idx = fixtureIndex({ mode: "active", implemented: true });
-  const T = (idx.symbols[CU].tags.task || [])[0] || "T-1";
+  const T = (idx.symbols[CU].tags.task || [])[0] || "QT-T1";
   idx.symbols[CU].tags.task = [T];
   idx.symbols[CU].tags.status = "done";
   const statuses = computeStatuses(idx, null, runs(idx, "pass"), {}, TASKS);
@@ -198,14 +198,14 @@ const OLD = "src/old.ts#Old.gone";
 const dropFE = (idx) => { delete idx.symbols[FE]; idx.symbols[CU].tags.calls = ["UserRepo.save"]; return idx; };
 const taskNoFE = { ...TASKS[0], symbols: TASKS[0].symbols.filter((s) => s.ref !== "UserRepo.findByEmail") };
 
-test("prune tests: re-locking T-1 tests drops a renamed locked test of T-1, keeps other tasks' entries; drift clears", async () => {
+test("prune tests: re-locking QT-T1 tests drops a renamed locked test of QT-T1, keeps other tasks' entries; drift clears", async () => {
   const { computeDriftFrom } = await import("../../scripts/lib/drift.mjs");
   const idx = fixtureIndex({ mode: "active" });
   const locked = planApproval(base({ index: idx, lock: planApproval(base()).lock, state: runs(idx, "fail") })).lock;
-  locked.tests["tests/other.test.ts#gone of T-9"] = { ...locked.tests[T1], task: "T-9" };
+  locked.tests["tests/other.test.ts#gone of QT-T9"] = { ...locked.tests[T1], task: "QT-T9" };
   const idx2 = fixtureIndex({ mode: "active" });
   const T2b = T2.replace("returns user", "returns the new user");
-  idx2.symbols[T2b] = { ...idx2.symbols[T2], id: T2b, name: "T-1.AC2 returns the new user" };
+  idx2.symbols[T2b] = { ...idx2.symbols[T2], id: T2b, name: "QT-T1.AC2 returns the new user" };
   delete idx2.symbols[T2];
   const st = applyRuns(emptyState(), buildRunRecords(idx2, [T1, T2b].map((testId) => ({ testId, outcome: "fail" }))));
   const r = planApproval(base({ index: idx2, lock: locked, stage: "tests", state: st }));
@@ -214,20 +214,20 @@ test("prune tests: re-locking T-1 tests drops a renamed locked test of T-1, keep
   assert.deepEqual(r.changes.tests.new, [T2b]);
   assert.deepEqual(r.changes.symbols.removed, []);
   assert.equal(r.lock.tests[T2], undefined);
-  assert.ok(r.lock.tests["tests/other.test.ts#gone of T-9"], "T-9's entry is not T-1's to prune");
+  assert.ok(r.lock.tests["tests/other.test.ts#gone of QT-T9"], "QT-T9's entry is not QT-T1's to prune");
   const root = mkdtempSync(join(tmpdir(), "hitl-prune-"));
   try {
-    const before = await computeDriftFrom(root, idx2, { lock: locked, state: st, config: {}, task: "T-1" });
+    const before = await computeDriftFrom(root, idx2, { lock: locked, state: st, config: {}, task: "QT-T1" });
     assert.ok(before.items.some((i) => i.code === "TEST_DELETED" && i.symbol === T2));
-    const after = await computeDriftFrom(root, idx2, { lock: r.lock, state: st, config: {}, task: "T-1" });
+    const after = await computeDriftFrom(root, idx2, { lock: r.lock, state: st, config: {}, task: "QT-T1" });
     assert.ok(!after.items.some((i) => i.code === "TEST_DELETED"), JSON.stringify(after.items.map((i) => i.code)));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test("prune skeleton: deleted, unreferenced locked symbols of T-1 are removed; done stage never prunes", () => {
+test("prune skeleton: deleted, unreferenced locked symbols of QT-T1 are removed; done stage never prunes", () => {
   const lock = planApproval(base()).lock;
   lock.symbols[OLD] = { ...lock.symbols[CU], sigHash: "sigOLD", intentHash: "intOLD" };
-  lock.symbols["src/old.ts#Other.gone"] = { ...lock.symbols[CU], task: "T-9", sigHash: "x", intentHash: "y" };
+  lock.symbols["src/old.ts#Other.gone"] = { ...lock.symbols[CU], task: "QT-T9", sigHash: "x", intentHash: "y" };
   const r = planApproval(base({ index: dropFE(fixtureIndex()), lock, task: taskNoFE, stage: "skeleton" }));
   assert.equal(r.ok, true, r.reasons.join("; "));
   assert.deepEqual(r.changes.symbols.removed.sort(), [FE, OLD].sort());
@@ -280,13 +280,13 @@ test("referencesTo: calls through super never reference a deleted method (any la
 // ---------------------------------------------------------------- intent stage (approve --change <id> --stage intent)
 const NOW2 = "2026-11-01T00:00:00.000Z";
 const TCH = TASKS.map((t) => ({ ...t, change: "feat-u" }));
-/** T-1 done (skeleton → tests → done), then CU's intent rewritten in a stripped index (no @task tags). */
+/** QT-T1 done (skeleton → tests → done), then CU's intent rewritten in a stripped index (no @task tags). */
 function doneThenTidied({ edit = (s) => s } = {}) {
   const sk = planApproval(base()).lock;
   const red = planApproval(base({ index: fixtureIndex({ mode: "active" }), lock: sk, state: runs(fixtureIndex({ mode: "active" }), "fail") })).lock;
   const impl = fixtureIndex({ mode: "active", implemented: true });
   const st = runs(impl, "pass");
-  st.reviews["T-1"] = { verdict: "PASS", bodyHashes: { [CU]: "bodyCU2", [FE]: "bodyFE2" } };
+  st.reviews["QT-T1"] = { verdict: "PASS", bodyHashes: { [CU]: "bodyCU2", [FE]: "bodyFE2" } };
   const done = planApproval(base({ index: impl, lock: red, state: st, statuses: computeStatuses(impl, red, st, {}, TASKS), stage: "done" }));
   assert.equal(done.ok, true, done.reasons.join("; "));
   const idx = fixtureIndex({ mode: "active", implemented: true });
@@ -300,7 +300,7 @@ function doneThenTidied({ edit = (s) => s } = {}) {
 
 test("intent stage: re-locks only the changed intents of a done change; history, other fields and task records kept", () => {
   const { lock, ib, statuses } = doneThenTidied();
-  assert.equal(statuses.tasks["T-1"].status, "done", "the docstring edit leaves T-1 done");
+  assert.equal(statuses.tasks["QT-T1"].status, "done", "the docstring edit leaves QT-T1 done");
   const before = JSON.parse(JSON.stringify(lock));
   const r = planApproval(ib());
   assert.equal(r.ok, true, r.reasons.join("; "));
@@ -311,42 +311,42 @@ test("intent stage: re-locks only the changed intents of a done change; history,
   assert.equal(e.intentHash, "intCU2");
   assert.equal(e.intentApprovedAt, NOW2); assert.equal(e.intentApprovedBy, "human");
   for (const k of ["task", "sigHash", "todoHash", "signature", "approvedAt", "approvedBy", "impl", "prio"]) assert.deepEqual(e[k], before.symbols[CU][k], k);
-  assert.deepEqual(e.intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }, { task: "T-1", change: "feat-u", stage: "intent", lines: 2, at: NOW2 }]);
+  assert.deepEqual(e.intentLog, [{ task: "QT-T1", stage: "skeleton", lines: 1, at: NOW }, { task: "QT-T1", change: "feat-u", stage: "intent", lines: 2, at: NOW2 }]);
   assert.deepEqual(r.lock.symbols[FE], before.symbols[FE], "unchanged intent: entry untouched");
   assert.deepEqual(r.lock.tasks, before.tasks, "task records (done hashes) untouched");
   assert.deepEqual(r.lock.tests, before.tests);
   assert.deepEqual(lock, before, "pure: the input lock is not mutated");
   // multi-task history (tasks) survives; --symbols picks explicitly
-  const hist = JSON.parse(JSON.stringify(lock)); hist.symbols[CU].tasks = ["T-0", "T-1"];
-  hist.tasks["T-0"] = { doneAt: "2026-10-01T00:00:00.000Z", doneBodyHashes: { [CU]: "bodyCU-old" } };
-  const r2 = planApproval(ib({ lock: hist, symbols: ["UserService.createUser"], statuses: { tasks: { "T-0": { status: "done" }, "T-1": { status: "done" } } } }));
+  const hist = JSON.parse(JSON.stringify(lock)); hist.symbols[CU].tasks = ["QT-T0", "QT-T1"];
+  hist.tasks["QT-T0"] = { doneAt: "2026-10-01T00:00:00.000Z", doneBodyHashes: { [CU]: "bodyCU-old" } };
+  const r2 = planApproval(ib({ lock: hist, symbols: ["UserService.createUser"], statuses: { tasks: { "QT-T0": { status: "done" }, "QT-T1": { status: "done" } } } }));
   assert.equal(r2.ok, true, r2.reasons.join("; "));
-  assert.deepEqual(r2.lock.symbols[CU].tasks, ["T-0", "T-1"]);
-  assert.equal(doneBodyHash(hist, CU, ["T-0", "T-1"]).task, "T-1", "latest done record wins");
+  assert.deepEqual(r2.lock.symbols[CU].tasks, ["QT-T0", "QT-T1"]);
+  assert.equal(doneBodyHash(hist, CU, ["QT-T0", "QT-T1"]).task, "QT-T1", "latest done record wins");
 });
 
 test("intent stage: refusals (sig, todo, body, open task, human only, nothing changed, bad --symbols); nothing planned on refusal", () => {
   const cases = [
     [(s) => { s.sigHash = "sigCU-x"; }, /createUser: signature changed/],
     [(s) => { s.todoHash = "todo-x"; s.todos = ["1. new step"]; }, /createUser: TODO\(impl\) steps changed/],
-    [(s) => { s.bodyHash = "bodyCU3"; }, /createUser: body changed since T-1 was done/],
+    [(s) => { s.bodyHash = "bodyCU3"; }, /createUser: body changed since QT-T1 was done/],
   ];
   for (const [edit, re] of cases) {
     const { ib, lock } = doneThenTidied({ edit });
-    const r = planApproval(ib({ statuses: { tasks: { "T-1": { status: "done" } } } }));
+    const r = planApproval(ib({ statuses: { tasks: { "QT-T1": { status: "done" } } } }));
     assert.equal(r.ok, false); assert.match(r.reasons.join("\n"), re);
     assert.deepEqual(r.lock, lock, "refused plan carries the unchanged lock");
   }
   const { ib } = doneThenTidied();
-  let r = planApproval(ib({ statuses: { tasks: { "T-1": { status: "green" } } } }));
-  assert.equal(r.ok, false); assert.match(r.reasons[0], /owning task T-1 is green/);
+  let r = planApproval(ib({ statuses: { tasks: { "QT-T1": { status: "green" } } } }));
+  assert.equal(r.ok, false); assert.match(r.reasons[0], /owning task QT-T1 is green/);
   for (const by of ["auto", "human-override"]) {
     r = planApproval(ib({ by })); assert.equal(r.ok, false); assert.match(r.reasons[0], /human-only/);
   }
   r = planApproval(ib({ changeId: "feat-nope" })); assert.match(r.reasons[0], /no tasks/);
   r = planApproval(ib({ symbols: ["Nope.x"] })); assert.match(r.reasons[0], /not resolvable/);
   r = planApproval(ib({ symbols: ["register"] })); assert.match(r.reasons[0], /not a symbol of change feat-u/);
-  r = planApproval(ib({ taskId: "T-1" })); assert.match(r.reasons[0], /not a task id/);
+  r = planApproval(ib({ taskId: "QT-T1" })); assert.match(r.reasons[0], /not a task id/);
   r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent, accept or reopen stage/);
   // implemented TODO lines turned into `n.` comments (no open todos): todoHash moved, not a refusal (as in drift)
   const impl = doneThenTidied({ edit: (s) => { s.todoHash = "todo-impl"; s.todos = []; } });
@@ -354,7 +354,7 @@ test("intent stage: refusals (sig, todo, body, open task, human only, nothing ch
   // a class has no done body record (done approvals record functions only): allowed, with a warning
   const cls = doneThenTidied();
   const UR = `${cls.idx.symbols[FE].parent}`;
-  cls.lock.symbols[UR] = { task: "T-1", impl: "agent", signature: "class UserRepo", intent: "A repo.", sigHash: "c", intentHash: "intUR", todoHash: "t0", todos: [] };
+  cls.lock.symbols[UR] = { task: "QT-T1", impl: "agent", signature: "class UserRepo", intent: "A repo.", sigHash: "c", intentHash: "intUR", todoHash: "t0", todos: [] };
   Object.assign(cls.idx.symbols[UR], { intent: "Stores users.", intentHash: "intUR2", sigHash: "c", todoHash: "t1", todos: [] });
   r = planApproval(cls.ib({ symbols: ["UserRepo"] }));
   assert.equal(r.ok, true, r.reasons.join("; "));
@@ -366,31 +366,31 @@ test("intent stage: refusals (sig, todo, body, open task, human only, nothing ch
 
 test("skeleton approvals append intentLog only when the intent is new or changed; old entries are seeded", () => {
   const r1 = planApproval(base());
-  assert.deepEqual(r1.lock.symbols[CU].intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }]);
+  assert.deepEqual(r1.lock.symbols[CU].intentLog, [{ task: "QT-T1", stage: "skeleton", lines: 1, at: NOW }]);
   const same = planApproval(base({ lock: r1.lock, now: NOW2, stage: "skeleton" }));
   assert.equal(same.lock.symbols[CU].intentLog.length, 1, "re-approval without an intent change adds nothing");
   const legacy = JSON.parse(JSON.stringify(r1.lock)); delete legacy.symbols[CU].intentLog; // locked before intentLog existed
   const idx = fixtureIndex(); Object.assign(idx.symbols[CU], { intent: "Registers a user.\nRefuses duplicates.", intentHash: "intCU2" });
   const r2 = planApproval(base({ index: idx, lock: legacy, now: NOW2, stage: "skeleton" }));
-  assert.deepEqual(r2.lock.symbols[CU].intentLog, [{ task: "T-1", stage: "skeleton", lines: 1, at: NOW }, { task: "T-1", stage: "skeleton", lines: 2, at: NOW2 }]);
+  assert.deepEqual(r2.lock.symbols[CU].intentLog, [{ task: "QT-T1", stage: "skeleton", lines: 1, at: NOW }, { task: "QT-T1", stage: "skeleton", lines: 2, at: NOW2 }]);
   assert.equal(intentLines("A.\n\n@param x y\nB."), 2);
-  assert.deepEqual(appendIntentLog(null, { intent: "x", intentHash: "h" }, { task: "T-9", stage: "skeleton", at: "t" }), [{ task: "T-9", stage: "skeleton", lines: 1, at: "t" }]);
+  assert.deepEqual(appendIntentLog(null, { intent: "x", intentHash: "h" }, { task: "QT-T9", stage: "skeleton", at: "t" }), [{ task: "QT-T9", stage: "skeleton", lines: 1, at: "t" }]);
 });
 
 test("approve --change CLI: works after strip (no @task tags), dry-run and refusals write nothing", async () => {
   const repo = REPO.replace('throw new Error("TODO(impl): UserRepo.findByEmail");', "return this.users.find((u) => u.email === email);");
   const svc = SVC.replace('throw new Error("TODO(impl): UserService.createUser");', 'if (this.repo.findByEmail(email)) throw new Error("duplicate");\n    return this.repo.save({ id: email, email });');
   const root = makeProject({ "src/repo/userRepo.ts": repo, "src/services/userService.ts": svc, ".hitl/changes/feat-users/tasks.md": PTASKS.replace("← Planning: .hitl/planning/feat-users.md", "← Change: feat-users"),
-    "tests/userService.test.ts": PTESTS.replace('it.todo("T-1.AC1 rejects duplicate email");', 'it("T-1.AC1 rejects duplicate email", () => {});') });
+    "tests/userService.test.ts": PTESTS.replace('it.todo("QT-T1.AC1 rejects duplicate email");', 'it("QT-T1.AC1 rejects duplicate email", () => {});') });
   rmSync(join(root, ".hitl/tasks/feat-users.md"));
   const config = await loadConfig(root);
   await updateIndex(root, null, { config });
   let index = await readIndex(root); const tasks = await readTasks(root);
   assert.equal(tasks[0].change, "feat-users");
-  const plan = planApproval({ taskId: "T-1", by: "human", force: true, index, lock: emptyLock(), state: emptyState(), config, task: tasks[0], tasks });
+  const plan = planApproval({ taskId: "QT-T1", by: "human", force: true, index, lock: emptyLock(), state: emptyState(), config, task: tasks[0], tasks });
   assert.equal(plan.ok, true, plan.reasons.join("; "));
-  const syms = Object.values(index.symbols).filter((s) => (s.tags?.task || []).includes("T-1") && s.kind !== "test");
-  plan.lock.tasks["T-1"] = { ...plan.lock.tasks["T-1"], testsAt: "x", doneAt: "x", doneBodyHashes: Object.fromEntries(syms.map((s) => [s.id, s.bodyHash])) };
+  const syms = Object.values(index.symbols).filter((s) => (s.tags?.task || []).includes("QT-T1") && s.kind !== "test");
+  plan.lock.tasks["QT-T1"] = { ...plan.lock.tasks["QT-T1"], testsAt: "x", doneAt: "x", doneBodyHashes: Object.fromEntries(syms.map((s) => [s.id, s.bodyHash])) };
   await writeLock(root, plan.lock);
   const testId = Object.values(index.symbols).find((s) => s.kind === "test").id;
   await recordRuns(root, buildRunRecords(index, [{ testId, outcome: "pass", message: "" }]));
@@ -413,13 +413,13 @@ test("approve --change CLI: works after strip (no @task tags), dry-run and refus
   assert.equal(r.code, 0, r.out); assert.equal(readFileSync(lockFile, "utf8"), before, "dry run writes nothing");
   assert.deepEqual(JSON.parse(r.out).changes.symbols.changed.map((x) => x.id.split("#")[1]), ["UserService.createUser"]);
   assert.equal((await cli(["--change", "feat-users", "--by", "auto"])).code, 2);
-  assert.equal((await cli(["T-1", "--stage", "intent"])).code, 2);
+  assert.equal((await cli(["QT-T1", "--stage", "intent"])).code, 2);
   assert.equal((await cli(["--change", "feat-users", "--force"])).code, 2);
-  // a body edit is refused (T-1 is no longer done: its run is stale), and nothing is written
+  // a body edit is refused (QT-T1 is no longer done: its run is stale), and nothing is written
   const good = readFileSync(svcFile, "utf8");
   writeFileSync(svcFile, good.replace('throw new Error("duplicate")', 'throw new Error("dup")'));
   r = await cli(["--change", "feat-users", "--stage", "intent", "--by", "human"]);
-  assert.equal(r.code, 1, r.out); assert.match(r.out, /owning task T-1 is wip/); assert.equal(readFileSync(lockFile, "utf8"), before);
+  assert.equal(r.code, 1, r.out); assert.match(r.out, /owning task QT-T1 is wip/); assert.equal(readFileSync(lockFile, "utf8"), before);
   writeFileSync(svcFile, good);
   r = await cli(["--change", "feat-users", "--stage", "intent", "--by", "human"]);
   assert.equal(r.code, 0, r.out);
@@ -427,7 +427,7 @@ test("approve --change CLI: works after strip (no @task tags), dry-run and refus
   const id = Object.keys(L.symbols).find((k) => k.endsWith("#UserService.createUser"));
   assert.match(L.symbols[id].intent, /a duplicate email is refused/);
   assert.equal(L.symbols[id].intentApprovedBy, "human");
-  assert.equal(L.symbols[id].task, "T-1");
+  assert.equal(L.symbols[id].task, "QT-T1");
   assert.deepEqual(L.tasks, JSON.parse(before).tasks);
   const drift = (await computeDrift(root, { config })).items.filter((i) => i.code === "INTENT_CHANGED");
   assert.deepEqual(drift, [], "re-approved: no INTENT_CHANGED left");
@@ -435,7 +435,7 @@ test("approve --change CLI: works after strip (no @task tags), dry-run and refus
   const after = readFileSync(lockFile, "utf8");
   assert.equal((await cli(["--change", "feat-users", "--stage", "accept", "--by", "auto"])).code, 2);
   assert.equal((await cli(["--change", "feat-users", "--stage", "accept", "--force"])).code, 2);
-  assert.equal((await cli(["T-1", "--stage", "accept"])).code, 2);
+  assert.equal((await cli(["QT-T1", "--stage", "accept"])).code, 2);
   r = await cli(["--change", "feat-users", "--stage", "accept", "--by", "human"]);
   assert.equal(r.code, 1, r.out); assert.match(r.out, /is not archived/); assert.equal(readFileSync(lockFile, "utf8"), after);
 });

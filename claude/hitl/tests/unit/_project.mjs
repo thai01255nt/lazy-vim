@@ -10,7 +10,7 @@ export class UserRepo {
   users: User[] = [];
   /**
    * Finds a user by email.
-   * @task T-1 @impl manual @status skeleton @prio 2
+   * @task QT-T1 @impl manual @status skeleton @prio 2
    */
   findByEmail(email: string): User | undefined {
     // TODO(impl): 1. compare lower-cased
@@ -26,7 +26,7 @@ export class UserService {
   constructor(repo: UserRepo) { this.repo = repo; }
   /**
    * Registers a user.
-   * @task T-1 @impl agent @status skeleton @prio 1
+   * @task QT-T1 @impl agent @status skeleton @prio 1
    * @calls UserRepo.findByEmail, UserRepo.save
    * @concurrency none
    */
@@ -44,19 +44,19 @@ export function register(svc: UserService, email: string) {
 `;
 export const TESTS = `import { describe, it } from "node:test";
 describe("UserService.createUser", () => {
-  /** @covers UserService.createUser @ac T-1.AC1 @kind example @origin skeleton */
-  it.todo("T-1.AC1 rejects duplicate email");
+  /** @covers UserService.createUser @ac QT-T1.AC1 @kind example @origin skeleton */
+  it.todo("QT-T1.AC1 rejects duplicate email");
 });
 `;
 export const TASKS = `# Users Tasks
 ← Planning: .hitl/planning/feat-users.md
 > status: approved
 
-## T-1 Register user
+## QT-T1 Register user
 - prio: P1 | risk: high (security) | impl: mixed | blocked-by: none | status: todo
 
 ### Acceptance criteria
-- [ ] T-1.AC1 Given an existing email When createUser Then throws
+- [ ] QT-T1.AC1 Given an existing email When createUser Then throws
 
 ### Symbols
 1. [ ] \`UserService.createUser\` | modify | \`src/services/userService.ts\` | impl: agent | registers

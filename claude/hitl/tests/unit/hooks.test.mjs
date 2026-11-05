@@ -122,14 +122,14 @@ export function resolveRef() { return null; }
 export async function buildContext() { return { markdown: "", symbols: [], files: [] }; }
 export const tags = {};
 `;
-const STUB_CLI = `if (process.argv.includes("status")) console.log("T-1 approved — next: /hitl:test T-1\\nline2\\nline3");\n`;
+const STUB_CLI = `if (process.argv.includes("status")) console.log("QT-T1 approved — next: /hitl:test QT-T1\\nline2\\nline3");\n`;
 
 // ------------------------------------------------------------------ fixture project
 const FILES = {
   "package.json": `{"name":"fx","private":true,"type":"module"}\n`,
   "src/repo.ts": `/**
  * Finds a user by email, case-insensitive.
- * @task T-1 @impl manual @status skeleton @prio 2
+ * @task QT-T1 @impl manual @status skeleton @prio 2
  * @concurrency none
  */
 export function findByEmail(email: string): string {
@@ -140,7 +140,7 @@ export function findByEmail(email: string): string {
 
 /**
  * Creates a user; rejects duplicates.
- * @task T-1 @impl agent @status skeleton @prio 1
+ * @task QT-T1 @impl agent @status skeleton @prio 1
  * @calls findByEmail
  * @concurrency none
  */
@@ -158,13 +158,13 @@ export function register(email: string): string {
   "tests/svc.test.ts": `import { it } from "node:test";
 import { createUser } from "../src/svc.ts";
 
-/** @covers createUser @ac T-1.AC1 @kind example @origin skeleton */
-it("T-1.AC1 rejects duplicate", () => {
+/** @covers createUser @ac QT-T1.AC1 @kind example @origin skeleton */
+it("QT-T1.AC1 rejects duplicate", () => {
   createUser("a@x.io");
 });
 `,
   ".hitl/hitl.config.json": `{"schema":"hitl.config/1"}\n`,
-  ".hitl/index/contracts/T-1.md": "# Context T-1\n",
+  ".hitl/index/contracts/QT-T1.md": "# Context QT-T1\n",
   ".hitl/tasks/feat-x.md": "# X Tasks\n",
   ".hitl/docs/ARCHITECTURE.md": "# Arch\n",
 };
@@ -181,13 +181,13 @@ async function mkProject({ lock = true } = {}) {
   const index = await api.readIndex(root);
   const ids = idsOf(index);
   if (lock) {
-    const L = { schema: "hitl.lock/1", symbols: {}, tests: {}, tasks: { "T-1": { file: ".hitl/tasks/feat-x.md", risk: "high", skeletonAt: "2026-01-01T00:00:00Z", testsAt: "2026-01-01T00:00:00Z", doneAt: null, doneBodyHashes: {} } } };
+    const L = { schema: "hitl.lock/2", symbols: {}, tests: {}, tasks: { "QT-T1": { file: ".hitl/tasks/feat-x.md", risk: "high", skeletonAt: "2026-01-01T00:00:00Z", testsAt: "2026-01-01T00:00:00Z", doneAt: null, doneBodyHashes: {} } } };
     for (const id of [ids.createUser, ids.findByEmail]) {
       const S = index.symbols[id];
-      L.symbols[id] = { task: "T-1", impl: S.tags.impl, signature: S.signature, intent: S.intent, todos: S.todos || [], sigHash: S.sigHash, intentHash: S.intentHash, todoHash: S.todoHash, approvedAt: "2026-01-01T00:00:00Z", approvedBy: "human" };
+      L.symbols[id] = { task: "QT-T1", impl: S.tags.impl, signature: S.signature, intent: S.intent, todos: S.todos || [], sigHash: S.sigHash, intentHash: S.intentHash, todoHash: S.todoHash, approvedAt: "2026-01-01T00:00:00Z", approvedBy: "human" };
     }
     const T = index.symbols[ids.test];
-    L.tests[ids.test] = { task: "T-1", covers: [ids.createUser], ac: ["T-1.AC1"], kind: "example", stage: "locked", bodyHash: T.bodyHash, intentHash: T.intentHash, origin: "skeleton", lockedAt: "2026-01-01T00:00:00Z", lockedBy: "human" };
+    L.tests[ids.test] = { task: "QT-T1", covers: [ids.createUser], ac: ["QT-T1.AC1"], kind: "example", stage: "locked", bodyHash: T.bodyHash, intentHash: T.intentHash, origin: "skeleton", lockedAt: "2026-01-01T00:00:00Z", lockedBy: "human" };
     fs.writeFileSync(path.join(root, ".hitl/index/skeleton.lock.json"), JSON.stringify(L, null, 2) + "\n");
   }
   return { root, ids, api };
@@ -256,8 +256,8 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     const inputs = [
       "{}", "not json", "",
       JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "PreToolUse", tool_name: "Edit", tool_input: { file_path: path.join(empty, "a.ts"), old_string: "a", new_string: "b" }, agent_type: "hitl:test-author", agent_id: "1" }),
-      JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "hitl-index approve T-1 --by human" } }),
-      JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "UserPromptSubmit", prompt: "/hitl:approve T-1" }),
+      JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "hitl-index approve QT-T1 --by human" } }),
+      JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "UserPromptSubmit", prompt: "/hitl:approve QT-T1" }),
       JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "Stop", stop_hook_active: false }),
       JSON.stringify({ session_id: "x", cwd: empty, hook_event_name: "SessionStart", source: "startup" }),
     ];
@@ -280,12 +280,12 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
   test("generated files are denied for every role", async () => {
     const { root } = await mkProject();
     assertDeny(pre(root, "Edit", { file_path: path.join(root, ".hitl/index/index.json"), old_string: "a", new_string: "b" }), /Generated by hitl-index/);
-    assertDeny(pre(root, "Write", { file_path: path.join(root, ".hitl/reviews/T-1.review.md"), content: "x" }), /Generated/);
+    assertDeny(pre(root, "Write", { file_path: path.join(root, ".hitl/reviews/QT-T1.review.md"), content: "x" }), /Generated/);
     assertDeny(pre(root, "Write", { file_path: path.join(root, ".hitl/docs/CODEBASE-MAP.md"), content: "x" }, "hitl:codebase-mapper"), /Generated/);
     assertDeny(pre(root, "Write", { file_path: path.join(root, ".hitl/hitl.config.json"), content: "{}" }, "hitl:implementer"), /Generated/);
     assertSilent(pre(root, "Write", { file_path: path.join(root, ".hitl/hitl.config.json"), content: "{\"schema\":\"hitl.config/1\"}" }));
     // only the project-root .hitl/ is protected: look-alike paths elsewhere are ordinary files
-    for (const p of ["src/.hitl/index/index.json", "docs.hitl/index/x.json", ".hitlx/index/x.json", "pkg/.hitl/reviews/T-1.review.md", ".claude/custom/index/index.json"])
+    for (const p of ["src/.hitl/index/index.json", "docs.hitl/index/x.json", ".hitlx/index/x.json", "pkg/.hitl/reviews/QT-T1.review.md", ".claude/custom/index/index.json"])
       assertSilent(pre(root, "Write", { file_path: path.join(root, p), content: "x" }));
   });
 
@@ -380,13 +380,13 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     const { root } = await mkProject();
     const lf = path.join(root, ".hitl/index/skeleton.lock.json");
     const L = JSON.parse(fs.readFileSync(lf, "utf8"));
-    L.tasks["T-1"].file = ".hitl/changes/feat-x/tasks.md";
+    L.tasks["QT-T1"].file = ".hitl/changes/feat-x/tasks.md";
     fs.writeFileSync(lf, JSON.stringify(L, null, 2) + "\n");
     const prop = (id) => `# ${id}\n> change: ${id} | status: draft | created: 2026-11-06 | updated: 2026-11-06\n\n## Why\nx\n`;
     for (const id of ["feat-x", "feat-b"]) { fs.mkdirSync(path.join(root, ".hitl/changes", id), { recursive: true }); fs.writeFileSync(path.join(root, ".hitl/changes", id, "proposal.md"), prop(id)); }
     fs.writeFileSync(path.join(root, ".hitl/changes/feat-x/notes.md"), "# Notes — feat-x\n\n## N-1 wait\n- kind: order\n- source: feat-b\n- refs: none\n- status: open\n- from: x · 2026-11-06\n");
     const f = path.join(root, "src/svc.ts");
-    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /T-1 belongs to feat-x, which is blocked: ⏳ feat-x waits for feat-b \(N-1\)/);
+    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /QT-T1 belongs to feat-x, which is blocked: ⏳ feat-x waits for feat-b \(N-1\)/);
     assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }), "main is not the implementer");
     fs.mkdirSync(path.join(root, ".hitl/archive"), { recursive: true });
     fs.renameSync(path.join(root, ".hitl/changes/feat-b"), path.join(root, ".hitl/archive/2026-11-06-feat-b"));
@@ -398,7 +398,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     const TA = "hitl:test-author";
     assertDeny(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, TA), /contract pack/);
     assertSilent(pre(root, "Read", { file_path: path.join(root, "tests/svc.test.ts") }, TA));
-    assertSilent(pre(root, "Read", { file_path: path.join(root, ".hitl/index/contracts/T-1.md") }, TA));
+    assertSilent(pre(root, "Read", { file_path: path.join(root, ".hitl/index/contracts/QT-T1.md") }, TA));
     assertSilent(pre(root, "Read", { file_path: path.join(root, ".hitl/tasks/feat-x.md") }, TA));
     assertSilent(pre(root, "Read", { file_path: path.join(root, "package.json") }, TA));
     // plugin files outside the project (templates, references) stay readable
@@ -447,14 +447,14 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
   test("Bash allowlists for test-author and reviewer", async () => {
     const { root } = await mkProject();
     const TA = "hitl:test-author", RV = "hitl:reviewer";
-    assertSilent(pre(root, "Bash", { command: "hitl-index test --task T-1 --json" }, TA));
-    assertSilent(pre(root, "Bash", { command: `node "/p/scripts/hitl-index.mjs" context T-1 --contract` }, TA));
-    assertDeny(pre(root, "Bash", { command: "hitl-index test --task T-1; cat src/svc.ts" }, TA), /test-author may run only/);
+    assertSilent(pre(root, "Bash", { command: "hitl-index test --task QT-T1 --json" }, TA));
+    assertSilent(pre(root, "Bash", { command: `node "/p/scripts/hitl-index.mjs" context QT-T1 --contract` }, TA));
+    assertDeny(pre(root, "Bash", { command: "hitl-index test --task QT-T1; cat src/svc.ts" }, TA), /test-author may run only/);
     assertDeny(pre(root, "Bash", { command: "cat src/svc.ts" }, TA));
     assertDeny(pre(root, "Bash", { command: "hitl-index test $(cat src/svc.ts)" }, TA));
     assertDeny(pre(root, "Bash", { command: "hitl-index drift" }, TA));
     assertSilent(pre(root, "Bash", { command: "git diff HEAD~1 -- src" }, RV));
-    assertSilent(pre(root, "Bash", { command: "hitl-index drift --task T-1 --json" }, RV));
+    assertSilent(pre(root, "Bash", { command: "hitl-index drift --task QT-T1 --json" }, RV));
     assertDeny(pre(root, "Bash", { command: "git diff > out.txt" }, RV), /reviewer may run only/);
     // B7: `git -C <path> [--no-pager] diff|log|show|blame` is a natural reviewer form
     assertSilent(pre(root, "Bash", { command: "git -C /abs/proj diff HEAD -- src" }, RV));
@@ -462,7 +462,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: "git -C . push" }, RV), /reviewer may run only/);
     assertDeny(pre(root, "Bash", { command: "git -C . diff | tee x" }, RV), /reviewer may run only/);
     assertDeny(pre(root, "Bash", { command: "rm -rf src" }, "hitl:finding-verifier"));
-    assertSilent(pre(root, "Write", { file_path: path.join(root, ".hitl/reviews/T-1/findings-contract.json"), content: "{}" }, RV));
+    assertSilent(pre(root, "Write", { file_path: path.join(root, ".hitl/reviews/QT-T1/findings-contract.json"), content: "{}" }, RV));
     assertDeny(pre(root, "Write", { file_path: path.join(root, "src/svc.ts"), content: "x" }, RV), /reviews/);
   });
 
@@ -509,7 +509,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     for (const command of ["hitl-index change --json", "hitl-index status --brief", "hitl-index spec list --json", "hitl-index spec show ACC-R1 --change feat-x --json",
       "hitl-index context UserService.createUser --json", `node "/p/scripts/hitl-index.mjs" change --json`])
       assertSilent(pre(root, "Bash", { command }, WR));
-    for (const command of ["hitl-index status --sync-tags", "hitl-index context T-1 --out x.md", "hitl-index context T-1 --out=x.md", "hitl-index spec validate feat-x",
+    for (const command of ["hitl-index status --sync-tags", "hitl-index context QT-T1 --out x.md", "hitl-index context QT-T1 --out=x.md", "hitl-index spec validate feat-x",
       "hitl-index note add --change feat-x --kind spec --text x", "hitl-index route --json", "hitl-index change --json > x", "cat src/svc.ts", "hitl-index change --json && rm -rf src"])
       assertDeny(pre(root, "Bash", { command }, WR), /work-router may run only/);
     assertSilent(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, WR));
@@ -519,47 +519,47 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
   test("approve token: human-only, consumed once, dry-run and --by auto exempt", async () => {
     const { root } = await mkProject();
     const sid = "tok1";
-    const cmd = "hitl-index approve T-1 --stage skeleton --by human --json";
+    const cmd = "hitl-index approve QT-T1 --stage skeleton --by human --json";
     assertDeny(pre(root, "Bash", { command: cmd }, null, sid), /human-only/);
-    assertSilent(pre(root, "Bash", { command: "hitl-index approve T-1 --by auto" }, null, sid));
+    assertSilent(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by auto" }, null, sid));
     // chaining cannot hide a human approve behind --by auto / --dry-run elsewhere in the line
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by auto; hitl-index approve T-1 --by human" }, null, sid), /human-only/);
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human && echo --dry-run" }, null, sid), /human-only/);
-    const ps = hook("prompt-submit.mjs", { session_id: sid, cwd: root, hook_event_name: "UserPromptSubmit", prompt: "/hitl:approve T-1 skeleton" });
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by auto; hitl-index approve QT-T1 --by human" }, null, sid), /human-only/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human && echo --dry-run" }, null, sid), /human-only/);
+    const ps = hook("prompt-submit.mjs", { session_id: sid, cwd: root, hook_event_name: "UserPromptSubmit", prompt: "/hitl:approve QT-T1 skeleton" });
     assert.equal(ps.code, 0, ps.err);
     assertDeny(pre(root, "Bash", { command: cmd }, "hitl:implementer", sid), /human-only/); // subagents never
     assertSilent(pre(root, "Bash", { command: cmd + " --dry-run" }, null, sid)); // does not consume
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-2 --by human" }, null, sid), /token is for T-1/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T2 --by human" }, null, sid), /token is for QT-T1/);
     assertDeny(pre(root, "Bash", { command: cmd + "; echo EXIT=$?" }, null, sid), /alone.*token is kept/); // not consumed
     assertAllow(pre(root, "Bash", { command: cmd }, null, sid)); // consumed + explicit allow (no later permission prompt)
     assertDeny(pre(root, "Bash", { command: cmd }, null, sid), /human-only/);
     // no --by counts as human; expired token denied
-    fs.writeFileSync(path.join(root, ".hitl/index/.session/tok1.json"), JSON.stringify({ approveToken: { at: Date.now() - 11 * 60 * 1000, args: "T-1" } }));
-    assertDeny(pre(root, "Bash", { command: `node /x/scripts/hitl-index.mjs approve T-1` }, null, sid), /human-only/);
+    fs.writeFileSync(path.join(root, ".hitl/index/.session/tok1.json"), JSON.stringify({ approveToken: { at: Date.now() - 11 * 60 * 1000, args: "QT-T1" } }));
+    assertDeny(pre(root, "Bash", { command: `node /x/scripts/hitl-index.mjs approve QT-T1` }, null, sid), /human-only/);
     // B6: global flags, quoting/escaping and indirect forms cannot slip a human approve past the guard
-    for (const c of ["hitl-index --json approve T-1 --by human", "hitl-index --root . approve T-1", "hitl-index 'approve' T-1",
-      "hitl-index \\approve T-1", "h=hitl-index; $h approve T-1", "eval hitl-index approve T-1", "sh -c 'hitl-index approve T-1'",
-      `node "/x/scripts/hitl-index.mjs" --json approve T-1 --by human`])
+    for (const c of ["hitl-index --json approve QT-T1 --by human", "hitl-index --root . approve QT-T1", "hitl-index 'approve' QT-T1",
+      "hitl-index \\approve QT-T1", "h=hitl-index; $h approve QT-T1", "eval hitl-index approve QT-T1", "sh -c 'hitl-index approve QT-T1'",
+      `node "/x/scripts/hitl-index.mjs" --json approve QT-T1 --by human`])
       assertDeny(pre(root, "Bash", { command: c }, null, "b6"), /human-only|literally/);
-    for (const c of ["hitl-index --json approve T-1 --by auto", "hitl-index approve T-1 --dry-run", "hitl-index review-decide T-1 F-1 --note 'approve it'", "git commit -m 'approve'"])
+    for (const c of ["hitl-index --json approve QT-T1 --by auto", "hitl-index approve QT-T1 --dry-run", "hitl-index review-decide QT-T1 F-1 --note 'approve it'", "git commit -m 'approve'"])
       assertSilent(pre(root, "Bash", { command: c }, null, "b6"));
     // a non-approve prompt (e.g. a background task notification) issues no token
-    hook("prompt-submit.mjs", { session_id: "tok2", cwd: root, hook_event_name: "UserPromptSubmit", prompt: "<task-notification> /hitl:approve T-1" });
+    hook("prompt-submit.mjs", { session_id: "tok2", cwd: root, hook_event_name: "UserPromptSubmit", prompt: "<task-notification> /hitl:approve QT-T1" });
     assertDeny(pre(root, "Bash", { command: cmd }, null, "tok2"), /human-only/);
   });
 
   test("0.9 --ack: human approvals only, and only the note ids the user typed", async () => {
     const { root } = await mkProject();
     const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
-    for (const c of ["hitl-index approve T-1 --stage tests --by auto --ack N-1", "hitl-index approve T-1 --stage tests --by human-override --ack N-1",
-      "hitl-index approve T-1 --by auto --ack=N-1 --dry-run"])
+    for (const c of ["hitl-index approve QT-T1 --stage tests --by auto --ack N-1", "hitl-index approve QT-T1 --stage tests --by human-override --ack N-1",
+      "hitl-index approve QT-T1 --by auto --ack=N-1 --dry-run"])
       assertDeny(pre(root, "Bash", { command: c }, null, "ak0"), /--ack is human-only/);
-    prompt("/hitl:approve T-1 skeleton", "ak1");
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1 --by human" }, null, "ak1"), /--ack N-1 was not typed by the user.*token is kept/);
-    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --by human" }, null, "ak1"));
-    prompt("/hitl:approve T-1 skeleton --ack N-1,N-3", "ak2");
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1,N-2 --by human" }, null, "ak2"), /--ack N-2 was not typed/);
-    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1,N-3 --by human --json" }, null, "ak2"));
+    prompt("/hitl:approve QT-T1 skeleton", "ak1");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --stage skeleton --ack N-1 --by human" }, null, "ak1"), /--ack N-1 was not typed by the user.*token is kept/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve QT-T1 --stage skeleton --by human" }, null, "ak1"));
+    prompt("/hitl:approve QT-T1 skeleton --ack N-1,N-3", "ak2");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --stage skeleton --ack N-1,N-2 --by human" }, null, "ak2"), /--ack N-2 was not typed/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve QT-T1 --stage skeleton --ack N-1,N-3 --by human --json" }, null, "ak2"));
   });
 
   test("approve token for a change's intent stage: bound to that change id, --by human only, task tokens do not cross", async () => {
@@ -569,14 +569,14 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     // no token; --by auto / human-override refused for the intent stage in any form (dry run too)
     assertDeny(pre(root, "Bash", { command: ok }, null, "ci0"), /human-only/);
     for (const c of ["hitl-index approve --change feat-x --stage intent --by auto", "hitl-index approve --change feat-x --by auto --dry-run",
-      "hitl-index approve --change feat-x --stage intent --by human-override", "hitl-index approve T-1 --stage intent --by auto"])
+      "hitl-index approve --change feat-x --stage intent --by human-override", "hitl-index approve QT-T1 --stage intent --by auto"])
       assertDeny(pre(root, "Bash", { command: c }, null, "ci0"), /Intent re-approval is human-only/);
     prompt("/hitl:approve feat-x intent", "ci0");
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --stage intent --by auto" }, null, "ci0"), /Intent re-approval is human-only/);
     // a task token never authorizes --change; the token is kept on that deny
-    prompt("/hitl:approve T-1", "ci1");
-    assertDeny(pre(root, "Bash", { command: ok }, null, "ci1"), /token is for T-1/);
-    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ci1"));
+    prompt("/hitl:approve QT-T1", "ci1");
+    assertDeny(pre(root, "Bash", { command: ok }, null, "ci1"), /token is for QT-T1/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human" }, null, "ci1"));
     // a token typed without a T-id (any one task) does not authorize --change either
     prompt("/hitl:approve", "ci2");
     assertDeny(pre(root, "Bash", { command: ok }, null, "ci2"), /not bound to a change/);
@@ -584,11 +584,11 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     prompt("/hitl:approve feat-x intent a,b", "ci3");
     const sess = JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/ci3.json"), "utf8"));
     assert.equal(sess.approveToken.change, "feat-x"); assert.equal(sess.approveToken.stage, "intent");
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ci3"), /for change feat-x/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human" }, null, "ci3"), /for change feat-x/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-y --stage intent --by human" }, null, "ci3"), /for change feat-x/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --change feat-y --stage intent" }, null, "ci3"), /for change feat-x/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-x --by human" }, null, "ci3"), /Run exactly/);
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --change feat-x --stage intent --by human" }, null, "ci3"), /names a change, not a task/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --change feat-x --stage intent --by human" }, null, "ci3"), /names a change, not a task/);
     assertDeny(pre(root, "Bash", { command: ok }, "hitl:implementer", "ci3"), /human-only/);
     assertDeny(pre(root, "Bash", { command: ok }, "general-purpose", "ci3"), /human-only/);
     assertDeny(pre(root, "Bash", { command: ok + " && echo ok" }, null, "ci3"), /alone/);
@@ -596,8 +596,8 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertAllow(pre(root, "Bash", { command: "hitl-index approve --change=feat-x --stage=intent --symbols a,b" }, null, "ci3"));
     assertDeny(pre(root, "Bash", { command: ok }, null, "ci3"), /human-only/); // one use
     // "<word> intent" never binds a stage word or a T-id as a change
-    prompt("/hitl:approve T-1 intent", "ci4");
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change T-1 --stage intent" }, null, "ci4"), /token is for T-1/);
+    prompt("/hitl:approve QT-T1 intent", "ci4");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change QT-T1 --stage intent" }, null, "ci4"), /token is for QT-T1/);
   });
 
   test("approve token for a change's accept stage: bound to (change, accept); intent and task tokens never cross", async () => {
@@ -617,15 +617,15 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assert.equal(sess.approveToken.change, "refactor-x"); assert.equal(sess.approveToken.stage, "accept");
     assertDeny(pre(root, "Bash", { command: int }, null, "ca2"), /token is for change refactor-x \(accept\)/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change refactor-x --by human" }, null, "ca2"), /Run exactly: hitl-index approve --change refactor-x --stage accept/);
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, "ca2"), /for change refactor-x \(accept\)/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human" }, null, "ca2"), /for change refactor-x \(accept\)/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change refactor-y --stage accept --by human" }, null, "ca2"), /for change refactor-x/);
     assertDeny(pre(root, "Bash", { command: acc }, "hitl:implementer", "ca2"), /human-only/);
     assertSilent(pre(root, "Bash", { command: "hitl-index approve --change refactor-x --stage accept --dry-run" }, null, "ca2"));
     assertAllow(pre(root, "Bash", { command: "hitl-index approve --change=refactor-x --stage=accept --symbols a,b" }, null, "ca2"));
     assertDeny(pre(root, "Bash", { command: acc }, null, "ca2"), /human-only/); // one use
     // a task token authorizes neither change stage
-    prompt("/hitl:approve T-1", "ca3");
-    assertDeny(pre(root, "Bash", { command: acc }, null, "ca3"), /token is for T-1/);
+    prompt("/hitl:approve QT-T1", "ca3");
+    assertDeny(pre(root, "Bash", { command: acc }, null, "ca3"), /token is for QT-T1/);
   });
 
   test("0.9 reopen / dismiss / defer tokens: human-only, bound to (change, stage, note, target); no other token crosses", async () => {
@@ -642,7 +642,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     }
     // a reopen token: only reopen of that change; intent/accept/task/dismiss never cross
     prompt("/hitl:approve feat-x reopen", "r1");
-    for (const c of ["hitl-index approve --change feat-x --stage intent --by human", "hitl-index approve --change feat-x --stage accept --by human", dis, "hitl-index approve T-1 --by human"])
+    for (const c of ["hitl-index approve --change feat-x --stage intent --by human", "hitl-index approve --change feat-x --stage accept --by human", dis, "hitl-index approve QT-T1 --by human"])
       assertDeny(pre(root, "Bash", { command: c }, null, "r1"), /token is for change feat-x \(reopen\)/);
     assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-y --stage reopen --by human" }, null, "r1"), /for change feat-x/);
     assertAllow(pre(root, "Bash", { command: reo }, null, "r1"));
@@ -651,9 +651,9 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: reo.replace("--by", "--note N-5 --by") }, null, "r2"), /reopen N-4/);
     assertAllow(pre(root, "Bash", { command: reo.replace("--by", "--note N-4 --by") }, null, "r2"));
     // intent/accept/task tokens never authorize reopen
-    for (const p of ["/hitl:approve feat-x intent", "/hitl:approve feat-x accept", "/hitl:approve T-1"]) {
+    for (const p of ["/hitl:approve feat-x intent", "/hitl:approve feat-x accept", "/hitl:approve QT-T1"]) {
       prompt(p, "r3");
-      assertDeny(pre(root, "Bash", { command: reo }, null, "r3"), /token is (for change feat-x \((intent|accept)\)|for T-1)/);
+      assertDeny(pre(root, "Bash", { command: reo }, null, "r3"), /token is (for change feat-x \((intent|accept)\)|for QT-T1)/);
     }
     // dismiss/defer: bound to the typed note (and target)
     prompt("/hitl:approve feat-x dismiss N-3 the security review dropped it", "r4");
@@ -698,8 +698,8 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       `cat ${N}`, `grep -n "status:" ${N}`, `jq '.symbols | length' .hitl/index/skeleton.lock.json`, `head -40 ${N} | grep N-`,
       `sed -n 1,20p ${N}`, `git diff -- ${N}`, `git log -p .hitl/index/skeleton.lock.json`, `git show HEAD:${N}`,
       `cat ${N} > /tmp/notes.copy`, `cp ${N} /tmp/notes.copy`, `grep x ${N} 2>/dev/null >&2`,
-      `hitl-index note apply --change feat-x N-2 --impact ACC-R1=behaviour`, `node /p/scripts/hitl-index.mjs context T-1 --out .hitl/index/contracts/T-1.md`,
-      `hitl-index context T-1 --out .hitl/index/contracts/T-1.md && cat .hitl/index/contracts/T-1.md`,
+      `hitl-index note apply --change feat-x N-2 --impact ACC-R1=behaviour`, `node /p/scripts/hitl-index.mjs context QT-T1 --out .hitl/index/contracts/QT-T1.md`,
+      `hitl-index context QT-T1 --out .hitl/index/contracts/QT-T1.md && cat .hitl/index/contracts/QT-T1.md`,
       `sed -i 's/a/b/' src/a.ts`, `echo hi > .hitl/.inbox/route.json`, `cat > .hitl/changes/feat-x/proposal.md <<'EOF'\nx\nEOF`,
       `cat > /tmp/notes.txt <<'EOF'\necho x > ${N}\nrm -rf .hitl/index\nEOF`,
       `cp .hitl/archive/2026-01-01-feat-a/tasks.md /tmp/t.md`, `python3 -c "print(open('${N}').read())"`,
@@ -715,44 +715,44 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     const sid = "ov1";
     const prompt = (p, s = sid) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
     const ov = (T, stage = "skeleton") => `hitl-index approve ${T} --stage ${stage} --by human-override --json`;
-    assertDeny(pre(root, "Bash", { command: ov("T-1") }, null, sid), /override is human-only/);
-    prompt("/hitl:implement T-1"); // no --lane fast → no token
-    assertDeny(pre(root, "Bash", { command: ov("T-1") }, null, sid), /override is human-only/);
-    prompt("/hitl:implement T-1 --lane fast");
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") }, null, sid), /override is human-only/);
+    prompt("/hitl:implement QT-T1"); // no --lane fast → no token
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") }, null, sid), /override is human-only/);
+    prompt("/hitl:implement QT-T1 --lane fast");
     // the approve token is not an override token and vice versa
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human" }, null, sid), /human-only: type \/hitl:approve/);
-    assertDeny(pre(root, "Bash", { command: ov("T-1") }, "hitl:implementer", sid), /override is human-only/);
-    assertDeny(pre(root, "Bash", { command: ov("T-2") }, null, sid), /covers T-1/);
-    assertDeny(pre(root, "Bash", { command: ov("T-1", "done") }, null, sid), /explicit --stage skeleton\|tests/);
-    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --by human-override" }, null, sid), /explicit --stage/);
-    assertDeny(pre(root, "Bash", { command: ov("T-1") + " && echo ok" }, null, sid), /alone/);
-    assertDeny(pre(root, "Bash", { command: `hitl-index approve T-1 --by auto; ${ov("T-1")}` }, null, sid), /alone/);
-    assertAllow(pre(root, "Bash", { command: ov("T-1") }, null, sid));
-    assertAllow(pre(root, "Bash", { command: ov("T-1", "tests") }, null, sid)); // not one-use within the run
-    assertAllow(pre(root, "Bash", { command: `node /x/scripts/hitl-index.mjs approve T-1 tests --by=human-override` }, null, sid));
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human" }, null, sid), /human-only: type \/hitl:approve/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") }, "hitl:implementer", sid), /override is human-only/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T2") }, null, sid), /covers QT-T1/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1", "done") }, null, sid), /explicit --stage skeleton\|tests/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve QT-T1 --by human-override" }, null, sid), /explicit --stage/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") + " && echo ok" }, null, sid), /alone/);
+    assertDeny(pre(root, "Bash", { command: `hitl-index approve QT-T1 --by auto; ${ov("QT-T1")}` }, null, sid), /alone/);
+    assertAllow(pre(root, "Bash", { command: ov("QT-T1") }, null, sid));
+    assertAllow(pre(root, "Bash", { command: ov("QT-T1", "tests") }, null, sid)); // not one-use within the run
+    assertAllow(pre(root, "Bash", { command: `node /x/scripts/hitl-index.mjs approve QT-T1 tests --by=human-override` }, null, sid));
     // a plain reply at a gate keeps it; any other slash command ends the run
     prompt("done");
-    assertAllow(pre(root, "Bash", { command: ov("T-1", "tests") }, null, sid));
-    prompt("/hitl:review T-1");
-    assertDeny(pre(root, "Bash", { command: ov("T-1", "tests") }, null, sid), /override is human-only/);
+    assertAllow(pre(root, "Bash", { command: ov("QT-T1", "tests") }, null, sid));
+    prompt("/hitl:review QT-T1");
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1", "tests") }, null, sid), /override is human-only/);
     // expired
-    prompt("/hitl:implement T-1 --lane fast");
+    prompt("/hitl:implement QT-T1 --lane fast");
     const f = path.join(root, ".hitl/index/.session/ov1.json");
     const sess = JSON.parse(fs.readFileSync(f, "utf8"));
-    assert.deepEqual(sess.overrideToken.tasks, ["T-1"]);
+    assert.deepEqual(sess.overrideToken.tasks, ["QT-T1"]);
     sess.overrideToken.at = Date.now() - 4 * 60 * 60 * 1000; fs.writeFileSync(f, JSON.stringify(sess));
-    assertDeny(pre(root, "Bash", { command: ov("T-1") }, null, sid), /override is human-only/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") }, null, sid), /override is human-only/);
     if (!REAL) return;
     // feature run: token bound to the tasks of that file
     fs.writeFileSync(path.join(root, ".hitl/tasks/feat-x.md"), ["# X Tasks", "← Planning: .hitl/planning/feat-x.md", "",
-      "## T-1 One", "- prio: P1 | risk: high (security) | impl: agent | blocked-by: none | status: todo", "",
-      "## T-2 Two", "- prio: P2 | risk: high | impl: agent | blocked-by: T-1 | status: todo", ""].join("\n"));
-    fs.writeFileSync(path.join(root, ".hitl/tasks/other.md"), ["# O", "", "## T-3 Three", "- prio: P1 | risk: high | impl: agent | blocked-by: none | status: todo", ""].join("\n"));
+      "## QT-T1 One", "- prio: P1 | risk: high (security) | impl: agent | blocked-by: none | status: todo", "",
+      "## QT-T2 Two", "- prio: P2 | risk: high | impl: agent | blocked-by: QT-T1 | status: todo", ""].join("\n"));
+    fs.writeFileSync(path.join(root, ".hitl/tasks/other.md"), ["# O", "", "## QT-T3 Three", "- prio: P1 | risk: high | impl: agent | blocked-by: none | status: todo", ""].join("\n"));
     prompt("/hitl:implement --feature .hitl/planning/feat-x.md --lane fast", "ov2");
-    assertAllow(pre(root, "Bash", { command: ov("T-2") }, null, "ov2"));
-    assertDeny(pre(root, "Bash", { command: ov("T-3") }, null, "ov2"), /feature feat-x \(T-1, T-2\)/);
+    assertAllow(pre(root, "Bash", { command: ov("QT-T2") }, null, "ov2"));
+    assertDeny(pre(root, "Bash", { command: ov("QT-T3") }, null, "ov2"), /feature feat-x \(QT-T1, QT-T2\)/);
     prompt("/hitl:implement --feature nope --lane fast", "ov3"); // unresolvable → no token
-    assertDeny(pre(root, "Bash", { command: ov("T-1") }, null, "ov3"), /override is human-only/);
+    assertDeny(pre(root, "Bash", { command: ov("QT-T1") }, null, "ov3"), /override is human-only/);
   });
 
   test("feature summary report is generated (agents cannot write it)", async () => {
@@ -829,7 +829,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       const o = json(r);
       assert.equal(o.decision, "block");
       assert.match(o.reason, /Fresh passing tests required before finishing: .*createUser/);
-      assert.match(o.reason, /T-1/);
+      assert.match(o.reason, /QT-T1/);
       // a SubagentStop seen as main (no agent_type) has no offenders of its role; it must not reset the Stop streak
       hook("stop.mjs", { session_id: "st", cwd: root, hook_event_name: "SubagentStop", agent_id: "bg" });
     }
@@ -873,9 +873,9 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
 
   test("tagsKey: missing/empty dec (pre-v2 index) equals dec: []; real changes still differ; @dec change denied to implementer", async () => {
     const { tagsKey } = await import(pathToFileURL(path.join(HOOKS, "common.mjs")).href);
-    const old = { task: ["T-1"], impl: "agent", calls: ["findByEmail"], concurrency: "none" };
+    const old = { task: ["QT-T1"], impl: "agent", calls: ["findByEmail"], concurrency: "none" };
     assert.equal(tagsKey(old), tagsKey({ ...old, dec: [] }));
-    assert.equal(tagsKey({ concurrency: "none", impl: "agent", calls: ["findByEmail"], task: ["T-1"] }), tagsKey(old), "key order");
+    assert.equal(tagsKey({ concurrency: "none", impl: "agent", calls: ["findByEmail"], task: ["QT-T1"] }), tagsKey(old), "key order");
     assert.equal(tagsKey(null), tagsKey({}));
     assert.notEqual(tagsKey(old), tagsKey({ ...old, dec: ["D-1"] }));
     assert.notEqual(tagsKey(old), tagsKey({ ...old, calls: [] }));
@@ -898,7 +898,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assert.ok(!/Linear/.test(r.out), r.out);
     fs.writeFileSync(q, JSON.stringify({ schema: "hitl.linear-queue/1", items: [] }));
     assert.ok(!/Linear/.test(ss("lq3").out));
-    fs.writeFileSync(q, JSON.stringify({ schema: "hitl.linear-queue/1", items: [{ op: "updateIssue", task: "T-1" }, { op: "createIssue", task: "T-2" }] }));
+    fs.writeFileSync(q, JSON.stringify({ schema: "hitl.linear-queue/1", items: [{ op: "updateIssue", task: "QT-T1" }, { op: "createIssue", task: "QT-T2" }] }));
     r = ss("lq4");
     const lines = r.out.trim().split("\n");
     assert.ok(lines.length <= 4, r.out);

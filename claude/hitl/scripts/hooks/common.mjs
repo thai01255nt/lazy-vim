@@ -124,7 +124,7 @@ export function run(main, { watchdogMs = 8000 } = {}) {
 // ---------------------------------------------------------------- session file
 // .hitl/index/.session/<session_id>.json
 // {touched:{[id]:{beforeBodyHash, beforeStub, role}}, stopBlocks, approveToken:{at,args}|null, reportedDrift:{[key]:at},
-//  overrideToken:{at,args,tasks:[T-ids],feature:name|null}|null}  (fast-lane override: `/hitl:implement … --lane fast`)
+//  overrideToken:{at,args,tasks:[task ids],feature:name|null}|null}  (fast-lane override: `/hitl:implement … --lane fast`)
 export function sessionDir(root) { return path.join(root, HITL_DIR, "index", ".session"); }
 function safeSid(sid) { return String(sid || "nosession").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "nosession"; }
 export function sessionFile(root, sid) { return path.join(sessionDir(root), safeSid(sid) + ".json"); }
@@ -239,21 +239,21 @@ const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent", "accept", "r
 const CHANGE_STAGE_WORDS = new Set(["intent", "accept", "reopen", "dismiss", "defer"]);
 /**
  * What a `/hitl:approve <args>` token authorizes, from its raw args (first token decides):
- * `T-n …` → {kind:"task", task}; `<change-id> intent|accept|reopen|dismiss|defer …` → {kind:"change", change, stage},
+ * `<KEY>-T<n> …` (e.g. `PWR-T3`) → {kind:"task", task}; `<change-id> intent|accept|reopen|dismiss|defer …` → {kind:"change", change, stage},
  * plus `note` (the `N-k` after reopen/dismiss/defer) and `to` (defer's target change); anything else (no args, flags only) →
- * {kind:"any"} (any one task approve, never a --change approve). A change id is never a T-id.
+ * {kind:"any"} (any one task approve, never a --change approve). A change id is never a task id.
  */
 export function approveBinding(args) {
   const toks = String(args || "").trim().split(/[\s,]+/).filter(Boolean);
   const first = toks[0] || "";
-  if (/^T-\d+$/.test(first)) return { kind: "task", task: first };
+  if (/^[A-Z]{2,5}-T\d+$/.test(first)) return { kind: "task", task: first };
   if (CHANGE_STAGE_WORDS.has(toks[1]) && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) {
     const b = { kind: "change", change: first, stage: toks[1] };
     if (["reopen", "dismiss", "defer"].includes(b.stage) && /^N-\d+$/.test(toks[2] || "")) b.note = toks[2];
     if (b.stage === "defer" && b.note && toks[3]) b.to = toks[3];
     return b;
   }
-  if (/\bT-\d+\b/.test(args || "")) return { kind: "task", task: /\bT-\d+\b/.exec(args)[0] }; // legacy: a T-id anywhere binds to it
+  if (/\b[A-Z]{2,5}-T\d+\b/.test(args || "")) return { kind: "task", task: /\b[A-Z]{2,5}-T\d+\b/.exec(args)[0] }; // a task id anywhere binds to it
   return { kind: "any" };
 }
 
@@ -265,7 +265,7 @@ const HINT = {
   INTENT_CHANGED: (it) => fixOr(it, (x) => `Needs human re-approval (/hitl:approve ${x.task || "<T>"}).`),
   TODO_FLOW_CHANGED: (it) => fixOr(it, () => "TODO(impl) steps changed since approval."),
   ARCHIVED_BODY_CHANGED: (it) => fixOr(it, () => "Body of an archived change's symbol changed; the user claims it into an open task or accepts it (/hitl:sync)."),
-  ORPHAN: (it) => `add @task ${it.task || "T-n"} @impl agent @status skeleton.`,
+  ORPHAN: (it) => `add @task ${it.task || "<KEY>-T<n>"} @impl agent @status skeleton.`,
   DELETED_REFERENCED: () => "Restore it or update the referencing symbols.",
   DELETED_LOCKED: () => "Locked symbol removed; the user must re-approve or restore it.",
   RENAMED: (it) => `Locked symbol renamed to ${it.affected?.[0]?.split("#")[1] || "?"}; update the tasks md ### Symbols row and @covers, then the user re-approves (/hitl:approve ${it.task || "<T>"} skeleton).`,

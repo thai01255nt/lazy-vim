@@ -4,9 +4,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class UserServiceTest {
-    /** @covers UserService.createUser @ac T-1.AC1 @kind example @origin skeleton */
+    /** @covers UserService.createUser @ac QT-T1.AC1 @kind example @origin skeleton */
     @Test
-    @Disabled("TODO(test): T-1.AC1")
+    @Disabled("TODO(test): QT-T1.AC1")
     void t1Ac1RejectsDuplicateEmail() {
     }
 

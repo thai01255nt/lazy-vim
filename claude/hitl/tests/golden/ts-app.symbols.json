@@ -47,16 +47,16 @@
     },
     "tests/userService.test.ts#UserService.createUser": {
       "sigHash": "77af4964bda625e5",
-      "bodyHash": "8d90ad173e6f67f8",
+      "bodyHash": "069a5da050e02e12",
       "intentHash": "230332cb143fc428"
     },
-    "tests/userService.test.ts#UserService.createUser > T-1.AC1 rejects duplicate email in any case": {
-      "sigHash": "4b09e92c38e92b8c",
+    "tests/userService.test.ts#UserService.createUser > QT-T1.AC1 rejects duplicate email in any case": {
+      "sigHash": "b8dbbc664128613f",
       "bodyHash": "e3b0c44298fc1c14",
       "intentHash": "230332cb143fc428"
     },
-    "tests/userService.test.ts#UserService.createUser > T-1.AC2 returns the saved user": {
-      "sigHash": "d77952fd9dcab8c6",
+    "tests/userService.test.ts#UserService.createUser > QT-T1.AC2 returns the saved user": {
+      "sigHash": "ec1f7b6da6ab8b14",
       "bodyHash": "e3b0c44298fc1c14",
       "intentHash": "230332cb143fc428"
     }

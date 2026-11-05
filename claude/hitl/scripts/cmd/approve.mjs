@@ -9,7 +9,8 @@
 // `--stage defer --note N-k --to <change>` close a note. All human-only; `<T> --ack N-k` releases a note for one task.
 // without a note for each finding.
 import { parseArgs } from "node:util";
-import { planApproval, writeLock, APPROVERS, CHANGE_STAGES, NOTE_STAGES, lockedTasks } from "../lib/lock.mjs";
+import { planApproval, writeLock, APPROVERS, CHANGE_STAGES, NOTE_STAGES, lockedTasks, lockLegacyIds, LEGACY_LOCK_MESSAGE } from "../lib/lock.mjs";
+import { TASK_ID_RE } from "../lib/specids.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { computeStatuses } from "../lib/status.mjs";
 import { computeNext } from "../lib/nextstep.mjs";
@@ -18,7 +19,7 @@ import { loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
 import { BLOCKING, incomingState, readNotes, updateNotes, todayIso, nextNoteId, refHashes, validateRefs } from "../lib/notes.mjs";
 import { findChange } from "../lib/changes.mjs";
 
-const USAGE = "usage: hitl-index approve <T-id> [--stage skeleton|tests|done] [--symbols a,b] [--ack N-k] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent|accept|reopen [--symbols a,b] [--note N-k] --by human [--dry-run]  |  hitl-index approve --change <change-id> --stage dismiss --note N-k --reason \"…\" --by human  |  hitl-index approve --change <change-id> --stage defer --note N-k --to <change-id> --by human";
+const USAGE = "usage: hitl-index approve <KEY>-T<n> [--stage skeleton|tests|done] [--symbols a,b] [--ack N-k] [--by human|auto|human-override] [--dry-run] [--force]  |  hitl-index approve --change <change-id> --stage intent|accept|reopen [--symbols a,b] [--note N-k] --by human [--dry-run]  |  hitl-index approve --change <change-id> --stage dismiss --note N-k --reason \"…\" --by human  |  hitl-index approve --change <change-id> --stage defer --note N-k --to <change-id> --by human";
 const OPTS = { ack: { type: "string" }, note: { type: "string" }, reason: { type: "string" }, to: { type: "string" }, change: { type: "string" }, stage: { type: "string" }, symbols: { type: "string" }, by: { type: "string" }, "dry-run": { type: "boolean" }, force: { type: "boolean" }, json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 
 export async function run(argv, ctx) {
@@ -30,7 +31,8 @@ export async function run(argv, ctx) {
   if (CHANGE_STAGES.includes(v.stage) || NOTE_STAGES.includes(v.stage)) { console.error(`--stage ${v.stage} takes --change <change-id> instead of a task id: hitl-index approve --change <id> --stage ${v.stage} --by human`); return 2; }
   if (!v.stage && ["skeleton", "tests", "done"].includes(positionals[1])) v.stage = positionals[1];
   if (!v.symbols && positionals.length > 2) v.symbols = positionals.slice(2).join(",");
-  if (!T || !/^T-\d+$/.test(T)) { console.error(USAGE); return 2; }
+  if (T && /^T-\d+$/.test(T)) { console.error(`${T} is a pre-0.13 task id: run /hitl:migrate (ids are now <KEY>-T<n>, e.g. PWR-T3)`); return 1; }
+  if (!T || !TASK_ID_RE.test(T)) { console.error(USAGE); return 2; }
   const by = v.by || "human";
   if (!APPROVERS.includes(by)) { console.error(`--by must be one of ${APPROVERS.join("|")}`); return 2; }
   const ack = v.ack ? String(v.ack).split(",").map((x) => x.trim()).filter(Boolean) : [];
@@ -38,6 +40,7 @@ export async function run(argv, ctx) {
   if (ack.length && by !== "human") { console.error(`--ack is human-only: --by human (not --by ${by})`); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   const g = await gather(ctx.root, ctx.config, { drift: false });
+  if (lockLegacyIds(g.lock).length) { console.error(`🛑 ${LEGACY_LOCK_MESSAGE}`); return 1; }
   const task = g.tasks.find((t) => t.id === T);
   const noteDir = task?.change && !task.archived ? (await findChange(ctx.root, task.change))?.dir ?? null : null;
   const notes = noteDir ? await readNotes(ctx.root, noteDir) : [];
@@ -129,7 +132,7 @@ export async function run(argv, ctx) {
 async function runChange(v, positionals, ctx, json) {
   const C = typeof v.change === "string" ? v.change.trim() : "";
   const usage = "usage: hitl-index approve --change <change-id> [--stage intent|accept|reopen] [--symbols a,b] [--note N-k] --by human [--dry-run] [--json]  |  --stage dismiss --note N-k --reason \"…\"  |  --stage defer --note N-k --to <change-id>";
-  if (!C || !/^[A-Za-z0-9][\w.-]*$/.test(C) || /^T-\d+$/.test(C)) { console.error(usage); return 2; }
+  if (!C || !/^[A-Za-z0-9][\w.-]*$/.test(C) || TASK_ID_RE.test(C) || /^T-\d+$/.test(C)) { console.error(usage); return 2; }
   if (positionals.length) { console.error(`--change takes no positional task/stage (got ${positionals.join(" ")}); ${usage}`); return 2; }
   const stage = v.stage || "intent";
   if (!CHANGE_STAGES.includes(stage) && !NOTE_STAGES.includes(stage)) { console.error(`--change approves only --stage intent, accept, reopen, dismiss or defer (got ${v.stage})`); return 2; }
@@ -145,6 +148,7 @@ async function runChange(v, positionals, ctx, json) {
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   if (NOTE_STAGES.includes(stage)) return noteDecision(stage, C, v, ctx, json);
   const g = await gather(ctx.root, ctx.config, { drift: false });
+  if (lockLegacyIds(g.lock).length) { console.error(`🛑 ${LEGACY_LOCK_MESSAGE}`); return 1; }
   const entry = stage === "reopen" ? await findChange(ctx.root, C) : null;
   if (stage === "reopen" && !entry) { console.error(`change ${C} not found`); return 1; }
   const notes = entry && !entry.archived ? await readNotes(ctx.root, entry.dir) : [];

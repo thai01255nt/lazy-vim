@@ -8,6 +8,7 @@
 //   note apply --change <id> [N-k] --impact "<ref>=<class>,…" [--from "…"] [--dry-run]
 // Releasing a block (ack, dismiss, defer, reopen) is not here: it is a human /hitl:approve form (hitl-index approve).
 import { parseArgv } from "../lib/project.mjs";
+import { TASK_ID_RE } from "../lib/specids.mjs";
 import { findChange, readChange, readLiving, effectiveView, resolveSpecRef, findInView } from "../lib/changes.mjs";
 import { ADD_KINDS, BLOCKING, applyCommand, incomingState, changedSinceNoted, isNoteId, nextNoteId, noteCounts, noteHitsTask, readNotes, refHashes, refKind,
   titleOf, todayIso, updateNotes, validateRefs, reopensLine } from "../lib/notes.mjs";
@@ -115,7 +116,7 @@ async function list(a, ctx, json) {
     entries = entries.filter((e) => e.id === a.change);
     if (!entries.length) throw fail(`no active change ${a.change}`);
   }
-  if (a.task && !/^T-\d+$/.test(a.task)) throw usage("--task takes a task id");
+  if (a.task && !TASK_ID_RE.test(a.task)) throw usage(`--task takes a task id (<KEY>-T<n>)${/^T-\d+$/.test(a.task) ? ": pre-0.13 id, run /hitl:migrate" : ""}`);
   const g = await gather(ctx.root, ctx.config, { drift: false });
   const out = [];
   for (const e of entries) {

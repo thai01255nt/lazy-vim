@@ -38,6 +38,16 @@ const walk = (p) => !fs.existsSync(p) ? [] : fs.statSync(p).isDirectory() ? fs.r
 const gitDirty = (proj, pathspec) => {
   try { return execFileSync("git", ["status", "--porcelain", "--", ...pathspec], { cwd: proj, encoding: "utf8" }).trim(); } catch { return "?"; }
 };
+// 0.13 ids: <KEY>-T<n>, <KEY>-T<n>.AC<k>, <KEY>-D<n>, <KEY>-R<n>[.S<k>], <KEY>-BR<n>, <KEY>-UC<n> (KEY = 2–5 capitals)
+const K = "[A-Z]{2,5}";
+/** Id of the spec block titled `title` in the project's change deltas or living specs (fixture keys may change), else null. */
+const specIdOf = (proj, title) => {
+  for (const f of walk(path.join(proj, ".hitl")).filter((x) => x.endsWith("spec.md"))) {
+    const m = new RegExp(`^### (?:Requirement|Rule|Flow): (${K}-(?:R|BR|UC)\\d+) ${reEsc(title)}\\s*$`, "m").exec(read(f) ?? "");
+    if (m) return m[1];
+  }
+  return null;
+};
 const skillCalls = (S) => S.tools.filter((t) => t.name === "Skill").map((t) => String(t.input.skill || t.input.command || ""));
 const bashCalls = (S) => S.tools.filter((t) => t.name === "Bash").map((t) => String(t.input.command || ""));
 // ordered main-thread events: {kind: "text", text} | {kind: "tool", name, input} (for "printed X before calling Y")
@@ -106,7 +116,7 @@ const STEP_RE = /^\s*--\s*TODO\(impl(?: T-\d+)?\):\s*(\d+)\.\s*(.*)$/;
 
 /** Plain replies: the first prose mention of each spec/finding id is followed (≤ 3 chars) by "(" or a quote. Ids that
  *  appear in a table row count as glossed (a title column is allowed). -> {ids, bare: [id]} */
-const ID_RE = /\b(?:[A-Z]{2,6}-(?:R|BR|UC)\d+(?:\.S\d+)?|F-\d+)\b/g;
+const ID_RE = /\b(?:[A-Z]{2,6}-(?:R|BR|UC|D|T)\d+(?:\.S\d+|\.AC\d+)?|F-\d+)\b/g;
 function idGlossing(text) {
   const lines = text.split("\n");
   const inTable = new Set(lines.filter((l) => /^\s*\|/.test(l)).flatMap((l) => l.match(ID_RE) ?? []));
@@ -155,21 +165,21 @@ const CHECKS = {
   // ---- amend (gate only, nothing written)
   amend_gate: (S) => ok(/📐/.test(S.text) && /Apply\?|Áp dụng\?/.test(S.text), "no 📐 delta preview + Apply? gate"),
   amend_no_write: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs"]); return ok(d === "", `files changed before the gate: ${d}`); },
-  amend_mentions_rule: (S) => ok(/ACC-BR1/.test(S.text), "ACC-BR1 not named"),
+  amend_mentions_rule: (S, P) => { const id = specIdOf(P, "Reset link validity"); return ok(id && S.text.includes(id), `${id ?? "the reset-link rule"} not named`); },
   // ---- churn (0.9): capture → note gate, impact block, blocked approval, reopen
   note_capture_gate: (S) => ok(/📌/.test(S.text) && /\(Y\/n\)/.test(S.text) && /feat-fee/.test(S.text), "no `📌 Note for feat-fee …? (Y/n)` gate"),
-  note_capture_refs: (S) => ok(/BIL-R1\.S2|BIL-R1\b/.test(S.text), "the note question names no BIL-R1 ref"),
+  note_capture_refs: (S) => ok(/FEE-R1\.S2|FEE-R1\b/.test(S.text), "the note question names no FEE-R1 ref"),
   churn_no_writes: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `changed before the gate: ${d}`); },
-  impact_block: (S) => ok(/🔁/.test(S.text) && /T-1\b/.test(S.text) && /test/i.test(S.text) && /behaviour|behavior/i.test(S.text), "no 🔁 Impact block naming T-1's tests and the behaviour class"),
+  impact_block: (S) => ok(/🔁/.test(S.text) && /FEE-T1\b/.test(S.text) && /test/i.test(S.text) && /behaviour|behavior/i.test(S.text), "no 🔁 Impact block naming FEE-T1's tests and the behaviour class"),
   approve_blocked_by_note: (S) => ok(/N-1/.test(S.text) && /ack|dismiss|amend/i.test(S.text), "refusal does not name N-1 and a way out"),
   lock_unchanged: (S, P) => ok(gitDirty(P, [".hitl/index/skeleton.lock.json", ".hitl/changes"]) === "", "lock or notes changed"),
   reopen_applied: (S, P) => {
     const L = json(read(path.join(P, ".hitl/index/skeleton.lock.json")) ?? "") || {};
     const n = Object.values(L.tests || {}).filter((t) => t.stage === "reopened").length;
-    const st = json(cli(P, "status", "T-1", "--json").out);
-    return ok(n === 1 && st?.tasks?.["T-1"]?.status === "reopened", `reopened tests ${n}, T-1 ${st?.tasks?.["T-1"]?.status}`);
+    const st = json(cli(P, "status", "FEE-T1", "--json").out);
+    return ok(n === 1 && st?.tasks?.["FEE-T1"]?.status === "reopened", `reopened tests ${n}, FEE-T1 ${st?.tasks?.["FEE-T1"]?.status}`);
   },
-  reopen_next_test: (S) => ok(/\/hitl:test T-1/.test(S.text), "next is not /hitl:test T-1"),
+  reopen_next_test: (S) => ok(/\/hitl:test FEE-T1/.test(S.text), "next is not /hitl:test FEE-T1"),
   // ---- 0.12: prerequisite change (--before) and the whole-change wait
   go_before_plan: (S) => ok(skillCalls(S).some((x) => /plan/.test(x)) && S.tools.some((t) => t.name === "Skill" && /plan/.test(String(t.input.skill || "")) && /--before\s+feat-fee\b/.test(String(t.input.args || ""))), "no Skill hitl:plan with --before feat-fee"),
   before_parent_untouched: (S, P) => { const d = gitDirty(P, [".hitl/changes/feat-fee/proposal.md", ".hitl/changes/feat-fee/specs", ".hitl/changes/feat-fee/tasks.md", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `the parent change or code changed: ${d}`); },
@@ -183,15 +193,15 @@ const CHECKS = {
   },
   design_madr: (S, P) => {
     const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? "";
-    const rec = /###\s*D-\d+/.test(t) && /Considered options/i.test(t) && /Decision outcome/i.test(t) && /Consequences/i.test(t);
-    const rows = (t.match(/^\|\s*D-\d+\s*\|/gm) ?? []).length;
+    const rec = new RegExp(`###\\s*${K}-D\\d+`).test(t) && /Considered options/i.test(t) && /Decision outcome/i.test(t) && /Consequences/i.test(t);
+    const rows = (t.match(new RegExp(`^\\|\\s*${K}-D\\d+\\s*\\|`, "gm")) ?? []).length;
     const warn = cli(P, "spec", "validate", "feat-password-reset", "--json").out;
     return ok(rec && rows >= 2 && !/DESIGN_DEC_INCOMPLETE/.test(warn), `madr=${rec} rows=${rows} incomplete=${/DESIGN_DEC_INCOMPLETE/.test(warn)}`);
   },
   design_serves: (S, P) => {
     const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? "";
-    const rows = t.split("\n").filter((l) => /^\|\s*D-\d+\s*\|/.test(l));
-    return ok(rows.length && rows.every((l) => /ACC-(R|BR|UC)\d+/.test(l)), "a D row serves nothing");
+    const rows = t.split("\n").filter((l) => new RegExp(`^\\|\\s*${K}-D\\d+\\s*\\|`).test(l));
+    return ok(rows.length && rows.every((l) => new RegExp(`${K}-(R|BR|UC)\\d+`).test(l.replace(new RegExp(`^\\|\\s*${K}-D\\d+`), ""))), "a decision row serves nothing");
   },
   design_no_signatures: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; const m = t.match(SIG_RE); return ok(!m, `signature-like: ${m?.[0]}`); },
   design_contracts: (S, P) => {
@@ -199,7 +209,7 @@ const CHECKS = {
     const sec = t.split(/^## /m).find((s) => s.startsWith("Contracts")) ?? "";
     return ok(/contracts\/[\w.-]+/.test(sec), "## Contracts lists no contracts/ file");
   },
-  design_test_strategy: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; return ok(/## Test strategy\s*\n[\s\S]*?ACC-R5/.test(t), "test strategy misses ACC-R5"); },
+  design_test_strategy: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; const id = specIdOf(P, "Reset password by email"); return ok(id && new RegExp(`## Test strategy\\s*\\n[\\s\\S]*?${reEsc(id)}\\b`).test(t), `test strategy misses ${id ?? "the reset requirement"}`); },
   design_risk_security: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; return ok(/## Risks[\s\S]*security/i.test(t), "no security risk"); },
   design_gate: (S) => ok(/Design complete\?|approved|Y\/n/i.test(S.text), "no close gate"),
   // ---- tasks
@@ -209,28 +219,28 @@ const CHECKS = {
   tasks_ac_scenarios: (S, P) => {
     // every AC carries a spec ref; scenario-level refs are preferred (ratio reported), requirement-level is allowed (AC_REQ_LEVEL info)
     const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? "";
-    const acs = t.split("\n").filter((l) => /^- \[[ x]\] T-\d+\.AC\d+/.test(l));
-    const withRef = acs.filter((l) => /\(ACC-(R|BR|UC)\d+/.test(l));
-    const withScn = acs.filter((l) => /\(ACC-R\d+\.S\d+/.test(l));
+    const acs = t.split("\n").filter((l) => new RegExp(`^- \\[[ x]\\] ${K}-T\\d+\\.AC\\d+`).test(l));
+    const withRef = acs.filter((l) => new RegExp(`\\(${K}-(R|BR|UC)\\d+`).test(l));
+    const withScn = acs.filter((l) => new RegExp(`\\(${K}-R\\d+\\.S\\d+`).test(l));
     return { ok: acs.length >= 3 && withRef.length === acs.length && withScn.length >= 1, why: `ACs ${acs.length}, ref ${withRef.length}, scenario-level ${withScn.length}`, ratio: acs.length ? +(withScn.length / acs.length).toFixed(2) : 0 };
   },
   tasks_all_scenarios: (S, P) => { const r = json(cli(P, "trace", "feat-password-reset", "--json").out); const n = (r?.items ?? []).filter((i) => i.code === "SCN_NO_AC").length; return ok(r && n === 0, `SCN_NO_AC: ${n}`); },
-  tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(/\*\*Why\*\*.*\(D-\d+/.test(t), "Why does not cite D-n"); },
-  tasks_quiz_gate: (S) => ok(/\| *T-\d+/.test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
+  tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(new RegExp(`\\*\\*Why\\*\\*.*\\(${K}-D\\d+`).test(t), "Why does not cite a decision <KEY>-D<n>"); },
+  tasks_quiz_gate: (S) => ok(new RegExp(`\\| *${K}-T\\d+`).test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
   tasks_not_approved: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(!/> status: approved/.test(t), "self-approved tasks"); },
   // ---- review
-  review_l0: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/T-1/l0.json")), "no l0.json"),
-  review_report: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/T-1.review.md")), "no T-1.review.md"),
+  review_l0: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/QT-T1/l0.json")), "no l0.json"),
+  review_report: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/QT-T1.review.md")), "no QT-T1.review.md"),
   review_no_self_approve: (S) => { const b = bashCalls(S).find((c) => /approve\b.*--by\s+human/.test(c)); return ok(!b, `ran: ${b}`); },
   review_verdict: (S) => ok(/PASS|FAIL|NEEDS|verdict|Verdict|human/i.test(S.text), "no verdict"),
   review_lens_agents: (S) => ok(S.tools.some((t) => t.name === "Agent" && /reviewer/.test(JSON.stringify(t.input))), "no reviewer subagent"),
-  // the fixture's locked T-1.AC2 test asserts `repo.users.length` (a side channel): the tests lens must name it
-  review_tests_side_channel: (S, P) => { const t = read(path.join(P, ".hitl/reviews/T-1/findings-tests.json")) ?? ""; return ok(/users\.length|side[ -]?channel/i.test(t), "tests lens missed the side channel (repo.users.length)"); },
+  // the fixture's locked QT-T1.AC2 test asserts `repo.users.length` (a side channel): the tests lens must name it
+  review_tests_side_channel: (S, P) => { const t = read(path.join(P, ".hitl/reviews/QT-T1/findings-tests.json")) ?? ""; return ok(/users\.length|side[ -]?channel/i.test(t), "tests lens missed the side channel (repo.users.length)"); },
   // ---- tdd (ad-hoc, no change): one seam round, nothing written before the reply, no upstream-only skill calls
   tdd_seam_gate: (S) => ok(/\bseam/i.test(S.text) && /\*\*Q1\*\*|\bQ1\b/.test(S.text) && /Reply:|Trả lời:/.test(S.text), "no seam question with a Reply: line"),
   tdd_no_writes_before_gate: (S, P) => { const d = gitDirty(P, ["src", "tests"]); return ok(d === "", `wrote before the seam gate: ${d}`); },
   tdd_no_foreign_skills: (S) => { const b = skillCalls(S).find((x) => /codebase-design|code-review/.test(x)); return ok(!b, `called ${b}`); },
-  // ---- skeleton (Lua): case.luaTargets, task T-1
+  // ---- skeleton (Lua): case.luaTargets, task BURST-T1
   lua_signatures_bound: (S, P, c) => { const bad = Object.entries(luaSignatures(P, c)); return ok(!bad.length, bad.map(([k, v]) => `${k}: ${v}`).join("; ")); },
   lua_sentinel: (S, P, c) => {
     const bad = luaTargets(P, c, ["new"]).filter((t) => {
@@ -256,7 +266,7 @@ const CHECKS = {
   lua_tags: (S, P, c) => {
     const bad = luaTargets(P, c).filter((t) => {
       const fn = luaFn(t.src, t.name); if (!fn) return true;
-      return !fn.doc.some((l) => /^\s*--\s+@task\s.*\bT-1\b.*@impl\s+\w+.*@status\s+skeleton.*@prio\s+\d/.test(l))
+      return !fn.doc.some((l) => /^\s*--\s+@task\s.*\bBURST-T1\b.*@impl\s+\w+.*@status\s+skeleton.*@prio\s+\d/.test(l))
         || fn.doc.some((l) => /^\s*---@\w+.*@(task|impl|status|prio|calls|concurrency|dec)\b/.test(l));
     });
     return ok(!bad.length, `bad/missing tags line: ${bad.map((t) => t.name).join(", ")}`);
@@ -271,18 +281,18 @@ const CHECKS = {
   },
   lua_drift_clean: (S, P) => {
     cli(P, "index", "--all");
-    const r = json(cli(P, "drift", "--task", "T-1", "--json").out);
+    const r = json(cli(P, "drift", "--task", "BURST-T1", "--json").out);
     const bad = (r?.items ?? []).filter((i) => /BAD_TAG|ORPHAN|PARSE_ERROR/.test(i.code ?? ""));
     return ok(r && !bad.length, `drift: ${JSON.stringify(bad).slice(0, 300)}`);
   },
   lua_test_stubs: (S, P) => {
     const specs = walk(path.join(P, "spec")).filter((f) => f.endsWith(".lua")).map(read).join("\n");
-    const miss = [1, 2, 3, 4].filter((k) => !new RegExp(`@ac T-1\\.AC${k}\\b`).test(specs) || !new RegExp(`["']T-1\\.AC${k}\\b`).test(specs));
+    const miss = [1, 2, 3, 4].filter((k) => !new RegExp(`@ac BURST-T1\\.AC${k}\\b`).test(specs) || !new RegExp(`["']BURST-T1\\.AC${k}\\b`).test(specs));
     return ok(!miss.length, `ACs without a stub: ${miss.join(",")}`);
   },
   skeleton_gate: (S) => {
     const b = bashCalls(S).find((x) => /\bapprove\b/.test(x));
-    return ok(/\/hitl:approve T-1/.test(S.text) && !b, b ? `ran: ${b}` : "no /hitl:approve T-1 gate");
+    return ok(/\/hitl:approve BURST-T1/.test(S.text) && !b, b ? `ran: ${b}` : "no /hitl:approve BURST-T1 gate");
   },
   // ---- flow / tickets
   flow_next_design: (S) => ok(/\/hitl:design\s+feat-password-reset/.test(S.text), "next is not /hitl:design feat-password-reset"),

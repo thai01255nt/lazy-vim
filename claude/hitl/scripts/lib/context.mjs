@@ -8,6 +8,7 @@ import { readJson } from "./fsutil.mjs";
 import { resolveRef } from "./graph.mjs";
 import { currentTask } from "./lock.mjs";
 import { readTasks } from "./tasksmd.mjs";
+import { TASK_ID_RE } from "./specids.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
 import { effectiveTerms, phraseRx } from "./glossary.mjs";
 
@@ -40,7 +41,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
 
   // targets
   let task = null, targets = [];
-  if (/^T-\d+$/.test(target)) {
+  if (TASK_ID_RE.test(target)) {
     task = tasks.find((t) => t.id === target);
     if (!task) throw Object.assign(new Error(`unknown task ${target}`), { code: 1 });
     for (const s of task.symbols) {
@@ -218,7 +219,7 @@ export async function buildContext(root, target, { contract = false, budget = 12
 
   const testCmd = task ? `hitl-index test --task ${task.id}` : `hitl-index test --symbol ${S[ids[0]].name}`;
   sections.push({ text: ["\n## Rules",
-    "- Do not change signatures, docstrings or @tags of locked symbols. Do not edit tests. Follow TODO(impl) steps in order; turn them into \"// n. step\" comments. Leave steps scoped to another task (TODO(impl T-n)).",
+    "- Do not change signatures, docstrings or @tags of locked symbols. Do not edit tests. Follow TODO(impl) steps in order; turn them into \"// n. step\" comments. Leave steps scoped to another task (TODO(impl <KEY>-T<n>)).",
     "- Reword pseudo-code steps into ≤8-word intent labels without ids; delete numbered step comments inside classes/enums.",
     `- Test command: ${testCmd}`].join("\n") });
 

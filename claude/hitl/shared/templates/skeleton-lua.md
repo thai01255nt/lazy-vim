@@ -9,7 +9,7 @@ Step wording: each numbered step is a short intent label that says WHAT the bloc
 `1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
 the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
 only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
-error behaviour belong in the intent prose (the test-author's contract), not in the steps. No ids (`T-n`, `D-n`, spec
+error behaviour belong in the intent prose (the test-author's contract), not in the steps. No ids (`<KEY>-T<n>`, `<KEY>-D<n>`, spec
 ids) in steps. Numbered step comments inside classes/enums are deleted after implementation (only function bodies
 keep them).
 
@@ -25,8 +25,8 @@ A class shared by several functions goes in its own block, separated from the do
 -- Read phase of lease closing: lists the leases this settle uses up; writes nothing.
 -- A lease that gets a refund or still carries another reservation stays open.
 -- Returns the lease ids, each once, in touch order; empty when nothing is used up.
--- @task T-4 @impl agent @status skeleton @prio 2
--- @dec D-13
+-- @task PWR-T4 @impl agent @status skeleton @prio 2
+-- @dec PWR-D13
 -- @calls generateListAttachReservationKey
 -- @concurrency shared-state
 ---@class FindUsedUpLeasesOptions
@@ -40,7 +40,7 @@ local function findUsedUpLeases(options)
 	error("TODO(impl): src/cache_repos/lua/lease_exec_settle.lua#findUsedUpLeases")
 end
 ```
-`@dec D-n` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the
+`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the
 task's **Why**) whose *cost if wrong* matters. Not hashed; adding it never needs re-approval.
 Module function (`function M.name(...)` / `M.name = function(...)`): same docstring; ref `<file>#M.name`; export it
 in the module's return table when other scripts call it.
@@ -48,11 +48,11 @@ in the module's return table when other scripts call it.
 ## Modify an existing symbol (keep working code)
 Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
 symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
-`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`T-n`, `D-n`, spec or change ids): use `@dec`.
+`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`<KEY>-T<n>`, `<KEY>-D<n>`, spec or change ids): use `@dec`.
 The existing docstring has its class right above `---@param` → put the new prose and tags above the `---@class` line:
 ```lua
 -- Gives refund back to one lease and to the wallet lease total.      ← updated intent
--- @task T-2, T-3 @impl agent @status skeleton @prio 1
+-- @task PWR-T2, PWR-T3 @impl agent @status skeleton @prio 1
 -- @concurrency shared-state
 ---@class RefundLeaseOptions                                          ← existing class, unchanged
 ---@field leaseId string
@@ -68,7 +68,7 @@ end
 ## New module (file) holding stubs
 ```lua
 -- Lease helpers shared by the reserve / settle / release scripts.
--- @task T-4 @impl agent @status skeleton
+-- @task PWR-T4 @impl agent @status skeleton
 local M = {}
 
 -- …function stubs…
@@ -88,8 +88,8 @@ return M
 Busted (pure Lua); title starts with the AC id, describe name = the Test plan row's seam (usually the covered ref):
 ```lua
 describe("src/lib/lease.lua#findUsedUpLeases", function()
-	-- @covers src/lib/lease.lua#findUsedUpLeases @ac T-4.AC1 @kind example @origin skeleton
-	pending("T-4.AC1 skips a lease that gets a refund")
+	-- @covers src/lib/lease.lua#findUsedUpLeases @ac PWR-T4.AC1 @kind example @origin skeleton
+	pending("PWR-T4.AC1 skips a lease that gets a refund")
 end)
 ```
 Scripts run inside Redis/Valkey and tested from Python → `skeleton-py.md` § Test stubs, `@covers <file>.lua#<name>`.

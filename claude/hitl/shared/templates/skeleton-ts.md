@@ -7,7 +7,7 @@ Step wording: each numbered step is a short intent label that says WHAT the bloc
 `1. parse args`, `3. validate billing stream key type`), not pseudo-code that restates the line below it. It stays in
 the code as the `n.` comment after implementation, so write it for a reader of the finished code. Add a short "why"
 only when it is not obvious (`3. validate stream key type (before any write: no rollback)`). Rules, edge cases and
-error behaviour belong in the intent docstring (the test-author's contract), not in the steps. No ids (`T-n`, `D-n`, spec
+error behaviour belong in the intent docstring (the test-author's contract), not in the steps. No ids (`<KEY>-T<n>`, `<KEY>-D<n>`, spec
 ids) in steps. Numbered step comments inside classes/enums are deleted after implementation (only function bodies
 keep them).
 
@@ -18,8 +18,8 @@ keep them).
  * @param email - user email, any case
  * @returns the saved user (without passwordHash)
  * @throws DuplicateEmailError when the email already exists
- * @task T-12 @impl agent @status skeleton @prio 1
- * @dec D-1
+ * @task PWR-T12 @impl agent @status skeleton @prio 1
+ * @dec PWR-D1
  * @calls UserRepo.findByEmail, UserRepo.save
  * @concurrency none
  */
@@ -30,18 +30,18 @@ async createUser(email: string, password: string): Promise<User> {
   throw new Error("TODO(impl): UserService.createUser");
 }
 ```
-`@dec D-n` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
+`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
 Not hashed; adding it never needs re-approval.
 Top-level function: same, `export function name(...)` / `export const name = (...) => { … }`.
 
 ## Modify an existing symbol (keep working code)
 Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
 symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
-`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`T-n`, `D-n`, spec or change ids): use `@dec`.
+`statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`<KEY>-T<n>`, `<KEY>-D<n>`, spec or change ids): use `@dec`.
 ```ts
 /**
  * Finds a user by email, case-insensitive.          ← updated intent
- * @task T-12 @impl manual @status skeleton @prio 2
+ * @task PWR-T12 @impl manual @status skeleton @prio 2
  * @concurrency none
  */
 findByEmail(email: string): User | undefined {
@@ -55,7 +55,7 @@ Add the sentinel only when the whole body will be rewritten. Omit `@calls` when 
 ```ts
 /**
  * Application service for user registration.
- * @task T-12 @impl agent @status skeleton
+ * @task PWR-T12 @impl agent @status skeleton
  */
 export class UserService {
   repo: UserRepo;
@@ -83,17 +83,17 @@ vitest / jest / node:test all support `it.todo`. Import from the project's frame
 import { describe, it } from "node:test";   // or "vitest"
 
 describe("UserService.createUser", () => {
-  /** @covers UserService.createUser @ac T-12.AC1 @kind example @origin skeleton */
-  it.todo("T-12.AC1 rejects duplicate email in any case");
+  /** @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton */
+  it.todo("PWR-T12.AC1 rejects duplicate email in any case");
 
-  /** @covers UserService.createUser @ac T-12.AC2 @kind property @origin skeleton */
-  it.todo("T-12.AC2 returns saved user without passwordHash");
+  /** @covers UserService.createUser @ac PWR-T12.AC2 @kind property @origin skeleton */
+  it.todo("PWR-T12.AC2 returns saved user without passwordHash");
 });
 ```
 `@concurrency` ≠ none on a covered symbol → add one more stub with `@kind concurrency`:
 ```ts
-  /** @covers Cache.getOrLoad @ac T-7.AC3 @kind concurrency @origin skeleton */
-  it.todo("T-7.AC3 concurrent getOrLoad calls load once");
+  /** @covers Cache.getOrLoad @ac PWR-T7.AC3 @kind concurrency @origin skeleton */
+  it.todo("PWR-T7.AC3 concurrent getOrLoad calls load once");
 ```
 Title always starts with the AC id. Describe name = the seam from the Test plan row (usually the covered symbol ref).
 

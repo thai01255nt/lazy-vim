@@ -26,16 +26,16 @@ test("spec validate --json: hitl.spec-validate/1 shape, exit 0 clean / 1 on erro
   assert.equal(d.schema, "hitl.spec-validate/1");
   assert.deepEqual(d.targets.map((t) => [t.kind, t.id]), [["living", "accounts"], ["living", "GLOSSARY"], ["change", "feat-password-reset"]]);
   assert.deepEqual(keys(d.targets[2]), ["files", "id", "kind"]);
-  assert.deepEqual(d.summary, [{ change: "feat-password-reset", capability: "accounts", key: "ACC", new: false, added: ["ACC-R5", "ACC-R6", "ACC-BR1", "ACC-UC1"],
-    modified: ["ACC-R1"], removed: ["ACC-R2"], terms: { added: ["Reset link"], modified: [], removed: [] } }]);
+  assert.deepEqual(d.summary, [{ change: "feat-password-reset", capability: "accounts", key: "PWR", new: false, added: ["PWR-R1", "PWR-R2", "PWR-BR1", "PWR-UC1"],
+    modified: ["LACC-R1"], removed: ["LACC-R2"], terms: { added: ["Reset link"], modified: [], removed: [] } }]);
   // an error: item shape, exit 1
   const f = path.join(root, ".hitl/changes/feat-password-reset/specs/accounts/spec.md");
-  fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace(/#### Scenario: ACC-R6\.S1[\s\S]*?(?=\n## MODIFIED)/, ""));
+  fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace(/#### Scenario: PWR-R2\.S1[\s\S]*?(?=\n## MODIFIED)/, ""));
   const bad = cli(root, "spec", "validate", "feat-password-reset", "--json");
   assert.equal(bad.code, 1);
   const item = bad.json().items.find((i) => i.code === "REQ_NO_SCENARIO");
   assert.deepEqual(keys(item), ["code", "file", "level", "line", "message", "ref"]);
-  assert.deepEqual([item.level, item.file, item.ref], ["error", ".hitl/changes/feat-password-reset/specs/accounts/spec.md", "ACC-R6"]);
+  assert.deepEqual([item.level, item.file, item.ref], ["error", ".hitl/changes/feat-password-reset/specs/accounts/spec.md", "PWR-R2"]);
   // --strict turns a warning into a failure
   const root2 = project();
   fs.writeFileSync(path.join(root2, ".hitl/changes/feat-password-reset/contracts/extra.md"), "x\n");
@@ -49,39 +49,62 @@ test("spec list --json: hitl.spec-list/1", () => {
   assert.deepEqual(keys(d), ["capabilities", "pending", "schema"]);
   assert.equal(d.schema, "hitl.spec-list/1");
   const c = d.capabilities[0];
-  assert.deepEqual(keys(c), ["activeChanges", "capability", "file", "flows", "key", "purpose", "requirements", "retired", "rules"]);
-  assert.deepEqual(c.requirements[2], { id: "ACC-R3", title: "Two-factor code", priority: "must", quality: "security", scenarios: 1 });
-  assert.deepEqual([c.retired, c.activeChanges, d.pending], [["ACC-R4"], ["feat-password-reset"], []]);
+  assert.deepEqual(keys(c), ["activeChanges", "capability", "file", "flows", "purpose", "requirements", "retired", "rules"]);
+  assert.deepEqual(c.requirements[2], { id: "TFA-R1", title: "Two-factor code", priority: "must", quality: "security", scenarios: 1 });
+  assert.deepEqual([c.retired, c.activeChanges, d.pending], [["LACC-R3"], ["feat-password-reset"], []]);
 });
 
 test("spec show: effective view per change; living view without --change; exit 1 when absent", () => {
   const root = project();
-  const s = cli(root, "spec", "show", "ACC-R5.S2", "--change", "feat-password-reset", "--json");
+  const s = cli(root, "spec", "show", "PWR-R1.S2", "--change", "feat-password-reset", "--json");
   assert.equal(s.code, 0, s.err);
   const d = s.json();
   assert.deepEqual(keys(d), ["blocks", "change", "scenario", "schema", "view"]);
   assert.deepEqual([d.schema, d.change, d.view, d.blocks.length], ["hitl.spec-show/1", "feat-password-reset", "change", 1]);
   for (const k of ["kind", "id", "title", "text", "origin"]) assert.ok(k in d.blocks[0], k);
-  assert.deepEqual([d.blocks[0].id, d.blocks[0].origin], ["ACC-R5", "added"]);
-  assert.equal(cli(root, "spec", "show", "ACC-R5").code, 1);
+  assert.deepEqual([d.blocks[0].id, d.blocks[0].origin], ["PWR-R1", "added"]);
+  assert.equal(cli(root, "spec", "show", "PWR-R1").code, 1);
   const lv = cli(root, "spec", "show", "accounts", "--json").json();
-  assert.deepEqual([lv.view, lv.change, lv.blocks.map((b) => b.id)], ["living", null, ["ACC-R1", "ACC-R2", "ACC-R3"]]);
+  assert.deepEqual([lv.view, lv.change, lv.blocks.map((b) => b.id)], ["living", null, ["LACC-R1", "LACC-R2", "TFA-R1"]]);
   const all = cli(root, "spec", "show", "--change", "feat-password-reset", "--json").json();
-  assert.ok(all.blocks.some((b) => b.origin === "modified" && b.id === "ACC-R1") && !all.blocks.some((b) => b.id === "ACC-R2"));
-  assert.match(cli(root, "spec", "show", "ACC-R3").out, /### Requirement: ACC-R3 Two-factor code/);
+  assert.ok(all.blocks.some((b) => b.origin === "modified" && b.id === "LACC-R1") && !all.blocks.some((b) => b.id === "LACC-R2"));
+  assert.match(cli(root, "spec", "show", "TFA-R1").out, /### Requirement: TFA-R1 Two-factor code/);
 });
 
 test("spec next-id: plain id, JSON list with --count/--json, scenarios, usage errors", () => {
   const root = project();
-  assert.equal(cli(root, "spec", "next-id", "accounts").out.trim(), "ACC-R7");
-  assert.deepEqual(JSON.parse(cli(root, "spec", "next-id", "accounts", "--count", "2").out), ["ACC-R7", "ACC-R8"]);
-  assert.deepEqual(JSON.parse(cli(root, "spec", "next-id", "accounts", "--kind", "BR", "--json").out), ["ACC-BR2"]);
-  assert.equal(cli(root, "spec", "next-id", "--scenario", "ACC-R1").out.trim(), "ACC-R1.S4");
+  // 0.13: next-id takes the change id; numbers are per change key (PWR)
+  assert.equal(cli(root, "spec", "next-id", "feat-password-reset").out.trim(), "PWR-R3");
+  assert.deepEqual(JSON.parse(cli(root, "spec", "next-id", "feat-password-reset", "--count", "2").out), ["PWR-R3", "PWR-R4"]);
+  assert.deepEqual(JSON.parse(cli(root, "spec", "next-id", "feat-password-reset", "--kind", "BR", "--json").out), ["PWR-BR2"]);
+  assert.equal(cli(root, "spec", "next-id", "feat-password-reset", "--kind", "D").out.trim(), "PWR-D3");
+  assert.equal(cli(root, "spec", "next-id", "--scenario", "LACC-R1").out.trim(), "LACC-R1.S4");
   assert.equal(cli(root, "spec", "next-id").code, 2);
-  assert.equal(cli(root, "spec", "next-id", "accounts", "--kind", "X").code, 2);
-  assert.equal(cli(root, "spec", "next-id", "billing").code, 1);
+  assert.equal(cli(root, "spec", "next-id", "feat-password-reset", "--kind", "X").code, 2);
+  const capArg = cli(root, "spec", "next-id", "accounts");
+  assert.equal(capArg.code, 2);
+  assert.match(capArg.err, /next-id takes the change id/);
+  assert.equal(cli(root, "spec", "next-id", "feat-nope").code, 1);
   assert.equal(cli(root, "spec", "bogus").code, 2);
   assert.equal(cli(root, "spec", "validate", "--nope").code, 2);
+});
+
+test("spec key: suggests a free change key; --check refuses a taken one (CHANGE_KEY_TAKEN)", () => {
+  const root = project();
+  assert.equal(cli(root, "spec", "key", "feat-password-reset").out.trim(), "PWR", "an existing key is kept");
+  const k = cli(root, "spec", "key", "feat-receipt-lines", "--title", "Receipt lines", "--json").json();
+  assert.match(k.key, /^[A-Z]{2,5}$/);
+  assert.equal(k.existing, false);
+  assert.ok(!["PWR", "TFA", "LACC", "QT"].includes(k.key));
+  assert.equal(cli(root, "spec", "key", "feat-one", "--title", "Receipt").out.trim(), "RCPT");
+  const taken = cli(root, "spec", "key", "--check", "TFA");
+  assert.equal(taken.code, 1);
+  assert.match(taken.out, /CHANGE_KEY_TAKEN key TFA is taken by archived change feat-2fa/);
+  assert.equal(cli(root, "spec", "key", "--check", "QT").code, 1, "the quick-task key is reserved");
+  assert.equal(cli(root, "spec", "key", "--check", "LACC").code, 1, "legacy keys in living ids are taken");
+  assert.equal(cli(root, "spec", "key", "--check", "PWR", "--change", "feat-password-reset").code, 0, "a change's own key is free for it");
+  assert.equal(cli(root, "spec", "key", "--check", "RCPT").code, 0);
+  assert.match(cli(root, "spec", "key", "--check", "rc1").out, /CHANGE_KEY_BAD/);
 });
 
 test("spec conflicts --json: hitl.spec-conflicts/1, exit 1 when any", () => {
@@ -90,10 +113,10 @@ test("spec conflicts --json: hitl.spec-conflicts/1, exit 1 when any", () => {
   assert.deepEqual([ok.code, ok.json()], [0, { schema: "hitl.spec-conflicts/1", conflicts: [], warnings: [] }]);
   const dir = path.join(root, ".hitl/changes/feat-2fa-recovery");
   fs.mkdirSync(path.join(dir, "specs/accounts"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "specs/accounts/spec.md"), "# Delta: Accounts\n> capability: accounts | key: ACC | change: feat-2fa-recovery\n\n## REMOVED Requirements\n### Requirement: ACC-R1 Sign in\nReason: x\n");
+  fs.writeFileSync(path.join(dir, "specs/accounts/spec.md"), "# Delta: Accounts\n> capability: accounts | change: feat-2fa-recovery\n\n## REMOVED Requirements\n### Requirement: LACC-R1 Sign in\nReason: x\n");
   const bad = cli(root, "spec", "conflicts", "--json");
   assert.equal(bad.code, 1);
-  assert.deepEqual(bad.json().conflicts, [{ code: "CROSS_CHANGE_CONFLICT", ref: "ACC-R1", capability: "accounts", changes: ["feat-2fa-recovery", "feat-password-reset"] }]);
+  assert.deepEqual(bad.json().conflicts, [{ code: "CROSS_CHANGE_CONFLICT", ref: "LACC-R1", capability: "accounts", changes: ["feat-2fa-recovery", "feat-password-reset"] }]);
 });
 
 test("spec merge --dry-run / archive: hitl.spec-merge/1 shape, preconditions, exit codes", () => {
@@ -104,15 +127,15 @@ test("spec merge --dry-run / archive: hitl.spec-merge/1 shape, preconditions, ex
   assert.deepEqual(keys(d), ["archive", "capabilities", "change", "conflicts", "dryRun", "glossary", "ok", "preconditions", "schema"]);
   assert.deepEqual([d.schema, d.dryRun, d.ok, d.archive, d.preconditions], ["hitl.spec-merge/1", true, true, null, { validate: "ok", tasks: null }]);
   assert.deepEqual(d.capabilities, [{ capability: "accounts", file: ".hitl/specs/accounts/spec.md", created: false, deleted: false,
-    added: ["ACC-R5", "ACC-R6", "ACC-BR1", "ACC-UC1"], modified: ["ACC-R1"], removed: ["ACC-R2"], alreadyApplied: [], renumbered: {} }]);
+    added: ["PWR-R1", "PWR-R2", "PWR-BR1", "PWR-UC1"], modified: ["LACC-R1"], removed: ["LACC-R2"], alreadyApplied: [], renumbered: {} }]);
   assert.deepEqual(d.glossary, { added: ["Reset link"], modified: [], removed: [] });
-  assert.doesNotMatch(fs.readFileSync(path.join(root, ".hitl/specs/accounts/spec.md"), "utf8"), /ACC-R5/);
+  assert.doesNotMatch(fs.readFileSync(path.join(root, ".hitl/specs/accounts/spec.md"), "utf8"), /PWR-R1/);
 
   const blocked = cli(root, "spec", "archive", "feat-password-reset", "--json");
   assert.equal(blocked.code, 1);
   const b = blocked.json();
   assert.equal(b.ok, false);
-  assert.deepEqual(b.preconditions.tasks, { total: 2, done: 1, notDone: ["T-13"] });
+  assert.deepEqual(b.preconditions.tasks, { total: 2, done: 1, notDone: ["PWR-T2"] });
   assert.deepEqual(keys(b.archive), ["from", "moved", "to"]);
   assert.match(b.archive.to, /^\.hitl\/archive\/\d{4}-\d{2}-\d{2}-feat-password-reset$/);
   assert.equal(b.archive.moved, false);
@@ -123,7 +146,7 @@ test("spec merge --dry-run / archive: hitl.spec-merge/1 shape, preconditions, ex
   const a = done.json();
   assert.equal(a.archive.moved, true);
   assert.ok(fs.existsSync(path.join(root, a.archive.to, "tasks.md")));
-  assert.match(fs.readFileSync(path.join(root, ".hitl/specs/accounts/spec.md"), "utf8"), /### Requirement: ACC-R5 Reset password by email/);
+  assert.match(fs.readFileSync(path.join(root, ".hitl/specs/accounts/spec.md"), "utf8"), /### Requirement: PWR-R1 Reset password by email/);
   assert.equal(cli(root, "spec", "archive", "feat-password-reset").code, 1);
   assert.equal(cli(root, "spec", "merge").code, 2);
 });

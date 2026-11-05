@@ -1,6 +1,6 @@
 ---
 name: go
-description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself; "--before <change-id>" plans a prerequisite change that change waits for. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a T-id, or status/what next (/hitl:flow).
+description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself; "--before <change-id>" plans a prerequisite change that change waits for. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a task id, or status/what next (/hitl:flow).
 argument-hint: "<description> [--plan|--quick|--tdd] [--before <change-id>[,…]]"
 allowed-tools: Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -27,7 +27,7 @@ END THE TURN.
 - No description (empty, or a flag alone) and none earlier in this conversation → ⛔ GATE
   `What do you want to build, fix or change? One or two sentences. (Add --plan, --quick or --tdd to pick the route.)`
   END THE TURN.
-- A T-id (`T-12`), a status or what-next question, or `help` → invoke the Skill `hitl:flow` with the same arguments
+- A task id (`PWR-T12`), a status or what-next question, or `help` → invoke the Skill `hitl:flow` with the same arguments
   and stop.
 
 ## 2. Manual mode (a flag)

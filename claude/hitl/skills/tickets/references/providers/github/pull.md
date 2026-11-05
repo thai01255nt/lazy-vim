@@ -11,4 +11,4 @@
    hitl compares state ids, so an open issue never shows drift.) Write `.hitl/.inbox/tickets-remote.json`.
 4. `hitl-index tickets diff --in .hitl/.inbox/tickets-remote.json [--relink] --json`; print the items table
    `level | code | task | issue | field | local → remote` with the suggestion per code (SKILL.md §5), then
-   `T-1: <state> · assignee <a> · milestone <m>` per task.
+   `PWR-T1: <state> · assignee <a> · milestone <m>` per task.

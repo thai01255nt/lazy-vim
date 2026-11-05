@@ -1,6 +1,6 @@
 <!-- audience: business -->
 # Two-factor sign-in
-> change: feat-2fa | status: approved | created: 2026-10-10 | updated: 2026-10-20
+> change: feat-2fa | key: TFA | status: approved | created: 2026-10-10 | updated: 2026-10-20
 
 ## Why
 Passwords alone are guessed too often; security questions are easy to look up.
@@ -12,7 +12,7 @@ Passwords alone are guessed too often; security questions are easy to look up.
 ## Capabilities
 | capability | key | change | requirements |
 |---|---|---|---|
-| accounts | ACC | modified | +ACC-R3 -ACC-R4 |
+| accounts | ACC | modified | +TFA-R1 -ACC-R4 |
 
 ## Artifacts
 | artifact | decision | why |

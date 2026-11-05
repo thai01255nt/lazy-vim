@@ -16,7 +16,7 @@ const same = (a, b) => normalizeBlock(a) === normalizeBlock(b);
 /** Living spec doc -> mutable model. */
 export function livingModel(doc) {
   return {
-    title: doc.title, capability: doc.capability, key: doc.key, updated: doc.updated, purpose: doc.purpose,
+    title: doc.title, capability: doc.capability, updated: doc.updated, purpose: doc.purpose,
     blocks: doc.blocks.map((b) => ({ kind: b.kind, id: b.id, title: b.title, text: b.livingText, scenarios: b.scenarios.map((s) => ({ id: s.id, title: s.title })) })),
     retired: doc.retired.map((r) => ({ id: r.id, raw: r.raw })),
     history: [...doc.history],
@@ -25,7 +25,7 @@ export function livingModel(doc) {
 
 /** Render a living spec model (canonical section order: Purpose, Requirements, Rules, Flows, Retired IDs, Change History). */
 export function renderLiving(m) {
-  const out = [LIVING_HEADER, `# ${m.title}`, `> capability: ${m.capability} | key: ${m.key}${m.updated ? ` | updated: ${m.updated}` : ""}`, ""];
+  const out = [LIVING_HEADER, `# ${m.title}`, `> capability: ${m.capability}${m.updated ? ` | updated: ${m.updated}` : ""}`, ""];
   if (m.purpose) out.push("## Purpose", m.purpose, "");
   for (const kind of KIND_ORDER) {
     const bs = m.blocks.filter((b) => b.kind === kind);
@@ -53,16 +53,15 @@ export function renderGlossary(m) {
  */
 export function planCapability({ living, delta, change, date, base = {}, acceptBase = [], renumber = false, reserved = null, retire = false }) {
   const cap = delta.capability;
-  const res = { capability: cap, key: living?.key || delta.key, created: !living, deleted: false, added: [], modified: [], removed: [],
+  const res = { capability: cap, created: !living, deleted: false, added: [], modified: [], removed: [],
     alreadyApplied: [], renumbered: {}, conflicts: [], warnings: [], model: null, changed: false };
   const conflict = (code, ref, message) => res.conflicts.push({ code, ref, capability: cap, message });
   const accept = new Set(acceptBase);
-  if (living && delta.key && living.key && living.key !== delta.key) conflict("CAP_KEY_CHANGED", delta.key, `${cap}: delta key ${delta.key} ≠ living key ${living.key} (keys never change)`);
   if (!living) {
     for (const b of delta.blocks) if (b.op !== "ADDED") conflict("DELTA_NEW_CAP_NOT_ADDED_ONLY", b.id, `${cap} is a new capability: only ADDED blocks are allowed (${b.op} ${b.id})`);
     if (!delta.purpose) conflict("PURPOSE_MISSING", cap, `${cap} is a new capability: the delta needs a ## Purpose`);
   }
-  const m = living ? livingModel(living) : { title: delta.title || cap, capability: cap, key: delta.key, updated: null, purpose: delta.purpose, blocks: [], retired: [], history: [] };
+  const m = living ? livingModel(living) : { title: delta.title || cap, capability: cap, updated: null, purpose: delta.purpose, blocks: [], retired: [], history: [] };
   const byId = new Map(m.blocks.map((b) => [b.id, b]));
   const retired = new Set(m.retired.map((r) => r.id));
   // ids in use for renumbering: living + retired + this delta + other active changes
@@ -194,12 +193,8 @@ export function mergeChange({ changeId, deltas, glossaryDelta = null, proposal =
   renumber = false, reserved = new Map(), date, withGlossary = true }) {
   const out = { capabilities: [], glossary: { added: [], modified: [], removed: [] }, conflicts: [], warnings: [], writes: [], renumbered: {}, base: { ...base } };
   const retiredCaps = new Set((proposal?.capabilities || []).filter((c) => c.change === "retired").map((c) => c.capability));
-  // capability keys must stay unique across living specs
-  const keyOwner = new Map([...living.values()].map((l) => [l.doc.key, l.doc.capability]));
   for (const d of [...deltas].sort((a, b) => a.capability.localeCompare(b.capability))) {
     const cur = living.get(d.capability) || null;
-    if (!cur && d.key && keyOwner.has(d.key) && keyOwner.get(d.key) !== d.capability)
-      out.conflicts.push({ code: "CAP_KEY_DUP", ref: d.key, capability: d.capability, message: `key ${d.key} already belongs to ${keyOwner.get(d.key)}` });
     const r = planCapability({ living: cur?.doc || null, delta: d, change: changeId, date, base, acceptBase, renumber, reserved: reserved.get(d.capability), retire: retiredCaps.has(d.capability) });
     out.conflicts.push(...r.conflicts); out.warnings.push(...r.warnings);
     Object.assign(out.renumbered, r.renumbered);

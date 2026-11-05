@@ -1,9 +1,12 @@
 // Reserved-tag grammar for intent docstrings (§E.3.5).
+import { AC_ID_RE, DEC_ID_RE, LEGACY_AC_RE, LEGACY_DEC_RE, LEGACY_TASK_RE, TASK_ID_RE } from "./specids.mjs";
 export const RESERVED = ["task", "impl", "status", "prio", "calls", "concurrency", "covers", "ac", "kind", "origin", "risk", "dec"];
 const LISTS = new Set(["task", "calls", "covers", "ac", "dec"]);
-const TASKID = /^T-\d+$/;
-const ACID = /^T-\d+\.AC\d+$/;
-const DECID = /^D-\d+$/;
+const TASKID = TASK_ID_RE;
+const ACID = AC_ID_RE;
+// `@dec PWR-D1` (a change's design decision); a bare `D-n` stays valid only for a v0.5 planning file's decision
+const DECID = { test: (x) => DEC_ID_RE.test(x) || LEGACY_DEC_RE.test(x) };
+const LEGACY = { task: LEGACY_TASK_RE, ac: LEGACY_AC_RE };
 const REF = /^(?:[\w./@-]+#)?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
 const ENUMS = {
   impl: ["agent", "manual"],
@@ -48,6 +51,7 @@ export function parseDoc(doc) {
       if (LISTS.has(tag)) {
         for (const item of value.split(",").map((s) => s.trim()).filter(Boolean)) {
           if (ITEM[tag].test(item)) { if (!tags[tag].includes(item)) tags[tag].push(item); }
+          else if (LEGACY[tag]?.test(item)) bad(tag, item, `invalid @${tag} item "${item}" (pre-0.13 id: run /hitl:migrate)`);
           else bad(tag, item, `invalid @${tag} item "${item}"`);
         }
       } else if (tag === "prio") {

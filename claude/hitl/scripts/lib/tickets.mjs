@@ -10,6 +10,7 @@ import { stableJson, readJson, readText, writeJsonAtomic } from "./fsutil.mjs";
 import { deepMerge } from "./config.mjs";
 import { HITL_DIR, HITL_PREFIX, HITL_RE } from "./paths.mjs";
 import { PROVIDERS, providerOf, containerOf } from "./providers.mjs";
+import { compareTaskIds } from "./specids.mjs";
 
 export { PROVIDERS, providerOf } from "./providers.mjs";
 
@@ -59,8 +60,7 @@ export const linearPaths = (root) => ticketsPaths(root, null);
 
 const PRIO = { P0: 1, P1: 2, P2: 3, P3: 4 };
 const HITL_LABEL = /^(risk|impl|hitl):/;
-const taskNum = (id) => Number(/\d+/.exec(id || "")?.[0] ?? 0);
-const byTaskId = (a, b) => taskNum(a) - taskNum(b) || String(a).localeCompare(String(b));
+const byTaskId = (a, b) => compareTaskIds(a, b);
 const shortFile = (f) => String(f || "").replace(new RegExp(`^${HITL_RE}`), "");
 
 /** Change key of a legacy planning reference: `.hitl/planning/feat-x.md` / `feat-x.md` → `feat-x`. */
@@ -713,11 +713,16 @@ export function identityMessage(r) {
 }
 
 // ---------------------------------------------------------------- diff (A.5.5)
-const MARKER = /<!-- hitl:task=(T-\d+)\b(?:\s+repo=(\S+))?(?:\s+file=(\S+))?/;
-/** {task, repo|null, file|null} from an issue description marker, or null. Pure. */
-export function parseMarker(desc) {
+// 0.13 marker `hitl:task=PWR-T3`; a pre-0.13 marker `hitl:task=T-3` is read through the id map (migrate --ids) and
+// rewritten on the next push.
+const MARKER = /<!-- hitl:task=([A-Z]{2,5}-T\d+|T-\d+)\b(?:\s+repo=(\S+))?(?:\s+file=(\S+))?/;
+/** {task, repo|null, file|null, legacy?} from an issue description marker, or null. `idMap` ({old: new}) maps a
+ *  pre-0.13 `T-n`. Pure. */
+export function parseMarker(desc, idMap = null) {
   const m = MARKER.exec(String(desc || ""));
-  return m ? { task: m[1], repo: m[2] || null, file: m[3] || null } : null;
+  if (!m) return null;
+  const legacy = /^T-\d+$/.test(m[1]);
+  return { task: legacy ? idMap?.[m[1]] ?? null : m[1], repo: m[2] || null, file: m[3] || null, ...(legacy ? { legacy: m[1] } : {}) };
 }
 
 /**
@@ -776,9 +781,9 @@ export function buildDiff(I) {
   }
   for (const r of R.issues) {
     if (!r || mappedIds.has(r.id)) continue;
-    const mk = parseMarker(r.description);
+    const mk = parseMarker(r.description, I.idMap);
     let T = mk?.task || null;
-    if (!T && cfg.titlePrefix) T = /^(T-\d+)\b/.exec(r.title || "")?.[1] || null;
+    if (!T && cfg.titlePrefix) { const t = /^([A-Z]{2,5}-T\d+|T-\d+)\b/.exec(r.title || "")?.[1] || null; T = t && /^T-/.test(t) ? I.idMap?.[t] ?? null : t; }
     if (!T) continue;
     if (mk && mk.repo && ours && mk.repo.toLowerCase() !== String(ours).toLowerCase()) { foreign++; continue; } // another repo's T-n
     const e = map.tasks[T];

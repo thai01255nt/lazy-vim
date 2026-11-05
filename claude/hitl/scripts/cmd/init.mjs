@@ -8,7 +8,7 @@ import { CONFIG_REL, HITL_PREFIX } from "../lib/paths.mjs";
 // Canonical .hitl/.gitignore (v2 §A.6.2): generated files ignored; lock, decisions.json, review md, <provider>.map.json (linear|jira|github) committed.
 // design v3 §4.5: the spec-scout / spec-reviewer scratch files in change folders are never committed (archive removes them).
 export const GITIGNORE_HEADER = "# hitl: generated files (rebuildable) — do not commit";
-export const GITIGNORE = ["index/*", "!index/skeleton.lock.json", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/", ".scout.json", ".spec-review.json"];
+export const GITIGNORE = ["index/*", "!index/skeleton.lock.json", "!index/id-map.json", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/", ".scout.json", ".spec-review.json"];
 
 /** Pure: existing .gitignore text (or null) -> {text, added[]}. Appends missing canonical lines; never removes or reorders. */
 export function mergeGitignore(existing) {

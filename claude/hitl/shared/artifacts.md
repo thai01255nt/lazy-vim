@@ -23,7 +23,7 @@ format; `hitl-index spec validate` warns on the cheap-to-detect deviations.
 | design.md | a | `design.md` | anything outside the skip conditions (§3) | — |
 | data-model | a | `data-model.md` | a new or changed persisted entity/field; migration | a new in-memory shape shared by ≥ 2 components |
 | contracts | a | `contracts/*` — HTTP: OpenAPI 3.1 · events/queues: AsyncAPI 3 · payload/file: JSON Schema 2020-12 · CLI: md | a new or changed external interface (HTTP, CLI, event, public package API, file format) | an internal module boundary used by other teams |
-| decision records | a | `design.md ### D-n` (MADR) under the D table | a decision with ≥ 2 real options, or `cost if wrong` = data loss, security, money, public API | any other non-obvious decision |
+| decision records | a | `design.md ### <KEY>-D<n>` (MADR) under the D table | a decision with ≥ 2 real options, or `cost if wrong` = data loss, security, money, public API | any other non-obvious decision |
 | architecture (C4) | a | `design.md ## Architecture (C4)` (Context/Container) | a new external system, container, data store or trust boundary | a new deployable inside an existing system |
 | technical state machine | a | `design.md ## State machines` | an internal process with ≥ 3 states, retries or timeouts (job, saga, connection) | 2 states |
 | sequence | a | `design.md ## Flow / sequence` | ≥ 3 components or async messaging | 2 components with retries |

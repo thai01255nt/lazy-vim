@@ -27,20 +27,20 @@ Ideas adapted (no code): OpenSpec delta specs (ADDED/MODIFIED/REMOVED) and Nygar
 📐 Spec delta — change feat-password-reset (active)
   ~ ACC-R3.S2  THEN "same confirmation" → THEN "same confirmation within 1 s"     (specs/accounts/spec.md, MODIFIED)
   + ACC-R7 "When …, the system SHALL …" + ACC-R7.S1                               (specs/accounts/spec.md, ADDED)
-  ~ D-1 accepted → superseded by D-5 ; + D-5 | … | serves ACC-R3 | accepted       (design.md)
-  ~ tasks.md T-12.AC2 text → "…"                                                  (text and ref group only)
-  + Changelog (design.md): 2026-11-01 D-5 supersedes D-1 — … (source: /hitl:sync, ResetService.request)
-  ~ src/reset/service.ts @dec D-1 → D-5
+  ~ PWR-D1 accepted → superseded by PWR-D5 ; + PWR-D5 | … | serves ACC-R3 | accepted       (design.md)
+  ~ tasks.md PWR-T12.AC2 text → "…"                                                  (text and ref group only)
+  + Changelog (design.md): 2026-11-01 PWR-D5 supersedes PWR-D1 — … (source: /hitl:sync, ResetService.request)
+  ~ src/reset/service.ts @dec PWR-D1 → PWR-D5
 Apply? (Y/n/edit)
 ```
 Then the **Impact block** (0.9) — what the edit does to locked work. Pick one class per changed id, then run
 `hitl-index note apply --change <id> [N-k] --impact "<id>=<class>,…" --dry-run --json` and print its result:
 ```
 🔁 Impact (human confirms the classes):
-  ACC-R3.S2  behaviour   → reopens 2 tests in T-12 (T-12.AC2)
-  D-1        contract    → reopens skeleton ResetService.request in T-14 + 1 test
+  ACC-R3.S2  behaviour   → reopens 2 tests in PWR-T12 (PWR-T12.AC2)
+  PWR-D1        contract    → reopens skeleton ResetService.request in PWR-T14 + 1 test
   ACC-R7     requirement → nothing reopens; then /hitl:tasks <id> update
-  T-13 not locked yet: nothing to reopen
+  PWR-T13 not locked yet: nothing to reopen
   Total: reopens 3 tests in 2 tasks, 1 skeleton symbol
 ```
 | class | when | reopens |
@@ -66,13 +66,14 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
   - a living requirement the change does not touch yet → add it under `## MODIFIED Requirements` as the **full** block
     (`hitl-index spec show <ID> --json`) with the edit and a `Changed:` line;
   - removing behaviour → `## REMOVED Requirements` + `Reason:`; new behaviour → `## ADDED` with ids from
-    `hitl-index spec next-id <cap> --kind R` / `--scenario <REQ-ID>`. Ids never change and are never reused.
+    `hitl-index spec next-id <change-id> --kind R` / `--scenario <REQ-ID>` (ADDED ids carry this change's key; a MODIFIED or
+    REMOVED block keeps its original id). Ids never change and are never reused.
 - **Archived change, or a quick task** → living specs are never edited directly. Create a mini change `fix-<slug>`
   (proposal + delta only; `## Artifacts` rows `design | skipped | spec-only amendment` and `tasks | skipped |
   spec-only amendment`), run `hitl-index spec validate fix-<slug> --json`, print `🎯 next: /hitl:archive fix-<slug>`.
-- **Decisions are never edited in place** once the design is approved: the old row's status → `superseded by D-k`, a
+- **Decisions are never edited in place** once the design is approved: the old row's status → `superseded by <KEY>-D<k>`, a
   new row is appended with `serves` and `alternatives`. A rejected alternative may be recorded with status `rejected`.
-  New D ids: max+1 within that design.md.
+  New decision ids: `hitl-index spec next-id <change-id> --kind D` (max+1 within the change, `<KEY>-D<n>`).
 - One Changelog line per decision change, in design.md `## Changelog`:
   `- <YYYY-MM-DD> <what> — <why> (source: <skill>, <symbol|F-n>)`. Spec changes are recorded by the delta itself
   (`Changed:` / `Reason:`) and by `## Change History` at archive.

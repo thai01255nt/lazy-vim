@@ -1,7 +1,7 @@
 ---
 name: skeleton
 description: Drafts code skeletons for one hitl task (signatures, intent docstrings, TODO flow, failing sentinel) plus test stubs per acceptance criterion, then stops for human review. Use for "skeleton", "stub", "draft functions", "tạo skeleton", or after tasks are approved.
-argument-hint: "<T-id> [--quick [--override]]"
+argument-hint: "<task-id> [--quick [--override]]"
 allowed-tools: Read Glob Grep Write Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -14,24 +14,24 @@ Other languages (no template): follow the TS shape in the language's own doc-com
 binding rules (never put prose or tags between a type-annotation block and the signature annotations).
 Tags: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`.
 
-Arguments: `$ARGUMENTS` — `<T-id>` and optional `--quick` (fast lane: no gate, auto-approve; low-risk only).
+Arguments: `$ARGUMENTS` — `<task-id>` and optional `--quick` (fast lane: no gate, auto-approve; low-risk only).
 `--quick --override` comes only from `/hitl:implement <T> --lane fast` (the user's override of a high-risk task):
 same as `--quick` but approves with `--by human-override`. Never add `--override` yourself.
 
 Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or untouched existing code for `modify`).
 
 ## 1. Select the task
-- `hitl-index tasks --json`. No T-id given → use the first frontier task from `hitl-index status --json` and say `💡 Assumed: <T>`.
+- `hitl-index tasks --json`. No task id given → use the first frontier task from `hitl-index status --json` and say `💡 Assumed: <T>`.
 - Unknown id → ❌ list valid ids, stop.
 - `--quick` on a high-risk task without `--override` → `🛑 Fast lane is for low-risk tasks only (<T> is high: <reasons>).` Drop `--quick` and continue normally.
-- Blocked by unfinished tasks → ⛔ GATE `⚠️ <T> is blocked by T-11 (status wip), T-9 (todo). Continue anyway? (y/N)` END THE TURN.
+- Blocked by unfinished tasks → ⛔ GATE `⚠️ <T> is blocked by PWR-T11 (status wip), PWR-T9 (todo). Continue anyway? (y/N)` END THE TURN.
 - Already locked (`hitl-index status <T> --json` shows approved or later) → `⚠️ <T> skeleton is locked. Signature/intent changes will need /hitl:approve <T> again.` and continue.
 - `reopened` with `reopen.stage: skeleton` (the human reopened it after a contract change) → **reopen mode**: change only
   the `reopen.symbols` (signature, intent, TODO steps) to the amended spec/design; keep everything else, keep the tests
   (they are reopened; `/hitl:test <T>` rewrites them after the approval). Gate: `/hitl:approve <T> skeleton <symbols>`.
 
 ## 2. Load (no questions)
-- The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`D-n` in the change's
+- The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`<KEY>-D<n>` in the change's
   `design.md`; `hitl-index context <T> --json` shows them with the AC scenarios).
 - `docs/PATTERNS-CONVENTIONS.md`; `hitl.config.json` (`commands.test`, `commands.typecheck`, `testGlobs`).
 - `hitl-index context <T> --json` → existing targets, callers, neighbours, public types.
@@ -42,7 +42,7 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
 - **modify** → edit the symbol in place: rewrite the whole intent as one current contract (never append a sentence
   per task), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
   only when the body will be fully rewritten.
-  Already tagged by an earlier task → append yours (`@task T-2, T-3`), set `@status skeleton` and this task's `@prio`.
+  Already tagged by an earlier task → append yours (`@task PWR-T2, PWR-T3`), set `@status skeleton` and this task's `@prio`.
   If another not-done task also has `TODO(impl)` lines in it, scope yours: `TODO(impl <T>): n. …`.
 - **new** → create it in the stated file, following file/naming patterns. Create the file only if the row says so
   (`creates file`) or the file is the row's stated path and does not exist.
@@ -50,11 +50,11 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
   - intent docstring: what + business rule, params/returns/throws (prose lines). Keep the intent to what this
     symbol guarantees: a callee states its own rules; an orchestrator lists the outcome order and names the callee or enum
     (`already settled → checkAlreadySettled`, `statuses: SettleStatusEnum`); an enum alone defines each status.
-    No ids in prose (`T-n`, `T-n.ACk`, `D-n`, spec ids like `KEY-R3`/`KEY-R3.S1`/`KEY-BR1`, change ids): decisions go
+    No ids in prose (`<KEY>-T<n>`, `<KEY>-T<n>.AC<k>`, `<KEY>-D<n>`, spec ids like `KEY-R3`/`KEY-R3.S1`/`KEY-BR1`, change ids): decisions go
     in `@dec`, requirement links live in tasks.md AC refs and tests' `@ac`;
   - `@task <T> @impl <row owner> @status skeleton @prio <n>` on one line;
   - `@calls <short refs>` (declared collaborators; omit if none) and `@concurrency none|shared-state|async|locks|io`;
-  - `@dec D-n` on its own line only on the symbols that embody a D-n cited in the task's `**Why**` whose *cost if
+  - `@dec <KEY>-D<n>` on its own line only on the symbols that embody a <KEY>-D<n> cited in the task's `**Why**` whose *cost if
     wrong* matters (typically 0–3 per task; never required; not hashed). Ids must exist in the change's `design.md`;
   - numbered `TODO(impl): 1. …` steps (the flow a reviewer will map; each a short intent label, not pseudo-code: see
     "Step wording" in the skeleton template), then the sentinel
@@ -72,8 +72,8 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
 ## 4. Write test stubs
 - One stub per `### Test plan` row, in AC order (AC1 first), in the project's test location and framework (PATTERNS
   `Testing Conventions`, config test command). `describe` = the row's seam.
-- Title starts with the AC id (`T-12.AC1 …`), then the behaviour in `## Terms` words (test-patterns §1); tags
-  `@covers <ref> @ac <T-n.ACk> @kind <kind> @origin skeleton`.
+- Title starts with the AC id (`PWR-T12.AC1 …`), then the behaviour in `## Terms` words (test-patterns §1); tags
+  `@covers <ref> @ac <KEY>-T<n>.AC<k> @kind <kind> @origin skeleton`.
 - Body: `it.todo(...)` (TS) / skipped test with docstring only (Py). No assertions.
 - Any covered symbol with `@concurrency` ≠ none and no concurrency row → add a `@kind concurrency` stub and add the row to the Test plan.
 - Never edit existing locked tests; add new stubs beside them.

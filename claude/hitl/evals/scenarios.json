@@ -112,7 +112,7 @@
    "id": "review",
    "fixture": "review",
    "runs": 1,
-   "prompt": "/hitl:review T-1",
+   "prompt": "/hitl:review QT-T1",
    "checks": [
     "review_l0",
     "review_report",
@@ -184,7 +184,7 @@
    "id": "skeleton-lua",
    "fixture": "lua",
    "runs": 3,
-   "prompt": "/hitl:skeleton T-1",
+   "prompt": "/hitl:skeleton BURST-T1",
    "luaTargets": [
     {
      "file": "src/ratelimit/bucket_util.lua",
@@ -253,7 +253,7 @@
    "id": "churn-approve-blocked",
    "fixture": "churn-noted",
    "runs": 1,
-   "prompt": "/hitl:approve T-1 done",
+   "prompt": "/hitl:approve FEE-T1 done",
    "checks": [
     "approve_blocked_by_note",
     "lock_unchanged"
@@ -283,7 +283,7 @@
    "id": "before-blocked",
    "fixture": "churn-waiting",
    "runs": 1,
-   "prompt": "/hitl:approve T-2 skeleton",
+   "prompt": "/hitl:approve FEE-T2 skeleton",
    "checks": [
     "approve_blocked_by_wait",
     "lock_unchanged"

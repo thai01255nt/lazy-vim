@@ -27,7 +27,7 @@ const proposal = ({ status = "draft", coverage = "", open = "" } = {}) =>
   `## What changes\n- Admins can deactivate a user.\n\n## Capabilities\n| capability | key | change | requirements |\n|---|---|---|---|\n` +
   `| accounts | ACC | modified | +ACC-R7 |\n\n${coverage}## Artifacts\n| artifact | decision | why |\n|---|---|---|\n| design | skipped | small |\n\n` +
   `## Open questions\n${open}`;
-const delta = (statement) => `# Delta: Accounts\n> capability: accounts | key: ACC | change: ${ID}\n\n## ADDED Requirements\n` +
+const delta = (statement) => `# Delta: Accounts\n> capability: accounts | change: ${ID}\n\n## ADDED Requirements\n` +
   `### Requirement: ACC-R7 Deactivate a user\n${statement}\n\n#### Scenario: ACC-R7.S1 Deactivated user cannot sign in\n` +
   `- GIVEN a deactivated user\n- WHEN they sign in\n- THEN sign-in is refused\n`;
 const COV = (rows) => `## Coverage\n| category | status | note |\n|---|---|---|\n${rows}\n\n`;

@@ -1,14 +1,15 @@
 // `hitl-index spec validate|list|show|next-id|conflicts|merge|archive` — the deterministic spec layer (design v3 §6, §7).
 // Writes only: `validate` → <change>/.base.json entries; `merge` → .hitl/specs/**; `archive` → merge + move to .hitl/archive/.
 import { parseArgv } from "../lib/project.mjs";
-import { CAP_RE, parseId, today } from "../lib/specids.mjs";
+import { CAP_RE, isChangeId, parseId, today } from "../lib/specids.mjs";
 import { effectiveView, findChange, findConflicts, nextScenarioIds, nextSpecIds, readActiveChanges, readChange, readLiving, runMerge, validate } from "../lib/changes.mjs";
 
 const USAGE = `usage: hitl-index spec <sub> [args] [--json]
   validate [<change-id> | --living | --all] [--strict]
   list
   show [<capability> | <ID>] [--change <change-id>]
-  next-id <capability> [--kind R|BR|UC] [--count n] | next-id --scenario <REQ-ID> [--count n]
+  next-id <change-id> [--kind R|BR|UC|D] [--count n] | next-id --scenario <REQ-ID> [--count n]
+  key <change-id> [--title "<title>"] | key --check <KEY> [--change <change-id>]
   conflicts
   merge <change-id> [--dry-run] [--renumber] [--accept-base <ID,…>]
   archive <change-id> [--dry-run] [--force] [--renumber] [--accept-base <ID,…>]`;
@@ -25,6 +26,7 @@ export async function run(argv, ctx) {
     case "list": return cmdList(rest, ctx);
     case "show": return cmdShow(rest, ctx);
     case "next-id": return cmdNextId(rest, ctx);
+    case "key": return cmdKey(rest, ctx);
     case "conflicts": return cmdConflicts(rest, ctx);
     case "merge": return cmdMerge(rest, ctx, false);
     case "archive": return cmdMerge(rest, ctx, true);
@@ -55,21 +57,21 @@ async function cmdList(argv, ctx) {
   const capabilities = [];
   for (const [cap, l] of living.specs) {
     const d = l.doc;
-    capabilities.push({ capability: cap, key: d.key, file: l.file, purpose: d.purpose,
+    capabilities.push({ capability: cap, file: l.file, purpose: d.purpose,
       requirements: d.blocks.filter((b) => b.kind === "requirement").map((b) => ({ id: b.id, title: b.title, priority: b.priority, quality: b.quality, scenarios: b.scenarios.length })),
       rules: d.blocks.filter((b) => b.kind === "rule").map((b) => b.id), flows: d.blocks.filter((b) => b.kind === "flow").map((b) => b.id),
       retired: d.retired.map((r) => r.id), activeChanges: active.filter((c) => c.deltas.some((x) => x.capability === cap)).map((c) => c.id) });
   }
   const pending = [];
-  for (const c of active) for (const d of c.deltas) if (!living.specs.has(d.capability)) pending.push({ capability: d.capability, key: d.key, change: c.id });
+  for (const c of active) for (const d of c.deltas) if (!living.specs.has(d.capability)) pending.push({ capability: d.capability, key: c.proposal?.key ?? null, change: c.id });
   const out = { schema: "hitl.spec-list/1", capabilities, pending };
   if (ctx.json) { console.log(JSON.stringify(out, null, 2)); return 0; }
   if (!capabilities.length && !pending.length) { console.log("no living specs yet (.hitl/specs/) and no pending capabilities"); return 0; }
   for (const c of capabilities) {
-    console.log(`📘 ${c.capability} (${c.key}) — ${c.requirements.length} req · ${c.rules.length} rules · ${c.flows.length} flows${c.activeChanges.length ? ` · active: ${c.activeChanges.join(", ")}` : ""}`);
+    console.log(`📘 ${c.capability} — ${c.requirements.length} req · ${c.rules.length} rules · ${c.flows.length} flows${c.activeChanges.length ? ` · active: ${c.activeChanges.join(", ")}` : ""}`);
     for (const r of c.requirements) console.log(`   ${r.id} ${r.title} [${r.priority ?? "?"}${r.quality ? `, ${r.quality}` : ""}] · ${r.scenarios} scenario(s)`);
   }
-  for (const p of pending) console.log(`🆕 ${p.capability} (${p.key ?? "no key"}) — new in ${p.change}`);
+  for (const p of pending) console.log(`🆕 ${p.capability} — new in ${p.change}${p.key ? ` (${p.key})` : ""}`);
   return 0;
 }
 
@@ -113,11 +115,34 @@ async function cmdNextId(argv, ctx) {
   let ids;
   if (a.scenario) ids = nextScenarioIds(living, active, a.scenario, count);
   else {
-    if (a._.length !== 1) throw usage("next-id needs one capability");
-    if (!CAP_RE.test(a._[0])) throw usage(`invalid capability name ${a._[0]}`);
+    if (a._.length !== 1) throw usage("next-id needs one change id (0.13: ids are scoped by the change key, not the capability)");
+    if (!isChangeId(a._[0])) throw usage(`not a change id: ${a._[0]}${CAP_RE.test(a._[0]) ? " (0.13: next-id takes the change id; the capability is the folder the delta sits in)" : ""}`);
     ids = nextSpecIds(living, active, a._[0], a.kind || "R", count);
   }
   console.log(ctx.json || a.count !== undefined ? JSON.stringify(ids) : ids[0]);
+  return 0;
+}
+
+/** `spec key <change-id> [--title …]` suggests a free change key; `spec key --check KEY [--change id]` checks one. */
+async function cmdKey(argv, ctx) {
+  const a = parseArgv(argv, { values: ["title", "check", "change"] });
+  const { readKeyRegistry, checkKey, suggestKey } = await import("../lib/keys.mjs");
+  const reg = await readKeyRegistry(ctx.root);
+  if (a.check !== undefined) {
+    if (a._.length) throw usage("key --check takes no positional argument");
+    const bad = checkKey(reg, String(a.check), a.change || null);
+    const out = { key: String(a.check), ok: !bad, ...(bad ? { code: bad.code, message: bad.message } : {}) };
+    if (ctx.json) console.log(JSON.stringify(out));
+    else console.log(bad ? `❌ ${bad.code} ${bad.message}` : `✅ key ${a.check} is free`);
+    return bad ? 1 : 0;
+  }
+  if (a._.length !== 1 || !isChangeId(a._[0])) throw usage("key needs one change id");
+  const id = a._[0];
+  const own = reg.byChange.get(id);
+  const taken = new Map([...reg.byKey].filter(([, os]) => os.some((o) => o.change !== id)));
+  const key = own || suggestKey(id, a.title || null, taken);
+  if (ctx.json) console.log(JSON.stringify({ change: id, key, existing: !!own }));
+  else console.log(key);
   return 0;
 }
 

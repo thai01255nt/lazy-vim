@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readText, writeTextAtomic, withIndexLock } from "./fsutil.mjs";
-import { parseId } from "./specids.mjs";
+import { AC_ID_RE, DEC_ID_RE, TASK_ID_RE, parseId } from "./specids.mjs";
 
 export const NOTE_KINDS = ["spec", "design", "order", "recheck"];
 /** Kinds a person (or Claude after the user's Y) may add; `recheck` is written only by `note apply`. */
@@ -28,9 +28,9 @@ export const shortHash = (s) => createHash("sha256").update(String(s)).digest("h
 /** Kind of a ref: task | ac | spec | decision | symbol. */
 export function refKind(ref) {
   const r = String(ref || "");
-  if (/^T-\d+$/.test(r)) return "task";
-  if (/^T-\d+\.AC\d+$/.test(r)) return "ac";
-  if (/^D-\d+$/.test(r)) return "decision";
+  if (TASK_ID_RE.test(r)) return "task";
+  if (AC_ID_RE.test(r)) return "ac";
+  if (DEC_ID_RE.test(r)) return "decision";
   if (parseId(r)) return "spec";
   return "symbol";
 }
@@ -76,7 +76,7 @@ export function parseNotes(text) {
         if (i >= 0) { cur.from = v.slice(0, i).trim(); cur.at = v.slice(i + 3).trim(); } else cur.from = v.trim();
       } else if (k === "acked") {
         const [task, at] = v.split(" · ").map((s) => s.trim());
-        if (/^T-\d+$/.test(task)) cur.acks.push({ task, at: at || null });
+        if (TASK_ID_RE.test(task)) cur.acks.push({ task, at: at || null });
       } else if (k === "reason") cur.reason = v.trim();
       else if (k === "resolved") cur.resolved = v.trim();
       // `impact:` and `reopens:` are rendered from meta; they are read back from meta only
@@ -159,7 +159,7 @@ export function validateRefs(refs, ctx) {
       if (!ac) errors.push(`${ref}: not an AC of this change`); else titles[ref] = ac.text.length > 50 ? ac.text.slice(0, 49) + "…" : ac.text;
     } else {
       const r = ctx.resolve ? ctx.resolve(ref) : null;
-      if (!r) errors.push(`${ref}: not a spec id, D-n, task, AC or known symbol`);
+      if (!r) errors.push(`${ref}: not a spec id, decision, task, AC or known symbol`);
       else if (r.ambiguous) errors.push(`${ref}: ambiguous symbol (${r.ambiguous.join(", ")})`);
       else symbols[ref] = r.id;
     }

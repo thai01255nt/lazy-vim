@@ -133,13 +133,13 @@ test("spec validate: a term the change REMOVES no longer has avoided words", asy
 test("taskGlossary: living + the active change's delta; archived or no change → living only", async () => {
   const root = project();
   const ctx = await loadSpecContext(root);
-  const g = taskGlossary(ctx, { id: "T-12", change: "feat-password-reset" });
+  const g = taskGlossary(ctx, { id: "PWR-T1", change: "feat-password-reset" });
   assert.deepEqual(effectiveTerms(g.living, g.delta).map((t) => t.term), ["Account", "Reset link"]);
-  assert.equal(taskGlossary(ctx, { id: "T-1" }).delta, null);
-  assert.equal(taskGlossary(ctx, { id: "T-1" }).living.terms[0].term, "Account");
+  assert.equal(taskGlossary(ctx, { id: "QT-T1" }).delta, null);
+  assert.equal(taskGlossary(ctx, { id: "QT-T1" }).living.terms[0].term, "Account");
   const arch = ctx.entries.find((x) => x.entry.archived);
-  assert.ok(arch && changeForTask(ctx, { id: "T-2", change: arch.entry.id }));
-  assert.equal(taskGlossary(ctx, { id: "T-2", change: arch.entry.id }).delta, null, "archived: already merged");
+  assert.ok(arch && changeForTask(ctx, { id: "QT-T2", change: arch.entry.id }));
+  assert.equal(taskGlossary(ctx, { id: "QT-T2", change: arch.entry.id }).delta, null, "archived: already merged");
   assert.deepEqual(taskGlossary(null, null), { living: null, delta: null });
 });
 
@@ -159,14 +159,14 @@ test("report: structure findings are suggestions — own section, never WITH FIX
   const findings = [F("contract-1", { category: "structure", severity: "important", suggestedFix: "extract the shared check" }), F("contract-2", { category: "structure", severity: "minor", fixOwner: "agent" })];
   const v = computeVerdict({ l0, findings, decisions: {}, risk: { symbols: {} }, thr: 80 });
   assert.deepEqual(v, { verdict: "PASS", humanRequired: 0 });
-  const rep = buildReport({ taskId: "T-1", title: "x", l0, findings: { findings, setAside: [] }, decisions: null, risk: { symbols: {} }, config: {}, head: "h", now: "n" });
+  const rep = buildReport({ taskId: "QT-T1", title: "x", l0, findings: { findings, setAside: [] }, decisions: null, risk: { symbols: {} }, config: {}, head: "h", now: "n" });
   const md = rep.markdown;
   assert.match(md, /## Findings needing a decision\nnone\n/);
   assert.match(md, /## Structure \(suggestions\)\nRefactor step: tests stay green and untouched\./);
   assert.match(md, /- F-1 contract-1 — src\/a\.ts:9 → extract the shared check\n- F-2 contract-2 — src\/a\.ts:9\n/);
   assert.match(md, /## Collapsed: minor or conf<80 \(0\)/, "not hidden among the collapsed");
   assert.ok(md.indexOf("## Structure") > md.indexOf("## Findings needing a decision") && md.indexOf("## Structure") < md.indexOf("## Intent vs body"));
-  const none = buildReport({ taskId: "T-1", title: "x", l0, findings: { findings: [], setAside: [] }, decisions: null, risk: { symbols: {} }, config: {}, head: "h", now: "n" });
+  const none = buildReport({ taskId: "QT-T1", title: "x", l0, findings: { findings: [], setAside: [] }, decisions: null, risk: { symbols: {} }, config: {}, head: "h", now: "n" });
   assert.doesNotMatch(none.markdown, /## Structure/, "no section without structure findings");
 });
 
@@ -175,11 +175,11 @@ test("l0: the terms gate warns on intents of the task's symbols; skip without _A
   const root = makeProject();
   await updateIndex(root, null, { full: true });
   const gate = (l0) => l0.gates.find((g) => g.name === "terms");
-  const none = await computeL0(root, await loadConfig(root), "T-1");
+  const none = await computeL0(root, await loadConfig(root), "QT-T1");
   assert.deepEqual(gate(none), { name: "terms", result: "skip", detail: "no _Avoid_ words in the glossary" });
   assert.deepEqual(none.terms, { items: [] });
   write(root, ".hitl/specs/GLOSSARY.md", "# Glossary\n> updated: 2026-10-20\n\n### Term: Account\nA person's identity.\n_Avoid_: user\n");
-  const l0 = await computeL0(root, await loadConfig(root), "T-1");
+  const l0 = await computeL0(root, await loadConfig(root), "QT-T1");
   assert.equal(gate(l0).result, "warn");
   assert.deepEqual(l0.terms.items.map((i) => [i.ref, i.message]).sort(), [
     ["UserRepo.findByEmail", `intent of UserRepo.findByEmail: "user" → use Account (glossary)`],

@@ -1,0 +1,1 @@
+{"schema":"hitl.linear-map/1","workspace":null,"team":{"id":"t1","key":"ENG","name":"Eng"},"changes":{},"tasks":{"T-12":{"issue":"ENG-7","id":"i-7","url":"https://linear.app/x/issue/ENG-7","pushed":{"title":"T-12 · Send a reset link","relations":[]}},"T-13":{"issue":"ENG-8","id":"i-8","pushed":{"title":"T-13 · Set a new password","relations":["T-12"]}}}}

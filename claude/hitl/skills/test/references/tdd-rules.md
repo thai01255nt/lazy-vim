@@ -32,7 +32,7 @@ the right thing.
 - Source of truth for expected values: the intent docstring, the TODO(impl) flow, the ACs and the test-plan oracle.
   **Never the implementation** (the test-author never sees bodies). Expected values must come from an independent source;
   a test that recomputes the answer the way the code does is tautological.
-- One behaviour per test. The title starts with the AC id: `T-12.AC1 rejects duplicate email in any case`.
+- One behaviour per test. The title starts with the AC id: `PWR-T12.AC1 rejects duplicate email in any case`.
 - Before writing a test, name the production defect that would make it fail. If you cannot, the test is not worth writing.
 - Names, anti-patterns and doubles: `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §1–§3 (+ `skills/tdd/tests.md`,
   `mocking.md`).

@@ -90,9 +90,16 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
   const scopeFile = kind === "planning" ? canon(scope.file) : null;
   const scopeChange = kind === "change" ? (c.spec.entries.find((x) => !x.entry.archived && x.entry.id === scope.id)
     || c.spec.entries.filter((x) => x.entry.archived && (x.entry.id === scope.id || x.entry.dir.endsWith(`/${scope.id}`))).at(-1) || null) : null;
-  const capKey = kind === "capability" ? (c.spec.living.specs.get(scope.id)?.doc.key
-    || c.spec.entries.flatMap((x) => x.change.deltas).find((d) => (d.capability || d.folder) === scope.id && d.key)?.key || null) : null;
-  const refsCap = (t) => t.acs.some((a) => (a.reqs || []).some((r) => parseId(r)?.key === capKey));
+  // 0.13: ids carry the change key, not the capability: a task belongs to the capability whose blocks its refs name
+  // (living spec, retired ids, or any change's delta for that capability)
+  const capIds = new Set();
+  if (kind === "capability") {
+    const take = (doc) => { for (const b of doc?.blocks || []) capIds.add(b.id); for (const r of doc?.retired || []) capIds.add(parseId(r.id)?.req || r.id); };
+    take(c.spec.living.specs.get(scope.id)?.doc);
+    for (const d of c.spec.entries.flatMap((x) => x.change.deltas)) if ((d.capability || d.folder) === scope.id) take(d);
+  }
+  const capKey = capIds.size > 0;
+  const refsCap = (t) => t.acs.some((a) => (a.reqs || []).some((r) => { const p = parseId(r); return !!p && capIds.has(p.req || p.id); }));
   let tasks;
   if (kind === "task") tasks = c.tasks.filter((t) => t.id === scope.id);
   else if (kind === "planning") tasks = c.tasks.filter((t) => !isChangeTask(t) && canon(t.planning) === scopeFile);

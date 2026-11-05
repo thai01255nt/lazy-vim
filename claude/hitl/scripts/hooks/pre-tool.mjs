@@ -212,7 +212,7 @@ function applyEdit(old, ti, toolName) {
 
 const byOf = (seg) => { const m = /--by(?:=|\s+)["']?(human-override|human|auto)(?![\w-])/.exec(seg); return m ? m[1] : /--by\b/.test(seg) ? "?" : "human"; };
 const stageOf = (seg) => {
-  const m = /--stage(?:=|\s+)["']?(skeleton|tests|done|intent|accept|reopen|dismiss|defer)\b/.exec(seg) || /\bapprove\s+["']?T-\d+["']?\s+(skeleton|tests|done)\b/.exec(seg);
+  const m = /--stage(?:=|\s+)["']?(skeleton|tests|done|intent|accept|reopen|dismiss|defer)\b/.exec(seg) || /\bapprove\s+["']?[A-Z]{2,5}-T\d+["']?\s+(skeleton|tests|done)\b/.exec(seg);
   return m ? m[1] : null;
 };
 /** Part of an approve segment after the `approve` word (the CLI's own arguments). */
@@ -236,7 +236,7 @@ function overrideGate(root, input, R, cmd, seg) {
   const fresh = tok && typeof tok.at === "number" && Date.now() - tok.at < OVERRIDE_TTL_MS && Date.now() >= tok.at - 1000;
   if (!fresh || !Array.isArray(tok.tasks)) deny(`Fast-lane override is human-only: ${how}`);
   if (CHAIN_RE.test(cmd)) deny("Run the approve command alone (no chaining, pipes or redirection)");
-  const T = (/\bT-\d+\b/.exec(seg.replace(/^[\s\S]*?\bapprove\b/, "")) || [])[0];
+  const T = (/\b[A-Z]{2,5}-T\d+\b/.exec(seg.replace(/^[\s\S]*?\bapprove\b/, "")) || [])[0];
   if (!T || !tok.tasks.includes(T)) deny(`Override token covers ${tok.feature ? `feature ${tok.feature} (${tok.tasks.join(", ")})` : tok.tasks.join(", ")}; ${how} for another task`);
   const stage = stageOf(seg);
   if (stage !== "skeleton" && stage !== "tests") deny("--by human-override needs an explicit --stage skeleton|tests (done stays a human /hitl:approve)");
@@ -272,12 +272,12 @@ async function approveGate(root, input, R, rawCmd) {
   // The token is consumed here and the call is allowed outright, so a later permission check cannot swallow it.
   // Hence only a plain single command qualifies (checked before consuming; the token is kept on this deny).
   if (CHAIN_RE.test(cmd)) deny("Run the approve command alone (no chaining, pipes or redirection); the approval token is kept");
-  // A token is bound to one task (`/hitl:approve T-n`), to one change and stage (`/hitl:approve <change-id> intent|accept`)
-  // or, typed without a T-id, to any one task approve. A task token never authorizes --change and vice versa; an intent
+  // A token is bound to one task (`/hitl:approve PWR-T3`), to one change and stage (`/hitl:approve <change-id> intent|accept`)
+  // or, typed without a task id, to any one task approve. A task token never authorizes --change and vice versa; an intent
   // token never authorizes accept and vice versa.
   const bind = approveBinding(tok.args);
   const seg = human[0];
-  const cmdTask = /\bT-\d+\b/.exec(argsOf(seg));
+  const cmdTask = /\b[A-Z]{2,5}-T\d+\b/.exec(argsOf(seg));
   if (isChangeSeg(seg)) {
     const ids = changeIdsOf(seg);
     const want = stageOf(seg) || "intent";

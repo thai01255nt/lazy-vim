@@ -66,7 +66,7 @@ describe("linear: defaults and desired state", () => {
 
   test("priority, labels per config, marker, byte-stable description and contentHash", () => {
     const map = initMap();
-    const task = mkTask("T-1");
+    const task = mkTask("QT-T1");
     const d1 = desiredForTask(task, "red", linearCfg(ON), map, { planningKey: "feat-x.md" });
     assert.equal(d1.priority, 2);
     assert.equal(desiredForTask({ ...task, prio: "P0" }, "red", linearCfg(ON), map).priority, 1);
@@ -76,10 +76,10 @@ describe("linear: defaults and desired state", () => {
     assert.equal(d1.stateId, "st-progress");
     // v4 ticket format: Why + risk reasons, ACs as plain bullets, marker + footer last; no prio/impl/change text line
     assert.ok(d1.description.startsWith("**Why**: because (D-1)\nRisk reasons: security\n\n### Acceptance criteria\n"));
-    assert.ok(d1.description.includes("\n- T-1.AC1 (R-1) Given a When b Then c\n"));
+    assert.ok(d1.description.includes("\n- QT-T1.AC1 (R-1) Given a When b Then c\n"));
     assert.ok(!d1.description.includes("- [ ]"));
     assert.ok(!/prio: |impl: |change: /.test(d1.description));
-    assert.ok(d1.description.includes(`\n<!-- hitl:task=T-1 file=${TF} -->\n_Managed by hitl — edit ${TF} in the repo, not this issue._`));
+    assert.ok(d1.description.includes(`\n<!-- hitl:task=QT-T1 file=${TF} -->\n_Managed by hitl — edit ${TF} in the repo, not this issue._`));
     assert.ok(!/src\//.test(d1.description));
     const d2 = desiredForTask(structuredClone(task), "red", linearCfg(ON), map, { planningKey: "feat-x.md" });
     assert.equal(d1.description, d2.description);
@@ -90,20 +90,20 @@ describe("linear: defaults and desired state", () => {
     assert.deepEqual(ph.labels, []);
     assert.ok([...warnings][0].includes("hitl:red"));
     const pre = desiredForTask(task, "red", linearCfg({ linear: { enabled: true, titlePrefix: true } }), map);
-    assert.equal(pre.title, "T-1 · Task T-1");
+    assert.equal(pre.title, "QT-T1 · Task QT-T1");
     assert.equal(describeTask({ ...task, why: null, acs: [] }, null).split("\n")[0], "**Why**: —");
     assert.ok(!describeTask({ ...task, risk: "low" }, null).includes("Risk reasons"));
   });
 
   test("topological order: blockers first, ties by prio then id", () => {
-    const ts = [mkTask("T-3", { blockedBy: ["T-2"] }), mkTask("T-2", { prio: "P2" }), mkTask("T-10", { prio: "P0" }), mkTask("T-4", { prio: "P2" })];
-    assert.deepEqual(topoOrder(ts), ["T-10", "T-2", "T-3", "T-4"]);
+    const ts = [mkTask("QT-T3", { blockedBy: ["QT-T2"] }), mkTask("QT-T2", { prio: "P2" }), mkTask("QT-T10", { prio: "P0" }), mkTask("QT-T4", { prio: "P2" })];
+    assert.deepEqual(topoOrder(ts), ["QT-T10", "QT-T2", "QT-T3", "QT-T4"]);
   });
 });
 
 describe("linear: plan", () => {
   test("disabled → no ops; unconfigured → warning", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     const off = buildPlan({ ...I, config: {} });
     assert.equal(off.enabled, false); assert.deepEqual(off.ops, []);
     const unc = buildPlan({ ...I, map: emptyMap() });
@@ -112,66 +112,66 @@ describe("linear: plan", () => {
   });
 
   test("draft tasks file skipped; quick tasks only with pushQuick", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     I.docs[0].status = "draft";
     const p = buildPlan(I);
     assert.equal(p.ops.length, 0);
-    assert.deepEqual(p.skipped, [{ task: "T-1", reason: "tasks file draft" }]);
-    const Q = inputs([mkTask("T-2", { planning: "none" })], {}, { config: { linear: { enabled: true, pushQuick: false } } });
+    assert.deepEqual(p.skipped, [{ task: "QT-T1", reason: "tasks file draft" }]);
+    const Q = inputs([mkTask("QT-T2", { planning: "none" })], {}, { config: { linear: { enabled: true, pushQuick: false } } });
     Q.docs[0] = { file: ".hitl/tasks/quick-a.md", status: "approved", planning: "none", tasks: Q.docs[0].tasks };
     assert.equal(buildPlan(Q).skipped[0].reason, "quick task (pushQuick off)");
   });
 
   test("first push: project + gated creates in topological order; idempotent after record", () => {
-    const I = inputs([mkTask("T-2", { blockedBy: ["T-1"], prio: "P0" }), mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T2", { blockedBy: ["QT-T1"], prio: "P0" }), mkTask("QT-T1")]);
     const p = buildPlan(I);
     assert.deepEqual(p.ops.map((o) => o.op), ["ensureProject", "createIssue", "createIssue"]);
-    assert.deepEqual(p.ops.slice(1).map((o) => o.task), ["T-1", "T-2"]);
+    assert.deepEqual(p.ops.slice(1).map((o) => o.task), ["QT-T1", "QT-T2"]);
     assert.ok(p.ops.slice(1).every((o) => o.needsGate && o.reason === "first push of tasks/feat-x.md"));
     assert.equal(p.ops[0].payload.summary, "Ship X.");
     assert.ok(p.ops[0].payload.content.includes("- R-1 [must] When a, b.") && p.ops[0].payload.content.includes("- D-1 Use Y"));
     assert.deepEqual(buildPlan(I), p, "deterministic");
     const r1 = pushAll(I, p);
     assert.equal(r1.out.applied, 3);
-    assert.equal(r1.out.replan, true, "T-2's relation was deferred");
-    assert.equal(r1.map.tasks["T-1"].pushed.projectId, "proj-1", "project id picked up from ensureProject in the same batch");
-    assert.equal(r1.map.tasks["T-1"].branch, "eng-1-task-t-1");
+    assert.equal(r1.out.replan, true, "QT-T2's relation was deferred");
+    assert.equal(r1.map.tasks["QT-T1"].pushed.projectId, "proj-1", "project id picked up from ensureProject in the same batch");
+    assert.equal(r1.map.tasks["QT-T1"].branch, "eng-1-task-qt-t1");
     const I2 = { ...I, map: r1.map };
     const p2 = buildPlan(I2);
-    assert.deepEqual(p2.ops.map((o) => [o.op, o.task]), [["addRelations", "T-2"]]);
-    assert.deepEqual(p2.ops[0].payload.blockedBy, [{ task: "T-1", id: "iss-T-1", issue: "ENG-1" }]);
+    assert.deepEqual(p2.ops.map((o) => [o.op, o.task]), [["addRelations", "QT-T2"]]);
+    assert.deepEqual(p2.ops[0].payload.blockedBy, [{ task: "QT-T1", id: "iss-QT-T1", issue: "ENG-1" }]);
     const r2 = pushAll(I2, p2);
     assert.equal(r2.out.replan, false);
     assert.deepEqual(buildPlan({ ...I, map: r2.map }).ops, []);
   });
 
   test("content change → one updateIssue with only changed fields; state + labels", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     I.map = pushAll(I, buildPlan(I)).map;
-    const t2 = mkTask("T-1", { acs: [{ id: "T-1.AC1", reqs: ["R-1"], text: "Given a When b Then d", done: false }] });
+    const t2 = mkTask("QT-T1", { acs: [{ id: "QT-T1.AC1", reqs: ["R-1"], text: "Given a When b Then d", done: false }] });
     const p = buildPlan({ ...I, docs: [{ ...I.docs[0], tasks: [t2] }] });
     assert.equal(p.ops.length, 1);
     assert.equal(p.ops[0].op, "updateIssue");
     assert.deepEqual(Object.keys(p.ops[0].payload.fields).sort(), ["description", "title"]);
     assert.equal(p.ops[0].needsGate, false);
-    const p2 = buildPlan({ ...I, statuses: { tasks: { "T-1": { status: "green" } } } });
+    const p2 = buildPlan({ ...I, statuses: { tasks: { "QT-T1": { status: "green" } } } });
     assert.deepEqual(p2.ops[0].payload.fields, { stateId: "st-review" });
     assert.equal(p2.ops[0].payload.expect.stateType, "started");
     assert.match(p2.ops[0].reason, /state started→review/);
-    const p3 = buildPlan({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("T-1", { impl: "agent", prio: "P2" })] }] });
+    const p3 = buildPlan({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1", { impl: "agent", prio: "P2" })] }] });
     const u = p3.ops[0];
     assert.equal(u.payload.fields.priority, 3);
     assert.deepEqual(u.payload.labels, { add: ["lb-impl-agent"], remove: ["lb-impl-mixed"] });
     // conflict: skill kept the remote state → no state op again until desired changes
     const r = pushAll({ ...I }, p2, () => ({ skippedFields: ["stateId"] }));
-    assert.deepEqual(buildPlan({ ...I, map: r.map, statuses: { tasks: { "T-1": { status: "green" } } } }).ops, []);
+    assert.deepEqual(buildPlan({ ...I, map: r.map, statuses: { tasks: { "QT-T1": { status: "green" } } } }).ops, []);
   });
 
   test("completed → not done gives a separate gated reopen op", () => {
-    const I = inputs([mkTask("T-1")], { "T-1": "done" });
+    const I = inputs([mkTask("QT-T1")], { "QT-T1": "done" });
     I.map = pushAll(I, buildPlan(I)).map;
-    assert.equal(I.map.tasks["T-1"].pushed.stateType, "completed");
-    const p = buildPlan({ ...I, statuses: { tasks: { "T-1": { status: "red" } } } });
+    assert.equal(I.map.tasks["QT-T1"].pushed.stateType, "completed");
+    const p = buildPlan({ ...I, statuses: { tasks: { "QT-T1": { status: "red" } } } });
     const reopen = p.ops.filter((o) => o.needsGate);
     assert.equal(reopen.length, 1);
     assert.match(reopen[0].reason, /^reopen: Linear completed, hitl red/);
@@ -179,30 +179,30 @@ describe("linear: plan", () => {
   });
 
   test("removed task → gated cancel; re-added → gated un-cancel", () => {
-    const I = inputs([mkTask("T-1"), mkTask("T-2")]);
+    const I = inputs([mkTask("QT-T1"), mkTask("QT-T2")]);
     I.map = pushAll(I, buildPlan(I)).map;
-    const gone = { ...I, docs: [{ ...I.docs[0], tasks: [mkTask("T-1")] }] };
+    const gone = { ...I, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1")] }] };
     const p = buildPlan(gone);
-    assert.deepEqual(p.ops.map((o) => [o.op, o.task, o.needsGate]), [["cancelIssue", "T-2", true]]);
+    assert.deepEqual(p.ops.map((o) => [o.op, o.task, o.needsGate]), [["cancelIssue", "QT-T2", true]]);
     assert.equal(p.ops[0].payload.stateId, "st-canceled");
-    assert.equal(buildPlan({ ...gone, scope: { kind: "tasks", ids: ["T-1"] } }).ops.length, 0, "cancel only in scope all");
+    assert.equal(buildPlan({ ...gone, scope: { kind: "tasks", ids: ["QT-T1"] } }).ops.length, 0, "cancel only in scope all");
     const r = pushAll(gone, p);
-    assert.equal(r.map.tasks["T-2"].removed, true);
+    assert.equal(r.map.tasks["QT-T2"].removed, true);
     const back = buildPlan({ ...I, map: r.map });
     assert.equal(back.ops[0].op, "updateIssue");
     assert.equal(back.ops[0].needsGate, true);
     assert.match(back.ops[0].reason, /un-cancel/);
     const r2 = pushAll({ ...I, map: r.map }, back);
-    assert.equal(r2.map.tasks["T-2"].removed, false);
+    assert.equal(r2.map.tasks["QT-T2"].removed, false);
     assert.deepEqual(buildPlan({ ...I, map: r2.map }).ops, []);
   });
 
   test("relation removed locally → manualNote; recorded note drops it", () => {
-    const I = inputs([mkTask("T-1"), mkTask("T-2", { blockedBy: ["T-1"] })]);
+    const I = inputs([mkTask("QT-T1"), mkTask("QT-T2", { blockedBy: ["QT-T1"] })]);
     let m = pushAll(I, buildPlan(I)).map;
     m = pushAll({ ...I, map: m }, buildPlan({ ...I, map: m })).map;
-    assert.deepEqual(m.tasks["T-2"].pushed.relations, ["T-1"]);
-    const J = { ...I, map: m, docs: [{ ...I.docs[0], tasks: [mkTask("T-1"), mkTask("T-2")] }] };
+    assert.deepEqual(m.tasks["QT-T2"].pushed.relations, ["QT-T1"]);
+    const J = { ...I, map: m, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1"), mkTask("QT-T2")] }] };
     const p = buildPlan(J);
     assert.deepEqual(p.ops.map((o) => o.op), ["manualNote"]);
     assert.equal(p.ops[0].payload.message, "remove relation ENG-2 blocked by ENG-1 by hand (MCP cannot delete relations)");
@@ -210,18 +210,18 @@ describe("linear: plan", () => {
   });
 
   test("review comment only when the body hash changes", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     I.map = pushAll(I, buildPlan(I)).map;
-    const md = "# Review T-1\nverdict: PASS | risk: 0.40 (medium) | human required: 0 | head: abc123\n";
-    const rv = { "T-1": { ...parseReviewLine(md), report: ".hitl/reviews/T-1.review.md" } };
-    assert.equal(reviewBody("T-1", rv["T-1"]), "hitl review: PASS · human required: 0 · head: abc123 · report: reviews/T-1.review.md");
+    const md = "# Review QT-T1\nverdict: PASS | risk: 0.40 (medium) | human required: 0 | head: abc123\n";
+    const rv = { "QT-T1": { ...parseReviewLine(md), report: ".hitl/reviews/QT-T1.review.md" } };
+    assert.equal(reviewBody("QT-T1", rv["QT-T1"]), "hitl review: PASS · human required: 0 · head: abc123 · report: reviews/QT-T1.review.md");
     const p = buildPlan({ ...I, reviews: rv });
     assert.deepEqual(p.ops.map((o) => o.op), ["upsertComment"]);
     assert.equal(p.ops[0].payload.commentId, null);
     const m = pushAll(I, p).map;
-    assert.deepEqual(m.tasks["T-1"].comments.review, { id: "c-1", hash: h(p.ops[0].payload.body) });
+    assert.deepEqual(m.tasks["QT-T1"].comments.review, { id: "c-1", hash: h(p.ops[0].payload.body) });
     assert.deepEqual(buildPlan({ ...I, map: m, reviews: rv }).ops, []);
-    const rv2 = { "T-1": { ...rv["T-1"], verdict: "FAIL" } };
+    const rv2 = { "QT-T1": { ...rv["QT-T1"], verdict: "FAIL" } };
     const p2 = buildPlan({ ...I, map: m, reviews: rv2 });
     assert.equal(p2.ops[0].payload.commentId, "c-1");
     assert.equal(p2.ops[0].reason, "review verdict changed");
@@ -229,9 +229,9 @@ describe("linear: plan", () => {
   });
 
   test("maxCreatePerPush gates every create (also on a non-first push)", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     I.map = pushAll(I, buildPlan(I)).map;
-    const more = { ...I, config: { linear: { enabled: true, maxCreatePerPush: 1 } }, docs: [{ ...I.docs[0], tasks: [mkTask("T-1"), mkTask("T-2"), mkTask("T-3")] }] };
+    const more = { ...I, config: { linear: { enabled: true, maxCreatePerPush: 1 } }, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1"), mkTask("QT-T2"), mkTask("QT-T3")] }] };
     const p = buildPlan(more);
     const creates = p.ops.filter((o) => o.op === "createIssue");
     assert.equal(creates.length, 2);
@@ -245,15 +245,15 @@ describe("linear: record", () => {
   test("init writes header and keeps entries; invalid input throws code 1", () => {
     const m = initMap();
     assert.equal(m.team.key, "ENG");
-    m.tasks["T-1"] = { issue: "ENG-1", id: "x" };
+    m.tasks["QT-T1"] = { issue: "ENG-1", id: "x" };
     const again = applyRecord({ map: m, plan: null, queue: null, input: FIXI, now: NOW }).map;
-    assert.equal(again.tasks["T-1"].issue, "ENG-1");
+    assert.equal(again.tasks["QT-T1"].issue, "ENG-1");
     assert.throws(() => applyRecord({ map: m, input: { schema: "nope" } }), (e) => e.code === 1);
     assert.throws(() => applyRecord({ map: m, input: { schema: "hitl.tickets-results/1", kind: "init", init: { team: { key: "ENG" } } } }), (e) => e.code === 1);
   });
 
   test("planId mismatch → error; failures and unreachable → queue; success clears it", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     const p = buildPlan(I);
     const base = { schema: "hitl.tickets-results/1", kind: "push" };
     assert.throws(() => applyRecord({ map: I.map, plan: p, input: { ...base, planId: "other", results: [] }, now: NOW }), /plan changed/);
@@ -269,14 +269,14 @@ describe("linear: record", () => {
     assert.deepEqual(part.queue.items.map((x) => [x.op, x.error]), [["createIssue", "rate limited"]]);
     const ok = pushAll({ ...I }, p);
     assert.equal(ok.queue.items.length, 0);
-    assert.equal(ok.map.tasks["T-1"].pushed.descHash, h(p.ops[1].payload.description));
+    assert.equal(ok.map.tasks["QT-T1"].pushed.descHash, h(p.ops[1].payload.description));
   });
 
   test("descHash uses the description Linear returns", () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     const p = buildPlan(I);
     const r = pushAll(I, p, (o) => (o.op === "createIssue" ? { description: "normalized by linear" } : {}));
-    assert.equal(r.map.tasks["T-1"].pushed.descHash, h("normalized by linear"));
+    assert.equal(r.map.tasks["QT-T1"].pushed.descHash, h("normalized by linear"));
   });
 
   test("CLI record: exit 1 on planId mismatch (inbox file kept), queue file written, inbox deleted on success", async () => {
@@ -284,7 +284,7 @@ describe("linear: record", () => {
     const P = (r) => path.join(root, ".hitl", r);
     fs.mkdirSync(P("index"), { recursive: true }); fs.mkdirSync(P(".inbox"), { recursive: true });
     fs.writeFileSync(P("hitl.config.json"), JSON.stringify({ schema: "hitl.config/1", ...ON }));
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     const plan = buildPlan(I);
     fs.writeFileSync(P("linear.map.json"), JSON.stringify(I.map));
     fs.writeFileSync(P("index/linear.plan.json"), JSON.stringify(plan));
@@ -307,23 +307,23 @@ describe("linear: record", () => {
 
 describe("linear: diff", () => {
   const pushedOne = () => {
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     const p = buildPlan(I);
     const m = pushAll(I, p, (o) => (o.op === "createIssue" ? { id: "issue-uuid-1", issue: "ENG-1" } : {})).map;
     return { I, m, desc: p.ops[1].payload.description };
   };
   test("fixture: DONE_EARLY, priority + description drift, UNMAPPED; custom labels ignored", () => {
     const { I, m } = pushedOne();
-    const { out } = buildDiff({ config: ON, map: m, remote: FIXR, statuses: I.statuses, localTasks: [mkTask("T-1")] });
+    const { out } = buildDiff({ config: ON, map: m, remote: FIXR, statuses: I.statuses, localTasks: [mkTask("QT-T1")] });
     const codes = out.items.map((i) => `${i.code}:${i.field}`);
     assert.ok(codes.includes("LINEAR_DONE_EARLY:state"));
     assert.ok(codes.includes("LINEAR_DRIFT:priority"));
     assert.ok(codes.includes("LINEAR_DRIFT:description"));
     assert.ok(!codes.includes("LINEAR_DRIFT:labels"));
     assert.ok(codes.includes("LINEAR_UNMAPPED:null"));
-    assert.deepEqual(out.remote["T-1"], { assignee: "Thai", cycle: "Cycle 12", state: "Done" });
-    assert.deepEqual(out.relink, [], "T-7 is not a local task");
-    assert.ok(codes.includes("LINEAR_DRIFT:title")); // fixture title differs from "Task T-1"
+    assert.deepEqual(out.remote["QT-T1"], { assignee: "Thai", cycle: "Cycle 12", state: "Done" });
+    assert.deepEqual(out.relink, [], "QT-T7 is not a local task");
+    assert.ok(codes.includes("LINEAR_DRIFT:title")); // fixture title differs from "Task QT-T1"
     assert.deepEqual(out.counts, { warn: 4, info: 1 });
   });
   test("per-field drift; MISSING only with complete; relink writes map", () => {
@@ -336,17 +336,17 @@ describe("linear: diff", () => {
     assert.equal(none.items.length, 0);
     const miss = buildDiff({ config: ON, map: m, remote: { schema: "hitl.tickets-remote/1", complete: true, issues: [] }, statuses: I.statuses, localTasks: [] }).out;
     assert.deepEqual(miss.items.map((i) => i.code), ["LINEAR_MISSING"]);
-    // relink: map lost T-7's entry, remote carries the marker, T-7 exists locally
-    const t7 = mkTask("T-7", { file: ".hitl/tasks/other.md", planning: "none" });
-    const r = buildDiff({ config: ON, map: m, remote: FIXR, statuses: I.statuses, localTasks: [mkTask("T-1"), t7], relink: true });
-    assert.deepEqual(r.out.relink, [{ task: "T-7", issue: "ENG-9", id: "issue-uuid-9", url: "https://linear.app/acme/issue/ENG-9/other", branch: "eng-9-something-else" }]);
-    assert.equal(r.map.tasks["T-7"].id, "issue-uuid-9");
-    assert.deepEqual(r.map.tasks["T-7"].pushed, {});
+    // relink: map lost QT-T7's entry, remote carries the marker, QT-T7 exists locally
+    const t7 = mkTask("QT-T7", { file: ".hitl/tasks/other.md", planning: "none" });
+    const r = buildDiff({ config: ON, map: m, remote: FIXR, statuses: I.statuses, localTasks: [mkTask("QT-T1"), t7], relink: true });
+    assert.deepEqual(r.out.relink, [{ task: "QT-T7", issue: "ENG-9", id: "issue-uuid-9", url: "https://linear.app/acme/issue/ENG-9/other", branch: "eng-9-something-else" }]);
+    assert.equal(r.map.tasks["QT-T7"].id, "issue-uuid-9");
+    assert.deepEqual(r.map.tasks["QT-T7"].pushed, {});
     assert.throws(() => buildDiff({ config: ON, map: m, remote: { schema: "x" } }), (e) => e.code === 1);
     // relinked task → next plan re-syncs all fields via updateIssue (no create)
     const J = { ...I, map: r.map, docs: [...I.docs, { file: ".hitl/tasks/other.md", status: "approved", planning: "none", tasks: [t7] }],
-      statuses: { tasks: { ...I.statuses.tasks, "T-7": { status: "todo" } } } };
-    const p = buildPlan(J).ops.filter((o) => o.task === "T-7");
+      statuses: { tasks: { ...I.statuses.tasks, "QT-T7": { status: "todo" } } } };
+    const p = buildPlan(J).ops.filter((o) => o.task === "QT-T7");
     assert.deepEqual(p.map((o) => o.op), ["updateIssue"]);
     assert.ok(["title", "description", "priority", "stateId"].every((k) => k in p[0].payload.fields));
   });
@@ -354,15 +354,15 @@ describe("linear: diff", () => {
 
 describe("linear: status and summary", () => {
   test("synced flags, reasons and prLine", () => {
-    const I = inputs([mkTask("T-1"), mkTask("T-2")]);
-    const m = pushAll({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("T-1")] }] }, buildPlan({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("T-1")] }] })).map;
-    const st = buildStatus({ config: ON, map: m, docs: I.docs, statuses: { tasks: { "T-1": { status: "verified" }, "T-2": { status: "todo" } } }, queue: { items: [{}] }, branch: "eng-1-x" });
+    const I = inputs([mkTask("QT-T1"), mkTask("QT-T2")]);
+    const m = pushAll({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1")] }] }, buildPlan({ ...I, docs: [{ ...I.docs[0], tasks: [mkTask("QT-T1")] }] })).map;
+    const st = buildStatus({ config: ON, map: m, docs: I.docs, statuses: { tasks: { "QT-T1": { status: "verified" }, "QT-T2": { status: "todo" } } }, queue: { items: [{}] }, branch: "eng-1-x" });
     const [t1, t2] = st.tasks;
     assert.equal(t1.synced, false); assert.match(t1.reason, /state started→review/);
     assert.equal(t1.prLine, "Fixes ENG-1"); assert.equal(t1.onBranch, true);
     assert.equal(t2.reason, "not pushed"); assert.equal(t2.prLine, null);
     assert.deepEqual([st.mapped, st.unmapped, st.outOfSync, st.queued, st.enabled, st.configured, st.team], [1, 1, 1, 1, true, true, "ENG"]);
-    const st2 = buildStatus({ config: ON, map: m, docs: I.docs, statuses: { tasks: { "T-1": { status: "red" } } } });
+    const st2 = buildStatus({ config: ON, map: m, docs: I.docs, statuses: { tasks: { "QT-T1": { status: "red" } } } });
     assert.equal(st2.tasks[0].synced, true); assert.equal(st2.tasks[0].prLine, "Part of ENG-1");
     assert.equal(fallbackBranch("ENG", "ENG-12", "Register user!"), "eng-12-register-user");
   });
@@ -371,14 +371,14 @@ describe("linear: status and summary", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-linear-s-"));
     fs.mkdirSync(path.join(root, ".hitl/tasks"), { recursive: true });
     fs.writeFileSync(path.join(root, ".hitl/tasks/feat-x.md"), "# X Tasks\n> status: approved\n");
-    assert.equal(await ticketsSummary(root, {}, [mkTask("T-1")], { tasks: {} }), null);
+    assert.equal(await ticketsSummary(root, {}, [mkTask("QT-T1")], { tasks: {} }), null);
     fs.writeFileSync(path.join(root, ".hitl/linear.map.json"), "{corrupt");
-    const s = await ticketsSummary(root, ON, [mkTask("T-1")], { tasks: { "T-1": { status: "red" } } });
+    const s = await ticketsSummary(root, ON, [mkTask("QT-T1")], { tasks: { "QT-T1": { status: "red" } } });
     assert.deepEqual(s, { provider: "linear", label: "Linear", enabled: true, configured: false, team: "ENG", mapped: 0, unmapped: 1, outOfSync: 0, queued: 0, perTask: {} });
     assert.equal(await ticketsSummary(root, ON, null, null) !== undefined, true);
-    const I = inputs([mkTask("T-1")]);
+    const I = inputs([mkTask("QT-T1")]);
     fs.writeFileSync(path.join(root, ".hitl/linear.map.json"), JSON.stringify(pushAll(I, buildPlan(I)).map));
-    const s2 = await ticketsSummary(root, ON, [mkTask("T-1")], { tasks: { "T-1": { status: "skeleton" } } });
-    assert.deepEqual(s2.perTask["T-1"], { issue: "ENG-1", url: "https://linear.app/acme/issue/ENG-1/x", branch: "eng-1-task-t-1", synced: true, onBranch: false });
+    const s2 = await ticketsSummary(root, ON, [mkTask("QT-T1")], { tasks: { "QT-T1": { status: "skeleton" } } });
+    assert.deepEqual(s2.perTask["QT-T1"], { issue: "ENG-1", url: "https://linear.app/acme/issue/ENG-1/x", branch: "eng-1-task-qt-t1", synced: true, onBranch: false });
   });
 });

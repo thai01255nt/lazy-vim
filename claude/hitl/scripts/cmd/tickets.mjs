@@ -8,6 +8,7 @@ import { parseArgv } from "../lib/project.mjs";
 import { exists, readJson, writeJsonAtomic } from "../lib/fsutil.mjs";
 import { withLock, nowIso } from "../lib/lock.mjs";
 import { HITL_PREFIX } from "../lib/paths.mjs";
+import { TASK_ID_RE } from "../lib/specids.mjs";
 import {
   ticketsPaths, ticketsCfg, readMap, readQueue, writeMap, buildPlan, applyRecord, buildDiff, buildStatus, loadLocal,
   loadPlanningInfo, loadChangeInfo, changeKeyOf, loadReviews, currentBranch, removeInboxFile, remoteSchema, queueSchema,
@@ -15,7 +16,7 @@ import {
 } from "../lib/tickets.mjs";
 
 const USAGE = `usage: hitl-index tickets status [--json]
-       hitl-index tickets plan [T-id… | <change-id> | <tasks-file>] [--json]
+       hitl-index tickets plan [<KEY>-T<n>… | <change-id> | <tasks-file>] [--json]
        hitl-index tickets record --in <file|-> [--json]
        hitl-index tickets diff --in <file|-> [--relink] [--json]
        hitl-index tickets verify --in <file|-> [--json]
@@ -32,8 +33,8 @@ async function readInput(root, p) {
 
 async function resolveScope(root, docs, args) {
   if (!args.length) return { kind: "all" };
-  if (args.every((a) => /^T-\d+$/.test(a))) return { kind: "tasks", ids: args };
-  if (args.length > 1) throw usage("give T-ids, one change id or one tasks file");
+  if (args.every((a) => TASK_ID_RE.test(a))) return { kind: "tasks", ids: args };
+  if (args.length > 1) throw usage("give task ids (<KEY>-T<n>), one change id or one tasks file");
   const a = args[0];
   const viaChange = docs.filter((d) => d.change === a);
   if (viaChange.length) return { kind: "file", file: (viaChange.find((d) => !d.archived) || viaChange.at(-1)).file };
@@ -162,7 +163,8 @@ export async function run(argv, ctx) {
   let out;
   try {
     out = await withLock(root, async () => {
-      const r = buildDiff({ config, map: await readMap(root, config), remote: data, statuses: local.statuses, localTasks: local.tasks, relink: !!a.relink, repo: repoKey(root) });
+      const idMap = (await (await import("../lib/keys.mjs")).readIdMap(root))?.ids || null;
+      const r = buildDiff({ config, map: await readMap(root, config), remote: data, statuses: local.statuses, localTasks: local.tasks, relink: !!a.relink, repo: repoKey(root), idMap });
       await writeJsonAtomic(P.remote, { schema: remoteSchema(cfg.P), at: nowIso(), complete: data.complete === true, tasks: r.out.remote });
       if ((a.relink && r.out.relink.length) || r.out.learned.length) await writeMap(root, r.map, config);
       return r.out;

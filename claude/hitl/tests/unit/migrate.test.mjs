@@ -26,8 +26,8 @@ function legacyProject() {
   w(root, ".claude/custom/tasks/feat-a.md", "# Tasks\n← Planning: .claude/custom/planning/feat-a.md\n");
   w(root, ".claude/custom/planning/feat-a.md", "# Plan\n> status: draft | tasks: .claude/custom/tasks/feat-a.md\n");
   w(root, ".claude/custom/index/skeleton.lock.json", "{}");
-  w(root, ".claude/custom/index/state.json", JSON.stringify({ reviews: { "T-1": { report: ".claude/custom/reviews/T-1.review.md" } } }));
-  w(root, ".claude/custom/reviews/T-1.review.md", "# Review T-1\n");
+  w(root, ".claude/custom/index/state.json", JSON.stringify({ reviews: { "QT-T1": { report: ".claude/custom/reviews/QT-T1.review.md" } } }));
+  w(root, ".claude/custom/reviews/QT-T1.review.md", "# Review QT-T1\n");
   w(root, ".claude/custom/adapters/cobol.mjs", "export default {};\n");
   w(root, ".claude/custom/linear.map.json", "{}");
   w(root, ".claude/custom/notes.txt", "mine\n");
@@ -68,7 +68,7 @@ test("migrate --dry-run changes nothing; migrate moves hitl entries, rewrites pa
   assert.deepEqual(cfg.customAdapters, { cobol: ".hitl/adapters/cobol.mjs", x: "tools/x.mjs" });
   assert.equal(cfg.trace.mdOut, ".hitl/index/trace.md");
   assert.match(r(root, ".hitl/tasks/feat-a.md"), /← Planning: \.hitl\/planning\/feat-a\.md/);
-  assert.match(r(root, ".hitl/index/state.json"), /"\.hitl\/reviews\/T-1\.review\.md"/);
+  assert.match(r(root, ".hitl/index/state.json"), /"\.hitl\/reviews\/QT-T1\.review\.md"/);
   const gi = r(root, ".hitl/.gitignore");
   for (const l of ["index/*", "!index/skeleton.lock.json", "my-own-line", "reviews/*/*", "!reviews/*/decisions.json", ".inbox/"]) assert.ok(gi.split("\n").includes(l), l);
   assert.ok(ex(root, ".claude/custom/notes.txt") && !ex(root, ".claude/custom/.gitignore") && ex(root, ".claude/settings.json"));

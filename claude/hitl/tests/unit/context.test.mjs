@@ -13,9 +13,9 @@ import { parseGlossary } from "../../scripts/lib/specmd.mjs";
 test("context for a task lists ACs, targets, callers, callees and tests without line numbers", async () => {
   const root = makeProject();
   await updateIndex(root, null, { full: true });
-  const c = await buildContext(root, "T-1", {});
-  assert.match(c.markdown, /^# Context T-1 — Register user/);
-  assert.match(c.markdown, /- T-1.AC1 Given an existing email/);
+  const c = await buildContext(root, "QT-T1", {});
+  assert.match(c.markdown, /^# Context QT-T1 — Register user/);
+  assert.match(c.markdown, /- QT-T1.AC1 Given an existing email/);
   assert.match(c.markdown, /### 1\. UserService\.createUser — impl: agent/);
   assert.match(c.markdown, /callers \(1\): register \(src\/http\/authController\.ts\) — "Handles registration requests\."/);
   assert.match(c.markdown, /callees declared \(@calls\): UserRepo\.findByEmail: findByEmail\(email: string\): User \| undefined/);
@@ -33,8 +33,8 @@ test("contract mode hides bodies, keeps TODO lines, adds test files and import p
   assert.doesNotMatch(c.markdown, /throw new Error/);
   assert.match(c.markdown, /\/\/ TODO\(impl\): 1\. reject duplicates\n\s+…\n\s+\}/);
   assert.match(c.markdown, /import paths: src\/services\/userService\.ts → \.\.\/src\/services\/userService\.ts/);
-  assert.match(c.markdown, /it\.todo\("T-1\.AC1 rejects duplicate email"\)/);
-  const small = await buildContext(root, "T-1", { contract: true, budget: 900 });
+  assert.match(c.markdown, /it\.todo\("QT-T1\.AC1 rejects duplicate email"\)/);
+  const small = await buildContext(root, "QT-T1", { contract: true, budget: 900 });
   assert.ok(small.markdown.length <= 900);
   await assert.rejects(buildContext(root, "Nope.none", {}), /unknown ref/);
 });
@@ -45,25 +45,25 @@ test("map-md writes the AUTO block and preserves manual text", async () => {
   await writeMapMd(root, await readIndex(root));
   const md = readFileSync(join(root, ".hitl/docs/CODEBASE-MAP.md"), "utf8");
   assert.match(md, /^# Map\nmanual note\n<!-- AUTO-GENERATED:BEGIN codebase-map -->\n## src\/http\//);
-  assert.match(md, /createUser\(email: string\): User` \(exported\) \[T-1 · agent · skeleton\] — Registers a user\./);
+  assert.match(md, /createUser\(email: string\): User` \(exported\) \[QT-T1 · agent · skeleton\] — Registers a user\./);
   assert.match(md, /<!-- AUTO-GENERATED:END codebase-map -->\ntail\n$/);
-  assert.match(readFileSync(join(root, ".hitl/index/index.md"), "utf8"), /\| src\/repo\/userRepo.ts#UserRepo.findByEmail \| method \| T-1 \| manual/);
+  assert.match(readFileSync(join(root, ".hitl/index/index.md"), "utf8"), /\| src\/repo\/userRepo.ts#UserRepo.findByEmail \| method \| QT-T1 \| manual/);
 });
 
 test("AC lines carry requirement text; decisions only outside contract mode", async () => {
   const { write } = await import("./_project.mjs");
   const root = makeProject({ ".hitl/planning/feat-users.md": "# U - Planning\n> status: approved\n\n## Requirements\n- R-1 [must] The system shall reject duplicate emails.\n\n## Decisions\n| id | decision | why | cost if wrong | serves | status |\n|---|---|---|---|---|---|\n| D-1 | Check in createUser | x | y | R-1 | accepted |\n" });
   const tf = join(root, ".hitl/tasks/feat-users.md");
-  write(root, ".hitl/tasks/feat-users.md", readFileSync(tf, "utf8").replace("T-1.AC1 Given", "T-1.AC1 (R-1) Given").replace("### Acceptance", "**Why**: one entry point (D-1)\n\n### Acceptance"));
+  write(root, ".hitl/tasks/feat-users.md", readFileSync(tf, "utf8").replace("QT-T1.AC1 Given", "QT-T1.AC1 (R-1) Given").replace("### Acceptance", "**Why**: one entry point (D-1)\n\n### Acceptance"));
   const svc = join(root, "src/services/userService.ts");
   write(root, "src/services/userService.ts", readFileSync(svc, "utf8").replace("@prio 1", "@prio 1\n   * @dec D-1"));
   await updateIndex(root, null, { full: true });
-  const c = await buildContext(root, "T-1", {});
-  assert.match(c.markdown, /- T-1\.AC1 \(R-1: The system shall reject duplicate emails\.\) Given an existing email/);
+  const c = await buildContext(root, "QT-T1", {});
+  assert.match(c.markdown, /- QT-T1\.AC1 \(R-1: The system shall reject duplicate emails\.\) Given an existing email/);
   assert.match(c.markdown, /## Decisions\n- D-1 \(accepted\): Check in createUser/);
   assert.match(c.markdown, /decisions \(@dec\): D-1 \(Check in createUser\)/);
-  const k = await buildContext(root, "T-1", { contract: true });
-  assert.match(k.markdown, /- T-1\.AC1 \(R-1: The system shall reject duplicate emails\.\)/);
+  const k = await buildContext(root, "QT-T1", { contract: true });
+  assert.match(k.markdown, /- QT-T1\.AC1 \(R-1: The system shall reject duplicate emails\.\)/);
   assert.doesNotMatch(k.markdown, /## Decisions/);
   assert.doesNotMatch(k.markdown, /decisions \(@dec\)/);
 });
@@ -95,11 +95,11 @@ const copySpecApp = () => { const d = mkdtempSync(join(tmpdir(), "hitl-ctx-terms
 
 test("Terms: glossary terms (living + the change's delta) named in the title, ACs or linked scenarios", async () => {
   const root = copySpecApp();
-  const c = await buildContext(root, "T-12", { contract: true });
+  const c = await buildContext(root, "PWR-T1", { contract: true });
   assert.match(c.markdown, /\n## Terms\n- \*\*Account\*\*: A registered person's identity in the shop, reached by their email address\. \(avoid: user record, profile\)\n- \*\*Reset link\*\*: A single-use link that lets a user set a new password\. \(avoid: token, magic link\)\n/);
   assert.ok(c.markdown.indexOf("## Terms") > c.markdown.indexOf("## Acceptance criteria"), "after the ACs");
   assert.deepEqual(c.terms.map((t) => t.term), ["Account", "Reset link"]);
-  const t13 = await buildContext(root, "T-13", {});
+  const t13 = await buildContext(root, "PWR-T2", {});
   assert.deepEqual(t13.terms, [{ term: "Reset link", text: "A single-use link that lets a user set a new password.", avoid: ["token", "magic link"] }]);
   assert.match(t13.markdown, /## Terms\n- \*\*Reset link\*\*/, "outside contract mode too");
 });
@@ -107,7 +107,7 @@ test("Terms: glossary terms (living + the change's delta) named in the title, AC
 test("Terms: no glossary or no match → no section and terms: []", async () => {
   const root = makeProject();
   await updateIndex(root, null, { full: true });
-  const c = await buildContext(root, "T-1", { contract: true });
+  const c = await buildContext(root, "QT-T1", { contract: true });
   assert.doesNotMatch(c.markdown, /## Terms/);
   assert.deepEqual(c.terms, []);
   assert.deepEqual((await buildContext(root, "UserService.createUser", {})).terms, []);

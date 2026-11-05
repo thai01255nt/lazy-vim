@@ -1,10 +1,11 @@
 <!-- audience: business -->
 <!-- Adapted from Fission-AI/OpenSpec (MIT) — see NOTICE.md. Source: docs/concepts.md (delta specs) @ 6d04a1b. Changes: id identity (no RENAMED), Rules/Flows kinds, required Changed:/Reason: lines. -->
 # Delta: {Capability title}
-> capability: {capability} | key: {KEY} | change: {change-id}
+> capability: {capability} | change: {change-id}
 
 <!-- ## Purpose is required only when the capability is new (then only ADDED sections are allowed).
-     Ids come from `hitl-index spec next-id {capability} --kind R|BR|UC` and `--scenario <REQ-ID>`; ids never change.
+     ADDED ids use this change's key {KEY} (proposal meta `| key:`), from `hitl-index spec next-id {change-id} --kind R|BR|UC`
+     and `--scenario <REQ-ID>`; MODIFIED/REMOVED keep the original id ({OTHER} = the key of the change that created it). Ids never change.
      Omit empty sections. RENAMED is not supported: a new title is a MODIFIED block.
      Formats per standard: shared/formats/README.md (one SHALL per requirement, no vague words — spec validate warns). -->
 ## Purpose
@@ -34,17 +35,17 @@ Fit: {metric, threshold, how it is measured}
 
 ## MODIFIED Requirements
 <!-- the FULL new block, including unchanged scenarios, then one "Changed:" line -->
-### Requirement: {KEY}-R{m} {Requirement title}
+### Requirement: {OTHER}-R{m} {Requirement title}
 When {trigger}, the system SHALL {new observable response}.
 
-#### Scenario: {KEY}-R{m}.S1 {Scenario title}
+#### Scenario: {OTHER}-R{m}.S1 {Scenario title}
 - GIVEN {context}
 - WHEN {action}
 - THEN {observable outcome}
 Changed: {one line: what changed and why}
 
 ## REMOVED Requirements
-### Requirement: {KEY}-R{r} {Requirement title}
+### Requirement: {OTHER}-R{r} {Requirement title}
 Reason: {why it is removed}
 
 ## ADDED Rules

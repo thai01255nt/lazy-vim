@@ -15,7 +15,7 @@ public class UserService {
     /**
      * Registers a user; rejects duplicate emails (case-insensitive).
      * @param email user email, any case
-     * @task T-1 @impl agent @status skeleton @prio 1
+     * @task QT-T1 @impl agent @status skeleton @prio 1
      * @calls UserRepo.findByEmail, UserRepo.save
      * @concurrency none
      */

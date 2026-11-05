@@ -23,14 +23,14 @@ the user typed it **or** picked it at the gate below.
 📦 Archive feat-password-reset → .hitl/archive/2026-11-02-feat-password-reset
 | capability | file | new? | added | modified | removed | already applied |
 |------------|------|------|-------|----------|---------|-----------------|
-| accounts | .hitl/specs/accounts/spec.md | no | ACC-R5 ACC-R6 ACC-BR1 ACC-UC1 | ACC-R1 | ACC-R2 | — |
-ACC-R5 (Reset password by email) · ACC-R6 (Set a new password) · ACC-BR1 (Reset link validity) · ACC-UC1 (Recover access) · ACC-R1 (Sign in) · ACC-R2 (Remember me)
+| accounts | .hitl/specs/accounts/spec.md | no | PWR-R1 PWR-R2 PWR-BR1 PWR-UC1 | SGN-R1 | SGN-R2 | — |
+PWR-R1 (Reset password by email) · PWR-R2 (Set a new password) · PWR-BR1 (Reset link validity) · PWR-UC1 (Recover access) · SGN-R1 (Sign in) · SGN-R2 (Remember me)
 glossary: +Reset link · validate: ok · tasks: 2/2 done
 <conflicts / failed preconditions with options, see below>
 Apply? (Y/n)
 ```
 - The legend line under the table gives each id its title (from the change's spec deltas; Plain replies in conventions).
-- `renumbered` non-empty (dry run with `--renumber`) → one line per id `ACC-R5 → ACC-R7 (change folder rewritten)`.
+- `renumbered` non-empty (dry run with `--renumber`) → one line per id `PWR-R5 → PWR-R7 (change folder rewritten)`.
 - `warnings` → ⚠️ lines. Nothing to merge (all `alreadyApplied`) → say so; Y only moves the folder.
 - `DONE_BODY_DRIFT` warnings (preflight: a symbol of the change whose code moved since its task's done record) → one line
   `⚠️ drift since done: <symbols> — after archiving, /hitl:sync offers claim (into an open task) or accept` (never blocks).

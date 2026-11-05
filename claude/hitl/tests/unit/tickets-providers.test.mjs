@@ -79,29 +79,29 @@ describe("providers: plan, record, diff, status", () => {
     const map = initMap(JIRA, "jira");
     assert.equal(map.schema, "hitl.jira-map/1");
     assert.equal(map.workspace.urlKey, "acme.atlassian.net");
-    const p = buildPlan(inputs(JIRA, map, [mkTask("T-1"), mkTask("T-2", { prio: "P2", blockedBy: ["T-1"] })]));
+    const p = buildPlan(inputs(JIRA, map, [mkTask("QT-T1"), mkTask("QT-T2", { prio: "P2", blockedBy: ["QT-T1"] })]));
     assert.equal(p.provider, "jira");
     const ens = p.ops[0];
     assert.equal(ens.op, "ensureParent");
     assert.equal(ens.payload.container, "epic");
     assert.equal(ens.payload.issueType, "Epic");
-    const c1 = p.ops.find((o) => o.op === "createIssue" && o.task === "T-1");
+    const c1 = p.ops.find((o) => o.op === "createIssue" && o.task === "QT-T1");
     assert.deepEqual([c1.payload.priority, c1.payload.priorityName, c1.payload.issueType, c1.payload.stateId], [1, "Highest", "Task", "11"]);
     assert.deepEqual(c1.payload.labelIds, ["impl:agent", "risk:high"]);
     assert.deepEqual(c1.payload.labels, ["impl:agent", "risk:high"]);
-    assert.equal(p.ops.find((o) => o.task === "T-2").payload.priorityName, "Medium");
+    assert.equal(p.ops.find((o) => o.task === "QT-T2").payload.priorityName, "Medium");
     // record: epic id is the parent of the issues created in the same batch
     const results = p.ops.map((o) => (o.op === "ensureParent" ? { opId: o.opId, ok: true, id: "10500", issue: "PAY-1", url: "https://acme.atlassian.net/browse/PAY-1" }
-      : { opId: o.opId, ok: true, id: `id-${o.task}`, issue: `PAY-${o.task.slice(2) * 1 + 1}`, url: "https://acme.atlassian.net/browse/x" }));
+      : { opId: o.opId, ok: true, id: `id-${o.task}`, issue: `PAY-${o.task.split("T").pop() * 1 + 1}`, url: "https://acme.atlassian.net/browse/x" }));
     const r = applyRecord({ map, plan: p, queue: null, input: { schema: "hitl.tickets-results/1", kind: "push", planId: p.planId, results }, now: NOW, config: JIRA });
     assert.equal(r.out.provider, "jira");
     assert.equal(r.out.map, ".hitl/jira.map.json");
     assert.deepEqual(r.map.changes["feat-x"], { kind: "parent-issue", container: "epic", id: "10500", key: "PAY-1", url: "https://acme.atlassian.net/browse/PAY-1", pushedHash: ens.meta.pushedHash, at: NOW });
-    assert.equal(r.map.tasks["T-1"].pushed.parentId, "10500");
-    assert.equal(r.map.tasks["T-1"].branch, "pay-2-task-t-1");
+    assert.equal(r.map.tasks["QT-T1"].pushed.parentId, "10500");
+    assert.equal(r.map.tasks["QT-T1"].branch, "pay-2-task-qt-t1");
     // pinned epic: no epic per change, every issue goes into the pinned one (as projectId → the skill sends it as parent)
     const pinned = { ...JIRA, jira: { ...JIRA.jira, project: { id: "10900", name: "Billing epic" } } };
-    const pp = buildPlan(inputs(pinned, initMap(pinned, "jira"), [mkTask("T-1")]));
+    const pp = buildPlan(inputs(pinned, initMap(pinned, "jira"), [mkTask("QT-T1")]));
     assert.ok(!pp.ops.some((o) => o.op === "ensureParent"));
     assert.equal(pp.ops[0].payload.projectId, "10900");
   });
@@ -109,7 +109,7 @@ describe("providers: plan, record, diff, status", () => {
   test("GitHub: change → milestone (ensureProject container milestone); open/closed state ids; JIRA-free drift codes", () => {
     const map = initMap(GH, "github");
     assert.equal(map.workspace.urlKey, "acme");
-    const p = buildPlan(inputs(GH, map, [mkTask("T-1", { prio: "P3" })]));
+    const p = buildPlan(inputs(GH, map, [mkTask("QT-T1", { prio: "P3" })]));
     const ens = p.ops[0];
     assert.deepEqual([ens.op, ens.payload.container, ens.payload.name], ["ensureProject", "milestone", "Feat X"]);
     const c1 = p.ops[1];
@@ -118,16 +118,16 @@ describe("providers: plan, record, diff, status", () => {
       { opId: c1.opId, ok: true, id: "I_kw1", issue: "#12", url: "https://github.com/acme/app/issues/12" }];
     const r = applyRecord({ map, plan: p, queue: null, input: { schema: "hitl.tickets-results/1", kind: "push", planId: p.planId, results }, now: NOW, config: GH });
     assert.equal(r.map.changes["feat-x"].container, "milestone");
-    assert.equal(r.map.tasks["T-1"].pushed.projectId, "7");
-    assert.equal(r.map.tasks["T-1"].branch, "acme-app-12-task-t-1");
-    const remote = { schema: "hitl.tickets-remote/1", complete: true, issues: [{ id: "I_kw1", identifier: "#12", title: "Edited", description: r.map.tasks["T-1"].pushed.descHash,
+    assert.equal(r.map.tasks["QT-T1"].pushed.projectId, "7");
+    assert.equal(r.map.tasks["QT-T1"].branch, "acme-app-12-task-qt-t1");
+    const remote = { schema: "hitl.tickets-remote/1", complete: true, issues: [{ id: "I_kw1", identifier: "#12", title: "Edited", description: r.map.tasks["QT-T1"].pushed.descHash,
       priority: 4, state: { id: "closed:completed", name: "Closed", type: "completed" }, labels: [] }] };
-    const d = buildDiff({ config: GH, map: r.map, remote, statuses: { tasks: { "T-1": { status: "todo" } } }, localTasks: [] });
+    const d = buildDiff({ config: GH, map: r.map, remote, statuses: { tasks: { "QT-T1": { status: "todo" } } }, localTasks: [] });
     const codes = d.out.items.map((i) => `${i.code}:${i.field}`);
     assert.ok(codes.includes("GITHUB_DONE_EARLY:state"));
     assert.ok(codes.includes("GITHUB_DRIFT:title"));
     assert.match(d.out.items.find((i) => i.field === "title").message, /in GitHub/);
-    const st = buildStatus({ config: GH, map: r.map, docs: inputs(GH, map, [mkTask("T-1")]).docs, statuses: { tasks: { "T-1": { status: "done" } } } });
+    const st = buildStatus({ config: GH, map: r.map, docs: inputs(GH, map, [mkTask("QT-T1")]).docs, statuses: { tasks: { "QT-T1": { status: "done" } } } });
     assert.deepEqual([st.provider, st.mapFile, st.tasks[0].prLine], ["github", ".hitl/github.map.json", "Fixes #12"]);
   });
 
@@ -135,7 +135,7 @@ describe("providers: plan, record, diff, status", () => {
     const L = { linear: { enabled: true, team: "ENG" } };
     const lin = { schema: "hitl.tickets-results/1", kind: "init", init: { team: { key: "ENG", id: "t1" }, states: { started: { id: "s1" }, unstarted: { id: "s0" } }, labels: {} } };
     const map = applyRecord({ map: emptyMap(), plan: null, queue: null, input: lin, now: NOW, config: L }).map;
-    const p = buildPlan(inputs(L, map, [mkTask("T-1")]));
+    const p = buildPlan(inputs(L, map, [mkTask("QT-T1")]));
     assert.equal(p.provider, "linear");
     for (const o of p.ops) for (const k of ["priorityName", "issueType", "container", "labels"]) assert.ok(!(k in o.payload), `${o.op} has ${k}`);
   });
@@ -148,7 +148,7 @@ describe("providers: plan, record, diff, status", () => {
     assert.ok(fs.existsSync(path.join(root, ".hitl/github.map.json")));
     assert.ok(!fs.existsSync(path.join(root, ".hitl/linear.map.json")));
     assert.equal((await readMap(root, GH)).team.key, "acme/app");
-    const s = await ticketsSummary(root, GH, [mkTask("T-1")], { tasks: { "T-1": { status: "todo" } } });
+    const s = await ticketsSummary(root, GH, [mkTask("QT-T1")], { tasks: { "QT-T1": { status: "todo" } } });
     assert.deepEqual([s.provider, s.label, s.configured, s.unmapped], ["github", "GitHub", true, 1]);
   });
 });
