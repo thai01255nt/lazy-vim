@@ -34,6 +34,7 @@ If you pushed back and were wrong, say so in one line and fix it.
 |---|---|---|
 | `@impl agent` symbol, reproducible behaviour (wrong result, missing error path, leak, race) | agent, **test first** | see §4 |
 | `@impl agent` symbol, not reproducible by a test (naming, structure, perf without a measurable trigger) | agent | implementer fixes; existing tests must stay green |
+| category `structure` (refactor suggestion) | agent (manual symbol: human card) | refactor pass, §6 |
 | `@impl manual` symbol | human | print a ✍️ card: file:line, evidence, suggested fix, test to run. Never edit it. |
 | category `intent`, `todo-flow` (contract wrong), `scope` needing a new public symbol, or any change to a locked signature/docstring | human | explain what would change in the skeleton; the human edits it and runs `/hitl:approve <T>` — or `amend F-n` (accept + amend spec, `shared/amend-spec.md`) when the plan's decision/requirement is what is wrong |
 | test weakened / edited locked test | human | the human approves the new test (`/hitl:approve <T> tests`) or reverts it |
@@ -59,3 +60,15 @@ If you pushed back and were wrong, say so in one line and fix it.
 - Max `review.maxFixRounds` (config, default 2) rounds per finding. Still failing → 🛑 escalate to the human with the evidence
   (failing output, what was tried). Do not keep looping.
 - After the batch: run `/hitl:review <T> recheck` logic (incremental L0 + L1 on changed symbols), then the report.
+
+## 6. Refactor pass (category `structure`)
+
+A suggestion, never required: `defer F-n` is fine. On `fix F-n`:
+1. Fresh `hitl-index test --task <T> --json`: all green first. Red → it is not a refactor; stop.
+2. Inside this task's symbols only: spawn `hitl:implementer` with the slice and
+   `Refactor F-n: <title>. Same behaviour; do not edit any test; all tests stay green.` One finding per call.
+   Locked signatures and docstrings stay; a rename of a locked symbol goes to the human (§3).
+   A private-helper test (tests lens) → test-author moves it to the seam; the human re-locks it (`/hitl:approve <T> tests`).
+3. Fresh run: all green and no `TEST_CHANGED` in L0 drift → `✅ F-n refactored, task tests n/n`. Otherwise undo the change.
+4. Beyond the task (other tasks' code, a shared module, a wide rename) → do not edit; `defer F-n` and propose
+   `/hitl:plan refactor-<slug>` (no behaviour change).

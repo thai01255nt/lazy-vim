@@ -57,6 +57,7 @@
     "plan_round_header",
     "plan_reply_line",
     "plan_term_challenge",
+    "plan_avoided_terms",
     "reply_ids_glossed",
     "scout_spawned",
     "no_main_source_reads"

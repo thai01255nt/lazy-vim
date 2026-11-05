@@ -20,6 +20,10 @@ reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`,
 `… <id> defer N-k <other-change>`.
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
+**Shared language and refactor** (0.8.x): `spec validate` and the review's `terms` gate warn when a business file or an
+intent uses a glossary `_Avoid_` word (`"user record" → use Account`). After green, the review lists **structure
+suggestions** (duplication, names off the glossary, pass-through functions, deep nesting, tests of private helpers):
+`fix F-n` runs a refactor pass under green, untouched tests. Never a blocker.
 
 ```
 /hitl:setup → /hitl:overview → /hitl:plan ⛔ (WHAT) → /hitl:design ⛔ (HOW, skippable) → /hitl:tasks ⛔

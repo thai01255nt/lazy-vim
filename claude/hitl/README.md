@@ -502,6 +502,16 @@ loại dependency, AC1 là tracer qua seam cao nhất. Vòng kép: test AC của
 làm xanh **từng test một** theo thứ tự file (vòng trong; chỉ lần chạy không tiến triển mới tính vào giới hạn 3). Refactor
 không nằm trong implement: làm qua `/hitl:review` + fix loop, dưới test xanh đã khoá.
 
+**0.8.x: kiểm tra ngôn ngữ chung và bước refactor.** `hitl-index spec validate` cảnh báo `TERM_AVOIDED` khi proposal hoặc
+spec delta dùng một từ nằm trong `_Avoid_` của glossary hiệu lực (living + delta của change), vd. `"user record" → use
+Account (glossary)`; khớp không phân biệt hoa thường, nguyên từ, cả cụm nhiều từ; bỏ qua code span, file glossary và dòng
+`_Avoid_`; tắt cùng `spec.businessLint: "off"`, không bao giờ chặn. Review L0 có gate `terms`: docstring intent của các
+symbol trong task dùng từ `_Avoid_` → `warn` kèm thuật ngữ nên dùng (cùng một hàm so khớp, `scripts/lib/glossary.mjs`).
+Sau khi task xanh, lens contract xét thêm **cấu trúc** (lặp code, tên lệch glossary, hàm chỉ chuyển tiếp, lồng sâu; lens
+tests: test gọi helper private thay vì seam): finding `structure` chỉ là gợi ý, nằm ở mục `## Structure (suggestions)`
+của report, không bao giờ làm verdict thành WITH FIXES. `fix F-n` chạy một lượt refactor (test giữ xanh, không sửa test);
+việc vượt ngoài task → `defer F-n` và một change `refactor-<slug>`.
+
 **Truy vết (trace, `hitl.trace/2`):** requirement (`ACC-R3`, spec) → scenario (`ACC-R3.S1`) → AC `(ACC-R3.S1)` (tasks md)
 → test `@ac` → symbol `@covers`, cộng `D-n` qua `**Why**`, `@dec` và cột `serves` của `design.md`.
 `hitl-index trace [T|change-id] [--capability <cap>] [--check] [--md]` tính tất định (không LLM, không reindex, không

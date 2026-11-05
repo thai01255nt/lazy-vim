@@ -9,6 +9,7 @@ import { resolveRef } from "./graph.mjs";
 import { currentTask } from "./lock.mjs";
 import { readTasks } from "./tasksmd.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
+import { effectiveTerms, phraseRx } from "./glossary.mjs";
 
 const firstLine = (t) => (t || "").split("\n").find((l) => l.trim()) || "";
 const fence = (lang) => (lang === "py" ? "py" : "ts");
@@ -242,24 +243,13 @@ export async function buildContext(root, target, { contract = false, budget = 12
 
 const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The glossary a task sees: living terms, then the change's delta applied (ADDED/MODIFIED replace by key, REMOVED drops).
- *  -> [{term, key, text, avoid}] with `text` = the definition only (no `### Term:` header, no `_Avoid_:` line). */
-export function effectiveTerms(living, delta) {
-  const out = new Map();
-  const def = (t) => (t.text || "").split("\n").filter((l) => !/^###\s+Term:/.test(l) && !/^_Avoid_:/.test(l)).join(" ").replace(/\s+/g, " ").trim();
-  for (const t of living?.terms || []) out.set(t.key, { term: t.term, key: t.key, text: def(t), avoid: t.avoid || [] });
-  for (const t of delta?.terms || []) {
-    if (t.op === "REMOVED") out.delete(t.key);
-    else out.set(t.key, { term: t.term, key: t.key, text: def(t), avoid: t.avoid || [] });
-  }
-  return [...out.values()];
-}
+export { effectiveTerms }; // moved to glossary.mjs (shared with spec validate and l0)
 
 /** Terms whose name or an `_Avoid_` word appears in `said` (case-folded, whole words, Unicode letters), in glossary
  *  order, at most `max`. -> [{term, text, avoid}] */
 export function termsFor(terms, said, max = 8) {
   if (!said) return [];
-  const hit = (w) => w && new RegExp(`(?<![\\p{L}\\p{N}_])${reEsc(w.trim()).replace(/\s+/g, "\\s+")}(?![\\p{L}\\p{N}_])`, "iu").test(said);
+  const hit = (w) => w && phraseRx(w).test(said);
   return terms.filter((t) => hit(t.term) || t.avoid.some(hit)).slice(0, max).map(({ term, text, avoid }) => ({ term, text, avoid }));
 }
 /** A name matched in prose must be a distinctive identifier (camelCase/PascalCase/snake_case, >= 4 chars), so prose

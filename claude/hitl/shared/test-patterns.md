@@ -77,4 +77,4 @@ Asserting on a call is allowed **only** at a true-external port when the call *i
 
 ## 7. Refactor
 Not part of implement or the loop. Structure fixes happen in `/hitl:review` and its fix loop (implementer, under the
-locked green tests), or in a `refactor-` change.
+locked green tests), or in a `refactor-` change. The contract lens lists them as suggestions (`lenses.md` "Structure").

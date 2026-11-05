@@ -44,6 +44,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    Gaps (`AC_NOT_PROVEN`, `SCN_NO_AC`, `REQ_NO_AC`, `AC_REQ_LEVEL`, …) make it `warn` — list them, never block on them.
    `l0.trace.spec[<symbol>]` gives each symbol's spec block (`change`, `archived`, `capability`, `design`, decisions,
    requirements with `scenario`) — the reviewers and `amend F-n` use it.
+   The `terms` gate is `warn` when a task intent uses a glossary `_Avoid_` word (`TERM_AVOIDED`, with the term to use); never blocks.
 3. **Lens selection**: `hitl-index risk <T> --json` (`lenses`, per-symbol reasons) and the task risk.
    - always `contract`, `tests`
    - `concurrency` if any symbol has `@concurrency` ≠ none or features ∩ {async, lock, thread, timer} or a task risk reason starts with `concurrency`
@@ -71,7 +72,8 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    and continue with the others.
 7. **Report**: `hitl-index report <T> --json` (writes `.hitl/reviews/<T>.review.md`, records the review).
    Print the report's top block: verdict line (and the `⚠️ human-override` line when present), Gates table, the `## Trace` block, Functions table, and the
-   "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint).
+   "Findings needing a decision" cards (a card may carry `spec: D-1 · ACC-R3.S1` and the `amend F-n` hint), and the
+   `## Structure (suggestions)` list when present (never gated).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:
    - `human required > 0` → run the tickets block (step 9) first, then ⛔ GATE: one line per finding,
@@ -114,6 +116,7 @@ Follow `references/fix-loop.md`. Summary:
      (contract pack + finding text) → fresh run shows it red → `hitl:implementer` makes it green (slice via
      `hitl-index context <ref> --out .hitl/index/contracts/<T>.impl.md`) → fresh `hitl-index test --task <T> --json`.
    - `@impl manual` symbol → print the finding as a ✍️ TODO card for the human (file:line, evidence, suggested fix). Never edit it.
+   - category `structure` (refactor suggestion, never a blocker) → refactor pass under green, untouched tests (fix-loop §6).
    - contract / intent / scope findings (category intent, todo-flow, scope) → human: they may need a skeleton change +
      `/hitl:approve <T>`. Print what would change and offer `amend F-n`; do not edit locked signatures or docstrings.
 4. Max `review.maxFixRounds` (default 2) rounds per finding; then 🛑 escalate with the evidence.

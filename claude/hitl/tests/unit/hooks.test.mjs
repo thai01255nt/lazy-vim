@@ -398,6 +398,35 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, "other-plugin:test-author"));
   });
 
+  test("testAuthorMayRead: outside the project and non-code files are allowed; code bodies stay denied", async () => {
+    const { root } = await mkProject();
+    const TA = "hitl:test-author";
+    const read = (abs) => pre(root, "Read", { file_path: abs }, TA);
+    const grepFile = (abs) => pre(root, "Grep", { pattern: "x", path: abs }, TA);
+    const outside = path.join(TMP, `outside${projN}`);
+    fs.mkdirSync(outside, { recursive: true });
+    for (const f of ["impl.ts", "notes.md"]) fs.writeFileSync(path.join(outside, f), "export const x = 1;\n");
+    for (const [rel, c] of [["src/README.md", "# repo\n"], ["src/data.json", "{}\n"], ["config/app.yaml", "a: 1\n"], ["src/deep/impl.ts", "export const y = 2;\n"]]) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), c);
+    }
+    // rel === null: anything outside the project, code included, and a path that climbs out of it
+    assertSilent(read(path.join(outside, "impl.ts")));
+    assertSilent(read(path.join(outside, "notes.md")));
+    assertSilent(read(path.join(root, "..", path.basename(outside), "impl.ts")));
+    assertSilent(grepFile(path.join(outside, "impl.ts")));
+    // non-code files inside the project, also next to code
+    for (const rel of ["src/README.md", "src/data.json", "config/app.yaml", "package.json", ".hitl/docs/PATTERNS-CONVENTIONS.md"]) {
+      assertSilent(read(path.join(root, rel)));
+    }
+    assertSilent(grepFile(path.join(root, "src/README.md")));
+    // implementation code bodies: denied for Read and for a Grep on the file; the project root itself too
+    for (const rel of ["src/svc.ts", "src/repo.ts", "src/ctrl.ts", "src/deep/impl.ts"]) {
+      assertDeny(read(path.join(root, rel)), /contract pack/);
+      assertDeny(grepFile(path.join(root, rel)), /contract pack/);
+    }
+    assertDeny(read(root), /contract pack/);
+  });
+
   test("Bash allowlists for test-author and reviewer", async () => {
     const { root } = await mkProject();
     const TA = "hitl:test-author", RV = "hitl:reviewer";
