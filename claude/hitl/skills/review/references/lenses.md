@@ -60,7 +60,7 @@ dropped silently. A spec's silence is not permission: judge such behaviour by wh
                   "category": "intent", "title": "…", "evidence": "…", "suggestedFix": "…", "fixOwner": "agent" } ],
   "setAside": [ "perf of bulk path: not in plan" ] }
 ```
-`key` = `<lens>-<n>`, n from 1. `category` ∈ intent | todo-flow | scope | tests | concurrency | resource | security | perf.
+`key` = `<lens>-<n>`, n from 1. `category` ∈ intent | todo-flow | scope | tests | concurrency | resource | security | perf | structure.
 Do not set `verifiedConfidence`/`keep` (the verifier does). Zero findings → `"findings": []`.
 Security lens only: optional `"verdict": "confirmed" | "needs_validation"` and, for `needs_validation`, `"blocker"`
 (the exact unresolved fact) — see `security.md` §3.
@@ -79,6 +79,19 @@ Per task symbol (approved lock entry → current):
 - **Callers**: changed behaviour still matches what callers expect (their intents in the context).
 - Quality checklist (only real defects): input validation at boundaries, structured errors, cleanup on every path,
   existing patterns followed.
+- **Avoided words**: L0 `terms` (`l0.terms.items`, code `TERM_AVOIDED`) lists intents that use a glossary `_Avoid_` word,
+  with the term to use. Do not re-report them; a body or name that follows the avoided concept is a `structure` finding.
+
+### Structure (refactor step)
+Red → green → **refactor**: only when L0 tests pass. Category `structure`, severity `minor`, never a blocker: the report
+lists them as suggestions and the fix is a refactor pass (`fix-loop.md` §6). Only what this task introduced:
+- duplication: the same logic twice in the task's code, or rewritten where an existing helper already does it
+- names: a symbol, parameter or test helper that does not use the review context's `## Terms` word for its concept
+- shallow pass-through: a function that only forwards its arguments to another, adding nothing
+- deep nesting: more than 3 levels of if/loop where a guard clause or an extracted step reads flatter
+- a test that calls a private helper instead of the seam (`shared/test-patterns.md` §2, §5; `skills/tdd/tests.md`):
+  the tests lens reports it, as `structure` when it cannot hide a broken AC
+`suggestedFix` names the refactor (extract, inline, rename to the term, guard clause, move the test to the seam).
 
 ## 3. tests
 
@@ -89,8 +102,9 @@ Per task symbol (approved lock entry → current):
   without a reason in the row → finding.
 - Each test-patterns §2 tell (mocked project module, call assertion on an internal collaborator, **side channel** such as
   reading a repo's array instead of its query, tautology, shape-only, avoid word in a title) → one finding naming the
-  tell. Severity `important` if it would let an AC break unnoticed, else `minor`. A call assertion on a fake
-  true-external port that *is* the AC's outcome ("nothing is sent") is correct, not a finding.
+  tell. Severity `important` if it would let an AC break unnoticed, else `minor` (a private-helper test: category
+  `structure`). A call assertion on a fake true-external port that *is* the AC's outcome ("nothing is sent") is correct,
+  not a finding.
 - No weakened assertions, added skips, deleted cases, or loosened matchers vs the locked version (L0 shows TEST_CHANGED;
   you judge whether it weakens the test).
 - Edge checklist coverage relevant to the intent: empty/None, boundaries, unicode/case, duplicates, ordering, timeouts/cancel,

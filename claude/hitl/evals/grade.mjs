@@ -128,6 +128,12 @@ const CHECKS = {
     const r = cli(P, "spec", "validate", ch, "--json").out;
     return ok(!/BIZ_CODE_TOKEN/.test(r), "BIZ_CODE_TOKEN in business files");
   },
+  // report-only (always ok): glossary _Avoid_ words left in business files (TERM_AVOIDED); round 1 may still be asking [T]
+  plan_avoided_terms: (S, P) => {
+    const ch = newChanges(P)[0]; if (!ch) return { ok: true, why: "", warn: "no change" };
+    const hits = (json(cli(P, "spec", "validate", ch, "--json").out)?.items ?? []).filter((i) => i.code === "TERM_AVOIDED");
+    return { ok: true, why: "", count: hits.length, warn: hits.map((i) => i.message).join("; ") };
+  },
   plan_coverage_line: (S) => ok(/(Độ phủ|Coverage)\s*:.*(✅|⚠️|❌)/.test(S.text), "no coverage line"),
   plan_coverage_table: (S, P) => { const ch = newChanges(P)[0]; const t = ch && read(path.join(P, ".hitl/changes", ch, "proposal.md")); return ok(t && /## Coverage/.test(t), "no ## Coverage in proposal"); },
   plan_hotspot: (S) => ok(/🔥/.test(S.text), "no 🔥"),

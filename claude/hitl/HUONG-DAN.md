@@ -47,6 +47,9 @@ Mở lại Claude Code. Gõ `/hitl:` thấy danh sách lệnh là xong.
 - Mỗi project có một glossary (`.hitl/specs/GLOSSARY.md`): tên thuật ngữ tiếng Anh, định nghĩa có thể tiếng Việt.
   Claude trả lời tiếng Việt nhưng giữ nguyên thuật ngữ, vd. "*Reset link* hết hạn sau 30 phút".
 - Bạn dùng từ khác glossary (vd. "user record" thay cho *Account*) → Claude hỏi một câu `[T]` để chốt một từ.
+- 0.8.x: `spec validate` và review (gate `terms`) cũng tự cảnh báo khi spec hay docstring dùng từ trong `_Avoid_`
+  (`"user record" → use Account`); chỉ cảnh báo, không chặn. Sau khi test xanh, review liệt kê **gợi ý cấu trúc**
+  (lặp code, tên lệch glossary, lồng sâu…); `/hitl:review T-2 fix F-3` refactor mà test vẫn xanh, không sửa test.
 - Mã như `ACC-R4`, `F-1` luôn đi kèm tiêu đề ngắn để bạn khỏi phải tra.
 - Không hiểu câu trả lời? Ở bất kỳ cổng nào gõ `?`, `wait`, `hả`, `giải thích` hoặc `không hiểu`: Claude giải thích lại
   (thêm ngữ cảnh, câu ngắn) rồi hỏi lại đúng câu đó. Câu này không tính là trả lời.

@@ -127,7 +127,8 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
 
 ## 6. Close
 When the frontier is empty or the user said `done`:
-1. `hitl-index spec validate <id> --json`. Fix every error yourself and reword `BIZ_CODE_TOKEN` hits (max 3 loops).
+1. `hitl-index spec validate <id> --json`. Fix every error yourself and reword `BIZ_CODE_TOKEN` hits (max 3 loops);
+   `TERM_AVOIDED` → write the glossary term it names.
    Standards warnings (`REQ_VAGUE`, `REQ_COMPOUND`, `REQ_PASSIVE_NO_ACTOR`, `NFR_NO_FIT`, `DT_*`, `SM_*`, `UC_*`):
    fix the wording/structure yourself when the fix adds no new behaviour (split a compound requirement, name the actor,
    add the hit policy); a missing number or a real rule overlap becomes a question in the next round.

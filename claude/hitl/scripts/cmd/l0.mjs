@@ -5,6 +5,8 @@ import { loadApi, p2paths, writeJsonSorted, CODE_KINDS } from "../lib/lock.mjs";
 import { executeTest, runShell, buildCommand } from "../lib/runner.mjs";
 import { readState } from "../lib/state.mjs";
 import { buildTrace, loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
+import { taskGlossary } from "../lib/changes.mjs";
+import { avoidList, avoidedInIntents, effectiveTerms } from "../lib/glossary.mjs";
 
 const OPTS = { json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 const lastLine = (s) => (String(s || "").trim().split("\n").filter(Boolean).pop() || "").slice(0, 200);
@@ -38,9 +40,9 @@ export async function computeL0(root, config, T) {
   const state = await readState(root);
   const index = t.index || (await api.readIndex(root));
   const symIds = t.statuses?.tasks?.[T]?.symbols || Object.keys(index?.symbols || {}).filter((id) => (index.symbols[id].tags?.task || []).includes(T) && CODE_KINDS.has(index.symbols[id].kind));
-  let trace = null;
+  let trace = null; let inputs = null;
   try {
-    const inputs = await loadTraceInputs(root, config, { index: index || undefined, state, statuses: t.statuses, tasks: t.tasks });
+    inputs = await loadTraceInputs(root, config, { index: index || undefined, state, statuses: t.statuses, tasks: t.tasks });
     const tr = buildTrace(inputs, { kind: "task", id: T });
     const acs = tr.rows.flatMap((r) => r.acs).filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i)
       .map((a) => ({ id: a.id, reqs: a.reqs, proven: a.proven, tests: a.tests.length }));
@@ -55,6 +57,12 @@ export async function computeL0(root, config, T) {
     const bw = tr.items.filter((i) => i.level !== "info");
     gates.push({ name: "trace", result: tr.counts.block ? "fail" : tr.counts.warn ? "warn" : "pass", detail: bw.slice(0, 3).map((i) => `${i.code} ${i.ref}`).join("; ") });
   } catch (e) { trace = null; gates.push({ name: "trace", result: "skip", detail: String(e.message || e) }); }
+  // shared language: intent docstrings of the task's symbols that use a glossary _Avoid_ word (warn, never blocks)
+  const glossary = taskGlossary(inputs?.spec, (inputs?.tasks || t.tasks || []).find((x) => x.id === T));
+  const eff = effectiveTerms(glossary.living, glossary.delta);
+  const terms = { items: avoidedInIntents(index, symIds, eff) };
+  gates.push(!avoidList(eff).length ? { name: "terms", result: "skip", detail: "no _Avoid_ words in the glossary" }
+    : { name: "terms", result: terms.items.length ? "warn" : "pass", detail: terms.items.slice(0, 3).map((i) => i.message).join("; ") });
   const configured = Object.values(config?.commands?.mutation || {}).some(Boolean);
   const perSymbol = {}; let missing = 0; let low = 0; const thr = config?.mutationThreshold ?? 0.8;
   for (const id of symIds) {
@@ -66,7 +74,7 @@ export async function computeL0(root, config, T) {
     : low ? { name: "mutation", result: config?.mutationRequired ? "fail" : "pass", detail: `${low} symbol(s) below ${thr}` }
     : missing ? { name: "mutation", result: config?.mutationRequired ? "fail" : "skip", detail: `${missing} symbol(s) not mutated for current body (hitl-index mutate --task ${T})` }
     : { name: "mutation", result: "pass", detail: "" });
-  return { schema: "hitl.l0/1", task: T, gates, tests, drift, trace, mutation: { configured, perSymbol } };
+  return { schema: "hitl.l0/1", task: T, gates, tests, drift, trace, terms, mutation: { configured, perSymbol } };
 }
 
 export async function run(argv, ctx) {

@@ -4,6 +4,8 @@ import { label } from "./risk.mjs";
 const SEV_ORDER = { critical: 0, important: 1, minor: 2 };
 export const confOf = (f) => f.verifiedConfidence ?? f.confidence ?? 0;
 export const isKept = (f, thr) => (f.keep ?? confOf(f) >= thr) && confOf(f) >= thr;
+/** A `structure` finding (refactor step of red→green→refactor) is a suggestion: never a blocker, never a human gate. */
+export const isSuggestion = (f) => f.category === "structure";
 const shortName = (index, id) => index?.symbols?.[id]?.name || String(id || "").split("#").pop();
 
 export function emptyDecisions() { return { schema: "hitl.decisions/1", items: {}, keys: {} }; }
@@ -28,7 +30,7 @@ export function assignFNumbers(findings, decisions, thr) {
 export function computeVerdict({ l0, findings, decisions, risk, thr }) {
   const t = l0?.tests || {};
   const blocks = l0?.drift?.summary?.block || 0;
-  const fs = (findings || []).filter((f) => isKept(f, thr));
+  const fs = (findings || []).filter((f) => isKept(f, thr) && !isSuggestion(f));
   const decOf = (f) => { const F = decisions?.keys?.[f.key]; return F ? decisions.items?.[F]?.decision : undefined; };
   let verdict = "PASS";
   if (!l0 || (t.fail || 0) + (t.error || 0) > 0 || blocks > 0 || (l0?.trace?.counts?.block || 0) > 0) verdict = "FAIL"; // no L0 evidence → never PASS
@@ -115,7 +117,7 @@ export function buildReport(o) {
   }
 
   const kept = all.filter((f) => isKept(f, thr));
-  const major = kept.filter((f) => ["critical", "important"].includes(f.severity))
+  const major = kept.filter((f) => ["critical", "important"].includes(f.severity) && !isSuggestion(f))
     .sort((a, b) => Number(decisions.keys[a.key]?.slice(2)) - Number(decisions.keys[b.key]?.slice(2)));
   L.push("", "## Findings needing a decision");
   if (!major.length) L.push("none");
@@ -135,6 +137,15 @@ export function buildReport(o) {
     }
   }
 
+  const structure = kept.filter(isSuggestion).sort((a, b) => Number(decisions.keys[a.key]?.slice(2)) - Number(decisions.keys[b.key]?.slice(2)));
+  if (structure.length) {
+    L.push("", "## Structure (suggestions)", `Refactor step: tests stay green and untouched. Reply "fix F-n" for a refactor pass, or "defer F-n" (beyond this task → a refactor- change).`);
+    for (const f of structure) {
+      const d = decisions.items[decisions.keys[f.key]];
+      L.push(`- ${decisions.keys[f.key]} ${f.title || f.key} — ${f.file || "?"}${f.line ? ":" + f.line : ""}${f.suggestedFix ? ` → ${String(f.suggestedFix).replace(/\n/g, " ")}` : ""}${d ? ` (${d.decision})` : ""}`);
+    }
+  }
+
   L.push("", "## Intent vs body (HUMAN-routed only)");
   const human = rs.filter(([, r]) => r.route === "HUMAN");
   if (!human.length) L.push("none");
@@ -144,7 +155,7 @@ export function buildReport(o) {
   const aside = fdoc.setAside || [];
   if (!aside.length) L.push("- none"); else for (const s of aside) L.push(`- ${s}`);
 
-  const collapsed = all.filter((f) => !isKept(f, thr) || f.severity === "minor");
+  const collapsed = all.filter((f) => !isKept(f, thr) || (f.severity === "minor" && !isSuggestion(f)));
   L.push("", `## Collapsed: minor or conf<${thr} (${collapsed.length})`, "<details><summary>show</summary>", "");
   for (const f of collapsed) L.push(`- [${f.severity} · conf ${confOf(f)}] ${f.title || f.key} — ${f.file || "?"}${f.line ? ":" + f.line : ""}`);
   L.push("</details>");

@@ -11,6 +11,7 @@ import { artifactDecision, bizLint, blockHash, findClarifications, parseDelta, p
 import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, vagueTermsFrom } from "./speclint.mjs";
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
 import { BLOCKING, applyCommand, noteCounts, readNotes } from "./notes.mjs";
+import { avoidedMessage, effectiveTerms, findAvoided } from "./glossary.mjs";
 export { SPECS_REL };
 
 export const CHANGES_REL = `${HITL_PREFIX}changes`;
@@ -151,6 +152,12 @@ export function changeForTask(ctx, task) {
   if (!task.change) return null;
   return ctx.entries.find((c) => !c.entry.archived && c.entry.id === task.change)
     || ctx.entries.filter((c) => c.entry.archived && c.entry.id === task.change).at(-1) || null;
+}
+
+/** The glossary a task sees: {living, delta}; the change's delta only while the change is active (archived: merged). */
+export function taskGlossary(ctx, task) {
+  const x = changeForTask(ctx, task);
+  return { living: ctx?.living?.glossary?.doc || null, delta: x && !x.entry.archived ? x.change.glossaryDelta : null };
 }
 
 /** Block (and scenario) of a spec id in a view: {block, scenario, capability} or null. */
@@ -413,6 +420,10 @@ export function validateChange({ change: ch, living, others = [], config = {} })
     const terms = [...(living.glossary?.doc.terms || []).map((t) => t.term), ...(ch.glossaryDelta?.terms || []).map((t) => t.term)];
     for (const f of bfiles) for (const x of bizLint(ch.texts.get(f) || "", { terms }))
       push(lint === "error" ? "error" : "warn", "BIZ_CODE_TOKEN", f, x.token, x.line, `code-like token ${x.token} (${x.rule}) in a business file`);
+    // shared language: a word the effective glossary lists under _Avoid_ (always a warning; glossary files are skipped)
+    const eff = effectiveTerms(living.glossary?.doc, ch.glossaryDelta);
+    for (const f of [proposalFile, ...ch.deltas.map((d) => d.file)]) for (const x of findAvoided(ch.texts.get(f) || "", eff))
+      push("warn", "TERM_AVOIDED", f, x.word, x.line, avoidedMessage(x));
   }
   // cross-change overlaps (full list: hitl-index spec conflicts)
   const mine = (ops) => ch.deltas.flatMap((d) => d.blocks.filter((b) => ops.includes(b.op)).map((b) => [b.id, d.file, b.line]));
