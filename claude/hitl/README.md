@@ -89,6 +89,15 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.8
+
+0.9 thêm **hộp ghi chú (notes) và reopen** cho yêu cầu đổi giữa chừng (mục 4c). Không cần migrate: project chưa có
+`notes.md` thì không có gì bị chặn; lock vẫn là `hitl.lock/1` (chỉ thêm trường mới).
+- Lệnh mới `hitl-index note add|list|show|apply`; `approve` có thêm `--ack N-k` và các stage của change `reopen`,
+  `dismiss`, `defer` (chỉ bạn gõ, qua `/hitl:approve`).
+- Trạng thái task mới `reopened`; `status --brief` có dòng `📌 notes: …`; `change --json` có `notes`.
+- Note đang mở chặn `/hitl:archive` (kể cả `--force`).
+
 ### Nâng cấp từ 0.7
 
 0.8 thêm **ngôn ngữ chung** (mục 2) và quy tắc trả lời dễ đọc (`shared/conventions.md` § Plain replies). Không cần
@@ -221,7 +230,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | ⛔ xác nhận lệnh | chỉ bạn |
 | `/hitl:flow [T-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `🎯 next` | — | bạn / Claude |
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | ⛔ nếu đã có docs | bạn / Claude |
-| `/hitl:plan [mô tả\|change-id [amend]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`), độ phủ + 🔥 + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`ACC-R3`, scenario `ACC-R3.S1`) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt | ⛔ mỗi vòng | bạn / Claude |
+| `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`), độ phủ + 🔥 + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`ACC-R3`, scenario `ACC-R3.S1`) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt | ⛔ mỗi vòng | bạn / Claude |
 | `/hitl:design <change-id> [--auto]` | HOW: `design.md` (`D-n`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần | ⛔ mỗi vòng | bạn / Claude |
 | `/hitl:tasks [change-id\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(ACC-R3.S1)`, Why trích `D-n`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | ⛔ quiz | bạn / Claude |
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | ⛔ diff / conflict | bạn / Claude |
@@ -231,6 +240,8 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; `doneAt` chuyển vào `reopened[]`. Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> dismiss N-k <lý do>` · `defer N-k <change khác>` · `/hitl:approve <T> <stage> --ack N-k` | Đóng note (bỏ qua có lý do / chuyển sang change khác) · cho task T đi tiếp dù note còn mở | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
 | `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
@@ -265,7 +276,8 @@ Token gắn với thứ bạn gõ: `/hitl:approve T-3` chỉ duyệt T-3; `/hitl
 `approve --change <change-id> --stage intent --by human`; `/hitl:approve <change-id> accept` chỉ cho đúng một lệnh
 `approve --change <change-id> --stage accept --by human`. Token task không duyệt được `--change` và ngược lại; token
 intent không chạy được accept và ngược lại; `/hitl:approve` không kèm id không duyệt được `--change`; stage intent và
-accept không nhận `--by auto` / `human-override`.
+accept không nhận `--by auto` / `human-override`. Tương tự (0.9) cho `reopen`, `dismiss`, `defer`: token gắn với change,
+stage, note id (và change đích của defer) bạn gõ; `--ack` chỉ đi với `--by human` và chỉ các note id bạn gõ.
 
 **Change đã archive = lịch sử đóng băng:** task của nó luôn `done`, kể cả khi code sau này đổi body/intent của symbol.
 Archive ghi lại `lock.tasks[T].file` sang file tasks trong archive (+ `archivedAt`, `change`; không phải sự duyệt). Drift
@@ -320,6 +332,29 @@ implementer báo `specConflict`, skill đề xuất cập nhật **spec/design**
   Change đã archive → tạo mini change `fix-<slug>` (chỉ proposal + delta), rồi `/hitl:archive fix-<slug>`.
 - Decision không bao giờ sửa tại chỗ (chỉ supersede); thêm requirement/capability → proposal về `draft`, chạy lại `/hitl:tasks`.
 - Amend không duyệt gì cả: sau đó bạn vẫn gõ `/hitl:approve <T> skeleton <symbols>` như cũ.
+- 0.9: preview có thêm khối **🔁 Impact** (mục 4c); Apply ghi `note apply`.
+
+### 4c. Yêu cầu đổi giữa chừng: notes và reopen (0.9)
+
+Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, vài task đã khoá test, rồi yêu cầu đổi.
+- **Ghi lại, chưa sửa.** Bạn nói thay đổi trong chat (ở bất kỳ skill nào) → Claude hỏi
+  `📌 Note for <change>, refs <ids (tiêu đề)>? (Y/n)` và ghi vào `.hitl/changes/<id>/notes.md` (chỉ CLI ghi file này).
+  Câu hỏi thì chỉ bàn, không ghi. Bạn nói rõ "sửa luôn" → đi thẳng vào amend.
+- **Chặn.** Note đang mở chặn `/hitl:approve` skeleton / tests / done của task mà refs chạm tới (scenario/requirement
+  của AC, D-n trong **Why**, dòng `### Symbols`, `@dec` của symbol đã khoá). Note không refs chỉ cảnh báo. Routing bỏ
+  qua task bị chặn nếu còn task khác làm được. Note mở cũng chặn archive.
+- **Áp dụng.** `/hitl:plan <id> amend N-k` (hoặc `/hitl:design <id> amend N-k`): preview delta + khối 🔁 Impact theo
+  từng id: `wording` (không mở gì) · `behaviour` (test đã khoá của AC đó) · `contract` (skeleton của symbol qua
+  `@dec`/covers + test của nó) · `scenario` (AC mới + test) · `requirement` (task mới qua `/hitl:tasks update`).
+  Hơn ~3 task hoặc có contract → gợi ý tách change mới. Apply ghi docs + một note `recheck` ở trạng thái
+  `reopen pending` (cả khi chỉ wording mà task đã khoá: bạn xác nhận "không ảnh hưởng").
+- **Mở lại — chỉ bạn.** `/hitl:approve <id> reopen` → test bị đổi về stage `reopened` (test-author viết lại; test viết
+  lại phải đỏ trên code hiện tại mới khoá lại được bằng `/hitl:approve <T> tests`), symbol bị đổi contract được đánh
+  dấu để `/hitl:skeleton <T>` sửa rồi `/hitl:approve <T> skeleton`. `doneAt`/`doneBodyHashes` chuyển vào
+  `lock.tasks[T].reopened[]`; review cũ hết hiệu lực (report md vẫn còn). Task hiện `reopened` → `/hitl:test` hoặc
+  `/hitl:skeleton`, rồi implement → review → done như thường. Change đã archive không bao giờ reopen (dùng claim/accept).
+- **Lối thoát, cũng chỉ bạn:** `--ack N-k` (cho task đó đi tiếp; note vẫn mở), `dismiss N-k <lý do>`,
+  `defer N-k <change khác>` (copy note sang change đó).
 
 ### 4b. Ticket tracker: Linear, Jira, GitHub Issues (tuỳ chọn)
 
@@ -379,7 +414,7 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
   | hitl status | Linear state type |
   |---|---|
   | `todo` | unstarted (hoặc backlog nếu `pushTodoAs: backlog`) |
-  | `skeleton`, `approved`, `red`, `wip` | started |
+  | `skeleton`, `approved`, `red`, `wip`, `reopened` | started (issue đã completed → op `reopen` cần bạn xác nhận) |
   | `green`, `review`, `verified` | review (state started tên /review/; không có → started) |
   | `done` | completed |
 

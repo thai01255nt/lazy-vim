@@ -347,7 +347,7 @@ test("intent stage: refusals (sig, todo, body, open task, human only, nothing ch
   r = planApproval(ib({ symbols: ["Nope.x"] })); assert.match(r.reasons[0], /not resolvable/);
   r = planApproval(ib({ symbols: ["register"] })); assert.match(r.reasons[0], /not a symbol of change feat-u/);
   r = planApproval(ib({ taskId: "T-1" })); assert.match(r.reasons[0], /not a task id/);
-  r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent or accept stage/);
+  r = planApproval(ib({ stage: "done" })); assert.match(r.reasons[0], /only the intent, accept or reopen stage/);
   // implemented TODO lines turned into `n.` comments (no open todos): todoHash moved, not a refusal (as in drift)
   const impl = doneThenTidied({ edit: (s) => { s.todoHash = "todo-impl"; s.todos = []; } });
   assert.equal(planApproval(impl.ib()).ok, true);

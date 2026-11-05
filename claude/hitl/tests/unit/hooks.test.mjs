@@ -307,6 +307,17 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       assertSilent(pre(root, "Read", { file_path: path.join(root, rel) }, TA));
   });
 
+  test("0.9: a change's notes.md is CLI-only for every role; other change files stay editable", async () => {
+    const { root } = await mkProject();
+    const rel = ".hitl/changes/feat-x/notes.md";
+    for (const agent of [undefined, "hitl:implementer", "hitl:test-author", "hitl:spec-scout"]) {
+      assertDeny(pre(root, "Write", { file_path: path.join(root, rel), content: "x" }, agent), /Notes are written only by hitl-index note add\|apply/);
+      assertDeny(pre(root, "Edit", { file_path: path.join(root, rel), old_string: "a", new_string: "b" }, agent), /Notes are written only/);
+    }
+    assertSilent(pre(root, "Write", { file_path: path.join(root, ".hitl/changes/feat-x/notes-draft.md"), content: "x" }));
+    assertSilent(pre(root, "Write", { file_path: path.join(root, "docs/notes.md"), content: "x" }));
+  });
+
   test("session-start: one migrate --specs line while v0.5 planning files exist", async () => {
     const { root } = await mkProject();
     fs.mkdirSync(path.join(root, ".hitl/planning"), { recursive: true });
@@ -472,6 +483,20 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertDeny(pre(root, "Bash", { command: cmd }, null, "tok2"), /human-only/);
   });
 
+  test("0.9 --ack: human approvals only, and only the note ids the user typed", async () => {
+    const { root } = await mkProject();
+    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
+    for (const c of ["hitl-index approve T-1 --stage tests --by auto --ack N-1", "hitl-index approve T-1 --stage tests --by human-override --ack N-1",
+      "hitl-index approve T-1 --by auto --ack=N-1 --dry-run"])
+      assertDeny(pre(root, "Bash", { command: c }, null, "ak0"), /--ack is human-only/);
+    prompt("/hitl:approve T-1 skeleton", "ak1");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1 --by human" }, null, "ak1"), /--ack N-1 was not typed by the user.*token is kept/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --by human" }, null, "ak1"));
+    prompt("/hitl:approve T-1 skeleton --ack N-1,N-3", "ak2");
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1,N-2 --by human" }, null, "ak2"), /--ack N-2 was not typed/);
+    assertAllow(pre(root, "Bash", { command: "hitl-index approve T-1 --stage skeleton --ack N-1,N-3 --by human --json" }, null, "ak2"));
+  });
+
   test("approve token for a change's intent stage: bound to that change id, --by human only, task tokens do not cross", async () => {
     const { root } = await mkProject();
     const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
@@ -536,6 +561,45 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     // a task token authorizes neither change stage
     prompt("/hitl:approve T-1", "ca3");
     assertDeny(pre(root, "Bash", { command: acc }, null, "ca3"), /token is for T-1/);
+  });
+
+  test("0.9 reopen / dismiss / defer tokens: human-only, bound to (change, stage, note, target); no other token crosses", async () => {
+    const { root } = await mkProject();
+    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
+    const reo = "hitl-index approve --change feat-x --stage reopen --by human --json";
+    const dis = 'hitl-index approve --change feat-x --stage dismiss --note N-3 --reason "not needed" --by human';
+    const dfr = "hitl-index approve --change feat-x --stage defer --note N-3 --to feat-y --by human";
+    for (const [c, re] of [[reo, /Reopen is human-only/], [dis, /Dismissing a note is human-only/], [dfr, /Deferring a note is human-only/]]) {
+      assertDeny(pre(root, "Bash", { command: c.replace("--by human", "--by auto") }, null, "r0"), re);
+      assertDeny(pre(root, "Bash", { command: c.replace("--by human", "--by human-override") + " --dry-run" }, null, "r0"), re);
+      assertDeny(pre(root, "Bash", { command: c }, null, "r0"), /human-only/); // no token
+      assertDeny(pre(root, "Bash", { command: c }, "hitl:implementer", "r0"), /human-only/);
+    }
+    // a reopen token: only reopen of that change; intent/accept/task/dismiss never cross
+    prompt("/hitl:approve feat-x reopen", "r1");
+    for (const c of ["hitl-index approve --change feat-x --stage intent --by human", "hitl-index approve --change feat-x --stage accept --by human", dis, "hitl-index approve T-1 --by human"])
+      assertDeny(pre(root, "Bash", { command: c }, null, "r1"), /token is for change feat-x \(reopen\)/);
+    assertDeny(pre(root, "Bash", { command: "hitl-index approve --change feat-y --stage reopen --by human" }, null, "r1"), /for change feat-x/);
+    assertAllow(pre(root, "Bash", { command: reo }, null, "r1"));
+    prompt("/hitl:approve feat-x reopen N-4", "r2");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/r2.json"), "utf8")).approveToken.stage, "reopen");
+    assertDeny(pre(root, "Bash", { command: reo.replace("--by", "--note N-5 --by") }, null, "r2"), /reopen N-4/);
+    assertAllow(pre(root, "Bash", { command: reo.replace("--by", "--note N-4 --by") }, null, "r2"));
+    // intent/accept/task tokens never authorize reopen
+    for (const p of ["/hitl:approve feat-x intent", "/hitl:approve feat-x accept", "/hitl:approve T-1"]) {
+      prompt(p, "r3");
+      assertDeny(pre(root, "Bash", { command: reo }, null, "r3"), /token is (for change feat-x \((intent|accept)\)|for T-1)/);
+    }
+    // dismiss/defer: bound to the typed note (and target)
+    prompt("/hitl:approve feat-x dismiss N-3 the security review dropped it", "r4");
+    assertDeny(pre(root, "Bash", { command: dis.replace("N-3", "N-2") }, null, "r4"), /dismiss N-3/);
+    assertDeny(pre(root, "Bash", { command: dfr }, null, "r4"), /Run exactly/);
+    assertAllow(pre(root, "Bash", { command: dis }, null, "r4"));
+    prompt("/hitl:approve feat-x dismiss", "r5");
+    assertDeny(pre(root, "Bash", { command: dis }, null, "r5"), /no note id typed/);
+    prompt("/hitl:approve feat-x defer N-3 feat-y", "r6");
+    assertDeny(pre(root, "Bash", { command: dfr.replace("--to feat-y", "--to feat-z") }, null, "r6"), /defers N-3 to feat-y/);
+    assertAllow(pre(root, "Bash", { command: dfr }, null, "r6"));
   });
 
   test("override token: /hitl:implement <T> --lane fast → --by human-override for that task only, multi-use, main thread", async () => {

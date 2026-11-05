@@ -105,13 +105,16 @@ export async function computeDriftFrom(root, index, opts = {}) {
         add("warn", "ARCHIVED_BODY_CHANGED", id, `${ref(id)} ${at} body changed since ${base.accepted ? "it was accepted" : "the done record"}; ${testWord(id)}. Claim it into an open task, or accept it (/hitl:approve ${arch} accept).`, x(true));
       continue;
     }
+    // 0.9: a symbol reopened by the human (contract change) is expected to change: info until /hitl:approve <T> skeleton
+    const lvl = l.reopen ? "info" : "warn";
+    const reo = l.reopen ? ` Reopened by ${l.reopen.note}: re-approve with /hitl:approve ${owner} skeleton.` : "";
     if (l.sigHash && s.sigHash !== l.sigHash)
-      add("warn", "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (/hitl:approve ${owner}).`, { affected: s.callers, approved, current: cur(s), task: owner });
+      add(lvl, "SIG_CHANGED", id, `${ref(id)} (locked ${l.task}) signature changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}.${reo || ` Needs human re-approval (/hitl:approve ${owner}).`}`, { affected: s.callers, approved, current: cur(s), task: owner });
     // every owning task done (e.g. after /hitl:tidy): the change-level intent re-approval, which needs no @task tags
     const doneChange = !open.length && changeOfFile(L.tasks[owner]?.file || "").change;
     const reapprove = doneChange ? `/hitl:approve ${doneChange} intent` : `/hitl:approve ${owner}`;
     if (l.intentHash && s.intentHash !== l.intentHash)
-      add("warn", "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}. Needs human re-approval (${reapprove}).`, { affected: s.callers, approved, current: cur(s), task: owner });
+      add(lvl, "INTENT_CHANGED", id, `${ref(id)} (locked ${l.task}) intent changed since approval${s.callers.length ? ` — affected callers: ${s.callers.map(ref).join(", ")}` : ""}.${reo || ` Needs human re-approval (${reapprove}).`}`, { affected: s.callers, approved, current: cur(s), task: owner });
     if ((s.stub || s.todos?.length) && l.todoHash && s.todoHash !== l.todoHash) add("info", "TODO_FLOW_CHANGED", id, `${ref(id)} TODO(impl) steps changed since approval`);
     if (l.impl && s.tags.impl && s.tags.impl !== l.impl) add("info", "IMPL_CHANGED", id, `${ref(id)} @impl ${l.impl} → ${s.tags.impl}`);
     const done = bodyBaseline(L, id, [l.task])?.hash;
@@ -152,6 +155,7 @@ export async function computeDriftFrom(root, index, opts = {}) {
     const arch = archivedOf(owner) && archivedOf(l.task) ? archivedOf(l.task) : null;
     const tx = (accept) => (arch ? { task: null, change: arch, fix: archivedFix(arch, nameOfId(id), { accept, test: true }) } : {});
     const at = arch ? `(archived ${arch}, locked by ${l.task})` : `(${l.task})`;
+    if (!s && l.stage === "reopened") continue; // 0.9: a reopened test may be deleted (removed scenario); the tests re-lock drops it
     if (!s) { add("warn", "TEST_DELETED", id, `locked test ${nameOfId(id)} ${at} is missing${arch ? `. Restore it, or accept it (/hitl:approve ${arch} accept drops it from the lock).` : ""}`, tx(true)); continue; }
     if (l.stage !== "locked") continue;
     if ((l.bodyHash && s.bodyHash !== l.bodyHash) || (l.intentHash && s.intentHash !== l.intentHash))

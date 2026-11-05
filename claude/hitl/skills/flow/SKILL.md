@@ -42,6 +42,11 @@ Arguments: `$ARGUMENTS`
      `synced` is false; `—` for unmapped tasks. All null → no column.
    - With a `T-id`: also list its symbols (`symbol | impl | status | reasons`) from the same JSON.
    - `tasks[T].override` true → append ` ⚠️ override` to its risk cell (the user forced the fast lane; review goes to the human).
+   - Notes (0.9): `.changes[].notes` with `open` or `reopenPending` > 0 → one line per change
+     `📌 feat-x — 2 open notes, 1 reopen pending`. Then every task with `tasks[T].notes` non-empty, even when not in the
+     table: `📌 T-14 blocked by N-3 (<title>) → <apply>` (routing skips it while another task can go on).
+   - `tasks[T].status` `reopened` → status cell `🔁 reopened (<reopen.stage>)` and one line
+     `🔁 T-12 reopened by <reopen.note> — <tests to rewrite for reopen.acs | skeleton of reopen.symbols> → <next>`.
    - Several unfinished tasks in one change → mention once `💡 build then review: /hitl:implement --feature <change-id>`.
    - `.trace` non-null and `.trace.acs.total > 0` → one line
      `🔗 trace: R <reqs.covered>/<reqs.active> covered · scenarios <scenarios.withAc>/<scenarios.total> with AC ·

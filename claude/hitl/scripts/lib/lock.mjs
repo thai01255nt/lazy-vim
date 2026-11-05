@@ -6,6 +6,7 @@ import { join, dirname, basename } from "node:path";
 import { HITL_DIR } from "./paths.mjs";
 import { archivedChangeOf } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
+import { blockingNotes, applyCommand } from "./notes.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/1";
 
@@ -147,6 +148,26 @@ export function taskSymbolIds(index, taskId, task, api) {
   return [...ids].sort();
 }
 
+/** Match context of task T for notes (notes.noteHitsTask/blockingNotes): its ACs, Why decisions and symbols (rows, tags, locked). */
+export function noteCtxFor(index, lock, task, api) {
+  const ids = new Set(taskSymbolIds(index, task.id, task, api));
+  for (const [id, l] of Object.entries(lock?.symbols || {})) if (lockedTasks(l).includes(task.id)) ids.add(id);
+  return { task: { id: task.id, acs: task.acs || [], decisions: task.decisions || [] }, symIds: ids, index };
+}
+
+/**
+ * Blocking notes per task of the active changes: {T: [{id, title, kind, status, change, via, apply}]}.
+ * changeNotes: [{change, notes}] (readActiveNotes). Acked notes and notes without refs are not listed.
+ */
+export function notesByTask(changeNotes, tasks, index, lock, api) {
+  const out = {};
+  for (const { change, notes } of changeNotes || []) for (const t of (tasks || []).filter((x) => x.change === change && !x.archived)) {
+    const b = blockingNotes(notes, noteCtxFor(index, lock, t, api)).block;
+    if (b.length) out[t.id] = b.map((x) => ({ id: x.note.id, title: x.note.title, kind: x.note.kind, status: x.note.status, change, via: x.via, apply: applyCommand(change, x.note) }));
+  }
+  return out;
+}
+
 /** Test symbols of task T: @ac of the task, @task T, or covering one of its symbols. */
 export function taskTestIds(index, taskId, symIds) {
   const symSet = new Set(symIds);
@@ -261,8 +282,10 @@ export function isOverride(lock, taskId) {
 
 // ---------------------------------------------------------------- approve planning (pure)
 const STAGES = ["skeleton", "tests", "done", "intent", "accept"];
-/** Change-form stages (`--change <id>`): human-only, no task id, no --force. */
-export const CHANGE_STAGES = ["intent", "accept"];
+/** Change-form stages (`--change <id>`): human-only, no task id, no --force. reopen (0.9) unlocks what a recheck note lists. */
+export const CHANGE_STAGES = ["intent", "accept", "reopen"];
+/** Change-form note decisions (0.9, `--change <id> --stage dismiss|defer --note N-k`): human-only; they write notes.md only. */
+export const NOTE_STAGES = ["dismiss", "defer"];
 
 /**
  * Intent growth history of a lock entry (additive, `hitl.lock/1`): [{task, stage, lines, at}], one item per approval that
@@ -496,6 +519,91 @@ function planAcceptApproval(opts, lock) {
   return res(true);
 }
 
+/** The open reopen of a task (0.9): its last `reopened[]` item without `closedAt`, else null. */
+export function openReopen(lt) {
+  const r = Array.isArray(lt?.reopened) ? lt.reopened.at(-1) : null;
+  return r && !r.closedAt ? r : null;
+}
+const ownsLockTest = (t, T) => t.task === T || (t.ac || []).some((a) => a.startsWith(T + ".AC"));
+
+/**
+ * Reopen (0.9, human-only; pure; same result shape as planApproval). The human confirms what the recheck notes of an
+ * active change list (written by `note apply` after an amendment): per task, the locked tests of the changed ACs go back
+ * to stage `reopened` (plus, for a contract change, the tests covering the listed symbols), the listed skeleton symbols
+ * get a `reopen` marker, and the done record moves into `tasks[T].reopened[]` history. A recheck with nothing to unlock
+ * (wording only) just closes. Never touches an archived change. Result adds {reopened:[{task, stage, acs, tests,
+ * symbols}], nothing:[tasks], notes:[ids], empty}.
+ */
+function planReopenApproval(opts, lock) {
+  const { changeId, tasks = [], notes = [] } = opts;
+  const by = opts.by || "human";
+  const now = opts.now || nowIso();
+  const reasons = [], warnings = [], reopened = [], nothing = [];
+  const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
+  let pick = [];
+  const res = (ok) => ({ ok, stage: "reopen", change: changeId ?? null, task: null, by, reasons, warnings, changes, lock, reopened, nothing, notes: pick.map((n) => n.id), empty: !reopened.length });
+  if (by !== "human") { reasons.push(`reopen is human-only (--by human), not --by ${by}`); return res(false); }
+  if (!changeId) { reasons.push("reopen stage needs --change <change-id>"); return res(false); }
+  if (opts.archived) { reasons.push(`${changeId} is archived: archived work never reopens; claim it into an open task, or /hitl:approve ${changeId} accept`); return res(false); }
+  const pending = notes.filter((n) => n.kind === "recheck" && n.status === "reopen pending");
+  if (opts.noteId) {
+    const n = notes.find((x) => x.id === opts.noteId);
+    if (!n) { reasons.push(`${opts.noteId} not found in ${changeId}'s notes`); return res(false); }
+    if (!pending.includes(n)) { reasons.push(`${opts.noteId} is ${n.kind === "recheck" ? n.status : `a ${n.kind} note (${n.status})`}, not a recheck waiting for reopen`); return res(false); }
+    pick = [n];
+  } else pick = pending;
+  if (!pick.length) { reasons.push(`no recheck note of ${changeId} waits for reopen (hitl-index note apply writes one after an amendment)`); return res(false); }
+  const per = new Map();
+  for (const n of pick) for (const r of n.meta?.reopen || []) {
+    const e = per.get(r.task) || { task: r.task, stage: null, acs: new Set(), symbols: new Set(), newAc: new Set() };
+    if (r.stage === "skeleton" || (r.stage === "tests" && e.stage !== "skeleton")) e.stage = r.stage;
+    for (const a of r.acs || []) e.acs.add(a);
+    for (const x of r.symbols || []) e.symbols.add(x);
+    for (const x of r.newAc || []) e.newAc.add(x);
+    per.set(r.task, e);
+  }
+  const noteIds = pick.map((n) => n.id).join(",");
+  for (const e of per.values()) {
+    if (!e.stage) continue;
+    const t = tasks.find((x) => x.id === e.task && x.change === changeId);
+    if (!t) { reasons.push(`${e.task} is not a task of ${changeId} anymore`); continue; }
+    if (t.archived) { reasons.push(`${e.task} is archived: archived work never reopens`); continue; }
+    for (const sc of e.newAc) {
+      const acs = (t.acs || []).filter((a) => (a.reqs || []).includes(sc));
+      if (!acs.length) reasons.push(`${e.task} has no AC for ${sc} yet: /hitl:tasks ${changeId} update first`);
+      for (const a of acs) e.acs.add(a.id);
+    }
+  }
+  if (reasons.length) return res(false);
+  for (const e of [...per.values()].sort((a, b) => a.task.localeCompare(b.task, "en", { numeric: true }))) {
+    const T = e.task;
+    if (!e.stage) { nothing.push(T); continue; }
+    const lt = { ...(lock.tasks[T] || { file: null, risk: "high", skeletonAt: null, testsAt: null, doneAt: null, doneBodyHashes: {} }) };
+    const open = openReopen(lt);
+    if (open && String(open.note).split(",").some((x) => pick.some((n) => n.id === x))) { warnings.push(`${T} is already reopened by ${open.note}`); continue; }
+    const syms = [...e.symbols].filter((id) => lock.symbols[id]).sort();
+    for (const id of [...e.symbols].filter((id) => !lock.symbols[id])) warnings.push(`${id.slice(id.indexOf("#") + 1)} is not locked any more: nothing to unlock`);
+    const tests = Object.entries(lock.tests).filter(([, x]) => x.stage === "locked" && ownsLockTest(x, T)
+      && ((x.ac || []).some((a) => e.acs.has(a)) || (x.covers || []).some((c) => syms.includes(c)))).map(([id]) => id).sort();
+    const stage = syms.length ? "skeleton" : tests.length || e.acs.size ? "tests" : null;
+    if (!stage) { nothing.push(T); continue; }
+    for (const id of syms) { lock.symbols[id] = { ...lock.symbols[id], reopen: { at: now, note: noteIds } }; changes.symbols.changed.push({ id, what: ["reopen"] }); }
+    for (const id of tests) {
+      const x = lock.tests[id];
+      lock.tests[id] = { ...x, stage: "reopened", reopenedAt: now, reopenNote: noteIds, lockedBodyHash: x.bodyHash ?? null };
+      changes.tests.changed.push({ id, what: ["reopened"] });
+    }
+    const item = { at: now, by, note: noteIds, change: changeId, acs: [...e.acs].sort(), symbols: syms, tests, pending: stage === "skeleton" ? ["skeleton", "tests"] : ["tests"],
+      prev: { doneAt: lt.doneAt ?? null, doneBodyHashes: lt.doneBodyHashes || {} } };
+    lt.reopened = [...(Array.isArray(lt.reopened) ? lt.reopened : []), item];
+    lt.doneAt = null;
+    lt.doneBodyHashes = {};
+    lock.tasks[T] = lt;
+    reopened.push({ task: T, stage, acs: item.acs, tests, symbols: syms });
+  }
+  return res(true);
+}
+
 export function defaultStage(lock, taskId) {
   const t = lock.tasks[taskId];
   if (!t || !t.skeletonAt) return "skeleton";
@@ -519,16 +627,27 @@ export function planApproval(opts) {
   const stage = opts.stage || (opts.changeId ? "intent" : defaultStage(lock, taskId));
   const reasons = [];
   const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
-  const res = (ok) => ({ ok, stage, task: taskId, by, reasons, changes, lock });
+  const warnings = [];
+  let noteAcks = [], blockedBy = [];
+  const res = (ok) => ({ ok, stage, task: taskId, by, reasons, warnings, changes, lock, noteAcks, blockedBy });
 
+  if (opts.ack?.length && by !== "human") { reasons.push(`--ack is human-only (--by human), not --by ${by}`); return res(false); }
   if (CHANGE_STAGES.includes(stage) || opts.changeId) {
-    if (!CHANGE_STAGES.includes(stage)) { reasons.push(`--change approves only the intent or accept stage, not "${stage}"`); return res(false); }
+    if (!CHANGE_STAGES.includes(stage)) { reasons.push(`--change approves only the intent, accept or reopen stage, not "${stage}"`); return res(false); }
     if (taskId) { reasons.push(`${stage} stage takes --change <change-id>, not a task id`); return res(false); }
-    return stage === "accept" ? planAcceptApproval(opts, lock) : planIntentApproval(opts, lock);
+    return stage === "accept" ? planAcceptApproval(opts, lock) : stage === "reopen" ? planReopenApproval(opts, lock) : planIntentApproval(opts, lock);
   }
-  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done|intent|accept)`); return res(false); }
+  if (!STAGES.includes(stage)) { reasons.push(`unknown stage "${stage}" (skeleton|tests|done|intent|accept|reopen)`); return res(false); }
   if (!index?.symbols) { reasons.push("index missing: run hitl-index index --all"); return res(false); }
   if (!task && !lock.tasks[taskId]) { reasons.push(`task ${taskId} not found in tasks/*.md`); return res(false); }
+
+  // 0.9 notes inbox: an open note (or a recheck waiting for reopen) whose refs touch T refuses every task stage, even
+  // with --force. Only a human --ack (per task), dismiss, defer, apply or reopen releases it.
+  if (task) {
+    const r = checkNotes(opts.notes || [], opts.ack || [], { index, lock, task, api, stage });
+    reasons.push(...r.reasons); warnings.push(...r.warnings); noteAcks = r.acks; blockedBy = r.blockedBy;
+    if (reasons.length) return res(false);
+  } else if (opts.ack?.length) { reasons.push("--ack needs the task in a tasks file"); return res(false); }
 
   const risk = taskRisk(task, lock, taskId);
   if (!APPROVERS.includes(by)) { reasons.push(`--by must be one of ${APPROVERS.join("|")}`); return res(false); }
@@ -639,7 +758,8 @@ export function planApproval(opts) {
       for (const id of ownTestIds) {
         const t = index.symbols[id];
         const prev = lock.tests[id];
-        if (prev && prev.stage === "locked") { changes.tests.unchanged.push(id); continue; } // never downgrade locked tests
+        // never downgrade locked tests; a test the human reopened stays reopened until /hitl:approve <T> tests
+        if (prev && (prev.stage === "locked" || prev.stage === "reopened")) { changes.tests.unchanged.push(id); continue; }
         const entry = testEntry(index, t, taskId, "stub", now, by);
         if (!prev) changes.tests.new.push(id);
         else if (prev.bodyHash !== entry.bodyHash || prev.intentHash !== entry.intentHash) changes.tests.changed.push({ id, what: ["body"] });
@@ -648,8 +768,14 @@ export function planApproval(opts) {
       }
     }
     lt.skeletonAt = now;
+    // 0.9: re-approved symbols lose their reopen marker (entries are rebuilt above); none left → the skeleton step is done
+    const reo = openReopen(lt);
+    if (reo?.pending?.includes("skeleton") && !Object.values(lock.symbols).some((l) => lockedTasks(l).includes(taskId) && l.reopen))
+      lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, pending: reo.pending.filter((x) => x !== "skeleton") }];
   } else if (stage === "tests") {
     if (!lt.skeletonAt && !opts.force) { reasons.push(`skeleton of ${taskId} not approved yet: /hitl:approve ${taskId}`); return res(false); }
+    const reo = openReopen(lt);
+    if (reo?.pending?.includes("skeleton")) { reasons.push(`${taskId} skeleton is reopened (${reo.note}): /hitl:skeleton ${taskId}, then /hitl:approve ${taskId} skeleton, before the tests`); return res(false); }
     const runs = state.runs || {};
     // Re-lock (tests already locked once): red is required only for the first lock. Tests added later
     // (mutation killers, fix-loop regressions) may already be green; they still need a fresh run.
@@ -665,6 +791,17 @@ export function planApproval(opts) {
       else if (r.outcome === "pass" && !relock) reasons.push(`${name}: passes against the stub (vacuous test)`);
       else if (r.outcome === "error" && !String(r.message || "").includes(SENTINEL)) reasons.push(`${name}: errors without the TODO(impl) sentinel: ${r.message || ""}`);
       else if (r.outcome === "skip") reasons.push(`${name}: skipped`);
+      // 0.9: a reopened test that was rewritten must fail against the current code (it shows the new behaviour)
+      else if (lock.tests[id]?.stage === "reopened" && t.bodyHash !== lock.tests[id].lockedBodyHash && r.outcome === "pass")
+        reasons.push(`${name}: rewritten after the reopen but passes against the current code; it must fail to show the new behaviour (the human may add --force when the code already does it)`);
+    }
+    if (reo?.pending?.includes("tests")) {
+      for (const ac of reo.acs || []) if (!active.some((id) => (index.symbols[id].tags?.ac || []).includes(ac))) reasons.push(`${ac} (reopened) has no active test`);
+      // only the reopened tests may change while the reopen is open
+      for (const id of ownTestIds) {
+        const l = lock.tests[id];
+        if (l?.stage === "locked" && l.bodyHash && index.symbols[id].bodyHash !== l.bodyHash) reasons.push(`${index.symbols[id].name || id}: locked test changed but was not reopened by ${reo.note}`);
+      }
     }
     if (reasons.length && !opts.force) return res(false);
     for (const id of Object.keys(lock.tests)) {
@@ -680,8 +817,12 @@ export function planApproval(opts) {
       lock.tests[id] = entry;
     }
     lt.testsAt = now;
+    if (reo?.pending?.includes("tests")) lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, pending: reo.pending.filter((x) => x !== "tests") }];
   } else if (stage === "done") {
-    const rv = state.reviews?.[taskId];
+    const reo = openReopen(lt);
+    if (reo?.pending?.length) { reasons.push(`${taskId} is reopened (${reo.note}, ${reo.pending.join(" then ")} pending): ${reo.pending[0] === "skeleton" ? `/hitl:skeleton ${taskId}` : `/hitl:test ${taskId}`} first`); return res(false); }
+    const rv0 = state.reviews?.[taskId];
+    const rv = reo && rv0 && String(rv0.at || "") < reo.at ? null : rv0; // a review older than the reopen is stale
     if (by === "auto" && rv?.verdict !== "PASS") { reasons.push("auto done-approval requires review verdict PASS"); return res(false); }
     // per-task status: a symbol shared with another task is judged on T's work (T's TODO steps, review, done record)
     const st = { ...(statuses?.symbols || {}), ...(statuses?.tasks?.[taskId]?.symbolStatus || {}) };
@@ -693,12 +834,40 @@ export function planApproval(opts) {
     if (!symIds.length) reasons.push("task has no symbols");
     if (reasons.length && !opts.force) return res(false);
     lt.doneAt = now;
+    if (reo) lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, closedAt: now }];
     lt.doneBodyHashes = {};
     for (const id of symIds) { lt.doneBodyHashes[id] = index.symbols[id].bodyHash; changes.symbols.unchanged.push(id); }
   }
   if (by === OVERRIDE) { lt.override = true; lt.overrideAt = now; }
   lock.tasks[taskId] = lt;
   return res(true);
+}
+
+const noteName = (n) => `${n.id} (${n.title})`;
+/** Notes check of a task approval: reasons (blocking notes, bad --ack), warnings (no-refs notes, acked notes), acks to record. */
+function checkNotes(notes, ack, { index, lock, task, api, stage }) {
+  const reasons = [], warnings = [], acks = [], blockedBy = [];
+  const chg = task.change || "<change>";
+  const nb = blockingNotes(notes, noteCtxFor(index, lock, task, api));
+  for (const id of ack) {
+    const n = notes.find((x) => x.id === id);
+    const hit = nb.block.find((x) => x.note.id === id) || nb.acked.find((x) => x.note.id === id);
+    if (!n) reasons.push(`--ack ${id}: no such note in ${chg}`);
+    else if (n.status === "reopen pending") reasons.push(`--ack ${id}: ${noteName(n)} is a recheck waiting for /hitl:approve ${chg} reopen ${id} (or dismiss); an ack does not apply`);
+    else if (!hit) reasons.push(`--ack ${id}: ${noteName(n)} does not block ${task.id} (status ${n.status})`);
+    else if (nb.block.some((x) => x.note.id === id)) acks.push(id);
+  }
+  for (const x of nb.block) {
+    if (ack.includes(x.note.id) && x.note.status === "open") continue;
+    blockedBy.push({ note: x.note.id, title: x.note.title, status: x.note.status, via: x.via, apply: applyCommand(chg, x.note) });
+    const how = x.note.status === "reopen pending"
+      ? `the human confirms it with /hitl:approve ${chg} reopen ${x.note.id}, or /hitl:approve ${chg} dismiss ${x.note.id} <reason>`
+      : `apply it (${applyCommand(chg, x.note)}), or /hitl:approve ${task.id} ${stage} --ack ${x.note.id}, or /hitl:approve ${chg} dismiss|defer ${x.note.id}`;
+    reasons.push(`📌 ${noteName(x.note)} touches ${task.id} via ${x.via.join(", ")}: ${how}`);
+  }
+  for (const x of nb.acked) warnings.push(`📌 ${noteName(x.note)} is open but acked for ${task.id}`);
+  for (const x of nb.warn) warnings.push(`📌 ${noteName(x.note)} is open and has no refs: check it does not change ${task.id}`);
+  return { reasons, warnings, acks, blockedBy };
 }
 
 function testEntry(index, t, taskId, stage, now, by) {

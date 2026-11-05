@@ -1,5 +1,5 @@
 // P2 — status machine (§E.6). Pure: computeStatuses(index, lock, state, config, tasks).
-import { CODE_KINDS, isTest, coversOf, taskSymbolIds, taskRisk, isOverride, lockedTasks } from "./lock.mjs";
+import { CODE_KINDS, isTest, coversOf, taskSymbolIds, taskRisk, isOverride, lockedTasks, openReopen } from "./lock.mjs";
 import { nextForTask } from "./nextstep.mjs";
 import { archivedChangeOf } from "./tasksmd.mjs";
 
@@ -190,6 +190,9 @@ export function computeStatuses(index, lock, state, config, tasks) {
   index = index || { symbols: {} };
   lock = { symbols: {}, tests: {}, tasks: {}, ...(lock || {}) };
   state = { runs: {}, mutation: {}, reviews: {}, ...(state || {}) };
+  // 0.9: a review older than the task's last reopen is stale (the report md stays; it is not evidence any more)
+  const staleReview = (T) => { const r = lock.tasks?.[T]?.reopened; const at = Array.isArray(r) ? r.at(-1)?.at : null; return !!(at && state.reviews[T] && String(state.reviews[T].at || "") < at); };
+  if (Object.keys(state.reviews).some(staleReview)) state = { ...state, reviews: Object.fromEntries(Object.entries(state.reviews).filter(([T]) => !staleReview(T))) };
   config = config || {};
   tasks = tasks || [];
   const cov = directCoverage(index);
@@ -254,10 +257,15 @@ export function computeStatuses(index, lock, state, config, tasks) {
         status = rv && rv.verdict !== "PASS" ? "review" : "green";
       } else status = m;
     }
+    // 0.9: a reopen the human confirmed routes back to the skeleton or the tests until those are re-approved
+    const reo = openReopen(lt);
+    const pendingStage = reo?.pending?.[0] || null;
+    if (pendingStage && !archivedOf(T)) status = "reopened";
     const risk = taskRisk(task, lock, T);
     // targets: every task symbol with a status, classes included (display); `symbols` (code kinds) drives the task status
     const targets = perTaskSyms[T].filter((id) => symbols[id]);
-    out[T] = { status, next: nextForTask(T, status, { risk, testsLocked }), symbols: syms, targets, symbolStatus, testsLocked, risk, override: isOverride(lock, T) };
+    out[T] = { status, next: nextForTask(T, status, { risk, testsLocked, reopenStage: pendingStage }), symbols: syms, targets, symbolStatus, testsLocked, risk, override: isOverride(lock, T),
+      ...(reo ? { reopen: { note: reo.note, at: reo.at, stage: pendingStage, pending: reo.pending || [], acs: reo.acs || [], symbols: reo.symbols || [], tests: reo.tests || [] } } : {}) };
   }
   return { symbols, tasks: out };
 }

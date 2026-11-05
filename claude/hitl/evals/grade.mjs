@@ -145,6 +145,20 @@ const CHECKS = {
   amend_gate: (S) => ok(/📐/.test(S.text) && /Apply\?|Áp dụng\?/.test(S.text), "no 📐 delta preview + Apply? gate"),
   amend_no_write: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs"]); return ok(d === "", `files changed before the gate: ${d}`); },
   amend_mentions_rule: (S) => ok(/ACC-BR1/.test(S.text), "ACC-BR1 not named"),
+  // ---- churn (0.9): capture → note gate, impact block, blocked approval, reopen
+  note_capture_gate: (S) => ok(/📌/.test(S.text) && /\(Y\/n\)/.test(S.text) && /feat-fee/.test(S.text), "no `📌 Note for feat-fee …? (Y/n)` gate"),
+  note_capture_refs: (S) => ok(/BIL-R1\.S2|BIL-R1\b/.test(S.text), "the note question names no BIL-R1 ref"),
+  churn_no_writes: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `changed before the gate: ${d}`); },
+  impact_block: (S) => ok(/🔁/.test(S.text) && /T-1\b/.test(S.text) && /test/i.test(S.text) && /behaviour|behavior/i.test(S.text), "no 🔁 Impact block naming T-1's tests and the behaviour class"),
+  approve_blocked_by_note: (S) => ok(/N-1/.test(S.text) && /ack|dismiss|amend/i.test(S.text), "refusal does not name N-1 and a way out"),
+  lock_unchanged: (S, P) => ok(gitDirty(P, [".hitl/index/skeleton.lock.json", ".hitl/changes"]) === "", "lock or notes changed"),
+  reopen_applied: (S, P) => {
+    const L = json(read(path.join(P, ".hitl/index/skeleton.lock.json")) ?? "") || {};
+    const n = Object.values(L.tests || {}).filter((t) => t.stage === "reopened").length;
+    const st = json(cli(P, "status", "T-1", "--json").out);
+    return ok(n === 1 && st?.tasks?.["T-1"]?.status === "reopened", `reopened tests ${n}, T-1 ${st?.tasks?.["T-1"]?.status}`);
+  },
+  reopen_next_test: (S) => ok(/\/hitl:test T-1/.test(S.text), "next is not /hitl:test T-1"),
   // ---- design --auto
   design_written: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/changes/feat-password-reset/design.md")), "no design.md"),
   design_validate_0_errors: (S, P) => {

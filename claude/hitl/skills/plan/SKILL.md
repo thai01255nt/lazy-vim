@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Spec-only planning (WHAT and WHY) for a hitl change: grill-style interview → business-readable proposal + spec deltas (requirements, scenarios); also "<change-id> amend". Use when the user describes something to build or fix, or says "plan", "spec", "requirements", "lên plan", "yêu cầu", "viết spec". Not for architecture or implementation choices (/hitl:design).
-argument-hint: "[description | <change-id> [amend]]"
+argument-hint: "[description | <change-id> [amend [N-k]]]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -21,8 +21,8 @@ Interview: the `hitl:grilling` skill + `${CLAUDE_PLUGIN_ROOT}/shared/interview.m
 - `${CLAUDE_SKILL_DIR}/references/migrate.md` — only when `.hitl/planning/*.md` (v0.5 legacy) exists.
 - `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — amend mode (§7) only.
 
-Arguments: `$ARGUMENTS` — a description, a change id, `<change-id> amend`, or empty.
-`<change-id> amend` → section 7 only. Empty and no work described in this conversation → ⛔ GATE
+Arguments: `$ARGUMENTS` — a description, a change id, `<change-id> amend [N-k]`, or empty.
+`<change-id> amend [N-k]` → section 7 only. Empty and no work described in this conversation → ⛔ GATE
 `Please describe what you want to build or fix (or a change id):` END THE TURN.
 
 **Audience rule.** Everything this skill writes is business-readable (b): a BA or PO must understand it. No code names,
@@ -145,15 +145,17 @@ When the frontier is empty or the user said `done`:
    error: resolve it with the user first). Print `✅ Spec approved.` and `🎯 next: /hitl:design <id>` (or `/hitl:tasks <id>`
    when design is skipped). On n: continue the round loop with what they name.
 
-## 7. Amend mode (`/hitl:plan <change-id> amend`)
-A small change to an approved or archived spec, through `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md`.
+## 7. Amend mode (`/hitl:plan <change-id> amend [N-k]`)
+A small change to an approved or archived spec, through `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md`. With `N-k`, the
+change is that note from the inbox (`hitl-index note show --change <id> N-k --json`); no `N-k` and open spec notes exist
+(`hitl-index note list --change <id> --json`) → list them in one line and ask which, in the gate.
 1. Load the change, `hitl-index spec show --change <id> --json` and `hitl-index trace <id> --json`. Proposal still
    draft → `💡 Spec is draft; editing normally.` and use the round loop.
 2. One ⛔ GATE round: the user's change as questions (which ids to modify, remove or add), each with `💡 Recommended`,
-   then the 📐 Spec delta preview (amend-spec.md §2) and `Apply? (Y/n/edit)`. END THE TURN.
+   then the 📐 Spec delta preview and the 🔁 Impact block (amend-spec.md §2) and `Apply? (Y/n/edit)`. END THE TURN.
 3. On Y apply per amend-spec.md (active change → its delta; archived → a mini change `fix-<slug>`). New behaviour or a
    new capability → proposal `status: draft` and `🎯 next: /hitl:tasks <id> (update)`; else `✅ Amended (<n> changes).`
-   and the next step from amend-spec.md §5.
+   and the next step from amend-spec.md §5 (`note apply` records the impact; a recheck → `/hitl:approve <id> reopen`).
 
 ## Rules
 - Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, and design.md

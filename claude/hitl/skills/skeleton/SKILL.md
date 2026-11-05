@@ -26,6 +26,9 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 - `--quick` on a high-risk task without `--override` → `🛑 Fast lane is for low-risk tasks only (<T> is high: <reasons>).` Drop `--quick` and continue normally.
 - Blocked by unfinished tasks → ⛔ GATE `⚠️ <T> is blocked by T-11 (status wip), T-9 (todo). Continue anyway? (y/N)` END THE TURN.
 - Already locked (`hitl-index status <T> --json` shows approved or later) → `⚠️ <T> skeleton is locked. Signature/intent changes will need /hitl:approve <T> again.` and continue.
+- `reopened` with `reopen.stage: skeleton` (the human reopened it after a contract change) → **reopen mode**: change only
+  the `reopen.symbols` (signature, intent, TODO steps) to the amended spec/design; keep everything else, keep the tests
+  (they are reopened; `/hitl:test <T>` rewrites them after the approval). Gate: `/hitl:approve <T> skeleton <symbols>`.
 
 ## 2. Load (no questions)
 - The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`D-n` in the change's

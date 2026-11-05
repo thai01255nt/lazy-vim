@@ -79,8 +79,10 @@ export const laneOf = (risk, laneFast) => (risk === "low" ? "fast" : laneFast ? 
  * skeleton|test = run that skill (it stops at its ⛔ gate); approve|approve-tests = stop, the human types /hitl:approve;
  * skip = already implemented; blocked = waits for a task outside the feature.
  */
-export function actionFor(status, lane, testsLocked) {
+export function actionFor(status, lane, testsLocked, reopenStage = null) {
   if (IMPLEMENTED.has(status)) return "skip";
+  // 0.9: a reopened task always goes back through its skill and gate (the human confirmed the reopen; no lane skips it)
+  if (status === "reopened") return reopenStage === "skeleton" ? "skeleton" : "test";
   if (lane !== "normal") return "implement";
   switch (status) {
     case "todo": return "skeleton";
@@ -108,7 +110,7 @@ export function planFeature(o) {
     const lane = laneOf(risk, !!o.laneFast);
     const dItems = (drift?.items || []).filter((i) => i.task === t.id);
     const external = (t.blockedBy || []).filter((d) => !ids.has(d) && st[d]?.status !== "done");
-    let action = actionFor(s.status, lane, s.testsLocked);
+    let action = actionFor(s.status, lane, s.testsLocked, s.reopen?.stage);
     if (action !== "skip" && external.length) action = "blocked";
     return { id: t.id, title: t.title || "", prio: t.prio || null, risk, riskReasons: t.riskReasons || [], status: s.status, lane,
       override: !!s.override, testsLocked: !!s.testsLocked, action, blockedBy: t.blockedBy || [], waitsFor: external,

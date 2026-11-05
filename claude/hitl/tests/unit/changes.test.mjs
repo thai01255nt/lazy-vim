@@ -92,7 +92,8 @@ test("changeInfo: computed task status from the lock, next command", async () =>
   const [act, arch] = await listChanges(root);
   const a = await changeInfo(root, {}, await readChange(root, act));
   assert.deepEqual({ ...a, taskCounts: undefined }, { id: "feat-password-reset", dir: PR, archived: false, title: "Password reset by email", proposal: "approved",
-    design: "approved", capabilities: ["accounts"], contracts: 1, tasksFile: `${PR}/tasks.md`, tasks: "approved", taskCounts: undefined, phase: "implement", next: "/hitl:skeleton T-13" });
+    design: "approved", capabilities: ["accounts"], contracts: 1, tasksFile: `${PR}/tasks.md`, tasks: "approved", taskCounts: undefined, phase: "implement", next: "/hitl:skeleton T-13",
+    notes: { open: 0, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 0 } });
   assert.deepEqual(a.taskCounts, { total: 2, done: 1, byStatus: { done: 1, todo: 1 } });
   const b = await changeInfo(root, {}, await readChange(root, arch));
   assert.deepEqual([b.phase, b.design, b.next], ["archived", "skipped", null]);

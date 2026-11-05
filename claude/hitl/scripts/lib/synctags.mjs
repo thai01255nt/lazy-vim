@@ -73,7 +73,9 @@ export function tasksInfo(index, state, statuses, tasks, resolve) {
     if (task.archived) continue;
     const st = statuses.tasks?.[task.id]; if (!st) continue;
     const I = { status: st.status, acDone: {}, symDone: {} };
+    const reopenedAcs = new Set(st.reopen?.pending?.length ? st.reopen.acs : []); // 0.9: reopened ACs are unchecked until re-locked
     for (const ac of task.acs || []) {
+      if (reopenedAcs.has(ac.id)) { I.acDone[ac.id] = false; continue; }
       const tests = Object.values(index.symbols).filter((s) => s.kind === "test" && (s.tags?.ac || []).includes(ac.id));
       I.acDone[ac.id] = tests.length > 0 && tests.every((t) => {
         const r = state.runs?.[t.id];

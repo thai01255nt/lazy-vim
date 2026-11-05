@@ -118,6 +118,16 @@ export async function buildContext(root, target, { contract = false, budget = 12
       const ids = [...new Set([...(task.decisions || []), ...Object.values(S).filter((s) => (s.tags?.task || []).includes(task.id)).flatMap((s) => s.tags?.dec || [])])];
       if (ids.length) head.push("", "## Decisions", ...ids.map((d) => { const x = decOf(d); return x ? `- ${d} (${statusText(x)}): ${x.decision}` : `- ${d} (unknown)`; }));
     }
+    // 0.9: a reopen the human confirmed — the reopened tests assert the old behaviour and must be rewritten to the AC text above
+    const reo = st?.tasks?.[task.id]?.reopen;
+    if (reo?.pending?.length) {
+      const tname = (id) => S[id]?.test?.titlePath?.join(" > ") || id.slice(id.indexOf("#") + 1);
+      head.push("", `## Reopened (${reo.note})`, `These parts were reopened after a requirement or design change; the listed tests assert the OLD behaviour.`,
+        ...(reo.symbols.length ? [`- skeleton symbols to update first: ${reo.symbols.map((id) => S[id]?.name || id).join(", ")}`] : []),
+        ...reo.acs.map((ac) => `- ${ac}: rewrite to the current AC text${(task.acs.find((a) => a.id === ac)?.text) ? ` ("${task.acs.find((a) => a.id === ac).text}")` : ""}; tests: ${reo.tests.filter((id) => (lock.tests?.[id]?.ac || []).includes(ac)).map(tname).join("; ") || "none yet (write one)"}`),
+        ...reo.tests.filter((id) => !(lock.tests?.[id]?.ac || []).some((a) => reo.acs.includes(a))).map((id) => `- covers a reopened symbol: ${tname(id)}`),
+        "A rewritten test must FAIL against the current code (it shows the new behaviour). Leave every other locked test unchanged.");
+    }
     if (task.testPlan.length) head.push("", "## Test plan", "| ac | kind | oracle | seam | author |", "|---|---|---|---|---|", ...task.testPlan.map((r) => `| ${r.ac} | ${r.kind} | ${r.oracle} | ${r.seam} | ${r.author} |`));
   } else head.push(`# Context ${S[ids[0]].name}`);
   sections.push({ text: head.join("\n") });

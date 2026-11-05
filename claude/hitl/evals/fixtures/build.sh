@@ -8,6 +8,9 @@
 #         flow      = design (next step should be /hitl:design feat-password-reset)
 #         review    ts-app (v0.5 tasks file) driven to "T-1 implemented, tests green, skeleton+tests locked"
 #         lua       lua-app (pure Lua + LuaLS annotations, busted) with approved change feat-burst-credit, T-1 todo
+#         churn     churn-app (node:test) with approved change feat-fee: T-1 settle done (2 locked tests), T-2 todo
+#         churn-noted   = churn + open note N-1 "the fee is 2, not 1" (refs BIL-R1.S2; touches T-1)
+#         churn-recheck = churn-noted, amended (BIL-R1.S2 THEN 12) and applied → recheck N-2 waits for reopen
 # The plugin under test is never touched; the CLI used for set-up is this plugin's own hitl-index.
 set -euo pipefail
 H="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -49,6 +52,28 @@ case "$kind" in
     cp variants/src/repo/userRepo.ts.manual src/repo/userRepo.ts
     CLI index >/dev/null; CLI test --task T-1 --json >/dev/null
     rm -rf variants
+    gitc ;;
+  churn|churn-noted|churn-recheck)
+    cp -R "$HERE/churn-app/." "$dest/"
+    mkdir -p "$dest/.hitl/docs"; cp "$HERE"/docs/*.md "$dest/.hitl/docs/"
+    cd "$dest"
+    CLI init --json >/dev/null; CLI index --all >/dev/null
+    HITL_E2E=1 CLI approve T-1 --stage skeleton --by human >/dev/null
+    CLI test --task T-1 --json >/dev/null
+    HITL_E2E=1 CLI approve T-1 --stage tests --by human >/dev/null
+    sed -i -e 's|  // TODO(impl): 1. add the fee|  // 1. add the fee|' -e 's|  throw new Error("TODO(impl): settle");|  return amount + 1;|' src/settle.ts
+    CLI index >/dev/null; CLI test --task T-1 --json >/dev/null
+    HITL_E2E=1 CLI approve T-1 --stage done --by human --force >/dev/null
+    CLI status --sync-tags >/dev/null
+    if [ "$kind" != churn ]; then
+      CLI note add --change feat-fee --kind spec --refs BIL-R1.S2 --text "The settlement fee is 2, not 1. Finance changed it on 2026-11-04." \
+        --from "user, during /hitl:implement T-2" >/dev/null
+    fi
+    if [ "$kind" = churn-recheck ]; then
+      sed -i -e 's/settlement fee of 1/settlement fee of 2/' -e 's/- THEN the result is 11/- THEN the result is 12/' .hitl/changes/feat-fee/specs/billing/spec.md
+      sed -i 's/Given 10 When settle Then 11/Given 10 When settle Then 12/' .hitl/changes/feat-fee/tasks.md
+      CLI note apply --change feat-fee N-1 --impact BIL-R1.S2=behaviour --from "/hitl:plan feat-fee amend N-1" >/dev/null
+    fi
     gitc ;;
   lua)
     cp -R "$HERE/lua-app/." "$dest/"

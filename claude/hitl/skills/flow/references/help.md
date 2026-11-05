@@ -13,6 +13,11 @@ agree on *what* (plan) and *how* (design) before any code. After that you choose
   (`/hitl:review`, `fix F-n`, `amend F-n`). Locks, trace and drift still record everything, so nothing is silently
   unreviewed.
 The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks against.
+**Requirement changes mid-change** (0.9): say it in chat and Claude asks `📌 Note for <change>, refs …? (Y/n)`. The note
+blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or `/hitl:design … amend N-k`):
+the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
+reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
+`… <id> defer N-k <other-change>`.
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 
@@ -29,17 +34,19 @@ ids with titles) and asks the same question again.
    all tasks done → /hitl:archive <change-id> ⛔  (deltas → living specs .hitl/specs/, change → .hitl/archive/)
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
    Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
+   Changed requirement mid-change → 📌 note → /hitl:plan <id> amend N-k ⛔ (🔁 Impact) → /hitl:approve <id> reopen → /hitl:test T
 ```
 
 | command | purpose | gate |
 |---|---|---|
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
-| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend` | ⛔ each round |
+| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend [N-k]` | ⛔ each round |
 | `/hitl:design` | HOW: design.md (D-n), data-model, contracts — module level; `--auto` | ⛔ each round |
 | `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | ⛔ quiz |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |
-| `/hitl:approve T [stage]` | lock skeleton / tests / done | user-only |
+| `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
+| `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
 | `/hitl:test T` | real failing tests via isolated test-author | ⛔ high risk |
 | `/hitl:implement T` | agent fns via implementer, manual fns handed to you | ⛔ manual fns |
 | `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | ⛔ end / early stop |

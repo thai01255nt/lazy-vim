@@ -280,3 +280,22 @@ test("INTENT_TASK_REF: Lua intent prose and ---@ lines; bare T (set:T) is not an
   await updateIndex(quiet, null, { full: true });
   assert.deepEqual(intentItems(await computeDrift(quiet, {}), "INTENT_TASK_REF"), ["info:take:T-2,D-7,BILL-R7"]);
 });
+
+test("0.9: a reopened symbol's signature/intent change is info (not locked drift); a reopened test may change or go", async () => {
+  const root = makeProject();
+  await updateIndex(root, null, { full: true });
+  await lockAll(root);
+  const lock = JSON.parse(readFileSync(paths(root).lock, "utf8"));
+  const CU = "src/services/userService.ts#UserService.createUser";
+  lock.symbols[CU].reopen = { at: "2026-11-05T00:00:00Z", note: "N-2" };
+  for (const id of Object.keys(lock.tests)) Object.assign(lock.tests[id], { stage: "reopened", lockedBodyHash: lock.tests[id].bodyHash });
+  await writeJsonAtomic(paths(root).lock, lock);
+  write(root, "src/services/userService.ts", SVC.replace("createUser(email: string)", "createUser(email: string, role: string)").replace("Registers a user.", "Registers any user."));
+  write(root, "tests/userService.test.ts", "// rewritten later\n");
+  await updateIndex(root, null, { full: true });
+  const d = await computeDrift(root, {});
+  const sig = d.items.find((i) => i.code === "SIG_CHANGED"), int = d.items.find((i) => i.code === "INTENT_CHANGED");
+  assert.deepEqual([sig.level, int.level], ["info", "info"]);
+  assert.match(sig.message, /Reopened by N-2: re-approve with \/hitl:approve T-1 skeleton/);
+  assert.ok(!d.items.some((i) => i.code === "TEST_DELETED" || i.code === "TEST_CHANGED"), codes(d).join(", "));
+});

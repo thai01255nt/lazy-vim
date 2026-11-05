@@ -132,7 +132,7 @@ test("change --json: hitl.change/1 shape; unknown id exit 1; not initialized exi
   const root = project();
   const d = cli(root, "change", "--json").json();
   assert.equal(d.schema, "hitl.change/1");
-  assert.deepEqual(keys(d.changes[0]), ["archived", "capabilities", "contracts", "design", "dir", "id", "next", "phase", "proposal", "taskCounts", "tasks", "tasksFile", "title"]);
+  assert.deepEqual(keys(d.changes[0]), ["archived", "capabilities", "contracts", "design", "dir", "id", "next", "notes", "phase", "proposal", "taskCounts", "tasks", "tasksFile", "title"]);
   assert.deepEqual(d.changes.map((c) => [c.id, c.phase]), [["feat-password-reset", "implement"], ["feat-2fa", "archived"]]);
   assert.deepEqual(cli(root, "change", "feat-2fa", "--json").json().changes.map((c) => c.dir), [".hitl/archive/2026-10-20-feat-2fa"]);
   assert.equal(cli(root, "change", "feat-nope").code, 1);

@@ -10,6 +10,7 @@ const RX_CLAR = /\[NEEDS CLARIFICATION:/;
 import { artifactDecision, bizLint, blockHash, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
 import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, vagueTermsFrom } from "./speclint.mjs";
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
+import { BLOCKING, applyCommand, noteCounts, readNotes } from "./notes.mjs";
 export { SPECS_REL };
 
 export const CHANGES_REL = `${HITL_PREFIX}changes`;
@@ -269,10 +270,14 @@ export async function changeInfo(root, config, ch) {
   const tc = await taskCounts(root, config, ch.tasksDoc);
   const tasksSkipped = artifactDecision(ch.proposal, "tasks") === "skipped" || !!ch.proposal?.noBehaviourChange && !ch.deltas.length;
   const phase = changePhase({ archived: ch.archived, proposal, design, tasks, tasksSkipped, taskCounts: tc });
-  const next = { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
+  const notes = await readNotes(root, ch.dir).catch(() => []);
+  const open = [...notes.filter((n) => n.status === "reopen pending"), ...notes.filter((n) => n.status === "open")];
+  // an open note blocks archive: an archive-ready change routes to resolving it first
+  const next = phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
+    : { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
   return { id: ch.id, dir: ch.dir, archived: ch.archived, title: ch.proposal?.title ?? null, proposal, design,
     capabilities: ch.deltas.map((d) => d.capability || d.folder), contracts: ch.contracts.length, tasksFile: ch.tasksFile, tasks,
-    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, phase, next };
+    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), phase, next };
 }
 
 // ---------------------------------------------------------------- validation (§6.1)
@@ -558,21 +563,25 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
   }
   const m = mergeChange({ changeId: id, deltas: ch.deltas, glossaryDelta: ch.glossaryDelta, proposal: ch.proposal, living: living.specs, glossary: living.glossary,
     base: ch.base, acceptBase, renumber, reserved, date });
-  let tasksPre = null; let tasksOk = true; let bodyDrift = [];
+  let tasksPre = null; let tasksOk = true; let bodyDrift = []; let notesPre = null;
   if (archive) {
     const tc = await taskCounts(root, config, ch.tasksDoc);
     tasksPre = { total: tc.total, done: tc.done, notDone: tc.notDone };
     tasksOk = !tc.notDone.length || force || config?.spec?.archiveRequiresDone === false;
     bodyDrift = await doneBodyDrift(root, ch.tasksDoc);
+    // 0.9: open notes (and recheck notes waiting for reopen) block archive, even with --force
+    const notes = await readNotes(root, ch.dir);
+    const open = notes.filter((n) => BLOCKING.has(n.status));
+    notesPre = { open: open.map((n) => ({ id: n.id, title: n.title, status: n.status, kind: n.kind, apply: applyCommand(id, n) })) };
   }
   const archiveTo = `${ARCHIVE_REL}/${archiveDirName(date, id)}`;
   const conflicts = [...m.conflicts];
   if (archive && (await isDir(join(root, archiveTo)))) conflicts.push({ code: "ARCHIVE_EXISTS", ref: id, capability: null, message: `${archiveTo} already exists` });
-  const ok = !vErrors.length && tasksOk && !conflicts.length;
+  const ok = !vErrors.length && tasksOk && !conflicts.length && !(notesPre?.open.length);
   const out = {
     schema: "hitl.spec-merge/1", change: id, dryRun: !!dryRun, ok,
     capabilities: m.capabilities, glossary: m.glossary, conflicts,
-    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre },
+    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre, ...(notesPre ? { notes: notesPre } : {}) },
     archive: archive ? { from: ch.dir, to: archiveTo, moved: false } : null,
   };
   if (vErrors.length) out.errors = vErrors;

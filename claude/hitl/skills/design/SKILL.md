@@ -1,7 +1,7 @@
 ---
 name: design
 description: Technical design (HOW) of an approved hitl change: grill-style developer interview → design.md (decisions, components, data model, contracts, test strategy, risks); "--auto" decides alone. Use after /hitl:plan or for "design", "thiết kế", "architecture", "how should we build", "kiến trúc". Not for requirements (/hitl:plan) or function signatures.
-argument-hint: "<change-id> [--auto] | <change-id> amend"
+argument-hint: "<change-id> [--auto] | <change-id> amend [N-k]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -110,9 +110,11 @@ The user may reply with changes (`D-3: …`); apply them and show the gate again
    END THE TURN. On Y: design `status: approved`, `updated:` today, print `✅ Design approved.` and
    `🎯 next: /hitl:tasks <id>`. On n: continue the rounds with what they name.
 
-## 7. Amend (`<change-id> amend`)
+## 7. Amend (`<change-id> amend [N-k]`)
 Approved design: decisions are never edited in place — supersede per `shared/amend-spec.md` (new D row, old row
-`superseded by D-k`, Changelog line), in one ⛔ GATE with the 📐 delta and `Apply? (Y/n/edit)`.
+`superseded by D-k`, Changelog line), in one ⛔ GATE with the 📐 delta, the 🔁 Impact block and `Apply? (Y/n/edit)`.
+With `N-k`, the change is that design note (`hitl-index note show --change <id> N-k --json`); superseding the `D-n` it
+names is what lets `note apply` accept it. A superseded contract decision is class `contract` (reopens the skeleton).
 
 ## Rules
 - Write only in `.hitl/changes/<id>/`: `design.md`, `data-model.md`, `contracts/*`, and the proposal `## Artifacts`

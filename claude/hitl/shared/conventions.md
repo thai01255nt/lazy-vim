@@ -38,6 +38,19 @@ A step marked `⛔ GATE` is a real stop:
 - `?`, `wait`, `hả`, `giải thích`, `không hiểu` at any gate → re-pitch your last message this way (more context, not fewer
   words), then repeat the same gate question. It is not an answer to the gate.
 
+## Changes stated in chat (📌 notes)
+When the user *states* a change to approved behaviour or design during any hitl skill (a requirement, scenario, number,
+rule or decision of an active change), do not amend it now:
+- ⛔ GATE: `📌 Note for <change>, refs <ids (titles)>? (Y/n)` — one line on what you understood, then the question.
+  END THE TURN. Refs: the spec ids, `D-n`, task/AC ids or symbols it touches (`hitl-index spec show`, `trace`).
+- Y → `hitl-index note add --change <id> --kind spec|design|order --refs <ids> --text "<the change, plain words>"
+  --from "user, during /hitl:<skill> <arg>"`, print its `📌 N-k` line, then continue the skill where it was.
+  n → continue without a note.
+- The note blocks the approvals of the tasks it touches until it is applied (`/hitl:plan <id> amend N-k`,
+  `/hitl:design <id> amend N-k`), or the human acks, dismisses or defers it (`/hitl:approve …`).
+- Not a note: a question (discuss it; nothing is recorded), a draft proposal or design being written in plan/design
+  (edit it as usual), or an explicit "amend/apply it now" (go straight to `amend-spec.md`).
+
 ## No over-questioning
 - Outside gates, never ask. Decide with the stated default and say it in one line: `💡 Assumed: …`.
 - Facts (what the code does, which file/symbol exists, test framework) are YOUR job: Read/Grep/Glob,
@@ -60,6 +73,8 @@ Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered 
 - Edit an `@status` tag or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status --sync-tags` does).
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
+- Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply` and `/hitl:approve` write it), or add `--ack`, or run
+  the `reopen`, `dismiss` or `defer` approve forms unless the user typed them.
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or
   `--feature <change-id> --lane fast`) for that task. Never suggest `--lane fast` to get past a gate.
 - Use line numbers in ids, docs or tasks. Refer to symbols as `Class.method` or `path#Class.method`.

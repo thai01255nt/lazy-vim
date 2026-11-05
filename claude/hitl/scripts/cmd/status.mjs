@@ -9,7 +9,31 @@ import { computeNext, lockedDrift } from "../lib/nextstep.mjs";
 import { synctags } from "../lib/synctags.mjs";
 import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
 import { workOrder } from "../lib/workorder.mjs";
-import { resolveWith } from "../lib/lock.mjs";
+import { resolveWith, notesByTask } from "../lib/lock.mjs";
+import { readActiveNotes, noteCounts, applyCommand } from "../lib/notes.mjs";
+
+/**
+ * Notes of the active changes for status/next (0.9): {changes:[{change, counts, pending:[ids], first}], byTask:{T:[…]},
+ * pending:[{change, id, title}]}. Fail-open: an unreadable notes file counts as none.
+ */
+export async function notesInfo(root, g) {
+  let cn = [];
+  try { cn = await readActiveNotes(root); } catch { cn = []; }
+  const byTask = notesByTask(cn, g.tasks, g.index, g.lock, g.api);
+  const pending = cn.flatMap((c) => c.notes.filter((n) => n.status === "reopen pending").map((n) => ({ change: c.change, id: n.id, title: n.title })));
+  const changes = cn.map((c) => {
+    const open = c.notes.filter((n) => n.status === "reopen pending").concat(c.notes.filter((n) => n.status === "open"));
+    return { change: c.change, counts: noteCounts(c.notes), first: open[0] ? applyCommand(c.change, open[0]) : null };
+  }).filter((c) => c.counts.open || c.counts.reopenPending);
+  return { changes, byTask, pending };
+}
+
+/** `status --brief` notes line, or null. */
+export function notesLine(ni) {
+  if (!ni?.changes.length) return null;
+  const parts = ni.changes.map((c) => `${c.change} ${[c.counts.open ? `${c.counts.open} open` : null, c.counts.reopenPending ? `${c.counts.reopenPending} reopen pending` : null].filter(Boolean).join(", ")}`);
+  return `📌 notes: ${parts.join(" · ")} → ${ni.changes[0].first}`;
+}
 
 export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, "by-prio": { type: "boolean" }, "work-order": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
 
@@ -134,7 +158,8 @@ export async function run(argv, ctx) {
     const { index, tasks, statuses, drift, lock, api } = g;
     const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
-    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes });
+    const ni = await notesInfo(ctx.root, g);
+    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
     const ld = lockedDrift(drift, lock);
     if (T && !statuses.tasks[T]) {
       const msg = `task ${T} not found`;
@@ -150,9 +175,9 @@ export async function run(argv, ctx) {
       const enrich = (id, st) => { const m = tmeta(id); const items = (drift?.items || []).filter((i) => i.task === id);
         return { ...st, workOrder: taskWorkOrder(st.targets || st.symbols || [], index, m, api), title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
-          trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null }; };
+          trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via }) => ({ id: n, title, status, kind, via, apply })) }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
-      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc })), drift: drift ? drift.summary : null, lockedDrift: ld.length,
+      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc, notes: ni.changes.find((c) => c.change === id)?.counts ?? null })), drift: drift ? drift.summary : null, lockedDrift: ld.length,
         trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
         tickets,
         ...(sync ? { syncTags: { files: sync.files, tags: sync.tags, tasksFiles: sync.tasksFiles } } : {}) }, null, 2));
@@ -169,12 +194,14 @@ export async function run(argv, ctx) {
         console.log(`tasks: ${ids.length} (done ${done})` + (drift ? ` · drift: ${drift.summary?.block || 0} block, ${drift.summary?.warn || 0} warn` : "") + briefSuffix(trace, tickets));
       }
       if (ld.length) console.log(`⚠️ HITL: ${ld.length} drift item(s) on locked symbols — run /hitl:sync`);
+      const nl = notesLine(ni);
+      if (nl) console.log(nl);
       return 0;
     }
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status} | ${s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` 📌 ${nb.map((x) => x.id).join(",")}` : ""} | ${s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
@@ -187,6 +214,8 @@ export async function run(argv, ctx) {
       for (const id of statuses.tasks[T].symbols) { const S = index.symbols[id]; const st = statuses.tasks[T].symbolStatus?.[id] || statuses.symbols[id]; console.log(`| ${S?.name || id} | ${S?.tags?.impl || "?"} | ${st?.status} | ${(st?.reasons || []).join("; ")} |`); }
     }
     if (sync) console.log(`\nsync-tags: ${sync.tags.length} @status tag(s) rewritten in ${sync.files.length} file(s); ${sync.tasksFiles.length} tasks file(s) updated`);
+    const nl = notesLine(ni);
+    if (nl) console.log(`\n${nl}`);
     console.log(`\n🎯 next: ${next.command} (${next.reason})`);
     return 0;
   } catch (e) {

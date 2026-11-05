@@ -22,7 +22,9 @@ Arguments: `$ARGUMENTS`
 - Proposal `status: draft` → `⚠️ Spec is still draft (open questions: <n>).` Design `draft` → `⚠️ Design is still draft.`
   Design `missing` and not skipped → `⚠️ No design yet (💡 /hitl:design <id>).` Continue; all repeated at the gate.
 - Target = `.hitl/changes/<id>/tasks.md`. It exists → ⛔ GATE `` `tasks.md` exists. (update/overwrite) — 💡 update`` END THE TURN.
-  - update: keep existing task ids, statuses and checkboxes; edit or add tasks; remove tasks only if the
+  - update: keep existing task ids, statuses and checkboxes; edit or add tasks; a new scenario on a done or
+    tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
+    tests reopen through `/hitl:approve <id> reopen`); remove tasks only if the
     user agrees at the quiz gate. overwrite: only for tasks with status `todo`.
 
 ## 2. Load (no questions)

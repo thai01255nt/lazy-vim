@@ -3,8 +3,9 @@ const prioNum = (p) => { const m = /P?(\d)/.exec(p || ""); return m ? Number(m[1
 const idNum = (id) => Number(String(id).replace(/^T-/, "")) || 0;
 
 /** Next command for one task given its computed status. Returns string|null. */
-export function nextForTask(T, status, { risk = "high", testsLocked = false } = {}) {
+export function nextForTask(T, status, { risk = "high", testsLocked = false, reopenStage = null } = {}) {
   switch (status) {
+    case "reopened": return reopenStage === "skeleton" ? `/hitl:skeleton ${T}` : `/hitl:test ${T}`;
     case "todo": return risk === "high" ? `/hitl:skeleton ${T}` : `/hitl:implement ${T}`;
     case "skeleton": return `/hitl:approve ${T}`;
     case "approved": return `/hitl:test ${T}`;
@@ -45,18 +46,29 @@ const CHANGE_REASON = { "archive-ready": "all tasks done; merge its spec deltas"
  * @param {{tasks:Task[], statuses:{tasks}, drift?, lock?, planning?:[{file,status,hasTasks}], changes?:[{id,phase}]}} o
  * @returns {{task:string|null, command:string, reason:string, change?:string}}
  */
-export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [] }) {
+export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [], notes = {} }) {
   const ld = lockedDrift(drift, lock);
   if (ld.length) return { task: ld[0].task || null, command: "/hitl:sync", reason: `${ld.length} drift item(s) on locked symbols (e.g. ${ld[0].code} ${ld[0].symbol})` };
+  // 0.9: a recheck note waits for the human's reopen decision (/hitl:approve <change> reopen)
+  const pend = (notes.pending || [])[0];
+  if (pend) return { task: null, command: `/hitl:approve ${pend.change} reopen ${pend.id}`, reason: `${pend.id} (${pend.title}) waits for your reopen decision`, change: pend.change };
   const st = statuses?.tasks || {};
   const all = tasks.length ? tasks : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
   const isDone = (id) => st[id]?.status === "done";
   const frontier = all.filter((t) => !isDone(t.id) && (t.blockedBy || []).every(isDone))
     .sort((a, b) => prioNum(a.prio) - prioNum(b.prio) || idNum(a.id) - idNum(b.id));
-  if (frontier.length) {
-    const t = frontier[0];
+  // tasks touched by an open note are skipped while another frontier task can go on; all blocked → apply the first note
+  const byTask = notes.byTask || {};
+  const free = frontier.filter((t) => !byTask[t.id]?.length);
+  const skipped = frontier.filter((t) => byTask[t.id]?.length).map((t) => `${t.id} (${byTask[t.id][0].id})`);
+  if (free.length) {
+    const t = free[0];
     const s = st[t.id] || { status: "todo", next: nextForTask(t.id, "todo", { risk: t.risk }) };
-    return { task: t.id, command: s.next || `/hitl:flow ${t.id}`, reason: `${t.id} is ${s.status}` };
+    return { task: t.id, command: s.next || `/hitl:flow ${t.id}`, reason: `${t.id} is ${s.status}${skipped.length ? `; skipped ${skipped.join(", ")}: blocked by notes` : ""}` };
+  }
+  if (frontier.length) {
+    const t = frontier[0], n = byTask[t.id][0];
+    return { task: t.id, command: n.apply, reason: `${t.id} is blocked by ${n.id} (${n.title})`, ...(n.change ? { change: n.change } : {}) };
   }
   const waiting = changes.filter((c) => c.phase in CHANGE_ORDER)
     .sort((a, b) => CHANGE_ORDER[a.phase] - CHANGE_ORDER[b.phase] || String(a.id).localeCompare(String(b.id)))[0];

@@ -126,3 +126,30 @@ test("test patterns (0.8): one source of truth, inner loop, tdd routing", () => 
   assert.match(notice, /`skills\/tdd\/SKILL\.md` \(`hitl:tdd`\) — adapted from/);
   assert.match(notice, /### mattpocock\/skills `tdd` reference files/);
 });
+
+test("churn (0.9): capture rule next to Plain replies, Impact block, approve forms, docs rows", () => {
+  const conv = read("shared/conventions.md");
+  const order = ["## Plain replies", "## Changes stated in chat (📌 notes)", "## No over-questioning"].map((h) => conv.indexOf(h));
+  assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], "capture section sits right after Plain replies");
+  const cap = conv.split("## Changes stated in chat (📌 notes)")[1].split(/^## /m)[0];
+  assert.match(cap, /📌 Note for <change>, refs <ids \(titles\)>\? \(Y\/n\)/);
+  assert.match(cap, /hitl-index note add --change/);
+  assert.match(cap, /a question \(discuss it; nothing is recorded\)/);
+  assert.match(cap, /explicit "amend\/apply it now" \(go straight to `amend-spec\.md`\)/);
+  assert.match(conv, /Edit `\.hitl\/changes\/\*\/notes\.md`/);
+  const amend = read("shared/amend-spec.md");
+  assert.match(amend, /\*\*Impact block\*\*/);
+  assert.match(amend, /hitl-index note apply --change <id> \[N-k\] --impact/);
+  assert.match(amend, /\/hitl:approve <id> reopen N-k/);
+  const ap = read("skills/approve/SKILL.md");
+  for (const w of ["--stage reopen", "--stage dismiss", "--stage defer", "--ack <ids>", "nothing to unlock (confirmed by human)"]) assert.ok(ap.includes(w), `approve: ${w}`);
+  assert.match(frontmatter(ap)["argument-hint"], /reopen \[N-k\]/);
+  for (const s of ["plan", "design"]) assert.match(read(`skills/${s}/SKILL.md`), /amend \[N-k\]/, `${s} amend N-k`);
+  assert.match(read("skills/test/SKILL.md"), /\*\*reopen fill\*\*/);
+  assert.match(read("skills/skeleton/SKILL.md"), /\*\*reopen mode\*\*/);
+  assert.match(read("skills/flow/SKILL.md"), /📌 T-14 blocked by N-3/);
+  assert.match(read("skills/archive/SKILL.md"), /preconditions\.notes\.open/);
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:approve <id> reopen \[N-k\]` \|/m);
+  assert.match(read("README.md"), /^### 4c\. Yêu cầu đổi giữa chừng/m);
+  assert.match(read("HUONG-DAN.md"), /^## 5a\. Khi yêu cầu đổi giữa chừng/m);
+});

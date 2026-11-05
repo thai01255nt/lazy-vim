@@ -200,7 +200,7 @@ export function stateTypeFor(status, cfg, map) {
   let t;
   if (status === "done") t = "completed";
   else if (["green", "review", "verified"].includes(status)) t = "review";
-  else if (["skeleton", "approved", "red", "wip"].includes(status)) t = "started";
+  else if (["skeleton", "approved", "red", "wip", "reopened"].includes(status)) t = "started";
   else t = cfg.pushTodoAs === "backlog" ? "backlog" : "unstarted";
   if (t === "backlog" && !st.backlog) t = "unstarted";
   if (t === "review" && !st.review) t = "started";

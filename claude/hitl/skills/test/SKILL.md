@@ -32,6 +32,13 @@ with `--by human-override`. Never add it yourself.
 - not initialized → 🛑 `Run /hitl:setup first.`
 - task status `todo`/`skeleton` (skeleton not approved) → 🛑 `Run /hitl:approve <T> first` (low risk: `/hitl:implement <T>` runs the fast lane).
 - `fill` when tests are already locked → ask: ⛔ GATE `Tests for <T> are locked. 1. add tests for new ACs only 2. run them (run) 3. cancel`.
+- status `reopened` (`reopen.stage: tests`) → **reopen fill**, no question: the contract pack's `## Reopened (N-k)`
+  lists the ACs and the tests to rewrite. In step 2 add to the prompt: `Reopened: rewrite only these tests to the current
+  AC text (they assert the old behaviour): <ac → test titles>; write one for a reopened AC without a test; delete a test
+  whose scenario was removed. Leave every other test unchanged.` RED check (step 3) for them: a rewritten test must
+  `fail` against the current code (pass → bounce: it does not show the new behaviour); an unchanged one may pass.
+  Lock as in step 5 (the CLI refuses a rewritten test that passes, and any other locked test that changed).
+  `reopen.stage: skeleton` → 🛑 `Run /hitl:skeleton <T> first (its skeleton is reopened).`
 
 ## Mode `fill`
 

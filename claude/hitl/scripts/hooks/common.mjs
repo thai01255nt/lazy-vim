@@ -235,18 +235,24 @@ export async function newLockedDrift(root, sid, drift, lock, index) {
 }
 
 // ---------------------------------------------------------------- approve token binding
-const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent", "accept"]);
-const CHANGE_STAGE_WORDS = new Set(["intent", "accept"]);
+const STAGE_WORDS = new Set(["skeleton", "tests", "done", "intent", "accept", "reopen", "dismiss", "defer"]);
+const CHANGE_STAGE_WORDS = new Set(["intent", "accept", "reopen", "dismiss", "defer"]);
 /**
  * What a `/hitl:approve <args>` token authorizes, from its raw args (first token decides):
- * `T-n …` → {kind:"task", task}; `<change-id> intent|accept …` → {kind:"change", change, stage}; anything else (no
- * args, flags only) → {kind:"any"} (any one task approve, never a --change approve). A change id is never a T-id.
+ * `T-n …` → {kind:"task", task}; `<change-id> intent|accept|reopen|dismiss|defer …` → {kind:"change", change, stage}, plus
+ * `note` (the `N-k` after reopen/dismiss/defer) and `to` (defer's target change); anything else (no args, flags only) →
+ * {kind:"any"} (any one task approve, never a --change approve). A change id is never a T-id.
  */
 export function approveBinding(args) {
   const toks = String(args || "").trim().split(/[\s,]+/).filter(Boolean);
   const first = toks[0] || "";
   if (/^T-\d+$/.test(first)) return { kind: "task", task: first };
-  if (CHANGE_STAGE_WORDS.has(toks[1]) && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) return { kind: "change", change: first, stage: toks[1] };
+  if (CHANGE_STAGE_WORDS.has(toks[1]) && /^[A-Za-z0-9][\w.-]*$/.test(first) && !STAGE_WORDS.has(first) && !first.startsWith("-")) {
+    const b = { kind: "change", change: first, stage: toks[1] };
+    if (["reopen", "dismiss", "defer"].includes(b.stage) && /^N-\d+$/.test(toks[2] || "")) b.note = toks[2];
+    if (b.stage === "defer" && b.note && toks[3]) b.to = toks[3];
+    return b;
+  }
   if (/\bT-\d+\b/.test(args || "")) return { kind: "task", task: /\bT-\d+\b/.exec(args)[0] }; // legacy: a T-id anywhere binds to it
   return { kind: "any" };
 }

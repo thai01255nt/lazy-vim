@@ -65,6 +65,9 @@ High risk **with** `--lane fast` (Lane override above): use the low-risk column 
 | `review` / `verified` / `done` | print status and `next` from the CLI; stop | same |
 
 Blocked by unfinished tasks → ⚠️ list them, ⛔ GATE `Continue anyway? (y/N)`, end turn.
+`tasks[T].notes` non-empty (an open note or a recheck touches T) → ⛔ GATE `📌 <T> is touched by N-k (<title>): its
+approvals are refused until the note is applied (<apply>), or you ack, dismiss or defer it. Implement anyway? (y/N)`,
+end turn. `reopened` → print `🔁 <T> reopened by <note>` and its `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`); stop.
 When unsure, trust `tasks[T].next` from the CLI over your own reading.
 
 Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` exists and `onBranch` is false → print
@@ -122,7 +125,8 @@ messages (if any), then continue with the next symbol.
      1. 💡 amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve T-12)
      2. you implement it (flip @impl manual)   3. stop
      ```
-     ⛔ GATE, end turn. Option 1 → `shared/amend-spec.md` (📐 Spec delta, `Apply? (Y/n/edit)`, then the approve command).
+     ⛔ GATE, end turn. Option 1 → `shared/amend-spec.md` (📐 Spec delta + 🔁 Impact, `Apply? (Y/n/edit)`, then the
+     approve command). The user only mentions a requirement change here → the 📌 note rule (`conventions.md`) instead.
      Never let the agent deviate from the contract, and never re-run it with a "work around it" hint.
    - `unreachable` (its tests enter through a task caller that is still a stub — `via`) → not a failure: print
      `⏭ <ref> written, verified later through <via>` and go on (high risk: still the step-4 gate). The caller's turn

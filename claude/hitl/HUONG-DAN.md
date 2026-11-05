@@ -91,6 +91,21 @@ Claude cho xem trước, bạn `y` → spec được gộp vào `.hitl/specs/` (
 ```
 Claude so code với khung đã duyệt: duyệt lại / hoàn tác / để sau / sửa spec cho khớp.
 
+## 5a. Khi yêu cầu đổi giữa chừng
+
+Cứ nói trong chat, ví dụ "link reset giờ hết hạn sau 15 phút". Claude hỏi:
+```
+📌 Note for feat-password-reset, refs ACC-R5.S2 (Unknown email reveals nothing)? (Y/n)
+```
+`y` → ghi note; task bị đụng tới sẽ không duyệt được cho tới khi note được xử lý. Áp dụng khi bạn sẵn sàng:
+```
+/hitl:plan feat-password-reset amend N-1      (xem delta + 🔁 Impact: mở lại test/skeleton nào)
+/hitl:approve feat-password-reset reopen      (chỉ bạn gõ; wording thì chỉ xác nhận "không ảnh hưởng")
+/hitl:test T-12                               (test viết lại phải đỏ) → /hitl:approve T-12 tests → implement → review → done
+```
+Không muốn áp dụng: `/hitl:approve <change> dismiss N-1 <lý do>`, `/hitl:approve <change> defer N-1 <change khác>`,
+hoặc cho riêng một task đi tiếp: `/hitl:approve T-12 tests --ack N-1`.
+
 ## 6. Trả lời ở các cổng (⛔)
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.

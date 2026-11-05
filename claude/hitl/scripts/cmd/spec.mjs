@@ -152,6 +152,7 @@ async function cmdMerge(argv, ctx, archive) {
   for (const e of r.errors || []) console.log(`❌ ${e.code} ${e.file ?? ""}${e.line ? `:${e.line}` : ""} — ${e.message}`);
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
+  for (const n of r.preconditions.notes?.open || []) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
   else if (r.dryRun) console.log(`🔎 dry run: spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
   else console.log(`✅ spec ${verb} ${r.change}${r.archive?.moved ? ` → ${r.archive.to}` : ""}`);

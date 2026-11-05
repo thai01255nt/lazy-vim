@@ -225,6 +225,48 @@
     "lua_test_stubs",
     "skeleton_gate"
    ]
+  },
+  {
+   "id": "churn-capture",
+   "fixture": "churn",
+   "runs": 2,
+   "prompt": "/hitl:flow by the way, finance changed the settlement fee: it is 2 now, not 1",
+   "checks": [
+    "note_capture_gate",
+    "note_capture_refs",
+    "churn_no_writes"
+   ]
+  },
+  {
+   "id": "churn-amend-impact",
+   "fixture": "churn-noted",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-fee amend N-1",
+   "checks": [
+    "amend_gate",
+    "impact_block",
+    "churn_no_writes"
+   ]
+  },
+  {
+   "id": "churn-approve-blocked",
+   "fixture": "churn-noted",
+   "runs": 1,
+   "prompt": "/hitl:approve T-1 done",
+   "checks": [
+    "approve_blocked_by_note",
+    "lock_unchanged"
+   ]
+  },
+  {
+   "id": "churn-reopen",
+   "fixture": "churn-recheck",
+   "runs": 1,
+   "prompt": "/hitl:approve feat-fee reopen",
+   "checks": [
+    "reopen_applied",
+    "reopen_next_test"
+   ]
   }
  ]
 }

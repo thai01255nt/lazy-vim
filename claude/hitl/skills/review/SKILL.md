@@ -97,7 +97,8 @@ user said "fix").
 
 `amend F-n` = accept + amend the spec:
 1. `hitl-index review-decide <T> F-n accept --note "amend spec"`.
-2. Follow `shared/amend-spec.md` with `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing → the task's
+2. Follow `shared/amend-spec.md` (delta + 🔁 Impact; `note apply --from "/hitl:review <T> amend F-n"`) with
+   `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing → the task's
    change and the finding text): 📐 Spec delta, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN.
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
    `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
