@@ -18,11 +18,13 @@ blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> ame
 the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
 reopen`. Escape hatches, also yours only: `/hitl:approve T-n <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
 `… <id> defer N-k <other-change>`.
-**Two changes at once** (0.10): link them in the dependent proposal's meta line, `| after: feat-b (strong)` (contracts,
-shared code, a changed flow: its overlapping tasks pause until feat-b is archived) or `| relates: feat-b (low)` (parallel).
-`hitl-index coupling <id>` shows the evidence. The change that archives second owns the reconcile:
-`/hitl:plan <id> reconcile <other>` turns the other change's impact into notes here; archive waits for it. A finding
-you do not pick stays pending; only you skip it: `/hitl:approve <id> skip RC-n <reason>`.
+**Two changes at once** (0.12): work that is too big for change A becomes its own change, created *before* A:
+`/hitl:go <X> --before A` (several: `--before A,C`). A then waits: no task approval, implement or archive of A until the
+new change is archived (A's plan, design and tasks stay open). While planning the new change, its effect on A goes into
+A as a note (`source:`), never into A's files; after the new change is archived, A takes those notes in with
+`/hitl:plan A amend N-k`. Planning also lists other active changes that share ids, files, contracts or terms
+(`hitl-index overlap <id>`) and asks you what to do. Who goes first is your call; `/hitl:approve A dismiss N-k <reason>`
+ends a wait.
 At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 **Shared language and refactor** (0.8.x): `spec validate` and the review's `terms` gate warn when a business file or an
@@ -54,22 +56,21 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
    Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
    Changed requirement mid-change → 📌 note → /hitl:plan <id> amend N-k ⛔ (🔁 Impact) → /hitl:approve <id> reopen → /hitl:test T
-   Linked change archived first → 🔄 /hitl:plan <id> reconcile <other> ⛔ → 📌 notes → amend / reopen as above
+   Too big for A → /hitl:go <X> --before A → ⏳ A waits → <X> archived → 📥 /hitl:plan A amend N-k ⛔ → reopen as above
 ```
 
 | command | purpose | gate |
 |---|---|---|
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
-| `/hitl:go <description> [--plan\|--quick\|--tdd]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it | ⛔ only if vague (≤ 3 questions) |
+| `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | ⛔ only if vague (≤ 3 questions) |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend [N-k]` | ⛔ each round |
-| `/hitl:plan <id> reconcile <other>` | take in what a linked change did (spec ids, shared contracts, drifted locked symbols) as notes in `<id>` | ⛔ add notes |
+| `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | ⛔ each round |
 | `/hitl:design` | HOW: design.md (D-n), data-model, contracts — module level; `--auto` | ⛔ each round |
 | `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | ⛔ quiz |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
 | `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
-| `/hitl:approve <id> skip [<other>] RC-n[,RC-m] <reason>` | skip reconcile findings you do not take in (recorded with the reason; never offered again; clears `RECONCILE_PENDING` once none is left) | user-only |
 | `/hitl:test T` | real failing tests via isolated test-author | ⛔ high risk |
 | `/hitl:implement T` | agent fns via implementer, manual fns handed to you | ⛔ manual fns |
 | `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | ⛔ end / early stop |

@@ -6,7 +6,7 @@ import { join, dirname, basename } from "node:path";
 import { HITL_DIR } from "./paths.mjs";
 import { archivedChangeOf } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
-import { blockingNotes, applyCommand } from "./notes.mjs";
+import { blockingNotes, applyCommand, changeWait, waitReasons } from "./notes.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/1";
 
@@ -163,8 +163,7 @@ export function notesByTask(changeNotes, tasks, index, lock, api) {
   const out = {};
   for (const { change, notes } of changeNotes || []) for (const t of (tasks || []).filter((x) => x.change === change && !x.archived)) {
     const b = blockingNotes(notes, noteCtxFor(index, lock, t, api)).block;
-    if (b.length) out[t.id] = b.map((x) => ({ id: x.note.id, title: x.note.title, kind: x.note.kind, status: x.note.status, change, via: x.via, apply: applyCommand(change, x.note),
-      ...(x.note.kind === "order" && x.note.meta?.coupling?.from ? { waitFor: x.note.meta.coupling.from } : {}) }));
+    if (b.length) out[t.id] = b.map((x) => ({ id: x.note.id, title: x.note.title, kind: x.note.kind, status: x.note.status, change, via: x.via, apply: applyCommand(change, x.note) }));
   }
   return out;
 }
@@ -287,11 +286,6 @@ const STAGES = ["skeleton", "tests", "done", "intent", "accept"];
 export const CHANGE_STAGES = ["intent", "accept", "reopen"];
 /** Change-form note decisions (0.9, `--change <id> --stage dismiss|defer --note N-k`): human-only; they write notes.md only. */
 export const NOTE_STAGES = ["dismiss", "defer"];
-/**
- * Change-form reconcile decision (0.11.1, `--change <id> --stage skip --findings RC-1,RC-3 [--from <other>] --reason "…"`):
- * human-only; it records the skipped findings in notes.md (the reconcile record) and never adds a note.
- */
-export const FINDING_STAGES = ["skip"];
 
 /**
  * Intent growth history of a lock entry (additive, `hitl.lock/1`): [{task, stage, lines, at}], one item per approval that
@@ -854,9 +848,18 @@ const noteName = (n) => `${n.id} (${n.title})`;
 function checkNotes(notes, ack, { index, lock, task, api, stage }) {
   const reasons = [], warnings = [], acks = [], blockedBy = [];
   const chg = task.change || "<change>";
+  // 0.12: a note from another change blocks every task approval of this change (no --ack, no --force)
+  const w = changeWait(notes);
+  if (w.blocked) {
+    for (const id of ack) if (notes.some((n) => n.id === id && n.source)) reasons.push(`--ack ${id}: a note from another change cannot be acked; it blocks the whole change`);
+    reasons.push(...waitReasons(chg, w));
+    for (const x of w.waits) for (const id of x.notes) { const n = notes.find((y) => y.id === id); blockedBy.push({ note: id, title: n.title, status: n.status, source: x.source, wait: x.state, apply: applyCommand(chg, n) }); }
+    for (const n of w.amend) blockedBy.push({ note: n.id, title: n.title, status: n.status, source: n.source, wait: "amend", apply: applyCommand(chg, n) });
+  }
   const nb = blockingNotes(notes, noteCtxFor(index, lock, task, api));
   for (const id of ack) {
     const n = notes.find((x) => x.id === id);
+    if (n?.source) { if (!w.blocked) reasons.push(`--ack ${id}: ${noteName(n)} comes from ${n.source} and blocks nothing now (status ${n.status})`); continue; }
     const hit = nb.block.find((x) => x.note.id === id) || nb.acked.find((x) => x.note.id === id);
     if (!n) reasons.push(`--ack ${id}: no such note in ${chg}`);
     else if (n.status === "reopen pending") reasons.push(`--ack ${id}: ${noteName(n)} is a recheck waiting for /hitl:approve ${chg} reopen ${id} (or dismiss); an ack does not apply`);

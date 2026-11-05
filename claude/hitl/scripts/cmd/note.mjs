@@ -1,17 +1,20 @@
 // `hitl-index note add|list|show|apply` — the notes inbox of a change (0.9, `.hitl/changes/<id>/notes.md`).
-//   note add   --change <id> --kind spec|design|order --refs a,b --text "…" [--title "…"] [--from "…"]
+//   note add   --change <id> --kind spec|design|order --refs a,b --text "…" [--title "…"] [--from "…"] [--source <other-change>]
+//              --source (0.12): the note comes from another active change B (B created with --before <id>, or B's
+//              plan/design changes <id>'s behaviour). It blocks every task approval, implement and the archive of <id>
+//              until B is archived; --kind order needs no refs (it only says "<id> waits for B").
 //   note list  [--change <id>] [--status open|pending|all] [--task <T>]
 //   note show  --change <id> N-k
 //   note apply --change <id> [N-k] --impact "<ref>=<class>,…" [--from "…"] [--dry-run]
 // Releasing a block (ack, dismiss, defer, reopen) is not here: it is a human /hitl:approve form (hitl-index approve).
 import { parseArgv } from "../lib/project.mjs";
 import { findChange, readChange, readLiving, effectiveView, resolveSpecRef, findInView } from "../lib/changes.mjs";
-import { ADD_KINDS, BLOCKING, applyCommand, changedSinceNoted, isNoteId, nextNoteId, noteCounts, noteHitsTask, readNotes, refHashes, refKind,
+import { ADD_KINDS, BLOCKING, applyCommand, incomingState, changedSinceNoted, isNoteId, nextNoteId, noteCounts, noteHitsTask, readNotes, refHashes, refKind,
   titleOf, todayIso, updateNotes, validateRefs, reopensLine } from "../lib/notes.mjs";
 import { noteCtxFor } from "../lib/lock.mjs";
 import { gather } from "./status.mjs";
 
-const USAGE = `usage: hitl-index note add --change <id> --kind spec|design|order --refs a,b --text "…" [--title "…"] [--from "…"]
+const USAGE = `usage: hitl-index note add --change <id> --kind spec|design|order --refs a,b --text "…" [--title "…"] [--from "…"] [--source <other-change>]
        hitl-index note list [--change <id>] [--status open|pending|all] [--task <T>]
        hitl-index note show --change <id> <N-k>
        hitl-index note apply --change <id> [<N-k>] --impact "<ref>=<class>,…" [--from "…"] [--dry-run]`;
@@ -35,10 +38,11 @@ export async function loadChangeCtx(root, config, id, { needActive = true } = {}
     refCtx: { view, resolveSpecRef: (v, r) => resolveSpecRef(v, r, ch), findInView, design: ch.design, tasks, index: g.index, resolve } };
 }
 
-/** Tasks of the change each note touches: {N-k: [T…]}. */
+/** Tasks of the change each note touches: {N-k: [T…]} (a note from another change that still blocks: every task). */
 export function noteBlocks(notes, tasks, g) {
   const out = {};
   for (const n of notes) {
+    if (n.source) { out[n.id] = incomingState(n) ? tasks.map((t) => t.id) : []; continue; }
     out[n.id] = BLOCKING.has(n.status) ? tasks.filter((t) => {
       return n.refs.length > 0 && noteHitsTask(n, noteCtxFor(g.index, g.lock, t, g.api)).length > 0;
     }).map((t) => t.id) : [];
@@ -49,7 +53,7 @@ export function noteBlocks(notes, tasks, g) {
 export async function run(argv, ctx) {
   const sub = argv[0];
   if (!["add", "list", "show", "apply"].includes(sub)) throw usage(sub ? `unknown note command: ${sub}` : null);
-  const a = parseArgv(argv.slice(1), { flags: ["json", "dry-run"], values: ["change", "kind", "refs", "text", "title", "from", "status", "task", "impact"] });
+  const a = parseArgv(argv.slice(1), { flags: ["json", "dry-run"], values: ["change", "kind", "refs", "text", "title", "from", "status", "task", "impact", "source"] });
   const json = ctx.json || a.json;
   if (!ctx.root) { console.error("hitl: not initialized here — run /hitl:setup (hitl-index init)"); return 3; }
   if (sub === "add") return add(a, ctx, json);
@@ -66,6 +70,14 @@ async function add(a, ctx, json) {
   const refs = [...new Set(splitList(a.refs))];
   const c = await loadChangeCtx(ctx.root, ctx.config, a.change);
   const v = validateRefs(refs, c.refCtx);
+  let source = null;
+  if (a.source !== undefined) {
+    source = String(a.source).trim();
+    const se = source ? await findChange(ctx.root, source) : null;
+    if (!source || source === c.entry.id) v.errors.push(`--source must name another change (got ${source || "nothing"})`);
+    else if (!se) v.errors.push(`--source ${source}: no such change`);
+    else if (se.archived) v.errors.push(`--source ${source} is archived: its spec is living now; amend ${c.entry.id} itself (/hitl:plan ${c.entry.id} amend)`);
+  }
   if (v.errors.length) {
     if (json) console.log(JSON.stringify({ ok: false, change: c.entry.id, errors: v.errors }, null, 2));
     else { console.log(`🛑 note not added to ${c.entry.id}:`); for (const e of v.errors) console.log(`  - ${e}`); }
@@ -73,7 +85,7 @@ async function add(a, ctx, json) {
   }
   const base = refHashes(refs, c.refCtx);
   const note = await updateNotes(ctx.root, c.entry.dir, c.entry.id, (notes) => {
-    const n = { id: nextNoteId(notes), title: a.title ? String(a.title) : titleOf(text), kind: a.kind, refs, refTitles: v.titles, status: "open", deferredTo: null,
+    const n = { id: nextNoteId(notes), title: a.title ? String(a.title) : titleOf(text), kind: a.kind, source, refs, refTitles: v.titles, status: "open", deferredTo: null,
       from: a.from ? String(a.from) : "user", at: todayIso(), acks: [], reason: null, resolved: null, text,
       meta: { ...(Object.keys(base).length ? { base } : {}), ...(Object.keys(v.symbols).length ? { symbols: v.symbols } : {}) } };
     notes.push(n);
@@ -82,15 +94,16 @@ async function add(a, ctx, json) {
   const blocks = noteBlocks([note], c.tasks, c.g)[note.id];
   if (json) console.log(JSON.stringify({ ok: true, change: c.entry.id, note: pub(note), blocks, file: `${c.entry.dir}/notes.md` }, null, 2));
   else {
-    console.log(`📌 ${note.id} added to ${c.entry.id}: ${note.title}`);
-    console.log(refs.length ? `  refs: ${refs.map((r) => (v.titles[r] ? `${r} (${v.titles[r]})` : r)).join(", ")}` : "  refs: none (warns at approvals, blocks archive)");
-    if (blocks.length) console.log(`  blocks approvals of: ${blocks.join(", ")}`);
-    console.log(`🎯 apply it later: ${applyCommand(c.entry.id, note)}`);
+    console.log(`📌 ${note.id} added to ${c.entry.id}${source ? ` from ${source}` : ""}: ${note.title}`);
+    if (refs.length || !source) console.log(refs.length ? `  refs: ${refs.map((r) => (v.titles[r] ? `${r} (${v.titles[r]})` : r)).join(", ")}` : "  refs: none (warns at approvals, blocks archive)");
+    if (source) console.log(`⏳ ${c.entry.id} now waits for ${source}: every task approval, implement and the archive of ${c.entry.id} wait until ${source} is archived (plan, design and tasks stay open)`);
+    else if (blocks.length) console.log(`  blocks approvals of: ${blocks.join(", ")}`);
+    if (!(source && a.kind === "order")) console.log(`🎯 apply it later: ${applyCommand(c.entry.id, note)}`);
   }
   return 0;
 }
 
-const pub = (n) => ({ id: n.id, title: n.title, kind: n.kind, refs: n.refs, refTitles: n.refTitles, status: n.status, deferredTo: n.deferredTo, from: n.from, at: n.at,
+const pub = (n) => ({ id: n.id, title: n.title, kind: n.kind, ...(n.source ? { source: n.source, sourceState: n.sourceState ?? null, wait: incomingState(n) } : {}), refs: n.refs, refTitles: n.refTitles, status: n.status, deferredTo: n.deferredTo, from: n.from, at: n.at,
   acks: n.acks, reason: n.reason, resolved: n.resolved, text: n.text, ...(n.meta?.impact ? { impact: n.meta.impact } : {}), ...(n.meta?.reopen ? { reopen: n.meta.reopen } : {}) });
 
 async function list(a, ctx, json) {
@@ -134,7 +147,7 @@ async function show(a, ctx, json) {
   if (!n) throw fail(`${id} not found in ${entry.dir}/notes.md`);
   if (json) { console.log(JSON.stringify({ change: entry.id, note: pub(n) }, null, 2)); return 0; }
   console.log(`📌 ${entry.id} ${n.id} — ${n.title}`);
-  console.log(`  kind: ${n.kind} · status: ${n.status}${n.deferredTo ? ` → ${n.deferredTo.change}` : ""} · from: ${n.from}${n.at ? ` (${n.at})` : ""}`);
+  console.log(`  kind: ${n.kind}${n.source ? ` · source: ${n.source} (${n.sourceState})` : ""} · status: ${n.status}${n.deferredTo ? ` → ${n.deferredTo.change}` : ""} · from: ${n.from}${n.at ? ` (${n.at})` : ""}`);
   console.log(`  refs: ${n.refs.length ? n.refs.map((r) => (n.refTitles[r] ? `${r} (${n.refTitles[r]})` : r)).join(", ") : "none"}`);
   for (const k of n.acks) console.log(`  acked: ${k.task}${k.at ? ` (${k.at})` : ""}`);
   if (n.kind === "recheck") console.log(`  reopens: ${reopensLine(n.meta?.reopen)}`);

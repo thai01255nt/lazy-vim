@@ -43,22 +43,25 @@ const CHANGE_REASON = { "archive-ready": "all tasks done; merge its spec deltas"
   design: "spec approved; design missing or draft", spec: "proposal is still draft" };
 
 /**
- * Overall next step. Order: drift on locked code → a recheck waiting for reopen → a pending reconcile (0.10) → the
- * first unblocked task (prio, id) → an active change waiting for
+ * Overall next step. Order: drift on locked code → a recheck waiting for reopen → a note from an archived change that
+ * a change must take in first (0.12, the forced amend) → the first unblocked task (prio, id; tasks of a change that waits
+ * for another change are skipped) → an active change waiting for
  * its next phase (archive-ready, tasks, design, spec) → an approved v0.5 planning file without tasks → new work
  * (/hitl:go <describe the work>, 0.11: the one entry point for new work).
  * @param {{tasks:Task[], statuses:{tasks}, drift?, lock?, planning?:[{file,status,hasTasks}], changes?:[{id,phase}]}} o
  * @returns {{task:string|null, command:string, reason:string, change?:string}}
  */
-export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [], notes = {}, reconcile = [] }) {
+export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [], notes = {} }) {
   const ld = lockedDrift(drift, lock);
   if (ld.length) return { task: ld[0].task || null, command: "/hitl:sync", reason: `${ld.length} drift item(s) on locked symbols (e.g. ${ld[0].code} ${ld[0].symbol})` };
   // 0.9: a recheck note waits for the human's reopen decision (/hitl:approve <change> reopen)
   const pend = (notes.pending || [])[0];
   if (pend) return { task: null, command: `/hitl:approve ${pend.change} reopen ${pend.id}`, reason: `${pend.id} (${pend.title}) waits for your reopen decision`, change: pend.change };
-  // 0.10: a linked change was archived and this one never reconciled against it (it owns the reconcile)
-  const rc = reconcile[0];
-  if (rc) return { task: null, command: rc.command, reason: rc.findings?.length ? `${rc.change} has reconcile findings from ${rc.from} neither added nor skipped (${rc.findings.join(", ")})` : `${rc.from} is archived; ${rc.change} has not reconciled against it`, change: rc.change };
+  // 0.12: a change holds a note from an archived change it has not taken in yet: amend it first (the whole change waits)
+  const waits = notes.waits || [];
+  const am = waits.find((x) => x.amend?.length);
+  if (am) return { task: null, command: am.amend[0].apply, reason: `${am.change} must take in ${am.amend[0].id} (${am.amend[0].title}) from ${am.amend[0].source}, which is archived`, change: am.change };
+  const waitOf = new Map(waits.filter((x) => x.for?.length).map((x) => [x.change, x]));
   const st = statuses?.tasks || {};
   const all = tasks.length ? tasks : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
   const isDone = (id) => st[id]?.status === "done";
@@ -66,21 +69,27 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
     .sort((a, b) => prioNum(a.prio) - prioNum(b.prio) || idNum(a.id) - idNum(b.id));
   // tasks touched by an open note are skipped while another frontier task can go on; all blocked → apply the first note
   const byTask = notes.byTask || {};
-  const free = frontier.filter((t) => !byTask[t.id]?.length);
-  const skipped = frontier.filter((t) => byTask[t.id]?.length).map((t) => `${t.id} (${byTask[t.id][0].id})`);
+  const free = frontier.filter((t) => !byTask[t.id]?.length && !waitOf.has(t.change));
+  const skipped = frontier.filter((t) => byTask[t.id]?.length || waitOf.has(t.change))
+    .map((t) => `${t.id} (${waitOf.has(t.change) ? `waits for ${waitOf.get(t.change).for[0].change}` : byTask[t.id][0].id})`);
   if (free.length) {
     const t = free[0];
     const s = st[t.id] || { status: "todo", next: nextForTask(t.id, "todo", { risk: t.risk }) };
     return { task: t.id, command: s.next || `/hitl:flow ${t.id}`, reason: `${t.id} is ${s.status}${skipped.length ? `; skipped ${skipped.join(", ")}: blocked by notes` : ""}` };
   }
   if (frontier.length) {
-    const t = frontier[0], n = byTask[t.id][0];
-    // paused by an `after:` link: the other change goes first
-    const wait = n.waitFor && changes.find((c) => c.id === n.waitFor);
-    if (wait && nextForChange(wait)) return { task: null, command: nextForChange(wait), reason: `${t.id} is paused until ${wait.id} is archived (${n.id})`, change: wait.id };
+    const t = frontier[0];
+    const wx = waitOf.get(t.change);
+    if (wx) {
+      // the whole change waits for another change: that change goes first (or, gone, the human dismisses its notes)
+      const f = wx.for[0], other = changes.find((c) => c.id === f.change);
+      const command = f.state === "gone" ? `/hitl:approve ${t.change} dismiss ${f.notes[0]} <reason>` : (other && nextForChange(other)) || `/hitl:flow ${f.change}`;
+      return { task: null, command, reason: `${t.change} waits for ${f.change} (${f.notes.join(", ")})${f.state === "gone" ? `, which is gone` : " until it is archived"}`, change: f.state === "gone" ? t.change : f.change };
+    }
+    const n = byTask[t.id][0];
     return { task: t.id, command: n.apply, reason: `${t.id} is blocked by ${n.id} (${n.title})`, ...(n.change ? { change: n.change } : {}) };
   }
-  const waiting = changes.filter((c) => c.phase in CHANGE_ORDER)
+  const waiting = changes.filter((c) => c.phase in CHANGE_ORDER && !(c.phase === "archive-ready" && waitOf.has(c.id)))
     .sort((a, b) => CHANGE_ORDER[a.phase] - CHANGE_ORDER[b.phase] || String(a.id).localeCompare(String(b.id)))[0];
   if (waiting) return { task: null, command: nextForChange(waiting), reason: `change ${waiting.id}: ${CHANGE_REASON[waiting.phase]}`, change: waiting.id };
   if (all.length && !all.every((t) => isDone(t.id))) return { task: null, command: "/hitl:flow", reason: "no unblocked task (check blocked-by edges)" };

@@ -93,7 +93,7 @@ test("changeInfo: computed task status from the lock, next command", async () =>
   const a = await changeInfo(root, {}, await readChange(root, act));
   assert.deepEqual({ ...a, taskCounts: undefined }, { id: "feat-password-reset", dir: PR, archived: false, title: "Password reset by email", proposal: "approved",
     design: "approved", capabilities: ["accounts"], contracts: 1, tasksFile: `${PR}/tasks.md`, tasks: "approved", taskCounts: undefined, phase: "implement", next: "/hitl:skeleton T-13",
-    notes: { open: 0, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 0 }, links: [], reconcilePending: [] });
+    notes: { open: 0, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 0, incoming: 0 }, before: [], wait: null, blocks: [] });
   assert.deepEqual(a.taskCounts, { total: 2, done: 1, byStatus: { done: 1, todo: 1 } });
   const b = await changeInfo(root, {}, await readChange(root, arch));
   assert.deepEqual([b.phase, b.design, b.next], ["archived", "skipped", null]);
@@ -141,7 +141,7 @@ test("validate: change-level error codes", async () => {
   }
 });
 
-test("validate: warnings — draft clarification, unlisted contract, biz tokens, too big, cross-change, understated coupling", async () => {
+test("validate: warnings — draft clarification, unlisted contract, biz tokens, too big, cross-change", async () => {
   const root = project({
     [`${PR}/proposal.md`]: r(project(), `${PR}/proposal.md`).replace("status: approved", "status: draft").replace("Users who forget", "Users who call resetPassword() [NEEDS CLARIFICATION: who] forget"),
     [`${PR}/contracts/extra.json`]: "{}",
@@ -149,7 +149,7 @@ test("validate: warnings — draft clarification, unlisted contract, biz tokens,
     ".hitl/changes/fix-sign-in/specs/accounts/spec.md": deltaMd("fix-sign-in", `## MODIFIED Requirements\n${REQ("ACC-R1", "Sign in")}Changed: x\n\n## ADDED Requirements\n${REQ("ACC-R5")}`),
   });
   const res = await validate(root, {}, { change: "feat-password-reset", record: false });
-  assert.deepEqual([...new Set(codes(res, "warn"))].sort(), ["BIZ_CODE_TOKEN", "CONTRACT_UNLISTED", "COUPLING_UNDERSTATED", "CROSS_CHANGE_CONFLICT", "ID_COLLISION", "NEEDS_CLARIFICATION"]);
+  assert.deepEqual([...new Set(codes(res, "warn"))].sort(), ["BIZ_CODE_TOKEN", "CONTRACT_UNLISTED", "CROSS_CHANGE_CONFLICT", "ID_COLLISION", "NEEDS_CLARIFICATION"]);
   assert.equal(res.ok, true);
   assert.deepEqual(res.targets.map((t) => t.id), ["feat-password-reset"]);
   const err = await validate(root, { spec: { businessLint: "error" } }, { change: "feat-password-reset", record: false });

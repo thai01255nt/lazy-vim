@@ -105,6 +105,9 @@ user said "fix").
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
    `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
 Also offer `amend F-n` when the human accepts a contract finding that implies a different design.
+A finding whose fix is too big for this change (its own spec, new behaviour, more than 1 task, another capability) →
+`defer F-n` plus `💡 Out of scope for <change>: … → /hitl:go <X> --before <change>`
+(`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1; the user decides, never you).
 
 ## `fix F-n[,F-m]`
 

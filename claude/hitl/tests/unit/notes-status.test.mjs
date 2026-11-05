@@ -30,7 +30,7 @@ test("status --json/--brief and change --json show notes; archive refuses open n
   const s = cli(root, "status", "--json").json();
   assert.deepEqual(s.tasks["T-13"].notes.map((n) => [n.id, n.apply]), [["N-1", "/hitl:plan feat-password-reset amend N-1"]]);
   assert.deepEqual(s.tasks["T-12"].notes, []);
-  assert.deepEqual(s.changes[0].notes, { open: 1, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 1 });
+  assert.deepEqual(s.changes[0].notes, { open: 1, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 1, incoming: 0 });
   assert.equal(s.next.command, "/hitl:plan feat-password-reset amend N-1", "T-13 is the only frontier task and it is blocked");
   const brief = cli(root, "status", "--brief").out;
   assert.match(brief, /📌 notes: feat-password-reset 1 open → \/hitl:plan feat-password-reset amend N-1/);

@@ -50,6 +50,12 @@ the PreToolUse hook lets `hitl-index approve <T> --stage skeleton|tests --by hum
 
 Run `hitl-index status <T> --json` and `hitl-index tasks --json` (task risk, symbols, `impl`, blocked-by).
 If not initialized (exit 3): 🛑 `Run /hitl:setup first.` and stop.
+`tasks[T].wait` set (0.12: T's change holds a note from another change that is not archived yet, or not taken in) →
+🛑 `<change> waits for <wait.for[].change> (<notes>)` or `📥 take in <wait.amend> first`, then `🎯 next:` the status
+JSON `.next`. Stop: no implement, no approval (the hook denies the implementer's edits anyway; the order is the user's
+call — `/hitl:approve <change> dismiss N-k <reason>` ends a wait).
+Work outside the task that is too big for this change → `💡 Out of scope for <change>: … → /hitl:go <X> --before
+<change>` (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1); never build it here.
 
 Route on task status (`tasks[T].status`) and risk:
 

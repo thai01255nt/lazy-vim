@@ -43,8 +43,8 @@ Apply? (Y/n)
 | `DELTA_ID_TAKEN` (another branch archived the same new id) | 1. 💡 renumber inside this change (`--renumber`; rewrites deltas, design `serves`, task AC refs in the change folder only; code is never touched) · 2. stop |
 | `BASE_CHANGED` (a living requirement changed after this change copied it) | show the living text vs the delta text; 1. 💡 update the delta to include the living change (I edit `specs/<cap>/spec.md` of this change, re-run validate and the preview) · 2. keep the delta as is (`--accept-base <IDs>`) · 3. stop |
 | `CROSS_CHANGE_CONFLICT` / `DELTA_TARGET_MISSING` / `CAP_*` / `ARCHIVE_EXISTS` | explain in one line each; 1. 💡 stop and fix (`/hitl:plan <id> amend`) |
-| `preconditions.reconcile.pending` (a linked change was archived first; this one never reconciled, or `findings` are neither added nor skipped) | one line each `🔄 <from> — <command>` (+ `pending RC-n…` when `findings`); `--force` never skips it; 1. 💡 run it (`/hitl:plan <id> reconcile <from>`); with `findings`, the human may skip them instead: `/hitl:approve <id> skip RC-n <reason>` (never you) |
-| `preconditions.notes.open` (an open note or a recheck waiting for reopen) | one line each `📌 N-k (<title>) — <apply>`; `--force` never skips it; 1. 💡 apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
+| `preconditions.notes.wait` (a note from another change: that change is not archived yet, is gone, or its note is not taken in) | print each line as is (`⏳ … waits for <other>` / `📥 N-k from <other> …`); `--force` never skips it; 1. 💡 finish and archive `<other>` first, or take the note in (`/hitl:plan <id> amend N-k`) · 2. the human types `/hitl:approve <id> dismiss N-k <reason>` (the user decides the order, never you) |
+| `preconditions.notes.open` without `source` (an open note or a recheck waiting for reopen) | one line each `📌 N-k (<title>) — <apply>`; `--force` never skips it; 1. 💡 apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
 END THE TURN.
 
 ## 3. Apply
@@ -67,8 +67,9 @@ On Y (or the chosen option):
 - One line: `💡 /hitl:tidy <id>, then hitl-index strip <id>` (optional, yours to run: tidy rewrites the intents to one
   current contract per symbol and stops for `/hitl:approve <id> intent`; strip removes @task/@impl/@status/@prio/@dec/@risk
   from the change's done functions, lock, drift and statuses unchanged). Never run strip yourself.
-- `archive.reconcile[]` (active changes linked to this one) → one line each `🎯 next: <command>` (that change owns the
-  reconcile; it never edits this archived one).
+- `archive.unblocked[]` (active changes that waited for this one, 0.12) → one line each: `🔓 <change> no longer waits`
+  when `stillBlocked` is false; each `amend[]` item → `📥 <change> must take in <N-k> first → 🎯 <apply>` (that change
+  amends itself; this archived one is never edited).
 - 🎯 next: `hitl-index status --json` `.next` (another change, or `/hitl:go <describe the work>`).
 
 ## Rules

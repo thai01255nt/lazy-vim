@@ -154,23 +154,33 @@ test("churn (0.9): capture rule next to Plain replies, Impact block, approve for
   assert.match(read("HUONG-DAN.md"), /^## 5a\. Khi yêu cầu đổi giữa chừng/m);
 });
 
-test("coupling (0.10): reconcile mode in plan, overlap offer, archive/flow/help rows, conventions rule, docs sections", () => {
+test("prerequisite changes (0.12): --before, owner check, overlap, wait lines; no 0.10 coupling/reconcile left", () => {
   const plan = read("skills/plan/SKILL.md");
-  assert.match(frontmatter(plan)["argument-hint"], /reconcile <other>/);
-  assert.match(plan, /^## 8\. Reconcile mode \(`\/hitl:plan <change-id> reconcile <other>`\)/m);
-  assert.match(plan, /hitl-index reconcile <id> --from <other> --dry-run --json/);
-  assert.match(plan, /Add <n> notes to <id>\? \(Y\/n\/pick\)/);
-  assert.match(plan, /hitl-index coupling <id> --json/);
-  assert.match(read("skills/design/SKILL.md"), /hitl-index coupling <id> --json/);
-  const arch = read("skills/archive/SKILL.md");
-  assert.match(arch, /preconditions\.reconcile\.pending/);
-  assert.match(arch, /archive\.reconcile\[\]/);
-  assert.match(read("skills/flow/SKILL.md"), /reconcilePending/);
-  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:plan <id> reconcile <other>` \|/m);
+  assert.match(frontmatter(plan)["argument-hint"], /--before <change-id>/);
+  assert.match(plan, /other-changes\.md/);
+  assert.match(plan, /hitl-index overlap <id> --json/);
+  assert.match(plan, /--source <id> --kind order/);
+  assert.match(frontmatter(read("skills/go/SKILL.md"))["argument-hint"], /--before <change-id>/);
+  assert.match(read("skills/go/SKILL.md"), /invoke the Skill `hitl:plan` with `<description> --before/);
+  assert.match(read("skills/design/SKILL.md"), /hitl-index overlap <id> --json/);
+  assert.match(read("skills/implement/SKILL.md"), /`tasks\[T\]\.wait` set/);
+  assert.match(read("skills/review/SKILL.md"), /\/hitl:go <X> --before <change>/);
+  const oc = read("shared/other-changes.md");
+  for (const re of [/--before A,C/, /hitl-index note add --change P --source B --kind order/, /--kind spec\|design --refs/, /witness/, /B gone/])
+    assert.match(oc, re);
+  assert.match(read("skills/archive/SKILL.md"), /preconditions\.notes\.wait/);
+  assert.match(read("skills/archive/SKILL.md"), /archive\.unblocked\[\]/);
+  assert.match(read("skills/flow/SKILL.md"), /\.changes\[\]\.wait/);
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:plan <description> --before <id>\[,<id>\]` \|/m);
+  assert.match(read("agents/spec-reviewer.md"), /"overlaps": \[/);
   assert.match(read("shared/conventions.md"), /Edit another change's files to carry this change's impact/);
-  assert.match(read("shared/spec-format.md"), /COUPLING_UNDERSTATED/);
-  assert.match(read("README.md"), /^### 4d\. Hai change chạy cùng lúc/m);
+  assert.match(read("shared/conventions.md"), /Out of scope for <change>/);
+  assert.match(read("shared/spec-format.md"), /\| before: <change>/);
+  assert.match(read("README.md"), /^### 4d\. Hai change chạy cùng lúc: change tiên quyết/m);
   assert.match(read("HUONG-DAN.md"), /^## 5b\. Hai change cùng lúc/m);
+  const files = ["skills/plan/SKILL.md", "skills/design/SKILL.md", "skills/archive/SKILL.md", "skills/approve/SKILL.md", "skills/flow/SKILL.md",
+    "skills/flow/references/help.md", "skills/go/SKILL.md", "shared/conventions.md", "shared/spec-format.md", "agents/spec-scout.md", "agents/spec-reviewer.md", "HUONG-DAN.md"];
+  for (const f of files) assert.doesNotMatch(read(f), /hitl-index (coupling|reconcile)|RECONCILE_PENDING|skip RC-|reconcile <other>|\| after: |relates: feat/, f);
 });
 
 test("go (0.11): one entry for new work, router agent, trigger split, docs rows", () => {
@@ -212,7 +222,7 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.match(read("skills/tasks/SKILL.md"), /`<change-id> update \[<what>\]`/);
   assert.match(read("skills/flow/SKILL.md"), /🎯 next: \/hitl:go <description>/);
   const help = read("skills/flow/references/help.md");
-  assert.match(help, /^\| `\/hitl:go <description> \[--plan\\\|--quick\\\|--tdd\]` \|/m);
+  assert.match(help, /^\| `\/hitl:go <description> \[--plan\\\|--quick\\\|--tdd\]( \[--before <id>\])?` \|/m);
   assert.match(help, /^\/hitl:setup → \/hitl:overview → \/hitl:go <description>/m);
   assert.match(read("README.md"), /^\| `\/hitl:go <mô tả> \[--plan\\\|--quick\\\|--tdd\]` \|/m);
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.10/m);

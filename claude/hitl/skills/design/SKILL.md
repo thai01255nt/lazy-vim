@@ -18,6 +18,9 @@ Interview: the `hitl:grilling` skill + `${CLAUDE_PLUGIN_ROOT}/shared/interview.m
 - `${CLAUDE_PLUGIN_ROOT}/shared/spec-format.md` (§ Design: the D table and contract rules the CLI checks) — when
   `spec validate` reports an error whose fix is not clear from its message.
 - `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — for a `💡 Needs spec` delta preview (§4) or amend mode (§7).
+- `${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` — when a decision changes what another active change owns (owner
+  check §3), when `hitl-index overlap` reports new contract or file evidence (§4), or when work turns out to be out of
+  this change's scope (§1).
 Ideas adapted (no text): obra/superpowers brainstorming ("look before you ask", lay out approaches, scale the ceremony
 to the change) and the github/spec-kit plan artifact set — see NOTICE.md.
 
@@ -100,8 +103,10 @@ The user may reply with changes (`D-3: …`); apply them and show the gate again
    No `proposed` decision is left at the gate: each is accepted or rejected.
 2. Coverage: every ADDED/MODIFIED `must` requirement has an accepted D that serves it, or is trivially covered
    (say which in one line). The trace reports `REQ_NO_DEC` later; fix it now.
-2b. Coupling: `hitl-index coupling <id> --json`; a pair with `understated` (e.g. both changes have the same contract file)
-   → the `⚠️ overlaps … link? (1/2/3)` line of `/hitl:plan` §3 in the gate below; on 1 or 2 add the header to the proposal.
+2b. Overlap recheck: `hitl-index overlap <id> --json`; judge only its new `contract` and `file` evidence (both changes
+   name the same contract or source file) with the witness rule of other-changes.md §4, and put each real overlap in the
+   gate below as its `⚠️ Overlap with … (1/2/3)` line. A decision that changes another change's contract → a `design`
+   note there (owner check §3), never an edit of its files.
 3. ⛔ GATE:
    ```
    🏗️ Design feat-password-reset — D: 5 (accepted 5) · components: 3 (2 new) · contracts: 1 · data-model ✅
@@ -117,6 +122,8 @@ Approved design: decisions are never edited in place — supersede per `shared/a
 `superseded by D-k`, Changelog line), in one ⛔ GATE with the 📐 delta, the 🔁 Impact block and `Apply? (Y/n/edit)`.
 With `N-k`, the change is that design note (`hitl-index note show --change <id> N-k --json`); superseding the `D-n` it
 names is what lets `note apply` accept it. A superseded contract decision is class `contract` (reopens the skeleton).
+A note from another change (`source: <other>`) is amended the same way; the change still waits until `<other>` is
+archived (other-changes.md §5).
 
 ## Rules
 - Write only in `.hitl/changes/<id>/`: `design.md`, `data-model.md`, `contracts/*`, and the proposal `## Artifacts`

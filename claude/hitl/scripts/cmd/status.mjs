@@ -10,11 +10,13 @@ import { synctags } from "../lib/synctags.mjs";
 import { buildTrace, loadTraceInputs } from "../lib/trace.mjs";
 import { workOrder } from "../lib/workorder.mjs";
 import { resolveWith, notesByTask } from "../lib/lock.mjs";
-import { readActiveNotes, noteCounts, applyCommand } from "../lib/notes.mjs";
+import { readActiveNotes, noteCounts, applyCommand, changeWait, waitReasons } from "../lib/notes.mjs";
 
 /**
- * Notes of the active changes for status/next (0.9): {changes:[{change, counts, pending:[ids], first}], byTask:{T:[…]},
- * pending:[{change, id, title}]}. Fail-open: an unreadable notes file counts as none.
+ * Notes of the active changes for status/next (0.9): {changes:[{change, counts, first}], byTask:{T:[…]},
+ * pending:[{change, id, title}], waits:[{change, for:[{change, state, notes}], amend:[{id, title, source, apply}], reasons}]}.
+ * `changes` and `first` count the change's own notes; notes from another change (`source:`) go to `waits` (0.12).
+ * Fail-open: an unreadable notes file counts as none.
  */
 export async function notesInfo(root, g) {
   let cn = [];
@@ -22,22 +24,24 @@ export async function notesInfo(root, g) {
   const byTask = notesByTask(cn, g.tasks, g.index, g.lock, g.api);
   const pending = cn.flatMap((c) => c.notes.filter((n) => n.status === "reopen pending").map((n) => ({ change: c.change, id: n.id, title: n.title })));
   const changes = cn.map((c) => {
-    const open = c.notes.filter((n) => n.status === "reopen pending").concat(c.notes.filter((n) => n.status === "open"));
-    return { change: c.change, counts: noteCounts(c.notes), first: open[0] ? applyCommand(c.change, open[0]) : null };
+    const own = c.notes.filter((n) => !n.source);
+    const open = own.filter((n) => n.status === "reopen pending").concat(own.filter((n) => n.status === "open"));
+    return { change: c.change, counts: noteCounts(own), first: open[0] ? applyCommand(c.change, open[0]) : null };
   }).filter((c) => c.counts.open || c.counts.reopenPending);
-  return { changes, byTask, pending };
+  const waits = cn.map((c) => ({ change: c.change, w: changeWait(c.notes) })).filter((x) => x.w.blocked).map(({ change, w }) => ({ change,
+    for: w.waits.map((x) => ({ change: x.source, state: x.state, notes: x.notes })),
+    amend: w.amend.map((n) => ({ id: n.id, title: n.title, source: n.source, kind: n.kind, apply: applyCommand(change, n) })), reasons: waitReasons(change, w) }));
+  return { changes, byTask, pending, waits };
 }
 
-/** `feat-a after feat-b (strong) · 2 tasks paused` (0.10). */
-export function linkLine(id, l) {
-  const rel = l.rel === "relates" ? "relates to" : l.rel;
-  return `${id} ${rel} ${l.change} (${l.level})${l.paused?.length ? ` · ${l.paused.length} task(s) paused (${l.paused.join(", ")})` : ""}${l.archived ? ` · ${l.change} archived${l.reconcile ? `, reconcile ${l.reconcile}` : ""}` : ""}`;
-}
-
-/** `status --brief` reconcile line (0.10), or null. */
-export function reconcileLine(pending) {
-  if (!pending?.length) return null;
-  return `🔄 reconcile pending: ${pending.map((r) => `${r.change} from ${r.from}`).join(" · ")} → ${pending[0].command}`;
+/** `status --brief` lines for changes that wait for another change (0.12): ⏳ waits, 📥 notes to take in. */
+export function waitLines(ni) {
+  const out = [];
+  for (const x of ni?.waits || []) {
+    if (x.for.length) out.push(`⏳ ${x.change} waits for ${x.for.map((f) => `${f.change}${f.state === "gone" ? " (gone: dismiss its notes)" : ""} (${f.notes.join(", ")})`).join(", ")}: no task approval, implement or archive of ${x.change} until then`);
+    if (x.amend.length) out.push(`📥 ${x.change} must take in ${x.amend.map((n) => `${n.id} from ${n.source}`).join(", ")} first → ${x.amend[0].apply}`);
+  }
+  return out;
 }
 
 /** `status --brief` notes line, or null. */
@@ -84,8 +88,6 @@ export function sortTaskIds(ids, prioOf) {
 export async function changesInfo(root, statuses) {
   let ch; try { ch = await import("../lib/changes.mjs"); } catch { return []; }
   const out = [];
-  let cp = null, graph = null;
-  try { cp = await import("../lib/coupling.mjs"); graph = await cp.loadLinkGraph(root); } catch { cp = null; }
   for (const e of await ch.listChanges(root, { archived: false }).catch(() => [])) {
     const c = await ch.readChange(root, e).catch(() => null);
     if (!c) continue;
@@ -97,9 +99,7 @@ export async function changesInfo(root, statuses) {
     const { artifactDecision } = await import("../lib/specmd.mjs");
     const tasksSkipped = artifactDecision(c.proposal, "tasks") === "skipped" || (!!c.proposal?.noBehaviourChange && !c.deltas.length);
     const phase = ch.changePhase({ archived: false, proposal, design, tasks, tasksSkipped, taskCounts: { total: ts.length, done } });
-    out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done },
-      links: cp ? cp.linksOf(graph, c.id).map(({ change, rel, level, archived, reconcile }) => ({ change, rel, level, archived, reconcile })) : [],
-      reconcilePending: cp ? cp.reconcilePending(graph, c.id).map((r) => ({ change: c.id, ...r })) : [] });
+    out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done } });
   }
   return out;
 }
@@ -175,10 +175,8 @@ export async function run(argv, ctx) {
     const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
     const ni = await notesInfo(ctx.root, g);
-    // 0.10: tasks paused per link (blocked by an order note from that change)
-    for (const c of changes) for (const l of c.links) l.paused = Object.entries(ni.byTask).filter(([id, ns]) => tasks.find((t) => t.id === id)?.change === c.id && ns.some((n) => n.waitFor === l.change)).map(([id]) => id).sort();
-    const reconcile = changes.flatMap((c) => c.reconcilePending);
-    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni, reconcile });
+    const next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
+    const waitOf = (id) => { const c = tmeta(id).change; const x = c && (ni.waits || []).find((y) => y.change === c); return x ? { change: c, for: x.for, amend: x.amend.map((n) => n.id) } : null; };
     const ld = lockedDrift(drift, lock);
     if (T && !statuses.tasks[T]) {
       const msg = `task ${T} not found`;
@@ -194,9 +192,11 @@ export async function run(argv, ctx) {
       const enrich = (id, st) => { const m = tmeta(id); const items = (drift?.items || []).filter((i) => i.task === id);
         return { ...st, workOrder: taskWorkOrder(st.targets || st.symbols || [], index, m, api), title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
-          trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via, waitFor }) => ({ id: n, title, status, kind, via, apply, ...(waitFor ? { waitFor } : {}) })) }; };
+          trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via }) => ({ id: n, title, status, kind, via, apply })),
+          ...(waitOf(id) ? { wait: waitOf(id) } : {}) }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
-      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc, links, reconcilePending }) => ({ id, phase, tasks: tc, notes: ni.changes.find((c) => c.change === id)?.counts ?? null, links, reconcilePending })), drift: drift ? drift.summary : null, lockedDrift: ld.length,
+      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc, notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
+        wait: (({ change, ...w }) => w)((ni.waits || []).find((x) => x.change === id) || { change: null }) })).map((c) => (Object.keys(c.wait).length ? c : (({ wait, ...r }) => r)(c))), drift: drift ? drift.summary : null, lockedDrift: ld.length,
         trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
         tickets,
         ...(sync ? { syncTags: { files: sync.files, tags: sync.tags, tasksFiles: sync.tasksFiles } } : {}) }, null, 2));
@@ -215,14 +215,13 @@ export async function run(argv, ctx) {
       if (ld.length) console.log(`⚠️ HITL: ${ld.length} drift item(s) on locked symbols — run /hitl:sync`);
       const nl = notesLine(ni);
       if (nl) console.log(nl);
-      const rl = reconcileLine(reconcile);
-      if (rl) console.log(rl);
+      for (const l of waitLines(ni)) console.log(l);
       return 0;
     }
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` 📌 ${nb.map((x) => x.id).join(",")}` : ""} | ${s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` 📌 ${nb.map((x) => x.id).join(",")}` : ""}${waitOf(id) ? ` ⏳ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
@@ -237,9 +236,7 @@ export async function run(argv, ctx) {
     if (sync) console.log(`\nsync-tags: ${sync.tags.length} @status tag(s) rewritten in ${sync.files.length} file(s); ${sync.tasksFiles.length} tasks file(s) updated`);
     const nl = notesLine(ni);
     if (nl) console.log(`\n${nl}`);
-    for (const c of changes) for (const l of c.links) console.log(`🔗 ${linkLine(c.id, l)}`);
-    const rl = reconcileLine(reconcile);
-    if (rl) console.log(rl);
+    for (const l of waitLines(ni)) console.log(l);
     console.log(`\n🎯 next: ${next.command} (${next.reason})`);
     return 0;
   } catch (e) {

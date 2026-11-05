@@ -153,15 +153,17 @@ async function cmdMerge(argv, ctx, archive) {
   for (const e of r.errors || []) console.log(`❌ ${e.code} ${e.file ?? ""}${e.line ? `:${e.line}` : ""} — ${e.message}`);
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
-  for (const n of r.preconditions.notes?.open || []) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
-  for (const p of r.preconditions.reconcile?.pending || []) console.log(p.findings
-    ? `❌ 🔄 RECONCILE_PENDING: findings ${p.findings.join(", ")} from ${p.from} are neither added nor skipped → ${p.command}, or the human types /hitl:approve ${r.change} skip ${p.findings.join(",")} <reason> (--force does not skip it)`
-    : `❌ 🔄 RECONCILE_PENDING: ${p.from} is archived and ${r.change} never reconciled against it → ${p.command} (--force does not skip it)`);
+  for (const x of r.preconditions.notes?.wait || []) console.log(`❌ ${x} (--force does not skip it)`);
+  for (const n of r.preconditions.notes?.open || []) if (!n.source) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
   else if (r.dryRun) console.log(`🔎 dry run: spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
   else {
     console.log(`✅ spec ${verb} ${r.change}${r.archive?.moved ? ` → ${r.archive.to}` : ""}`);
-    if (r.archive?.moved) for (const x of r.archive.reconcile || []) console.log(`🎯 next: ${x.command} (${x.change} is linked to ${r.change} and owns the reconcile)`);
+    for (const x of r.archive?.unblocked || []) {
+      if (!x.stillBlocked) console.log(`🔓 ${x.change} no longer waits for ${r.change} (${x.notes.join(", ")})`);
+      for (const n of x.amend) console.log(`📥 ${x.change} must take in ${n.id} (${n.title}) from ${r.change} first → 🎯 next: ${n.apply}`);
+      if (x.stillBlocked && !x.amend.length) console.log(`⏳ ${x.change} still waits for another change`);
+    }
   }
   return r.ok ? 0 : 1;
 }

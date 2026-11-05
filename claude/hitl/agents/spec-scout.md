@@ -1,6 +1,6 @@
 ---
 name: spec-scout
-description: Read-only scout for /hitl:plan: finds the capabilities a change touches, their current requirements, current code behaviour (in business words) and overlapping active changes; writes .scout.json.
+description: Read-only scout for /hitl:plan: finds the capabilities a change touches, their current requirements and current code behaviour (in business words), with the source files behind each fact; writes .scout.json.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 omitClaudeMd: true
@@ -34,8 +34,8 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 4b. Vocabulary: the business nouns the touched code and tests use for the topic (class, table, field, event names):
    `code` = the identifier, `word` = the plain word it stands for, `maps` = the `.hitl/specs/GLOSSARY.md` term it
    means (or `null` when no term fits). ≤ 10 rows; skip technical-only names (cache, queue, token store).
-5. Overlaps: active changes whose deltas MODIFY/REMOVE the same ids, or that add behaviour to the same capability.
-6. Write the JSON. Budget: ≤ 25 file reads; stop early when the questions are answered.
+5. Write the JSON. (Overlaps with other active changes are not yours: `hitl-index overlap` computes them from the
+   change folders and from your `source` paths, so give every fact its real source path.) Budget: ≤ 25 file reads; stop early when the questions are answered.
 
 ## Output file (`hitl.spec-scout/1`)
 ```json
@@ -46,7 +46,6 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
   "behaviourFacts": [ { "text": "Users are stored with a name and an email; there is no active/inactive flag today.",
       "source": "src/users/store.ts" } ],
   "vocabulary": [ { "code": "UserRecord", "word": "user record", "maps": "Account", "source": "src/users/store.ts" } ],
-  "overlaps": [ { "change": "feat-2fa", "ids": ["ACC-R1"] } ],
   "unknowns": [ "Whether deactivated users may still receive emails" ] }
 ```
 Final message: `{ "file": "<output path>", "capabilities": <n>, "facts": <n>, "unknowns": <n> }`.

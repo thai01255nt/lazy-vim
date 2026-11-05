@@ -11,8 +11,8 @@
 #         churn     churn-app (node:test) with approved change feat-fee: T-1 settle done (2 locked tests), T-2 todo
 #         churn-noted   = churn + open note N-1 "the fee is 2, not 1" (refs BIL-R1.S2; touches T-1)
 #         churn-recheck = churn-noted, amended (BIL-R1.S2 THEN 12) and applied → recheck N-2 waits for reopen
-#         link      link-app (0.10): feat-receipt `after: feat-fee (strong)` with its order note N-1; T-1 skeleton of settle
-#                   locked (acked); feat-fee changed settle's signature and was archived first → reconcile pending
+#         churn-waiting = churn + active change feat-report created `--before feat-fee`: feat-fee holds the order note
+#                   N-1 (source: feat-report), so every task approval of feat-fee waits until feat-report is archived (0.12)
 # The plugin under test is never touched; the CLI used for set-up is this plugin's own hitl-index.
 set -euo pipefail
 H="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -55,7 +55,7 @@ case "$kind" in
     CLI index >/dev/null; CLI test --task T-1 --json >/dev/null
     rm -rf variants
     gitc ;;
-  churn|churn-noted|churn-recheck)
+  churn|churn-noted|churn-recheck|churn-waiting)
     cp -R "$HERE/churn-app/." "$dest/"
     mkdir -p "$dest/.hitl/docs"; cp "$HERE"/docs/*.md "$dest/.hitl/docs/"
     cd "$dest"
@@ -67,7 +67,17 @@ case "$kind" in
     CLI index >/dev/null; CLI test --task T-1 --json >/dev/null
     HITL_E2E=1 CLI approve T-1 --stage done --by human --force >/dev/null
     CLI status --sync-tags >/dev/null
-    if [ "$kind" != churn ]; then
+    if [ "$kind" = churn-waiting ]; then
+      mkdir -p .hitl/changes/feat-report
+      printf '%s\n' '<!-- audience: business -->' '# Monthly settlement report' \
+        '> change: feat-report | status: draft | created: 2026-11-05 | updated: 2026-11-05 | before: feat-fee' '' \
+        '## Why' 'Finance needs the settlements of a month in one report before fees change.' '' \
+        '## What changes' '- Finance can export the settlements of a month.' '' \
+        '## Capabilities' '| capability | key | change | requirements |' '|---|---|---|---|' '| reporting | REP | new | |' '' \
+        '## Artifacts' '| artifact | decision | why |' '|---|---|---|' '| spec delta | included | always |' > .hitl/changes/feat-report/proposal.md
+      CLI note add --change feat-fee --source feat-report --kind order --text "Monthly settlement report: feat-fee waits until it is archived." \
+        --from "/hitl:plan feat-report --before feat-fee" >/dev/null
+    elif [ "$kind" != churn ]; then
       CLI note add --change feat-fee --kind spec --refs BIL-R1.S2 --text "The settlement fee is 2, not 1. Finance changed it on 2026-11-04." \
         --from "user, during /hitl:implement T-2" >/dev/null
     fi
@@ -76,17 +86,6 @@ case "$kind" in
       sed -i 's/Given 10 When settle Then 11/Given 10 When settle Then 12/' .hitl/changes/feat-fee/tasks.md
       CLI note apply --change feat-fee N-1 --impact BIL-R1.S2=behaviour --from "/hitl:plan feat-fee amend N-1" >/dev/null
     fi
-    gitc ;;
-  link)
-    cp -R "$HERE/link-app/." "$dest/"
-    mkdir -p "$dest/.hitl/docs"; cp "$HERE"/docs/*.md "$dest/.hitl/docs/"
-    cd "$dest"
-    CLI init --json >/dev/null; CLI index --all >/dev/null
-    CLI spec validate >/dev/null
-    HITL_E2E=1 CLI approve T-1 --stage skeleton --by human --ack N-1 >/dev/null
-    sed -i 's/export function settle(amount: number): number {/export function settle(amount: number, fee = 1): number {/' src/settle.ts
-    CLI index >/dev/null
-    CLI spec archive feat-fee --force >/dev/null
     gitc ;;
   lua)
     cp -R "$HERE/lua-app/." "$dest/"

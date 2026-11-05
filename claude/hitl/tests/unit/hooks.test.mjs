@@ -376,6 +376,23 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Write", { file_path: f, content: FILES["src/svc.ts"] + "\nSYNTAX_ERROR {{{\n" + (REAL ? "export function (" : "") }, "hitl:implementer"));
   });
 
+  test("0.12: implementer body edits are denied while the task's change waits for another change; allowed once it is archived", async () => {
+    const { root } = await mkProject();
+    const lf = path.join(root, ".hitl/index/skeleton.lock.json");
+    const L = JSON.parse(fs.readFileSync(lf, "utf8"));
+    L.tasks["T-1"].file = ".hitl/changes/feat-x/tasks.md";
+    fs.writeFileSync(lf, JSON.stringify(L, null, 2) + "\n");
+    const prop = (id) => `# ${id}\n> change: ${id} | status: draft | created: 2026-11-06 | updated: 2026-11-06\n\n## Why\nx\n`;
+    for (const id of ["feat-x", "feat-b"]) { fs.mkdirSync(path.join(root, ".hitl/changes", id), { recursive: true }); fs.writeFileSync(path.join(root, ".hitl/changes", id, "proposal.md"), prop(id)); }
+    fs.writeFileSync(path.join(root, ".hitl/changes/feat-x/notes.md"), "# Notes — feat-x\n\n## N-1 wait\n- kind: order\n- source: feat-b\n- refs: none\n- status: open\n- from: x · 2026-11-06\n");
+    const f = path.join(root, "src/svc.ts");
+    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /T-1 belongs to feat-x, which is blocked: ⏳ feat-x waits for feat-b \(N-1\)/);
+    assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }), "main is not the implementer");
+    fs.mkdirSync(path.join(root, ".hitl/archive"), { recursive: true });
+    fs.renameSync(path.join(root, ".hitl/changes/feat-b"), path.join(root, ".hitl/archive/2026-11-06-feat-b"));
+    assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"));
+  });
+
   test("test-author isolation: reads, grep, writes", async () => {
     const { root } = await mkProject();
     const TA = "hitl:test-author";
@@ -648,42 +665,6 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     prompt("/hitl:approve feat-x defer N-3 feat-y", "r6");
     assertDeny(pre(root, "Bash", { command: dfr.replace("--to feat-y", "--to feat-z") }, null, "r6"), /defers N-3 to feat-y/);
     assertAllow(pre(root, "Bash", { command: dfr }, null, "r6"));
-  });
-
-  test("0.11.1 skip token: skipping reconcile findings is human-only, bound to the typed RC ids (and other change)", async () => {
-    const { root } = await mkProject();
-    const prompt = (p, s) => { const r = hook("prompt-submit.mjs", { session_id: s, cwd: root, hook_event_name: "UserPromptSubmit", prompt: p }); assert.equal(r.code, 0, r.err); };
-    const skp = (ids, extra = "") => `hitl-index approve --change feat-x --stage skip --findings ${ids}${extra} --reason "B keeps its rule" --by human`;
-    // never --by auto / human-override (not even a dry run), never a subagent, never without the user's token
-    assertDeny(pre(root, "Bash", { command: skp("RC-1").replace("--by human", "--by auto") }, null, "k0"), /Skipping reconcile findings is human-only/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1").replace("--by human", "--by human-override") + " --dry-run" }, null, "k0"), /Skipping reconcile findings is human-only/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k0"), /human-only/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, "hitl:implementer", "k0"), /human-only/);
-    // other tokens never authorize a skip, and a skip token authorizes nothing else
-    for (const p of ["/hitl:approve feat-x dismiss N-3 nope", "/hitl:approve feat-x reopen", "/hitl:approve T-1", "/hitl:approve"]) {
-      prompt(p, "k1");
-      assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k1"), /token is|not bound to a change/);
-    }
-    prompt("/hitl:approve feat-x skip RC-1,RC-3 B keeps its own rule", "k2");
-    const sess = JSON.parse(fs.readFileSync(path.join(root, ".hitl/index/.session/k2.json"), "utf8"));
-    assert.deepEqual([sess.approveToken.change, sess.approveToken.stage], ["feat-x", "skip"]);
-    assertDeny(pre(root, "Bash", { command: 'hitl-index approve --change feat-x --stage dismiss --note N-3 --reason "x" --by human' }, null, "k2"), /token is for change feat-x \(skip\)/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k2"), /skips RC-1,RC-3 of feat-x.*--findings RC-1,RC-3/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3,RC-4") }, null, "k2"), /skips RC-1,RC-3/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1", " --findings RC-3") }, null, "k2"), /skips RC-1,RC-3/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3", " --from feat-y") }, null, "k2"), /no other change typed/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3").replace("feat-x", "feat-y") }, null, "k2"), /for change feat-x/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-1,RC-3") + " && echo ok" }, null, "k2"), /alone/);
-    assertSilent(pre(root, "Bash", { command: skp("RC-1,RC-3") + " --dry-run" }, null, "k2"));
-    assertAllow(pre(root, "Bash", { command: skp("RC-3,RC-1") }, null, "k2")); // same set, any order
-    assertDeny(pre(root, "Bash", { command: skp("RC-3,RC-1") }, null, "k2"), /human-only/); // one use
-    // the other change, when typed, binds too; no ids typed binds nothing
-    prompt("/hitl:approve feat-x skip feat-y RC-2 not relevant", "k3");
-    assertDeny(pre(root, "Bash", { command: skp("RC-2") }, null, "k3"), /from feat-y.*--findings RC-2 --from feat-y/);
-    assertDeny(pre(root, "Bash", { command: skp("RC-2", " --from feat-z") }, null, "k3"), /from feat-y/);
-    assertAllow(pre(root, "Bash", { command: skp("RC-2", " --from feat-y") }, null, "k3"));
-    prompt("/hitl:approve feat-x skip because", "k4");
-    assertDeny(pre(root, "Bash", { command: skp("RC-1") }, null, "k4"), /no finding ids typed/);
   });
 
   test("Bash backstop: a shell write to a protected hitl file is denied (any role); reads, data heredocs and hitl-index runs pass", async () => {

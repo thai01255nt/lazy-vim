@@ -1,7 +1,7 @@
 ---
 name: go
-description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a T-id, or status/what next (/hitl:flow).
-argument-hint: "<description> [--plan|--quick|--tdd]"
+description: One entry point for new work in a hitl project — reads a plain description of something to build, fix or change, picks the route with a read-only subagent (📌 note or amend of an active change, tasks update, /hitl:tdd, /hitl:tasks quick, /hitl:plan) and runs it; "--plan", "--quick", "--tdd" pick it yourself; "--before <change-id>" plans a prerequisite change that change waits for. Use when the user describes new work without naming a command, e.g. "users should be able to export to CSV", "the total is off by one cent", "thêm chức năng…", "sửa lỗi…", "làm việc mới". Not for explicit "plan/spec …", "TDD this", "tasks quick …", a T-id, or status/what next (/hitl:flow).
+argument-hint: "<description> [--plan|--quick|--tdd] [--before <change-id>[,…]]"
 allowed-tools: Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -13,7 +13,14 @@ writes no file: the router decides, the skill it hands over to does the work and
 Brief status (injected):
 !`node ${CLAUDE_PLUGIN_ROOT}/scripts/hitl-index.mjs status --brief --soft`
 
-Arguments: `$ARGUMENTS` = `<description> [--plan|--quick|--tdd]` (the flag anywhere).
+Arguments: `$ARGUMENTS` = `<description> [--plan|--quick|--tdd] [--before <change-id>[,…]]` (the flags anywhere;
+`--before` is repeatable: `--before A --before C` = `--before A,C`).
+
+**`--before <ids>`** (0.12) = this work is a prerequisite change that those changes wait for
+(`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md`). It always takes the plan route: no router, print
+`🧭 /hitl:plan — prerequisite of <ids>` and invoke the Skill `hitl:plan` with `<description> --before <ids joined by ,>`.
+With `--quick` or `--tdd` → ⛔ GATE `--before needs its own change: 1. 💡 plan it (--plan) · 2. drop --before`
+END THE TURN.
 
 ## 1. Guards
 - Brief status says "not initialized" → `❌ HITL not initialized here. 🎯 next: /hitl:setup`. Stop.
@@ -24,7 +31,7 @@ Arguments: `$ARGUMENTS` = `<description> [--plan|--quick|--tdd]` (the flag anywh
   and stop.
 
 ## 2. Manual mode (a flag)
-One flag → no router. Print `🧭 <command> — <the flag> chosen` and invoke the Skill in this turn:
+One flag (`--before` counts as `--plan`, see above) → no router. Print `🧭 <command> — <the flag> chosen` and invoke the Skill in this turn:
 
 | flag | Skill | args |
 |---|---|---|

@@ -23,9 +23,9 @@ export async function run(argv, ctx) {
     try { verdict = JSON.parse(text); } catch (e) { res = { ok: false, errors: [`${rel} is not JSON: ${e.message}`] }; }
     if (!res) {
       const changes = [];
-      const { loadLinkGraph } = await import("../lib/coupling.mjs");
-      const graph = await loadLinkGraph(ctx.root);
-      for (const e of await listChanges(ctx.root, { archived: false })) changes.push(await changeInfo(ctx.root, ctx.config, await readChange(ctx.root, e), { graph }));
+      const { readActiveNotes } = await import("../lib/notes.mjs");
+      const activeNotes = await readActiveNotes(ctx.root).catch(() => []);
+      for (const e of await listChanges(ctx.root, { archived: false })) changes.push(await changeInfo(ctx.root, ctx.config, await readChange(ctx.root, e), { activeNotes }));
       res = resolveRoute(verdict, changes, { final: !!a.final });
     }
     if (!a.keep) await rm(file, { force: true }).catch(() => {});

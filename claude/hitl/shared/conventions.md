@@ -50,6 +50,9 @@ rule or decision of an active change), do not amend it now:
   `/hitl:design <id> amend N-k`), or the human acks, dismisses or defers it (`/hitl:approve …`).
 - Not a note: a question (discuss it; nothing is recorded), a draft proposal or design being written in plan/design
   (edit it as usual), or an explicit "amend/apply it now" (go straight to `amend-spec.md`).
+- Too big for the change (its own spec, new behaviour, more than 1 task, another capability) → not a note: print
+  `💡 Out of scope for <change>: <X> — big enough for its own change → /hitl:go <X> --before <change>`
+  (`other-changes.md` §1).
 
 ## No over-questioning
 - Outside gates, never ask. Decide with the stated default and say it in one line: `💡 Assumed: …`.
@@ -73,15 +76,16 @@ Ids come from `hitl-index` (`spec next-id`, `next-id`) and are never renumbered 
 - Edit an `@status` tag or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status --sync-tags` does).
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
 - Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
-- Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply|reconcile` and `/hitl:approve` write it), or add
-  `--ack`, or run the `reopen`, `dismiss`, `defer` or `skip` approve forms unless the user typed them. Skipping a
-  reconcile finding is the human's `/hitl:approve <id> skip RC-n <reason>`; a finding you do not add stays pending.
+- Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply` and `/hitl:approve` write it), or add
+  `--ack`, or run the `reopen`, `dismiss` or `defer` approve forms unless the user typed them.
 - Write any of the files above from Bash either (`sed -i`, `>`/`>>`, `tee`, `cp`/`mv`/`rm`, `perl -i`, inline
   python/node). The PreToolUse hook denies the obvious forms as a backstop, not a guarantee: indirect writes (a
   variable path, `cd` then a relative name, a script on disk) are not caught and are still forbidden. Reading them
   (`cat`, `grep`, `jq`, `git diff`) is fine; changes go through `hitl-index`.
-- Edit another change's files to carry this change's impact: it reaches the other change only as notes there
-  (`/hitl:plan <other> reconcile <this>`, 0.10).
+- Edit another change's files to carry this change's impact: it reaches the other change only as a note there
+  (`hitl-index note add --change <other> --source <this>`, after the user's `--before` or Y; `other-changes.md`).
+- Decide which change goes first, or write a note with `--source` the user did not ask for: the order is the user's
+  call. The only automatic rule: a note from B blocks all of A until B is archived (`other-changes.md` §5).
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or
   `--feature <change-id> --lane fast`) for that task. Never suggest `--lane fast` to get past a gate.
 - Use line numbers in ids, docs or tasks. Refer to symbols as `Class.method` or `path#Class.method`.

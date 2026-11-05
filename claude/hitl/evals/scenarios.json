@@ -270,14 +270,23 @@
    ]
   },
   {
-   "id": "link-reconcile",
-   "fixture": "link",
-   "runs": 2,
-   "prompt": "/hitl:plan feat-receipt reconcile feat-fee",
+   "id": "before-go",
+   "fixture": "churn",
+   "runs": 1,
+   "prompt": "/hitl:go Finance needs a monthly settlement report export --before feat-fee",
    "checks": [
-    "reconcile_dry_run",
-    "reconcile_gate",
-    "reconcile_no_writes"
+    "go_before_plan",
+    "before_parent_untouched"
+   ]
+  },
+  {
+   "id": "before-blocked",
+   "fixture": "churn-waiting",
+   "runs": 1,
+   "prompt": "/hitl:approve T-2 skeleton",
+   "checks": [
+    "approve_blocked_by_wait",
+    "lock_unchanged"
    ]
   },
   {

@@ -63,7 +63,7 @@ test("small helpers: titleOf, refKind, specRefsTouch, counts, applyCommand, reop
   assert.deepEqual(["T-1", "T-1.AC2", "D-3", "ACC-R1.S2", "ACC-BR1", "UserService.createUser"].map(refKind), ["task", "ac", "decision", "spec", "spec", "symbol"]);
   assert.ok(specRefsTouch("ACC-R3", "ACC-R3.S2") && specRefsTouch("ACC-R3.S2", "ACC-R3") && specRefsTouch("ACC-R3.S2", "ACC-R3.S2"));
   assert.ok(!specRefsTouch("ACC-R3.S1", "ACC-R3.S2") && !specRefsTouch("ACC-R3", "ACC-R30.S1") && !specRefsTouch("ACC-BR1", "ACC-R1"));
-  assert.deepEqual(noteCounts([{ status: "open" }, { status: "reopen pending" }, { status: "applied" }, { status: "open" }]), { open: 2, reopenPending: 1, applied: 1, dismissed: 0, deferred: 0, total: 4 });
+  assert.deepEqual(noteCounts([{ status: "open" }, { status: "reopen pending" }, { status: "applied" }, { status: "open" }]), { open: 2, reopenPending: 1, applied: 1, dismissed: 0, deferred: 0, total: 4, incoming: 0 });
   assert.equal(applyCommand("feat-x", { id: "N-1", kind: "spec", status: "open" }), "/hitl:plan feat-x amend N-1");
   assert.equal(applyCommand("feat-x", { id: "N-1", kind: "design", status: "open" }), "/hitl:design feat-x amend N-1");
   assert.equal(applyCommand("feat-x", { id: "N-1", kind: "order", status: "open" }), "/hitl:tasks feat-x update");
@@ -143,7 +143,7 @@ test("note add|list|show: writes notes.md, validates refs (exit 1, nothing writt
   assert.equal(cli(root, "note", "add", "--change", "feat-password-reset", "--kind", "order", "--text", "T-13 first", "--refs", "T-13").code, 0);
   const l = cli(root, "note", "list", "--json").json();
   assert.equal(l.schema, "hitl.notes/1");
-  assert.deepEqual(l.changes[0].counts, { open: 2, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 2 });
+  assert.deepEqual(l.changes[0].counts, { open: 2, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 2, incoming: 0 });
   assert.deepEqual(l.changes[0].notes.map((n) => [n.id, n.blocks, n.apply]), [["N-1", ["T-12"], "/hitl:plan feat-password-reset amend N-1"], ["N-2", ["T-13"], "/hitl:tasks feat-password-reset update"]]);
   assert.deepEqual(cli(root, "note", "list", "--task", "T-13", "--json").json().changes[0].notes.map((n) => n.id), ["N-2"]);
   const s = cli(root, "note", "show", "--change", "feat-password-reset", "N-2", "--json");

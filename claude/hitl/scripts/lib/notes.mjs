@@ -1,6 +1,9 @@
 // Notes inbox of a change (0.9): `.hitl/changes/<id>/notes.md`, written only by hitl-index (note add|apply and the
 // /hitl:approve forms --ack, reopen, dismiss, defer). A requirement or design change stated mid-change is noted here
 // first; an open note blocks the approvals of the tasks it touches until it is applied, acked, dismissed or deferred.
+// 0.12: a note with `source: <B>` comes from another change B (B created with `--before A`, or B's plan/design found
+// that it changes A's behaviour). It blocks every approval of A until B is archived (computed from the folders: no
+// sync step); after that an unapplied spec/design note from B forces A's amend. See changeWait.
 // Pure parse/render/match helpers + small IO. Never imports lock.mjs (lock.mjs imports this module).
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -13,6 +16,8 @@ export const ADD_KINDS = ["spec", "design", "order"];
 export const IMPACT_CLASSES = ["wording", "behaviour", "contract", "scenario", "requirement"];
 /** Statuses that block approvals (and archive). */
 export const BLOCKING = new Set(["open", "reopen pending"]);
+/** Statuses that close a note for good (it never blocks again). */
+export const CLOSED = new Set(["dismissed", "deferred"]);
 export const NOTES_FILE = "notes.md";
 const HEADER_NOTE = "> Written by hitl-index (note add, note apply, /hitl:approve). Do not edit by hand.";
 
@@ -35,17 +40,18 @@ const clean = (s) => String(s ?? "").replace(/[()]/g, "").replace(/\s+/g, " ").t
 
 /** parseNotes(text) -> {title, notes:[note]}; note = {id, title, kind, refs, refTitles, status, deferredTo, from, at, acks, reason, resolved, text, meta}. */
 export function parseNotes(text) {
-  const out = { title: null, notes: [], meta: {} };
+  const out = { title: null, notes: [] };
   let cur = null, body = null;
   const flush = () => { if (cur) { cur.text = body.join("\n").trim(); out.notes.push(cur); } cur = null; body = null; };
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.replace(/\s+$/, "");
     let m;
     if (!cur && out.title === null && (m = line.match(/^# (.+)$/))) { out.title = m[1].trim(); continue; }
-    if (!cur && (m = line.match(/^<!-- hitl-notes (\{.*\}) -->$/))) { try { out.meta = JSON.parse(m[1]); } catch { out.meta = {}; } continue; }
+    if (!cur && /^<!-- hitl-notes /.test(line)) continue; // 0.10 reconcile record: dropped on the next write
+    if (!cur && /^> Reconciled: /.test(line)) continue;
     if ((m = line.match(/^## (N-\d+)(?: (.*))?$/))) {
       flush();
-      cur = { id: m[1], title: (m[2] || "").trim(), kind: null, refs: [], refTitles: {}, status: "open", deferredTo: null, from: null, at: null, acks: [], reason: null, resolved: null, text: "", meta: {} };
+      cur = { id: m[1], title: (m[2] || "").trim(), kind: null, source: null, refs: [], refTitles: {}, status: "open", deferredTo: null, from: null, at: null, acks: [], reason: null, resolved: null, text: "", meta: {} };
       body = [];
       continue;
     }
@@ -54,6 +60,7 @@ export function parseNotes(text) {
     if ((m = line.match(/^- ([a-z]+): ?(.*)$/)) && !body.some((l) => l.trim())) {
       const [, k, v] = m;
       if (k === "kind") cur.kind = v.trim();
+      else if (k === "source") cur.source = v.trim() || null;
       else if (k === "refs") {
         for (const x of v.matchAll(/([^\s,()]+)(?:\s*\(([^)]*)\))?/g)) {
           if (x[1] === "none" || x[1] === "—") continue;
@@ -92,30 +99,13 @@ export function reopensLine(reopen) {
   }).join(" · ");
 }
 
-/**
- * A reconcile record (`meta.reconciled[<from>]`): {at, archived, notes:[N-k], pending:[{id, key, title}],
- * skipped:[{key, id, title, reason, by, at}]}. A finding is pending until it is added as a note or the human skips it
- * (`/hitl:approve <change> skip RC-n <reason>`); 0.10 records hold `skipped` as bare keys (kept as skipped).
- */
-export const skippedKeys = (r) => new Set((r?.skipped || []).map((s) => (typeof s === "string" ? s : s?.key)).filter(Boolean));
-/** True when the run against an archived change is recorded and no finding of it is still pending. */
-export const reconcileDone = (r) => !!r?.archived && !(r.pending || []).length;
-
-/** Readable lines of the file-level record (0.10): one per change reconciled from. */
-export function reconciledLines(meta) {
-  return Object.entries(meta?.reconciled || {}).sort(([a], [b]) => a.localeCompare(b)).map(([from, r]) =>
-    `> Reconciled: ${from} ${r.at ? `${r.at} (${r.archived ? "archived" : "active"})` : "(no run yet)"} · ${r.notes?.length ? r.notes.join(", ") : "no new notes"}`
-    + `${r.pending?.length ? ` · pending ${r.pending.map((p) => p.id).join(", ")}` : ""}${r.skipped?.length ? ` · ${r.skipped.length} skipped` : ""}`);
-}
-
-/** renderNotes(changeId, notes, fileMeta?) -> notes.md text. */
-export function renderNotes(changeId, notes, fileMeta = {}) {
+/** renderNotes(changeId, notes) -> notes.md text. */
+export function renderNotes(changeId, notes) {
   const L = [`# Notes — ${changeId}`, "", HEADER_NOTE];
-  const rl = reconciledLines(fileMeta);
-  if (rl.length) L.push(...rl, `<!-- hitl-notes ${JSON.stringify({ reconciled: fileMeta.reconciled })} -->`);
   for (const n of [...notes].sort((a, b) => noteNum(a.id) - noteNum(b.id))) {
     L.push("", `## ${n.id} ${clean(n.title) || "(untitled)"}`);
     L.push(`- kind: ${n.kind}`);
+    if (n.source) L.push(`- source: ${n.source}`);
     L.push(`- refs: ${n.refs.length ? n.refs.map((r) => (n.refTitles?.[r] ? `${r} (${clean(n.refTitles[r])})` : r)).join(", ") : "none"}`);
     const st = n.status === "deferred" && n.deferredTo ? `deferred → ${n.deferredTo.change}${n.deferredTo.note ? ` (${n.deferredTo.note} there)` : ""}` : n.status;
     L.push(`- status: ${st}`);
@@ -260,6 +250,7 @@ export function blockingNotes(notes, ctx) {
   const block = [], acked = [], warn = [];
   for (const n of notes || []) {
     if (!BLOCKING.has(n.status)) continue;
+    if (n.source) continue; // a note from another change blocks the whole change (changeWait), not per task
     if (!n.refs.length) { warn.push({ note: n, via: [] }); continue; }
     const via = noteHitsTask(n, ctx);
     if (!via.length) continue;
@@ -272,7 +263,7 @@ export function blockingNotes(notes, ctx) {
 /** Command that resolves a note (apply path), for messages and routing. */
 export function applyCommand(changeId, note) {
   if (note.status === "reopen pending") return `/hitl:approve ${changeId} reopen ${note.id}`;
-  if (note.kind === "order" && note.meta?.coupling?.from) return `/hitl:plan ${changeId} reconcile ${note.meta.coupling.from}`;
+  if (note.source && note.kind === "order") return `/hitl:flow ${note.source}`;
   if (note.kind === "design") return `/hitl:design ${changeId} amend ${note.id}`;
   if (note.kind === "order") return `/hitl:tasks ${changeId} update`;
   return `/hitl:plan ${changeId} amend ${note.id}`;
@@ -280,16 +271,73 @@ export function applyCommand(changeId, note) {
 
 /** Counts by status. */
 export function noteCounts(notes) {
-  const c = { open: 0, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 0 };
+  const c = { open: 0, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 0, incoming: 0 };
   for (const n of notes || []) {
     c.total++;
-    if (n.status === "open") c.open++;
+    if (incomingState(n)) c.incoming++;
+    if (n.status === "open" && !(n.source && n.kind === "order" && n.sourceState === "archived")) c.open++;
     else if (n.status === "reopen pending") c.reopenPending++;
     else if (n.status === "applied") c.applied++;
     else if (n.status === "dismissed") c.dismissed++;
     else if (n.status === "deferred") c.deferred++;
   }
   return c;
+}
+
+// ---------------------------------------------------------------- notes from another change (0.12)
+/**
+ * State of a note from another change (`source: B`; `sourceState` is set by readNotes: active | archived | gone):
+ * "wait"  — B is not archived (active, or gone until the human dismisses the note): the whole change waits;
+ * "amend" — B is archived and this spec/design note is still open or waiting for reopen: the change must apply it first;
+ * null    — no source, dismissed/deferred, applied after B's archive, or an order note whose B is archived (cleared).
+ */
+export function incomingState(n) {
+  if (!n?.source || CLOSED.has(n.status)) return null;
+  if (n.sourceState !== "archived") return "wait";
+  return n.kind !== "order" && BLOCKING.has(n.status) ? "amend" : null;
+}
+
+/**
+ * changeWait(notes) -> {blocked, waits:[{source, state, notes:[N-k]}], amend:[note]}: what blocks every task approval,
+ * implement and the archive of the change holding these notes. One rule: a note from B blocks the whole change until B
+ * is archived; then its unapplied spec/design notes block until applied (amend) or dismissed by the human.
+ */
+export function changeWait(notes) {
+  const by = new Map(), amend = [];
+  for (const n of notes || []) {
+    const st = incomingState(n);
+    if (st === "amend") amend.push(n);
+    if (st !== "wait") continue;
+    if (!by.has(n.source)) by.set(n.source, { source: n.source, state: n.sourceState || "active", notes: [] });
+    by.get(n.source).notes.push(n.id);
+  }
+  const waits = [...by.values()];
+  return { blocked: waits.length > 0 || amend.length > 0, waits, amend };
+}
+
+/** One readable reason per wait/amend item of changeWait (approve refusals, archive preconditions, status). */
+export function waitReasons(changeId, w) {
+  const out = [];
+  for (const x of w.waits) out.push(x.state === "gone"
+    ? `⏳ ${changeId} waits for ${x.source} (${x.notes.join(", ")}), but ${x.source} is gone (no active or archived change): if ${changeId} took in its notes, amend them back; then /hitl:approve ${changeId} dismiss <N-k> <reason>`
+    : `⏳ ${changeId} waits for ${x.source} (${x.notes.join(", ")}): every task approval, implement and the archive of ${changeId} wait until ${x.source} is archived (plan, design and tasks stay open)`);
+  for (const n of w.amend) out.push(`📥 ${n.id} from ${n.source} (archived) is not applied yet: ${n.kind === "design" ? `/hitl:design ${changeId} amend ${n.id}` : `/hitl:plan ${changeId} amend ${n.id}`} (or /hitl:approve ${changeId} dismiss ${n.id} <reason>)`);
+  return out;
+}
+
+/** True when a note blocks the archive of its change: an open/reopen-pending own note, or a note from another change in wait/amend. */
+export const blocksArchive = (n) => (n.source ? !!incomingState(n) : BLOCKING.has(n.status));
+
+/** sourceState of each note with a source: "active" | "archived" | "gone" (mutates and returns the notes). */
+export async function annotateSources(root, notes) {
+  if (!(notes || []).some((n) => n.source)) return notes;
+  const { listChanges } = await import("./changes.mjs");
+  const all = await listChanges(root).catch(() => []);
+  for (const n of notes) if (n.source) {
+    const hit = all.filter((e) => e.id === n.source);
+    n.sourceState = hit.some((e) => !e.archived) ? "active" : hit.length ? "archived" : "gone";
+  }
+  return notes;
 }
 
 // ---------------------------------------------------------------- IO
@@ -300,12 +348,12 @@ export async function readNotes(root, changeDir) {
   return (await readNotesDoc(root, changeDir)).notes;
 }
 
-/** {notes, meta} of a change folder (meta = the file-level record, 0.10). */
+/** {notes} of a change folder; notes with a `source` carry `sourceState` (annotateSources). */
 export async function readNotesDoc(root, changeDir) {
   const text = await readText(join(root, notesRel(changeDir)), null);
-  if (text === null) return { notes: [], meta: {} };
+  if (text === null) return { notes: [] };
   const p = parseNotes(text);
-  return { notes: p.notes, meta: p.meta };
+  return { notes: await annotateSources(root, p.notes) };
 }
 
 /** Read-modify-write notes.md of a change under the index lock. fn(notes, doc) returns the value to return. */
@@ -313,7 +361,7 @@ export async function updateNotes(root, changeDir, changeId, fn) {
   return withIndexLock(root, async () => {
     const doc = await readNotesDoc(root, changeDir);
     const out = await fn(doc.notes, doc);
-    await writeTextAtomic(join(root, notesRel(changeDir)), renderNotes(changeId, doc.notes, doc.meta));
+    await writeTextAtomic(join(root, notesRel(changeDir)), renderNotes(changeId, doc.notes));
     return out;
   });
 }

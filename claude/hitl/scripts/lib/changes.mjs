@@ -10,7 +10,7 @@ const RX_CLAR = /\[NEEDS CLARIFICATION:/;
 import { artifactDecision, bizLint, blockHash, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
 import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, vagueTermsFrom } from "./speclint.mjs";
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
-import { BLOCKING, applyCommand, noteCounts, readNotes } from "./notes.mjs";
+import { BLOCKING, applyCommand, blocksArchive, changeWait, noteCounts, readActiveNotes, readNotes, waitReasons } from "./notes.mjs";
 import { avoidedMessage, effectiveTerms, findAvoided } from "./glossary.mjs";
 export { SPECS_REL };
 
@@ -270,7 +270,7 @@ export function changePhase({ archived, proposal, design, tasks, tasksSkipped = 
 }
 
 /** One hitl.change/1 entry. */
-export async function changeInfo(root, config, ch, { graph = null } = {}) {
+export async function changeInfo(root, config, ch, { activeNotes = null } = {}) {
   const proposal = ch.proposal ? ch.proposal.status || "draft" : "missing";
   const design = designState(ch);
   const tasks = ch.tasksDoc ? ch.tasksDoc.status || "draft" : "missing";
@@ -278,19 +278,25 @@ export async function changeInfo(root, config, ch, { graph = null } = {}) {
   const tasksSkipped = artifactDecision(ch.proposal, "tasks") === "skipped" || !!ch.proposal?.noBehaviourChange && !ch.deltas.length;
   const phase = changePhase({ archived: ch.archived, proposal, design, tasks, tasksSkipped, taskCounts: tc });
   const notes = await readNotes(root, ch.dir).catch(() => []);
-  const open = [...notes.filter((n) => n.status === "reopen pending"), ...notes.filter((n) => n.status === "open")];
+  const own = notes.filter((n) => !n.source);
+  const open = [...own.filter((n) => n.status === "reopen pending"), ...own.filter((n) => n.status === "open")];
+  // 0.12: notes from other changes (`source: B`): the whole change waits while B is not archived; then B's unapplied
+  // spec/design notes force the amend first. Plan, design and tasks phases keep their own next step while waiting.
+  const w = ch.archived ? { blocked: false, waits: [], amend: [] } : changeWait(notes);
+  const wait = w.blocked ? { for: w.waits.map((x) => ({ change: x.source, state: x.state, notes: x.notes })), amend: w.amend.map((n) => ({ id: n.id, title: n.title, source: n.source, kind: n.kind, apply: applyCommand(ch.id, n) })),
+    reasons: waitReasons(ch.id, w) } : null;
+  // the active changes this one blocks (notes with `source: <this>` in them)
+  const an = ch.archived ? [] : activeNotes || await readActiveNotes(root).catch(() => []);
+  const blocks = an.filter((x) => x.change !== ch.id).map((x) => ({ change: x.change, notes: x.notes.filter((n) => n.source === ch.id && !["dismissed", "deferred"].includes(n.status)).map((n) => n.id) }))
+    .filter((x) => x.notes.length);
+  const waitNext = w.amend.length ? applyCommand(ch.id, w.amend[0]) : w.waits.length && ["implement", "archive-ready"].includes(phase) ? `/hitl:flow ${w.waits[0].source}` : null;
   // an open note blocks archive: an archive-ready change routes to resolving it first
-  // 0.10 links: declared (proposal header) both ways; a linked archived change not reconciled yet blocks archive
-  const cp = await import("./coupling.mjs");
-  const g = graph || await cp.loadLinkGraph(root);
-  const links = ch.archived ? (ch.proposal?.links || []).map((l) => ({ change: l.change, rel: l.rel, level: l.level, declaredIn: ch.id })) : cp.linksOf(g, ch.id);
-  const reconcilePending = ch.archived ? [] : cp.reconcilePending(g, ch.id);
-  const next = phase === "archive-ready" && reconcilePending.length ? reconcilePending[0].command
+  const next = waitNext ? waitNext
     : phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
     : { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
   return { id: ch.id, dir: ch.dir, archived: ch.archived, title: ch.proposal?.title ?? null, proposal, design,
     capabilities: ch.deltas.map((d) => d.capability || d.folder), contracts: ch.contracts.length, tasksFile: ch.tasksFile, tasks,
-    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), links, reconcilePending, phase, next };
+    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), before: ch.proposal?.before || [], wait, blocks, phase, next };
 }
 
 // ---------------------------------------------------------------- validation (§6.1)
@@ -465,24 +471,18 @@ export async function validate(root, config, { change = null, livingOnly = false
     if (!ch) throw Object.assign(new Error(`no active change ${change} in ${CHANGES_REL}/`), { code: 1 });
   }
   if (!change) { const lv = validateLiving(living); items.push(...lv.items); targets.push(...lv.targets); }
-  let orderNotes = [];
   if (!livingOnly) {
-    // 0.10 coupling: header targets, cycles, understated links, pending reconciles; `after:` links keep an order note
-    const cp = await import("./coupling.mjs");
-    const graph = await cp.loadLinkGraph(root);
-    const ectx = await cp.evidenceContext(root);
     for (const ch of active) {
       if (change && ch.id !== change) continue;
       const others = active.filter((o) => o !== ch);
       const r = validateChange({ change: ch, living, others, config });
       if (record) await recordBase(root, ch, r.baseMissing);
-      items.push(...r.items, ...cp.couplingItems(graph, ch, others, ectx)); targets.push(r.target); summary.push(...r.summary);
+      items.push(...r.items); targets.push(r.target); summary.push(...r.summary);
     }
-    if (record) orderNotes = await cp.syncOrderNotes(root, { graph, active, living, ectx, only: change });
   }
   sortItems(items);
   const counts = countItems(items);
-  return { schema: "hitl.spec-validate/1", ok: counts.error === 0, targets, counts, items, summary, ...(orderNotes.length ? { orderNotes } : {}) };
+  return { schema: "hitl.spec-validate/1", ok: counts.error === 0, targets, counts, items, summary };
 }
 
 // ---------------------------------------------------------------- conflicts (§6.3)
@@ -589,31 +589,29 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
   }
   const m = mergeChange({ changeId: id, deltas: ch.deltas, glossaryDelta: ch.glossaryDelta, proposal: ch.proposal, living: living.specs, glossary: living.glossary,
     base: ch.base, acceptBase, renumber, reserved, date });
-  let tasksPre = null; let tasksOk = true; let bodyDrift = []; let notesPre = null; let reconcilePre = null; let reconcileNext = [];
+  let tasksPre = null; let tasksOk = true; let bodyDrift = []; let notesPre = null;
   if (archive) {
     const tc = await taskCounts(root, config, ch.tasksDoc);
     tasksPre = { total: tc.total, done: tc.done, notDone: tc.notDone };
     tasksOk = !tc.notDone.length || force || config?.spec?.archiveRequiresDone === false;
     bodyDrift = await doneBodyDrift(root, ch.tasksDoc);
-    // 0.9: open notes (and recheck notes waiting for reopen) block archive, even with --force
+    // 0.9: open notes (and recheck notes waiting for reopen) block archive, even with --force;
+    // 0.12: so do notes from another change that is not archived yet (wait) or not applied yet (amend)
     const notes = await readNotes(root, ch.dir);
-    const open = notes.filter((n) => BLOCKING.has(n.status));
-    notesPre = { open: open.map((n) => ({ id: n.id, title: n.title, status: n.status, kind: n.kind, apply: applyCommand(id, n) })) };
-    // 0.10: the change that archives second owns the reconcile with every linked change already archived
-    const cp = await import("./coupling.mjs");
-    const graph = await cp.loadLinkGraph(root);
-    reconcilePre = { pending: cp.reconcilePending(graph, id) };
-    reconcileNext = cp.linksOf(graph, id).filter((l) => !l.archived && !l.unknown).map((l) => ({ change: l.change, command: `/hitl:plan ${l.change} reconcile ${id}` }));
+    const open = notes.filter(blocksArchive);
+    const w = changeWait(notes);
+    notesPre = { open: open.map((n) => ({ id: n.id, title: n.title, status: n.status, kind: n.kind, ...(n.source ? { source: n.source, sourceState: n.sourceState } : {}), apply: applyCommand(id, n) })),
+      ...(w.blocked ? { wait: waitReasons(id, w) } : {}) };
   }
   const archiveTo = `${ARCHIVE_REL}/${archiveDirName(date, id)}`;
   const conflicts = [...m.conflicts];
   if (archive && (await isDir(join(root, archiveTo)))) conflicts.push({ code: "ARCHIVE_EXISTS", ref: id, capability: null, message: `${archiveTo} already exists` });
-  const ok = !vErrors.length && tasksOk && !conflicts.length && !(notesPre?.open.length) && !(reconcilePre?.pending.length);
+  const ok = !vErrors.length && tasksOk && !conflicts.length && !(notesPre?.open.length);
   const out = {
     schema: "hitl.spec-merge/1", change: id, dryRun: !!dryRun, ok,
     capabilities: m.capabilities, glossary: m.glossary, conflicts,
-    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre, ...(notesPre ? { notes: notesPre } : {}), ...(reconcilePre ? { reconcile: reconcilePre } : {}) },
-    archive: archive ? { from: ch.dir, to: archiveTo, moved: false, reconcile: reconcileNext } : null,
+    preconditions: { validate: vErrors.length ? "fail" : "ok", tasks: tasksPre, ...(notesPre ? { notes: notesPre } : {}) },
+    archive: archive ? { from: ch.dir, to: archiveTo, moved: false } : null,
   };
   if (vErrors.length) out.errors = vErrors;
   const warnings = [...m.warnings, ...bodyDrift.map((d) => ({ code: "DONE_BODY_DRIFT", ref: d.name, capability: null, changes: [id], symbol: d.id, task: d.task,
@@ -629,15 +627,6 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
     }
   }
   if (acceptBase.length && JSON.stringify(m.base) !== JSON.stringify(ch.base)) writes.push({ file: `${ch.dir}/.base.json`, text: stableJson({ schema: BASE_SCHEMA, blocks: m.base }) });
-  // 0.10: the living text of every MODIFIED/REMOVED id before the merge, kept in the archived folder for reconcile diffs
-  if (archive) {
-    const prev = {};
-    for (const d of ch.deltas) for (const b of d.blocks) if (b.op !== "ADDED") {
-      const lb = living.specs.get(d.capability || d.folder)?.doc.blocks.find((x) => x.id === b.id);
-      if (lb) prev[b.id] = lb.livingText;
-    }
-    if (Object.keys(prev).length) writes.push({ file: `${ch.dir}/.prev.json`, text: stableJson({ schema: "hitl.spec-prev/1", blocks: prev }) });
-  }
   const tx = await commitWrites(root, writes, io);
   if (archive) {
     try {
@@ -645,6 +634,17 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
       await moveDir(join(root, ch.dir), join(root, archiveTo), io);
     } catch (e) { await tx.restore(); throw e; }
     out.archive.moved = true;
+    // 0.12: changes that waited for this one (notes with `source: <id>`) are unblocked now; their unapplied
+    // spec/design notes from this change are their next step (the forced amend)
+    try {
+      out.archive.unblocked = [];
+      for (const x of await readActiveNotes(root)) {
+        const mine = x.notes.filter((n) => n.source === id && !["dismissed", "deferred"].includes(n.status));
+        if (!mine.length) continue;
+        const amend = mine.filter((n) => n.kind !== "order" && BLOCKING.has(n.status)).map((n) => ({ id: n.id, title: n.title, apply: applyCommand(x.change, n) }));
+        out.archive.unblocked.push({ change: x.change, notes: mine.map((n) => n.id), amend, stillBlocked: changeWait(x.notes).blocked });
+      }
+    } catch (e) { out.archive.unblockedError = e.message; }
     // the lock follows the move: its tasks point at the archived tasks file (bookkeeping, not an approval)
     try { out.archive.lockTasks = await relinkArchivedTasks(root, ch.tasksDoc, id, `${archiveTo}/tasks.md`); }
     catch (e) { out.archive.lockError = e.message; }

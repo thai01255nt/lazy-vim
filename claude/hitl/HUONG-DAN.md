@@ -128,19 +128,24 @@ Cứ nói trong chat, ví dụ "link reset giờ hết hạn sau 15 phút". Clau
 Không muốn áp dụng: `/hitl:approve <change> dismiss N-1 <lý do>`, `/hitl:approve <change> defer N-1 <change khác>`,
 hoặc cho riêng một task đi tiếp: `/hitl:approve T-12 tests --ack N-1`.
 
-## 5b. Hai change cùng lúc
+## 5b. Hai change cùng lúc (change tiên quyết)
 
-Change B phải chờ change A (đổi contract, code dùng chung)? Thêm vào dòng meta proposal của B: `| after: feat-a (strong)`.
-Chỉ liên quan ít: `| relates: feat-a (low)`. Claude cũng đề nghị khi thấy chồng lấn (`⚠️ overlaps … link? (1/2/3)`).
-- `after`: chỉ các task của B chạm phần chồng lấn bị dừng (note `order`), phần còn lại làm tiếp.
-- Change nào archive trước thì change còn lại phải reconcile trước khi archive:
+Đang làm A thì thấy một việc quá lớn cho A (cần spec riêng, hơn 1 task, capability khác)? Tạo change riêng **trước** A:
 ```
-/hitl:archive feat-a                          (in ra 🎯 next: /hitl:plan feat-b reconcile feat-a)
-/hitl:plan feat-b reconcile feat-a            (xem các RC-n → Add <n> notes? (Y/n/pick))
-/hitl:approve feat-b skip RC-2 <lý do>        (chỉ bạn: bỏ qua RC không chọn; nếu không nó còn pending)
-/hitl:plan feat-b amend N-2 · /hitl:approve feat-b reopen N-3   (như mục 5a)
+/hitl:go thêm phí giao dịch --before feat-receipt     (hoặc /hitl:plan … --before feat-receipt; nhiều: --before a,b)
 ```
-Xem bằng chứng: `hitl-index coupling feat-b`.
+- A (`feat-receipt`) nhận note `source: feat-fee` → **toàn bộ A chờ**: không duyệt task, không implement, không
+  archive A tới khi feat-fee archive. Plan, design, tasks, amend của A vẫn được.
+- Lúc plan feat-fee, phần nào đổi requirement/decision của A thì Claude hỏi `📥 For feat-receipt: … → note? (Y/n/edit)`
+  thay vì sửa file của A.
+- feat-fee archive → A tự hết chờ; note spec/design từ feat-fee thì A phải nhận vào trước:
+```
+/hitl:archive feat-fee                        (in ra 🔓 / 📥 feat-receipt must take in N-2 …)
+/hitl:plan feat-receipt amend N-2             (delta + 🔁 Impact)
+/hitl:approve feat-receipt reopen N-3         (chỉ bạn, như mục 5a)
+```
+- Thôi chờ (thứ tự là quyết định của bạn) hoặc feat-fee bị bỏ: `/hitl:approve feat-receipt dismiss N-1 <lý do>`.
+- Chồng lấn tình cờ: plan tự chạy `hitl-index overlap <id>` và hỏi bạn ở cổng (`⚠️ Overlap with … (1/2/3)`).
 
 ## 6. Trả lời ở các cổng (⛔)
 

@@ -11,6 +11,8 @@ evidence before any claim). Resume = the same command: already-implemented tasks
 `error` and `candidates`, stop. It returns `items[]` in run order (topological by blocked-by, then prio, then id) with
 `lane` (`fast` low risk · `override` high risk + `--lane fast` · `normal` high risk), `action`, `status`, `drift`,
 plus `current`, `phase`, `stop`, `cycle`, `overrideTasks`.
+Then `hitl-index change <change-id> --json`: `wait` non-null (0.12: the change holds a note from another change that is
+not archived yet, or not taken in) → print its `reasons[]` and `🎯 next:` its `next`, stop (no task of the change runs).
 
 Print once:
 ```
