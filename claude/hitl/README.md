@@ -89,6 +89,20 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.10
+
+0.11 thêm **`/hitl:go <mô tả> [--plan|--quick|--tdd]`**: một cửa vào cho việc mới. Không cần migrate.
+- Không cờ: subagent chỉ đọc `hitl:work-router` xem change đang mở (`change --json`, `status --brief`), spec, glossary,
+  docs và code index, ghi phán quyết gọn vào `.hitl/.inbox/route.json` (`hitl.route/1`: `route`, `change`, `reason`,
+  `brief`, `signals[]`, `questions[]`). Lệnh mới `hitl-index route [--final] --json` kiểm tra phán quyết với các change
+  đang mở và trả về **một** hành động: `invoke` (Skill + args), `note` (cổng 📌) hoặc `ask` (≤ 3 câu, một vòng).
+  Claude in `🧭 <lệnh> — <lý do>` rồi chạy skill đó ngay trong lượt, không có cổng "Go?".
+- Tie → đường nặng hơn. CLI nâng `quick` lên `plan` khi có tag risk (`security`, `concurrency`, `public-api`,
+  `domain`, `data`, `core`) hoặc `business-rule`, và `tdd` lên `plan` khi có `security`, `concurrency`, `data`.
+- `/hitl:flow` chỉ còn status, định tuyến T-id và help; mô tả việc mới → `🎯 next: /hitl:go …`. Mô tả trần
+  (không có "plan", "TDD", "tasks quick") được route sang `/hitl:go`; lời gọi rõ ràng vẫn vào thẳng skill.
+- `/hitl:tasks <id> update [<việc>]` vào thẳng chế độ update (không hỏi update/overwrite).
+
 ### Nâng cấp từ 0.9
 
 0.10 thêm **liên kết hai change và reconcile** (mục 4d). Không cần migrate: proposal không có `after:`/`relates:` thì
@@ -179,6 +193,7 @@ một dòng `⚠️ HITL: legacy dir .claude/custom/ — run hitl-index migrate`
 
  Build rồi review   ─► /hitl:implement --feature <change-id> [--lane fast]  (một report gộp ở cuối)
  Sửa code ngoài Claude ─► /hitl:sync  (drift + trace report, re-approve / revert / defer / accept + amend spec)
+ Việc mới (chưa biết lệnh nào) ─► /hitl:go <mô tả>  (📌 note / amend / tasks update · /hitl:tdd · /hitl:tasks quick · /hitl:plan)
  Không biết làm gì tiếp ─► /hitl:flow
  Kênh phụ (tuỳ chọn)   ─► /hitl:tickets push  (mirror task sang Linear / Jira / GitHub; không bao giờ là gate)
 ```
@@ -238,11 +253,12 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | Lệnh | Việc làm | Gate? | Ai gọi |
 |---|---|---|---|
 | `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | ⛔ xác nhận lệnh | chỉ bạn |
-| `/hitl:flow [T-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `🎯 next` | — | bạn / Claude |
+| `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (📌 note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` → `/hitl:tasks quick` → `/hitl:plan`; phân vân thì chọn nặng hơn), in `🧭 <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | ⛔ chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
+| `/hitl:flow [T-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `🎯 next`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | ⛔ nếu đã có docs | bạn / Claude |
 | `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`), độ phủ + 🔥 + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`ACC-R3`, scenario `ACC-R3.S1`) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt | ⛔ mỗi vòng | bạn / Claude |
 | `/hitl:design <change-id> [--auto]` | HOW: `design.md` (`D-n`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần | ⛔ mỗi vòng | bạn / Claude |
-| `/hitl:tasks [change-id\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(ACC-R3.S1)`, Why trích `D-n`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | ⛔ quiz | bạn / Claude |
+| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(ACC-R3.S1)`, Why trích `D-n`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | ⛔ quiz | bạn / Claude |
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | ⛔ diff / conflict | bạn / Claude |
 | `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | ⛔ diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | ⛔ mỗi vòng | bạn / Claude |
@@ -590,7 +606,7 @@ validator của upstream). Phần nối với hitl nằm riêng ở `skills/revi
 | `reviews/<T>/decisions.json` | commit | quyết định accept/reject/defer của người; giữ số F-n ổn định |
 | `index/*` còn lại (index.json, index.md, .cache.json, state.json, .lock, .session/, contracts/, trace.md, `<provider>`.*.json) | ignore | sinh lại được / theo máy |
 | `reviews/<T>/*` còn lại (l0.json, findings*.json, review-context.md) | ignore | `/hitl:review` sinh lại |
-| `.inbox/` | ignore | file trung chuyển kết quả MCP |
+| `.inbox/` | ignore | file trung chuyển kết quả MCP; `route.json` = phán quyết của `work-router` (`hitl-index route` đọc rồi xoá) |
 
 `hitl-index init` ghi `.hitl/.gitignore` chuẩn (hoặc nối thêm các dòng còn thiếu, không xoá dòng cũ):
 ```

@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Spec-only planning (WHAT and WHY) for a hitl change: grill-style interview → business-readable proposal + spec deltas (requirements, scenarios); also "<change-id> amend" and "<change-id> reconcile <other>". Use when the user describes something to build or fix, or says "plan", "spec", "requirements", "lên plan", "yêu cầu", "viết spec". Not for architecture or implementation choices (/hitl:design).
+description: Spec-only planning (WHAT and WHY) for a hitl change: grill-style interview → business-readable proposal + spec deltas (requirements, scenarios); also "<change-id> amend" and "<change-id> reconcile <other>". Use when the user asks to plan or spec something ("plan …", "spec", "requirements", "lên plan", "yêu cầu", "viết spec"), or /hitl:go routes here. A bare description of new work without such words goes to /hitl:go first. Not for architecture or implementation choices (/hitl:design).
 argument-hint: "[description | <change-id> [amend [N-k] | reconcile <other>]]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---

@@ -30,6 +30,10 @@ const SPEC_AGENT = {
   "spec-reviewer": { file: ".spec-review.json", bash: SPEC_REVIEWER_BASH, allowed: "hitl-index spec validate|show|list, change" },
 };
 
+// work-router (0.11, /hitl:go): read-only CLI (no `status --sync-tags`, no `context --out`), one scratch file
+const WORK_ROUTER_BASH = new RegExp(HI + String.raw`(?:change|status|context|spec\s+(?:list|show))\b`);
+const WORK_ROUTER_WRITES = /(?:^|\s)--(?:sync-tags|out)\b/;
+
 const CUSTOM = HITL_PREFIX; // ".hitl/"
 const REVIEW_MD_RE = new RegExp(`^${HITL_RE}reviews/[^/]+\\.review\\.md$`);
 const FEATURE_SUMMARY_RE = new RegExp(`^${HITL_RE}reviews/feature-[^/]+\\.(?:md|security\\.json)$`);
@@ -260,6 +264,13 @@ async function main(input) {
     if (R === "spec-reviewer" && tool === "Grep" && !(input.tool_input || {}).path) deny(`spec-reviewer reads only ${CUSTOM}: Grep needs a path inside it`);
     if (R === "spec-reviewer" && (tool === "Read" || tool === "Grep") && rel !== null && !(rel === CUSTOM.slice(0, -1) || rel.startsWith(CUSTOM)))
       deny(`spec-reviewer reads only ${CUSTOM} (the spec, not the code)`);
+  }
+
+  // 4c. work-router: decides the route of new work for /hitl:go; writes only its verdict, runs only read-only CLI
+  if (R === "work-router") {
+    if (EDIT_TOOLS.has(tool) && rel !== CUSTOM + ".inbox/route.json") deny(`work-router may write only ${CUSTOM}.inbox/route.json`);
+    if (tool === "Bash" && (!safeBash(cmd, WORK_ROUTER_BASH) || WORK_ROUTER_WRITES.test(cmd)))
+      deny("work-router may run only: hitl-index change, status, context, spec list|show (no --sync-tags, --out, chaining or redirection)");
   }
 
   // 6. Edit simulation

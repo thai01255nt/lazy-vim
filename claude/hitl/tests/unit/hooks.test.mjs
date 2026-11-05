@@ -480,6 +480,25 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Grep", { pattern: "x", path: path.join(root, ".hitl/changes") }, SR));
   });
 
+  test("work-router (0.11): writes only .hitl/.inbox/route.json, runs only read-only CLI, reads anything", async () => {
+    const { root } = await mkProject();
+    const WR = "hitl:work-router";
+    const W = (rel) => pre(root, "Write", { file_path: path.join(root, rel), content: "{}" }, WR);
+    assertSilent(W(".hitl/.inbox/route.json"));
+    assertDeny(W(".hitl/.inbox/tickets-push.json"), /work-router may write only/);
+    assertDeny(W(".hitl/changes/feat-x/.scout.json"), /work-router may write only/);
+    assertDeny(W("src/svc.ts"), /work-router may write only/);
+    assertDeny(pre(root, "Edit", { file_path: path.join(root, ".hitl/changes/feat-x/proposal.md"), old_string: "a", new_string: "b" }, WR), /work-router may write only/);
+    for (const command of ["hitl-index change --json", "hitl-index status --brief", "hitl-index spec list --json", "hitl-index spec show ACC-R1 --change feat-x --json",
+      "hitl-index context UserService.createUser --json", `node "/p/scripts/hitl-index.mjs" change --json`])
+      assertSilent(pre(root, "Bash", { command }, WR));
+    for (const command of ["hitl-index status --sync-tags", "hitl-index context T-1 --out x.md", "hitl-index context T-1 --out=x.md", "hitl-index spec validate feat-x",
+      "hitl-index note add --change feat-x --kind spec --text x", "hitl-index route --json", "hitl-index change --json > x", "cat src/svc.ts", "hitl-index change --json && rm -rf src"])
+      assertDeny(pre(root, "Bash", { command }, WR), /work-router may run only/);
+    assertSilent(pre(root, "Read", { file_path: path.join(root, "src/svc.ts") }, WR));
+    assertSilent(pre(root, "Grep", { pattern: "createUser" }, WR));
+  });
+
   test("approve token: human-only, consumed once, dry-run and --by auto exempt", async () => {
     const { root } = await mkProject();
     const sid = "tok1";

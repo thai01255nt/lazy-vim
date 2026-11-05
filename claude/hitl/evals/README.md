@@ -10,8 +10,8 @@ supported way to start a case from a fixture project. This runner covers both. C
 ## Files
 | file | what |
 |---|---|
-| `trigger.json` | Suite A: ~30 VI/EN prompts → the skill that should fire first (`null` / `"nohitl"` for negatives) |
-| `scenarios.json` | Suite B: one slash-command turn per case on a fixture, with named deterministic checks |
+| `trigger.json` | Suite A: ~55 VI/EN prompts → the skill that should fire first (`null` / `"nohitl"` for negatives); 0.11: a bare description of new work → `hitl:go`, explicit asks ("plan …", "TDD …", "tasks quick …", status) → their own skill |
+| `scenarios.json` | Suite B: one slash-command turn per case on a fixture, with named deterministic checks (`go-*`: dry-graded in `tests/unit/go.test.mjs`; `expectSkill` = the Skill `/hitl:go` must call after its 🧭 line) |
 | `grade.mjs` | the checks (spec validate, tasks --check, trace, gate shape, files written, tool calls) |
 | `ab.mjs` | runner: builds fixtures, runs variants, grades, `summary.json`, cost cap, resumable |
 | `regrade.mjs` | re-grade finished runs after editing `grade.mjs` (no new claude calls) |

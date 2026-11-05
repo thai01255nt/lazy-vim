@@ -164,7 +164,7 @@
    "maxTurns": 10,
    "prompt": "/hitl:flow I want admins to export all users as a CSV file",
    "checks": [
-    "flow_next_plan",
+    "flow_next_go",
     "flow_no_edits"
    ]
   },
@@ -279,6 +279,50 @@
     "reconcile_gate",
     "reconcile_no_writes"
    ]
+  },
+  {
+   "id": "go-auto-plan",
+   "fixture": "flow",
+   "runs": 1,
+   "prompt": "/hitl:go I want admins to export all users as a CSV file",
+   "checks": [
+    "go_router_spawned",
+    "go_route_cli",
+    "go_route_line",
+    "go_invoked",
+    "go_no_confirm_gate",
+    "no_main_source_reads"
+   ],
+   "expectSkill": "hitl:plan"
+  },
+  {
+   "id": "go-auto-note",
+   "fixture": "churn",
+   "runs": 1,
+   "maxTurns": 20,
+   "prompt": "/hitl:go finance changed the settlement fee: it is 2 now, not 1",
+   "checks": [
+    "go_router_spawned",
+    "go_route_line",
+    "note_capture_gate",
+    "note_capture_refs",
+    "churn_no_writes"
+   ]
+  },
+  {
+   "id": "go-manual-tdd",
+   "fixture": "plan",
+   "runs": 1,
+   "maxTurns": 15,
+   "prompt": "/hitl:go make UserService reject emails with leading spaces --tdd",
+   "checks": [
+    "go_no_router",
+    "go_route_line",
+    "go_invoked",
+    "tdd_seam_gate",
+    "tdd_no_writes_before_gate"
+   ],
+   "expectSkill": "hitl:tdd"
   }
  ]
 }

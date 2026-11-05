@@ -40,6 +40,11 @@ const gitDirty = (proj, pathspec) => {
 };
 const skillCalls = (S) => S.tools.filter((t) => t.name === "Skill").map((t) => String(t.input.skill || t.input.command || ""));
 const bashCalls = (S) => S.tools.filter((t) => t.name === "Bash").map((t) => String(t.input.command || ""));
+// ordered main-thread events: {kind: "text", text} | {kind: "tool", name, input} (for "printed X before calling Y")
+const mainEvents = (S) => S.msgs.filter((m) => m.type === "assistant" && !m.parent_tool_use_id).flatMap((m) => (m.message?.content ?? [])
+  .map((c) => c.type === "text" ? { kind: "text", text: c.text } : c.type === "tool_use" ? { kind: "tool", name: c.name, input: c.input ?? {} } : null).filter(Boolean));
+const routerCalls = (S) => S.tools.filter((t) => t.name === "Agent" && /work-router/.test(JSON.stringify(t.input)));
+const skillName = (t) => { const x = String(t.input.skill || t.input.command || ""); return x.includes(":") ? x : `hitl:${x}`; };
 // a function signature or code-body line in a design doc (module level only is allowed)
 const SIG_RE = /(^|\s)(function\s+\w+\s*\(|(async\s+)?\w+\s*\([^()\n]*:\s*[\w<>\[\]|]+[^()\n]*\)\s*:\s*[\w<>\[\]|]+|def\s+\w+\s*\(|\bclass\s+\w+\s*\{)/m;
 
@@ -283,6 +288,22 @@ const CHECKS = {
   flow_next_design: (S) => ok(/\/hitl:design\s+feat-password-reset/.test(S.text), "next is not /hitl:design feat-password-reset"),
   flow_help_table: (S) => ok(/\/hitl:archive/.test(S.text) && /\/hitl:skeleton/.test(S.text) && /fast/i.test(S.text) && /\|/.test(S.text), "help block incomplete"),
   flow_next_plan: (S) => ok(/\/hitl:plan/.test(S.text), "next is not /hitl:plan"),
+  flow_next_go: (S) => ok(/\/hitl:go/.test(S.text), "next is not /hitl:go"),
+  // ---- go (0.11): one router subagent (auto) or none (flag), a 🧭 line, then the chosen Skill in the same turn
+  go_router_spawned: (S) => { const n = routerCalls(S).length; return ok(n >= 1 && n <= 2, `work-router spawned ${n}×`); },
+  go_no_router: (S) => ok(!routerCalls(S).length, "spawned work-router in manual mode"),
+  go_route_cli: (S) => ok(bashCalls(S).some((c) => /hitl-index(?:\.mjs)?\s+(?:--json\s+)?route\b/.test(c)), "no hitl-index route"),
+  go_route_line: (S) => ok(mainEvents(S).some((e) => e.kind === "text" && /🧭/.test(e.text)), "no 🧭 route line"),
+  go_invoked: (S, P, c) => {
+    const ev = mainEvents(S); const i = ev.findIndex((e) => e.kind === "tool" && e.name === "Skill" && skillName(e) === c.expectSkill);
+    const before = ev.slice(0, i).some((e) => e.kind === "text" && /🧭/.test(e.text));
+    return ok(i >= 0 && before, i < 0 ? `no Skill ${c.expectSkill} (got ${skillCalls(S).join(",") || "none"})` : "Skill called before the 🧭 line");
+  },
+  go_no_confirm_gate: (S) => {
+    const ev = mainEvents(S); const i = ev.findIndex((e) => e.kind === "tool" && e.name === "Skill");
+    const t = ev.slice(0, i < 0 ? ev.length : i).filter((e) => e.kind === "text").map((e) => e.text).join("\n");
+    return ok(!/\bGo\?|\(Y\/n\)/.test(t), "asked Go?/(Y/n) before running the route");
+  },
   flow_no_edits: (S, P) => ok(gitDirty(P, ["src", "tests", ".hitl/changes"]) === "", "flow edited files"),
   tickets_off: (S) => ok(/off|tắt|init/i.test(S.text), "no 'Linear off / init' message"),
   tickets_no_linear_calls: (S) => ok(!S.tools.some((t) => /linear/i.test(t.name) && t.name.startsWith("mcp__")), "called a Linear MCP tool"),

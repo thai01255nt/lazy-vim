@@ -1,11 +1,11 @@
 ---
 name: flow
-description: Hitl workflow status and router: active changes, task status, drift, and the next command. Use when the user asks "status", "where are we", "what next", "tiếp theo làm gì", describes a new task without naming a phase, or asks how the hitl workflow works.
+description: Hitl workflow status: active changes, task status, drift, notes, and the next command; also T-id routing and the workflow help. Use when the user asks "status", "where are we", "what next", "tiếp theo làm gì", "đang ở đâu", names a T-id without a phase, or asks how the hitl workflow works. Not for describing new work to build or fix (/hitl:go).
 argument-hint: "[T-id|help]"
 allowed-tools: Read Glob Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
-# /hitl:flow — router and status
+# /hitl:flow — status, T-id routing, help
 
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md`. This skill has no gate and never edits files.
 
@@ -19,13 +19,10 @@ Arguments: `$ARGUMENTS`
 1. Brief status says "not initialized" → `❌ HITL not initialized here. 🎯 next: /hitl:setup`. Stop.
 2. `help` (or the user asks how the workflow works) → Read `${CLAUDE_SKILL_DIR}/references/help.md` and print its
    Help block (the lanes, the diagram and the command table); stop.
-3. The user described a **new piece of work** (not a T-id, not a status question):
-   - `hitl-index change --json`; match change ids, titles and capabilities against the description.
-   - Covered by an active change → its `next` (e.g. `/hitl:design <id>` in phase `design`, `/hitl:plan <id>` in `spec`).
-   - Trivial change (≤1 function, no public interface, no security/concurrency, no behaviour a BA would care about) →
-     `⚡ Fast lane: /hitl:tasks quick <description>` then `/hitl:implement <T>`.
-   - Otherwise → `🎯 next: /hitl:plan <description>`.
-   State the reason in one line. Stop.
+3. The user described a **new piece of work** (not a T-id, not a status question) → `🎯 next: /hitl:go <description>`
+   and one line why (it picks the route: a 📌 note or amend of an active change, `/hitl:tdd`, `/hitl:tasks quick` or
+   `/hitl:plan`). Stop. A change to an active change's approved behaviour stated in chat gets the 📌 gate of
+   conventions "Changes stated in chat" first.
 4. Status (default, or a `T-id`):
    - `hitl-index status [T] --json`. First, when `.changes[]` is non-empty, one line per active change:
      `📦 feat-password-reset — phase: implement · tasks 1/2 done` (phases: spec → design → tasks → implement →
@@ -58,7 +55,7 @@ Arguments: `$ARGUMENTS`
    - Else `.trace.block > 0` → `🎯 next: hitl-index trace --json and fix the references` (this overrides next).
    - End with `🎯 next: <.next from status --json>` and one line why.
    - No tasks at all → the first active change's `next` from `.changes[]` / `hitl-index change --json`
-     (`/hitl:design <id>`, `/hitl:tasks <id>`, `/hitl:archive <id>`), else `🎯 next: /hitl:plan <description>`.
+     (`/hitl:design <id>`, `/hitl:tasks <id>`, `/hitl:archive <id>`), else `🎯 next: /hitl:go <description>`.
    - `.hitl/planning/*.md` exists (v0.5) → one line `💡 v0.5 planning files — /hitl:plan offers the migration`.
 
 Status comes from tooling only (`hitl-index status`); never infer it from `@status` tags or checkboxes.

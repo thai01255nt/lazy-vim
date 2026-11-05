@@ -1,7 +1,7 @@
 ---
 name: tasks
-description: Breaks an approved hitl change into prioritized vertical-slice tasks (risk, acceptance criteria → spec scenarios, target symbols, test plan) in tasks.md. Use after /hitl:design or /hitl:plan, or for "tasks", "break down", "chia task", "tạo task", or a quick low-risk task.
-argument-hint: "[<change-id> | quick <description>]"
+description: Breaks an approved hitl change into prioritized vertical-slice tasks (risk, acceptance criteria → spec scenarios, target symbols, test plan) in tasks.md. Use after /hitl:design or /hitl:plan, or for "tasks", "break down", "chia task", "tạo task", "tasks quick", "task nhanh", or when /hitl:go routes here. Not for a bare description of new work without a task ask (/hitl:go).
+argument-hint: "[<change-id> [update [<what>]] | quick <description>]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
 
@@ -22,6 +22,7 @@ Arguments: `$ARGUMENTS`
 - Proposal `status: draft` → `⚠️ Spec is still draft (open questions: <n>).` Design `draft` → `⚠️ Design is still draft.`
   Design `missing` and not skipped → `⚠️ No design yet (💡 /hitl:design <id>).` Continue; all repeated at the gate.
 - Target = `.hitl/changes/<id>/tasks.md`. It exists → ⛔ GATE `` `tasks.md` exists. (update/overwrite) — 💡 update`` END THE TURN.
+  `<change-id> update [<what>]` (from `/hitl:go` or a note's apply command) → update, no gate; `<what>` is the work to add.
   - update: keep existing task ids, statuses and checkboxes; edit or add tasks; a new scenario on a done or
     tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
     tests reopen through `/hitl:approve <id> reopen`); remove tasks only if the

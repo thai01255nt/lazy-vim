@@ -22,10 +22,29 @@ Mở lại Claude Code. Gõ `/hitl:` thấy danh sách lệnh là xong.
 /hitl:overview     # (nên làm) Claude đọc codebase, viết docs tổng quan
 ```
 
+## 1a. Việc mới: bắt đầu bằng `/hitl:go`
+
+Không cần tự chọn lệnh đầu tiên. Mô tả việc cần làm, Claude chọn đường và chạy luôn:
+```
+/hitl:go thêm chức năng xuất danh sách user ra CSV cho admin     # → /hitl:plan (feature thật)
+/hitl:go tổng tiền lệch 1 xu khi có mã giảm giá                  # → /hitl:tdd (lỗi tái hiện được)
+/hitl:go đổi câu báo lỗi "duplicate email" thành "email đã được dùng"   # → /hitl:tasks quick
+/hitl:go link reset giờ hết hạn sau 15 phút                      # → 📌 note cho change đang làm (mục 5a)
+```
+- Một subagent chỉ đọc (không sửa gì) xem các change đang mở, spec, glossary, docs và code, rồi in một dòng
+  `🧭 <lệnh> — <lý do>` và chạy lệnh đó ngay. Không hỏi "Go?".
+- Thứ tự ưu tiên: đổi yêu cầu/thiết kế của change đang mở → 📌 note · việc mới trong phạm vi change đó →
+  `/hitl:plan <id> amend` hoặc `/hitl:tasks <id> update` · lỗi tái hiện được / logic nhỏ không cần ghi lại → `/hitl:tdd`
+  · việc rất nhỏ nhưng nên có lock và trace → `/hitl:tasks quick` · còn lại → `/hitl:plan`. Phân vân thì chọn đường
+  nặng hơn (plan > quick > tdd).
+- Mô tả quá mơ hồ → Claude hỏi tối đa 3 câu ngắn (mục tiêu và phạm vi), một vòng, rồi tự quyết.
+- Tự chọn đường: thêm `--plan`, `--quick` hoặc `--tdd` (bỏ qua phân tích).
+- Gõ thẳng `/hitl:plan …`, `/hitl:tdd …`, `/hitl:tasks quick …` vẫn chạy như cũ.
+
 ## 2. Một feature, 4 bước
 
 ```
-/hitl:plan thêm chức năng đặt lại mật khẩu qua email     # LÀM GÌ, VÌ SAO (cho BA/PO đọc được)
+/hitl:plan thêm chức năng đặt lại mật khẩu qua email     # LÀM GÌ, VÌ SAO (hoặc /hitl:go … tự chọn plan)
 /hitl:design feat-password-reset                         # LÀM THẾ NÀO (cho dev); change nhỏ thì tự bỏ qua
 /hitl:tasks feat-password-reset                          # chia task T-1, T-2… (low/high risk)
 /hitl:flow                                               # không nhớ bước tiếp? gõ cái này
@@ -136,5 +155,6 @@ Xem bằng chứng: `hitl-index coupling feat-b`.
 | Audit bảo mật cả change | `/hitl:review --security-audit feat-xxx` |
 | "Grill" một ý tưởng bất kỳ | `/hitl:grilling` |
 | Sửa nhỏ / làm nhanh theo TDD, không mở change | `/hitl:tdd <việc cần làm>` (chốt seam, rồi red→green từng test) |
+| Không chắc nên dùng lệnh nào cho việc mới | `/hitl:go <mô tả>` (Claude chọn và chạy; `--plan`/`--quick`/`--tdd` để tự chọn) |
 
 Commit: `/hitl:setup` đã tạo sẵn `.hitl/.gitignore`, cứ `git add .hitl`.

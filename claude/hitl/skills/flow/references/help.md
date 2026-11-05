@@ -29,8 +29,18 @@ intent uses a glossary `_Avoid_` word (`"user record" → use Account`). After g
 suggestions** (duplication, names off the glossary, pass-through functions, deep nesting, tests of private helpers):
 `fix F-n` runs a refactor pass under green, untouched tests. Never a blocker.
 
+**New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
+turn — a 📌 note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
+`/hitl:tdd` for a reproducible bug or small logic, `/hitl:tasks quick` for a trivial locked task, else `/hitl:plan`.
+Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--tdd`.
+
 ```
-/hitl:setup → /hitl:overview → /hitl:plan ⛔ (WHAT) → /hitl:design ⛔ (HOW, skippable) → /hitl:tasks ⛔
+/hitl:setup → /hitl:overview → /hitl:go <description> ─┬─ active change: 📌 note · /hitl:plan <id> amend · /hitl:tasks <id> update
+                                                          ├─ bug or small logic, no record: /hitl:tdd ⛔ (seams) → red→green
+                                                          ├─ trivial, worth a lock: /hitl:tasks quick ⛔ → /hitl:implement T (⚡)
+                               ┌──────────────────────────┘ anything else
+                               ▼
+                               /hitl:plan ⛔ (WHAT) → /hitl:design ⛔ (HOW, skippable) → /hitl:tasks ⛔
                                                                                    │
           high risk ───────────────────────────────────────────────────────────────┤──── low risk (⚡ fast lane)
               ▼                                                                    │            ▼
@@ -49,6 +59,7 @@ suggestions** (duplication, names off the glossary, pass-through functions, deep
 | command | purpose | gate |
 |---|---|---|
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
+| `/hitl:go <description> [--plan\|--quick\|--tdd]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it | ⛔ only if vague (≤ 3 questions) |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; `<id> amend [N-k]` | ⛔ each round |
 | `/hitl:plan <id> reconcile <other>` | take in what a linked change did (spec ids, shared contracts, drifted locked symbols) as notes in `<id>` | ⛔ add notes |
@@ -66,4 +77,4 @@ suggestions** (duplication, names off the glossary, pass-through functions, deep
 | `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
 | `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | ⛔ seams |
-| `/hitl:flow` | this status / router | — |
+| `/hitl:flow` | this status, T-id routing and help (new work → `/hitl:go`) | — |
