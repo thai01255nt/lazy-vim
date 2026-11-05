@@ -1,7 +1,8 @@
 // `migrate --ids` (0.13): renumber every pre-0.13 id into change-key scoped ids.
 //   tasks T-n → KEY-T<m> (per change, old order), ACs follow; spec ids ACC-R3 → KEY-R<m> of the archived (or active)
 //   change that ADDED them, else a legacy key per capability (L + old capability key: LACC-R<m>); scenarios follow their
-//   requirement; decisions D-n → KEY-D<n> (per design.md); quick tasks → QT-T<m>.
+//   requirement; decisions D-n → KEY-D<n> (per design.md); quick tasks (T-n, or 0.13.0–0.13.1 `QT-T<n>`) → a key per
+//   quick file (0.13.2: `← Change: none | key: QFLKM`, task QFLKM-T1; deterministic, so the dry run and the apply agree).
 // Touches active changes, archives, living specs (capability keys leave the meta line), quick tasks, notes, reviews,
 // code tags (@task, @ac, @dec, TODO(impl …)), the lock (→ hitl.lock/2, re-keyed, hashes of the tag-only edits
 // re-baselined), state.json and the tickets maps; writes .hitl/index/id-map.json. Pure planning + one apply step.
@@ -14,7 +15,7 @@ import { HITL_PREFIX } from "./paths.mjs";
 import { CHANGE_KEY_RE, QUICK_KEY, SPECREF_G, compareIds, compareTaskIds, parseId, parseTaskId, rewriteIds, today } from "./specids.mjs";
 import { listChanges, readChange, readLiving } from "./changes.mjs";
 import { parseTasksMd } from "./tasksmd.mjs";
-import { ID_MAP_SCHEMA, idMapPath, legacyKeyFor, proposalKey, readKeyRegistry, suggestKey } from "./keys.mjs";
+import { ID_MAP_SCHEMA, idMapPath, legacyKeyFor, makeQuickKey, proposalKey, quickSlug, readKeyRegistry, setQuickFileKey, suggestKey } from "./keys.mjs";
 import { LOCK_SCHEMA, stableStringify } from "./lock.mjs";
 
 export const SCHEMA = "hitl.migrate-ids/1";
@@ -29,9 +30,10 @@ const TAG_LINE = /@(?:task|ac|dec)\b|TODO\(impl\s+/;
 const KORD = { R: 0, BR: 1, UC: 2 };
 const isHash = (v) => typeof v === "string" && /^[0-9a-f]{16}$/.test(v);
 
-/** Parse `--keys "feat-a=PWR,feat-b=FEE,cap:accounts=LACC"` (or a JSON object) → {changes:{id:KEY}, caps:{cap:KEY}, errors[]}. */
+/** Parse `--keys "feat-a=PWR,feat-b=FEE,cap:accounts=LACC,quick:fix-typo=QFTAB"` (or a JSON object) →
+ *  {changes:{id:KEY}, caps:{cap:KEY}, quick:{slug:KEY}, errors[]} (a quick slug: the file name without `quick-` and `.md`). */
 export function parseKeysArg(s) {
-  const out = { changes: {}, caps: {}, errors: [] };
+  const out = { changes: {}, caps: {}, quick: {}, errors: [] };
   if (s === undefined || s === null || s === true) return out;
   let pairs = [];
   if (typeof s === "object") pairs = Object.entries(s); else {
@@ -40,9 +42,11 @@ export function parseKeysArg(s) {
   else pairs = t.split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const i = x.indexOf("="); return i < 0 ? [x, ""] : [x.slice(0, i).trim(), x.slice(i + 1).trim()]; });
   }
   for (const [k, v] of pairs) {
-    if (!k || !v) { out.errors.push(`--keys item "${k}=${v}" is not <change-id>=KEY or cap:<capability>=KEY`); continue; }
+    if (!k || !v) { out.errors.push(`--keys item "${k}=${v}" is not <change-id>=KEY, cap:<capability>=KEY or quick:<slug>=KEY`); continue; }
     if (!CHANGE_KEY_RE.test(v)) { out.errors.push(`--keys ${k}=${v}: a key is 2–5 upper-case letters`); continue; }
-    if (k.startsWith("cap:")) out.caps[k.slice(4)] = v; else out.changes[k] = v;
+    if (k.startsWith("cap:")) out.caps[k.slice(4)] = v;
+    else if (k.startsWith("quick:")) out.quick[quickSlug(k.slice(6))] = v;
+    else out.changes[k] = v;
   }
   return out;
 }
@@ -89,7 +93,7 @@ async function walkFiles(abs, rel, out, filter) {
 export async function planMigrateIds(root, config, { keys = {} } = {}) {
   const P = paths(root);
   const given = parseKeysArg(keys);
-  const out = { schema: SCHEMA, status: "plan", keys: [], legacyKeys: [], map: { tasks: {}, specs: {}, decisions: {}, local: {} }, counts: {},
+  const out = { schema: SCHEMA, status: "plan", keys: [], legacyKeys: [], quickKeys: [], map: { tasks: {}, specs: {}, decisions: {}, local: {} }, counts: {},
     files: { hitl: [], code: [], renamed: [] }, lock: { tasks: 0, rebaselined: 0, schema: null }, unresolved: [], warnings: [], conflicts: [...given.errors.map((m) => ({ code: "KEYS_BAD", ref: null, message: m }))] };
   const conflict = (code, ref, message) => out.conflicts.push({ code, ref, message });
 
@@ -184,6 +188,20 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
     legacyKeyOfCap.set(cap, key);
     out.legacyKeys.push({ capability: cap, oldKey, key, source: want ? "given" : "suggested", ids: legacyCaps.get(cap).length });
   }
+  // quick-file keys (0.13.2): a quick file (`← Change: none`, no planning link) without a header key whose tasks still
+  // carry T-n or the legacy shared QT gets its own key; --keys quick:<slug>=KEY, else deterministic from the file
+  const quickKeyOf = new Map(); // quick file -> key (new header key)
+  for (const q of quick) {
+    if (!q.doc.quick || q.doc.key || (!q.doc.tasks.length && !q.doc.legacyIds.length)) continue;
+    const slug = quickSlug(q.file);
+    const want = given.quick[slug] ?? null;
+    if (want && (taken.get(want) || []).length) conflict("CHANGE_KEY_TAKEN", want, `key ${want} for quick file ${q.file} is taken by ${(taken.get(want)[0].change ? `change ${taken.get(want)[0].change}` : taken.get(want)[0].source)}`);
+    const key = want || makeQuickKey(slug, taken, { seed: `${q.file}\0${[...q.doc.legacyIds, ...q.doc.tasks.map((t) => t.id)].join(",")}` });
+    taken.set(key, [{ change: null, source: q.file }]);
+    quickKeyOf.set(q.file, key);
+    out.quickKeys.push({ file: q.file, slug, key, source: want ? "given" : "suggested", tasks: q.doc.legacyIds.length + q.doc.tasks.length });
+  }
+  for (const slug of Object.keys(given.quick)) if (!out.quickKeys.some((x) => x.slug === slug)) conflict("KEYS_BAD", `quick:${slug}`, `--keys quick:${slug}: no keyless quick file tasks/${slug}.md or tasks/quick-${slug}.md to key`);
   for (const cap of Object.keys(given.caps)) if (!legacyKeyOfCap.has(cap)) conflict("KEYS_BAD", `cap:${cap}`, `--keys cap:${cap}: capability ${cap} has no legacy ids of unknown origin`);
   // numbering per key: kind, then (capability, old number); continue after the key's existing numbers
   const counters = new Map();
@@ -211,7 +229,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
     }
   }
 
-  // ---- tasks: per change in old order, after the change key's existing numbers; quick files → QT
+  // ---- tasks: per change in old order, after the change key's existing numbers; quick files → their own key
   const taskOwner = new Map(); // old T -> {dir|null, key}
   const tcount = new Map();
   const bumpT = (key, n) => tcount.set(key, Math.max(tcount.get(key) || 0, n));
@@ -229,14 +247,22 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
   }
   for (const q of quick) {
     const linked = q.doc.change ? changes.find((x) => !x.entry.archived && x.ch.id === q.doc.change) || changes.filter((x) => x.ch.id === q.doc.change).at(-1) : null;
-    const key = linked ? keyOf.get(linked.entry.dir) : QUICK_KEY;
+    // a v0.5 planning-linked file keeps the legacy QT; a quick file uses its header key or the one planned above
+    const key = linked ? keyOf.get(linked.entry.dir) : q.doc.quick ? (q.doc.key || quickKeyOf.get(q.file) || null) : QUICK_KEY;
     const change = linked ? linked.ch.id : null;
     for (const T of q.doc.legacyIds) claim(T, { key, change, file: q.file });
     for (const t of q.doc.tasks) if (key && parseTaskId(t.id)?.key !== key) claim(t.id, { key, change, file: q.file });
   }
+  // a pre-0.13 lock entry whose tasks doc is gone: its change's key, else a quick key per old file
   for (const [T, lt] of Object.entries(lockRaw?.tasks || {})) if (/^T-\d+$/.test(T) && !taskOwner.has(T)) {
     const c = changes.find((x) => x.ch.id === lt?.change) || changes.find((x) => lt?.file && String(lt.file).startsWith(x.entry.dir + "/"));
-    claim(T, { key: c ? keyOf.get(c.entry.dir) : QUICK_KEY, change: c?.ch.id ?? null, file: lt?.file ?? null });
+    let key = c ? keyOf.get(c.entry.dir) : null;
+    if (!key) {
+      const f = lt?.file || `orphan-${T}`;
+      key = quickKeyOf.get(f) || makeQuickKey(quickSlug(f), taken, { seed: `${f}\0lock` });
+      if (!quickKeyOf.has(f)) { quickKeyOf.set(f, key); taken.set(key, [{ change: null, source: f }]); }
+    }
+    claim(T, { key, change: c?.ch.id ?? null, file: lt?.file ?? null });
   }
   const tasksByKey = new Map();
   for (const [T, o] of taskOwner) { if (!tasksByKey.has(o.key)) tasksByKey.set(o.key, []); tasksByKey.get(o.key).push(T); }
@@ -261,7 +287,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
   const decMapOfChange = (id) => { const c = changes.find((x) => !x.entry.archived && x.ch.id === id) || changes.filter((x) => x.ch.id === id).at(-1); return c ? decOf.get(c.entry.dir) || null : null; };
 
   const tmap = out.map.tasks, smap = out.map.specs;
-  const nothing = !Object.keys(tmap).length && !Object.keys(smap).length && !Object.keys(out.map.decisions).length
+  const nothing = !Object.keys(tmap).length && !Object.keys(smap).length && !Object.keys(out.map.decisions).length && !out.quickKeys.length
     && !Object.keys(out.map.local).length && !out.keys.some((k) => k.source !== "proposal") && !capKeys.size && !/^hitl\.lock\/1$/.test(lockRaw?.schema || "") ;
 
   // ---- .hitl text rewrites
@@ -283,7 +309,11 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
   }
   for (const l of living.specs.values()) put(l.file, l.text, stripCapabilityKey(rewriteIds(l.text, smap)));
   if (living.glossary) put(living.glossary.file, living.glossary.text, rewriteIds(living.glossary.text, smap));
-  for (const q of quick) put(q.file, q.text, rewriteIds(rewriteTaskIds(q.text, tmap), smap));
+  for (const q of quick) {
+    let nt = rewriteIds(rewriteTaskIds(q.text, tmap), smap);
+    if (q.doc.change) nt = nt.replace(/^(← Change: (?!none\b)\S+) \| key: \S+\s*$/m, "$1"); // moved into a change: the old quick key goes
+    put(q.file, q.text, quickKeyOf.has(q.file) ? setQuickFileKey(nt, quickKeyOf.get(q.file)) : nt);
+  }
   // reviews: <T>.review.md and <T>/ move to the new id; their text is rewritten
   const renames = [];
   for (const e of await fs.readdir(P.reviews, { withFileTypes: true }).catch(() => [])) {
@@ -456,7 +486,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
     if (JSON.stringify(nm) !== JSON.stringify(m)) { json.maps[n] = nm; out.files.hitl.push(`${HITL_PREFIX}${n}`); }
   }
 
-  out.counts = { keys: out.keys.filter((k) => k.source !== "proposal").length, legacyKeys: out.legacyKeys.length, tasks: Object.keys(tmap).length,
+  out.counts = { keys: out.keys.filter((k) => k.source !== "proposal").length, legacyKeys: out.legacyKeys.length, quickKeys: out.quickKeys.length, tasks: Object.keys(tmap).length,
     specs: Object.keys(smap).length + Object.values(out.map.local).reduce((n, m) => n + Object.keys(m).length, 0),
     decisions: Object.keys(out.map.decisions).length, hitlFiles: out.files.hitl.length, codeFiles: out.files.code.length, renamed: renames.length, unresolved: out.unresolved.length };
   out.files.hitl = [...new Set(out.files.hitl)].sort();
@@ -483,10 +513,13 @@ export async function applyMigrateIds(root, plan) {
   if (json.state) await writeTextAtomic(P.state, stableStringify(json.state));
   for (const [n, m] of Object.entries(json.maps || {})) await writeTextAtomic(join(P.custom, n), JSON.stringify(m, null, 2) + "\n");
   const prev = await readJson(idMapPath(root), null);
-  const ids = { ...(prev?.ids || {}), ...plan.map.tasks, ...plan.map.specs, ...plan.map.decisions };
+  // older entries follow this run's renames (0.13.1 `T-20 → QT-T1`, now `QT-T1 → QFLKM-T1`: T-20 → QFLKM-T1)
+  const prevIds = Object.fromEntries(Object.entries(prev?.ids || {}).map(([o, n]) => [o, plan.map.tasks[n] ?? plan.map.specs[n] ?? n]));
+  const ids = { ...prevIds, ...plan.map.tasks, ...plan.map.specs, ...plan.map.decisions };
   for (const [ch, m] of Object.entries(plan.map.local)) for (const [o, n] of Object.entries(m)) ids[`${ch}/${o}`] = n;
   const idMap = { schema: ID_MAP_SCHEMA, migratedAt: today(), keys: Object.fromEntries(plan.keys.map((k) => [k.label, k.key])),
-    legacyKeys: Object.fromEntries(plan.legacyKeys.map((k) => [k.capability, k.key])), ids };
+    legacyKeys: Object.fromEntries(plan.legacyKeys.map((k) => [k.capability, k.key])),
+    quickKeys: { ...(prev?.quickKeys || {}), ...Object.fromEntries(plan.quickKeys.map((k) => [k.file, k.key])) }, ids };
   await writeTextAtomic(idMapPath(root), JSON.stringify(idMap, null, 2) + "\n");
   // the id map is committed (old references in chat and commits resolve through it for one release)
   const gi = join(P.custom, ".gitignore");
@@ -502,12 +535,17 @@ export async function legacyIdState(root) {
   const lock = await readJson(P.lock, null);
   const { lockLegacyIds } = await import("./lock.mjs");
   if (lockLegacyIds(lock).length) reasons.push("skeleton.lock.json has T-n task ids");
-  const { legacyTaskDocs } = await import("./tasksmd.mjs");
-  const docs = await legacyTaskDocs(root);
+  const { legacyTaskDocs, legacyQuickDocs, readTaskDocs } = await import("./tasksmd.mjs");
+  const all = await readTaskDocs(root);
+  const docs = await legacyTaskDocs(root, all);
   if (docs.length) reasons.push(`T-n task ids in ${docs.map((d) => d.file).join(", ")}`);
+  // 0.13.2: QT-T<n> quick ids are legacy once the project has keys (a keyless project still reads them as current)
+  const qt = await legacyQuickDocs(root, all);
+  if (qt.length && await (await import("./keys.mjs")).isKeyedProject(root))
+    reasons.push(`legacy ${QUICK_KEY}-T<n> quick-task ids in ${qt.map((d) => d.file).join(", ")} (each quick file has its own key since 0.13.2)`);
   for (const cap of (await fs.readdir(P.specs, { withFileTypes: true }).catch(() => [])).filter((e) => e.isDirectory()).map((e) => e.name).sort()) {
     const t = await readText(join(P.specs, cap, "spec.md"), null);
     if (t !== null && /^> capability: \S+.*\| key: [A-Z]/m.test(t)) { reasons.push(`living spec ${cap} still has a capability key (ids like ${/^> capability: \S+.*\| key: ([A-Z][A-Z0-9]*)/m.exec(t)[1]}-R1)`); break; }
   }
-  return { legacy: reasons.length > 0, reasons };
+  return { legacy: reasons.length > 0, reasons, quickOnly: reasons.length === 1 && reasons[0].startsWith(`legacy ${QUICK_KEY}-`) };
 }

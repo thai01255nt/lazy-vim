@@ -37,12 +37,13 @@ Requirement-quality lints run on a change's ADDED/MODIFIED blocks only; `spec.qu
 | thing | rule | example |
 |---|---|---|
 | change id | `(feat\|fix\|refactor\|perf\|docs\|test\|chore)-<slug>`, ≤ 48 chars, unique forever | `feat-password-reset` |
-| change key | 2–5 upper-case letters in the proposal meta `\| key: PWR`, unique forever (active + archived changes, legacy keys, reserved `QT`) | `PWR` |
+| change key | 2–5 upper-case letters in the proposal meta `\| key: PWR`, unique forever (active + archived changes, legacy keys, quick-file keys, reserved `QT`) | `PWR` |
 | capability | lower-case words joined by `-`, flat, a business area; it is the folder, not part of any id | `accounts` |
 | requirement / scenario | `<KEY>-R<n>` / `<KEY>-R<n>.S<k>` | `PWR-R1`, `PWR-R1.S2` |
 | rule / flow | `<KEY>-BR<n>` / `<KEY>-UC<n>` | `PWR-BR1`, `PWR-UC1` |
 | decision (design.md) | `<KEY>-D<n>` | `PWR-D1` |
-| task / acceptance criterion | `<KEY>-T<n>` / `<KEY>-T<n>.AC<k>`; quick tasks share the key `QT` | `PWR-T3`, `PWR-T3.AC2`, `QT-T7` |
+| task / acceptance criterion | `<KEY>-T<n>` / `<KEY>-T<n>.AC<k>` | `PWR-T3`, `PWR-T3.AC2` |
+| quick-file key (0.13.2) | each `.hitl/tasks/quick-<slug>.md` has its own key in its header `← Change: none \| key: QFLKM`: `Q` + the first letter of the slug + 3 hash letters, 5 in all (`hitl-index next-id --quick <slug>`); its task is `<KEY>-T1`. The shared `QT` (`QT-T7`, 0.13.0–0.13.1) is legacy: `/hitl:migrate` | `QFLKM`, `QFLKM-T1.AC1` |
 | glossary term, note, finding | local: the term (case-folded), `N-k`, `F-n` | `Reset link`, `N-2`, `F-1` |
 
 - `<KEY>` is the key of the change that **created** the id. ADDED blocks use the change's own key

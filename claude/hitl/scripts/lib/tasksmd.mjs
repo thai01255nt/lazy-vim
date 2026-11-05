@@ -1,13 +1,14 @@
 // Tasks markdown parser + checker (§E.4; design v3 §2.9, §5.3).
 // Task docs live in `.hitl/changes/<id>/tasks.md` (active change), `.hitl/archive/<date>-<id>/tasks.md` (archived)
-// and `.hitl/tasks/*.md` (quick tasks + v0.5 legacy files linked with `← Planning:`).
+// and `.hitl/tasks/*.md` (quick tasks + v0.5 legacy files linked with `← Planning:`). A quick file (`← Change: none`)
+// has its own key since 0.13.2: `← Change: none | key: QFLKM`, task `QFLKM-T1`.
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { paths } from "./project.mjs";
 import { exists, readJson } from "./fsutil.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
-import { AC_ID_RE, AC_ID_SRC, ARCHIVE_DIR_RE, DEC_ID_RE, LEGACY_DEC_RE, QUICK_KEY, SPECREF_SRC, TASK_ID_SRC, formatTaskId, isChangeId, parseId, parseTaskId } from "./specids.mjs";
+import { AC_ID_RE, AC_ID_SRC, ARCHIVE_DIR_RE, CHANGE_KEY_RE, DEC_ID_RE, LEGACY_DEC_RE, QUICK_KEY, SPECREF_SRC, TASK_ID_SRC, formatTaskId, isChangeId, parseId, parseTaskId } from "./specids.mjs";
 
 const REF = `(?:${SPECREF_SRC}|R-\\d+)`;
 const CHANGE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}changes/([^/]+)/tasks\\.md$`);
@@ -21,7 +22,7 @@ const RXN = {
   why: /^\*\*Why\*\*: ?(.*)$/,
   symbol: /^(\d+)\. \[( |x)\] `([^`]+)` \| (new|modify) \| `([^`]+)` \| impl: (agent|manual) \| (.+)$/,
   planning: /^← Planning: (\S+)$/,
-  change: /^← Change: (\S+)$/,
+  change: /^← Change: (\S+)(?: \| key: (\S+))?$/,
   status: /^> status: (draft|approved)/,
 };
 const SYMREF = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)?$/;
@@ -65,12 +66,15 @@ export const isArchivedTask = (lock, tasks, T) => !!archivedChangeOf(lock, tasks
 /**
  * parseTasksMd(text, file) -> {file, planning, change, archived, changeDir, status, tasks: Task[]}
  * `change` comes from `← Change: <id>` (else from the file location); `planning` only from the legacy `← Planning:`.
+ * `key`: a quick file's own key (`← Change: none | key: QFLKM`), also on each task as `quickKey`; `quick`: a tasks file
+ * under `.hitl/tasks/` with no change and no planning link.
  * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them.
  */
 export function parseTasksMd(text, file, { legacy = false } = {}) {
   const RX = legacy ? RX_LEGACY : RXN;
   const loc = changeOfFile(file);
-  const doc = { file, planning: null, change: null, archived: loc.archived, changeDir: loc.dir, status: null, tasks: [], legacyIds: [] };
+  const doc = { file, planning: null, change: null, key: null, staleKey: null, quick: false, archived: loc.archived, changeDir: loc.dir, status: null, tasks: [], legacyIds: [] };
+  let keyError = null;
   let task = null, section = null;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/\s+$/, "");
@@ -86,7 +90,14 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     if (/^## /.test(line)) { task = null; section = null; continue; }
     if (!task) {
       if ((m = line.match(RX.planning))) doc.planning = m[1];
-      else if ((m = line.match(RX.change))) doc.change = m[1] === "none" ? "none" : m[1];
+      else if ((m = line.match(RX.change))) {
+        doc.change = m[1] === "none" ? "none" : m[1];
+        // a quick file moved into a change (`← Change: feat-x | key: QFLKM`): the old key is ignored; its ids no
+        // longer match the change key (TASK_KEY_MISMATCH) until `migrate --ids` renumbers them and drops the key
+        if (m[2] && m[1] !== "none") doc.staleKey = m[2];
+        else if (m[2] && !CHANGE_KEY_RE.test(m[2])) keyError = `quick-file key "${m[2]}" must be 2–5 upper-case letters (A–Z)`;
+        else if (m[2]) doc.key = m[2];
+      }
       else if ((m = line.match(RX.status)) && !doc.status) doc.status = m[1];
       continue;
     }
@@ -120,9 +131,14 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
   }
   if (doc.change === "none") doc.change = null;
   else if (!doc.change && loc.change && !doc.planning) doc.change = loc.change;
+  doc.quick = !doc.change && !doc.changeDir && !doc.planning;
+  if (!doc.quick) doc.key = null;
   for (const t of doc.tasks) {
     t.planning = doc.planning;
     t.change = doc.change;
+    t.quick = doc.quick;
+    t.quickKey = doc.key;
+    if (keyError) t.parseErrors.push(keyError);
     t.archived = doc.archived;
     t.changeDir = doc.changeDir;
     if (!t._meta && !t.parseErrors.some((e) => e.startsWith("malformed meta"))) t.parseErrors.push("meta line missing");
@@ -163,17 +179,35 @@ export async function checkTasks(root, tasks, index) {
   const plannings = new Map();
   let specCtx = null;
   for (const t of tasks) ids.set(t.id, (ids.get(t.id) || 0) + 1);
-  // 0.13: a task id carries its change's key (proposal meta); quick tasks use the reserved key QT
-  let keys = null;
-  const keyFor = async (t) => {
-    if (!keys) { const { readKeyRegistry } = await import("./keys.mjs"); keys = (await readKeyRegistry(root)).byChange; }
-    if (t.change && (t.changeDir || !t.planning)) return keys.get(t.change) ?? null;
-    return t.changeDir ? null : QUICK_KEY;
-  };
+  // 0.13: a task id carries its change's key (proposal meta); 0.13.2: a quick task carries its quick file's key
+  // (`← Change: none | key: QFLKM`). A keyless quick file still holds legacy `QT-T<n>` ids: current in a keyless
+  // project (no key anywhere yet), IDS_LEGACY once the project has keys. v0.5 planning-linked files keep QT.
+  let reg = null, keyed = null;
+  const registry = async () => { if (!reg) { const { readKeyRegistry } = await import("./keys.mjs"); reg = await readKeyRegistry(root); } return reg; };
+  const isKeyed = async () => { if (keyed === null) { const { isKeyedProject } = await import("./keys.mjs"); keyed = await isKeyedProject(root, await registry()); } return keyed; };
   for (const t of tasks) {
-    const want = await keyFor(t);
     const k = parseTaskId(t.id)?.key;
-    if (want && k && k !== want) err(t, `TASK_KEY_MISMATCH: ${t.id} does not use ${t.change ? `the key ${want} of ${t.change}` : `the quick-task key ${want}`}`);
+    if (!k) continue;
+    if (t.change && (t.changeDir || !t.planning)) {
+      const want = (await registry()).byChange.get(t.change) ?? null;
+      if (want && k !== want) err(t, `TASK_KEY_MISMATCH: ${t.id} does not use the key ${want} of ${t.change}`);
+    } else if (t.changeDir) continue;
+    else if (!t.quick) { if (k !== QUICK_KEY) err(t, `TASK_KEY_MISMATCH: ${t.id} does not use the key ${QUICK_KEY} of a v0.5 planning-linked tasks file`); }
+    else if (t.quickKey) { if (k !== t.quickKey) err(t, `TASK_KEY_MISMATCH: ${t.id} does not use the key ${t.quickKey} of its quick file`); }
+    else if (k !== QUICK_KEY) err(t, `TASK_KEY_MISMATCH: ${t.id}: its quick file has no key (header "← Change: none | key: ${k}"; a new one: hitl-index next-id --quick <slug>)`);
+    else if (await isKeyed()) err(t, `IDS_LEGACY: ${t.id} uses the legacy shared quick key ${QUICK_KEY} (each quick file has its own key since 0.13.2: run /hitl:migrate)`);
+  }
+  // a quick file's key is unique: not another quick file's, not a change's (active or archived), not a legacy key
+  const quickFiles = new Map();
+  for (const t of tasks) if (t.quick && t.quickKey && !quickFiles.has(t.file)) quickFiles.set(t.file, t);
+  if (quickFiles.size) {
+    const { describeOwner } = await import("./keys.mjs");
+    for (const [file, t] of quickFiles) {
+      const rel = file.replace(/^.*?tasks\//, "tasks/");
+      const others = ((await registry()).byKey.get(t.quickKey) || []).filter((o) => o.source !== rel && o.source !== "lock");
+      if (t.quickKey === QUICK_KEY) err(t, `QUICK_KEY_TAKEN: ${QUICK_KEY} is the legacy shared quick key; give ${rel} its own key (hitl-index next-id --quick <slug>)`);
+      else if (others.length) err(t, `QUICK_KEY_TAKEN: key ${t.quickKey} of ${rel} is also used by ${others.map(describeOwner).join(", ")}`);
+    }
   }
   for (const [id, n] of ids) if (n > 1) err(tasks.find((t) => t.id === id), `duplicate task id ${id} (${n}×)`);
   for (const t of tasks) {
@@ -227,16 +261,20 @@ export async function checkTasks(root, tasks, index) {
 }
 
 /**
- * Next task id of a change (or of the quick tasks): `<KEY>-T<max+1>` over that key's tasks in every tasks doc and the
- * lock. A number is never reused within a key. `target`: a change id, or "quick" / null for `.hitl/tasks/*.md` (key QT).
+ * Next task id of a change: `<KEY>-T<max+1>` over that key's tasks in every tasks doc and the lock (a number is never
+ * reused within a key). `target` "quick" / null → the first task of a new quick file: a fresh key (`makeQuickKey` of
+ * `slug`, free of the key registry and of every task id's key) and `<KEY>-T1`. Read the key back with parseTaskId.
  */
-export async function nextTaskId(root, target = null) {
-  let key = QUICK_KEY;
-  if (target && target !== "quick") {
-    const { readKeyRegistry } = await import("./keys.mjs");
-    key = (await readKeyRegistry(root)).byChange.get(target);
-    if (!key) throw Object.assign(new Error(`change ${target} has no key yet (proposal meta "| key: <KEY>"; a pre-0.13 project: run /hitl:migrate)`), { code: 1 });
+export async function nextTaskId(root, target = null, { slug = null, seed = null } = {}) {
+  const K = await import("./keys.mjs");
+  const reg = await K.readKeyRegistry(root);
+  if (!target || target === "quick") {
+    const taken = new Set(reg.byKey.keys());
+    for (const t of await readTasks(root)) { const p = parseTaskId(t.id); if (p) taken.add(p.key); }
+    return formatTaskId(K.makeQuickKey(slug || "", taken, { seed }), 1);
   }
+  const key = reg.byChange.get(target);
+  if (!key) throw Object.assign(new Error(`change ${target} has no key yet (proposal meta "| key: <KEY>"; a pre-0.13 project: run /hitl:migrate)`), { code: 1 });
   let max = 0;
   const bump = (id) => { const p = parseTaskId(id || ""); if (p && p.key === key) max = Math.max(max, p.n); };
   for (const t of await readTasks(root)) bump(t.id);
@@ -247,7 +285,12 @@ export async function nextTaskId(root, target = null) {
   return formatTaskId(key, max + 1);
 }
 
+/** Keyless quick files holding legacy `QT-T<n>` ids: [{file, ids}] (legacy only in a keyed project: isKeyedProject). */
+export async function legacyQuickDocs(root, docs = null) {
+  return (docs || await readTaskDocs(root)).filter((d) => d.quick && !d.key).map((d) => ({ file: d.file, ids: d.tasks.map((t) => t.id).filter((id) => parseTaskId(id)?.key === QUICK_KEY) })).filter((d) => d.ids.length);
+}
+
 /** Pre-0.13 ids in the tasks docs: [{file, ids}] (empty when current). */
-export async function legacyTaskDocs(root) {
-  return (await readTaskDocs(root)).filter((d) => d.legacyIds.length).map((d) => ({ file: d.file, ids: d.legacyIds }));
+export async function legacyTaskDocs(root, docs = null) {
+  return (docs || await readTaskDocs(root)).filter((d) => d.legacyIds.length).map((d) => ({ file: d.file, ids: d.legacyIds }));
 }

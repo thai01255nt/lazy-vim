@@ -48,7 +48,8 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
 /hitl:migrate      # chạy thử → bảng key cho mọi change (nhận/sửa cả bảng) → bản đồ đổi tên → Apply? (Y/n)
 ```
 - Mọi mã được đánh số lại theo key của change đã tạo ra nó: `T-12` → `PWR-T1`, `ACC-R3` → `PWR-R1`, `D-1` → `PWR-D1`;
-  mã không rõ nguồn (có trước hitl) nhận key legacy như `LACC-R1`; task quick dùng key `QT`.
+  mã không rõ nguồn (có trước hitl) nhận key legacy như `LACC-R1`; mỗi file task quick nhận key riêng (`QFLKM-T1`).
+- Từ 0.13.2, task quick cũ dạng `QT-T7` (0.13.0–0.13.1) báo `IDS_LEGACY`: chạy `/hitl:migrate` lần nữa để đổi sang key riêng của file.
 - Nên commit hết trước khi chạy (nó từ chối khi `.hitl/` hoặc code có tag còn thay đổi chưa commit). Xong thì commit
   một lần. Mã cũ trong chat/commit: `hitl-index context T-12` vẫn tra được (qua `.hitl/index/id-map.json`).
 - Chưa migrate thì các lệnh khác báo `IDS_LEGACY` và chỉ sang `/hitl:migrate`.

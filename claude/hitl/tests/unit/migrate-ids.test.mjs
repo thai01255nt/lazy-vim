@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { checkKey, keyCandidates, legacyKeyFor, readKeyRegistry, suggestKey } from "../../scripts/lib/keys.mjs";
+import { checkKey, keyCandidates, legacyKeyFor, makeQuickKey, quickKeyCandidate, quickSlugLetters, readKeyRegistry, setQuickFileKey, suggestKey } from "../../scripts/lib/keys.mjs";
 import { AC_ID_RE, DEC_ID_RE, TASK_ID_RE, compareTaskIds, keyOf, parseTaskId } from "../../scripts/lib/specids.mjs";
 import { addProposalKey, parseKeysArg, rewriteTaskIds, stripCapabilityKey } from "../../scripts/lib/migrateids.mjs";
 import { parseTasksMd, nextTaskId } from "../../scripts/lib/tasksmd.mjs";
@@ -21,7 +21,7 @@ const FIX = path.join(PLUGIN, "tests/fixtures/legacy-ids");
 const cli = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", timeout: 60000 }); return { code: r.status, out: r.stdout, err: r.stderr, json: () => JSON.parse(r.stdout) }; };
 const legacy = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-migids-")); fs.cpSync(FIX, d, { recursive: true }); return d; };
 const rd = (root, rel) => fs.readFileSync(path.join(root, rel), "utf8");
-const KEYS = "feat-2fa=TFA,feat-password-reset=PWR,cap:accounts=LACC";
+const KEYS = "feat-2fa=TFA,feat-password-reset=PWR,cap:accounts=LACC,quick:fix-label-typo=QFLT";
 const git = (cwd, ...a) => spawnSync("git", a, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } });
 
 test("id grammar: task, AC and decision ids carry a 2–5 letter change key", () => {
@@ -60,15 +60,34 @@ test("pre-0.13 ids: tasks docs record them, tags reject them with the migrate hi
   const root = legacy();
   assert.equal(cli(root, "migrate", "--ids", "--keys", KEYS).code, 0);
   assert.equal(await nextTaskId(root, "feat-password-reset"), "PWR-T3");
-  assert.equal(await nextTaskId(root, "quick"), "QT-T2");
+  // 0.13.2: a new quick file gets a fresh key of its own, never QT and never a taken key
+  assert.match(await nextTaskId(root, "quick"), /^Q[A-Z]{4}-T1$/);
+  assert.equal(await nextTaskId(root, "quick", { slug: "fix-greeting", seed: "s" }), await nextTaskId(root, "quick", { slug: "fix-greeting", seed: "s" }));
   await assert.rejects(nextTaskId(root, "feat-nope"), /no key yet/);
   assert.equal(cli(root, "next-id", "feat-password-reset").out.trim(), "PWR-T3");
-  assert.equal(cli(root, "next-id", "--quick").out.trim(), "QT-T2");
+  assert.match(cli(root, "next-id", "--quick", "quick-fix-greeting").out.trim(), /^QF[A-Z]{3}-T1$/);
+  const j = cli(root, "next-id", "--quick", "fix-greeting", "--json").json();
+  assert.ok(/^QF[A-Z]{3}$/.test(j.key) && j.next === `${j.key}-T1`);
   assert.equal(cli(root, "next-id").code, 2);
+  assert.equal(cli(root, "next-id", "--quick", "a", "b").code, 2);
+});
+
+test("quick keys (0.13.2): Q + slug letters + hash letters, 5 in all; free of taken keys; header insertion", () => {
+  assert.deepEqual(["fix-label-typo", "quick-typo.md", "typo", "42", ""].map(quickSlugLetters), ["F", "T", "T", "", ""]);
+  assert.match(quickKeyCandidate("fix-label-typo", "seed"), /^QF[A-Z]{3}$/);
+  assert.match(quickKeyCandidate("", "seed"), /^Q[A-Z]{4}$/);
+  assert.equal(makeQuickKey("fix-label-typo", new Set(), { seed: "s" }), makeQuickKey("fix-label-typo", new Set(), { seed: "s" }), "a seed makes it deterministic");
+  const first = makeQuickKey("fix-label-typo", new Set(), { seed: "s" });
+  const second = makeQuickKey("fix-label-typo", new Set([first]), { seed: "s" });
+  assert.ok(second !== first && /^QF[A-Z]{3}$/.test(second), "a taken key is skipped");
+  for (let i = 0; i < 50; i++) assert.match(makeQuickKey("x", new Set()), /^QX[A-Z]{3}$/);
+  assert.equal(setQuickFileKey("# T\n← Change: none\n> status: draft\n", "QFLKM"), "# T\n← Change: none | key: QFLKM\n> status: draft\n");
+  assert.equal(setQuickFileKey("# T\n← Change: none | key: QABCD\n", "QFLKM"), "# T\n← Change: none | key: QABCD\n");
+  assert.equal(setQuickFileKey("# T\n\n## QT-T1 A\n", "QFLKM"), "# T\n← Change: none | key: QFLKM\n\n## QT-T1 A\n");
 });
 
 test("helpers: --keys parsing, task id rewrite, proposal key insertion, capability key strip", () => {
-  assert.deepEqual(parseKeysArg("feat-a=PWR, cap:accounts=LACC"), { changes: { "feat-a": "PWR" }, caps: { accounts: "LACC" }, errors: [] });
+  assert.deepEqual(parseKeysArg("feat-a=PWR, cap:accounts=LACC, quick:quick-fix-x=QFXAB"), { changes: { "feat-a": "PWR" }, caps: { accounts: "LACC" }, quick: { "fix-x": "QFXAB" }, errors: [] });
   assert.match(parseKeysArg("feat-a=pw").errors[0], /2–5 upper-case letters/);
   assert.deepEqual(parseKeysArg('{"feat-a":"PWR"}').changes, { "feat-a": "PWR" });
   assert.equal(rewriteTaskIds("T-3, T-3.AC2, PWR-T3, UTF-8, T-30", { "T-3": "PWR-T1" }), "PWR-T1, PWR-T1.AC2, PWR-T3, UTF-8, T-30");
@@ -100,13 +119,17 @@ test("migrate --ids: dry run plans everything and writes nothing; keys table; re
   const before = rd(root, ".hitl/changes/feat-password-reset/tasks.md");
   const d = cli(root, "migrate", "--ids", "--dry-run", "--json").json();
   assert.equal(d.status, "plan");
+  assert.equal(d.quickKeys.length, 1);
+  assert.deepEqual([d.quickKeys[0].file, d.quickKeys[0].slug, d.quickKeys[0].source], [".hitl/tasks/fix-label-typo.md", "fix-label-typo", "suggested"]);
+  assert.match(d.quickKeys[0].key, /^QF[A-Z]{3}$/, "a quick file's own key: Q + slug letters + hash letters");
+  assert.equal(cli(root, "migrate", "--ids", "--dry-run", "--json").json().quickKeys[0].key, d.quickKeys[0].key, "deterministic: the dry run and the apply agree");
   assert.equal(rd(root, ".hitl/changes/feat-password-reset/tasks.md"), before, "dry run wrote nothing");
   assert.ok(!fs.existsSync(path.join(root, ".hitl/index/id-map.json")));
   assert.deepEqual(d.keys.map((k) => [k.change, k.archived, k.source]), [["feat-2fa", true, "suggested"], ["feat-password-reset", false, "suggested"]]);
   assert.deepEqual(d.legacyKeys.map((k) => [k.capability, k.oldKey, k.key]), [["accounts", "ACC", "LACC"]]);
   for (const k of d.keys) assert.match(k.key, /^[A-Z]{2,5}$/);
   const g = cli(root, "migrate", "--ids", "--dry-run", "--keys", KEYS, "--json").json();
-  assert.deepEqual(g.map.tasks, { "T-12": "PWR-T1", "T-13": "PWR-T2", "T-20": "QT-T1", "T-10": "TFA-T1" });
+  assert.deepEqual(g.map.tasks, { "T-12": "PWR-T1", "T-13": "PWR-T2", "T-20": "QFLT-T1", "T-10": "TFA-T1" });
   assert.deepEqual(g.map.specs, { "ACC-R1": "LACC-R1", "ACC-R2": "LACC-R2", "ACC-R4": "LACC-R3", "ACC-R3": "TFA-R1", "ACC-R5": "PWR-R1", "ACC-R6": "PWR-R2", "ACC-BR1": "PWR-BR1", "ACC-UC1": "PWR-UC1" },
     "a living id keeps the key of the change that ADDED it; unknown origin → the legacy key, old order");
   assert.deepEqual(g.map.decisions, { "feat-password-reset/D-1": "PWR-D1", "feat-password-reset/D-2": "PWR-D2" });
@@ -117,6 +140,8 @@ test("migrate --ids: dry run plans everything and writes nothing; keys table; re
   assert.equal(bad.code, 1);
   assert.match(bad.err, /CHANGE_KEY_TAKEN PWR/);
   assert.equal(cli(root, "migrate", "--ids", "--keys", "feat-2fa=QT").code, 1, "the quick key is reserved");
+  assert.equal(cli(root, "migrate", "--ids", "--keys", "quick:fix-label-typo=PWR,feat-password-reset=PWR").code, 1, "a quick key is unique too");
+  assert.equal(cli(root, "migrate", "--ids", "--keys", "quick:nope=QNOPE").code, 1, "no such quick file");
   assert.equal(cli(root, "migrate", "--ids", "--keys", "feat-2fa=ACC").code, 1, "an old capability key is taken");
   assert.equal(cli(root, "migrate", "--ids", "--keys", "feat-nope=NOPE").code, 1);
   assert.equal(rd(root, ".hitl/changes/feat-password-reset/tasks.md"), before, "refusals wrote nothing");
@@ -147,16 +172,16 @@ test("migrate --ids: everything renamed, lock/2 re-keyed, hashes clean, id map w
   assert.match(living, /- LACC-R3 Security questions — removed by feat-2fa/);
   assert.match(living, /- 2026-10-20 feat-2fa: \+TFA-R1 -LACC-R3/);
   assert.match(rd(root, `${C}/notes.md`), /- refs: PWR-D1 \(Store a hash of the reset token, never the token\), PWR-T2 \(Set a new password\)/);
-  assert.match(rd(root, ".hitl/tasks/fix-label-typo.md"), /^## QT-T1 Fix the label typo$/m);
+  assert.match(rd(root, ".hitl/tasks/fix-label-typo.md"), /^← Change: none \| key: QFLT\n[\s\S]*^## QFLT-T1 Fix the label typo$/m);
   const ts = rd(root, "src/reset.ts");
   assert.match(ts, /@task PWR-T1 @impl agent @status skeleton @prio 1\n \* @dec PWR-D1/);
   assert.match(ts, /\/\/ TODO\(impl PWR-T1\): 1\. find the account/);
   assert.match(ts, /@task PWR-T2 @impl agent/);
   assert.match(rd(root, "tests/reset.test.ts"), /@ac PWR-T1\.AC1 /);
-  assert.match(rd(root, "src/labels.py"), /@task QT-T1 @impl agent[\s\S]*# TODO\(impl QT-T1\)/);
+  assert.match(rd(root, "src/labels.py"), /@task QFLT-T1 @impl agent[\s\S]*# TODO\(impl QFLT-T1\)/);
   const lock = JSON.parse(rd(root, ".hitl/index/skeleton.lock.json"));
   assert.equal(lock.schema, "hitl.lock/2");
-  assert.deepEqual(Object.keys(lock.tasks).sort(), ["PWR-T1", "PWR-T2", "QT-T1", "TFA-T1"]);
+  assert.deepEqual(Object.keys(lock.tasks).sort(), ["PWR-T1", "PWR-T2", "QFLT-T1", "TFA-T1"]);
   assert.equal(lock.symbols["src/reset.ts#requestReset"].task, "PWR-T1");
   assert.equal(lock.symbols["src/reset.ts#requestReset"].intentLog[0].task, "PWR-T1");
   assert.ok(fs.existsSync(path.join(root, ".hitl/reviews/PWR-T1/decisions.json")) && !fs.existsSync(path.join(root, ".hitl/reviews/T-12")));
@@ -166,8 +191,8 @@ test("migrate --ids: everything renamed, lock/2 re-keyed, hashes clean, id map w
   assert.deepEqual(map.tasks["PWR-T2"].pushed.relations, ["PWR-T1"]);
   assert.equal(map.tasks["PWR-T1"].pushed.title, "T-12 · Send a reset link", "what was pushed stays: the next push rewrites title + marker");
   const idm = JSON.parse(rd(root, ".hitl/index/id-map.json"));
-  assert.deepEqual([idm.schema, idm.keys, idm.legacyKeys, idm.ids["T-12"], idm.ids["ACC-R5"], idm.ids["feat-password-reset/D-1"]],
-    ["hitl.id-map/1", { "feat-2fa": "TFA", "feat-password-reset": "PWR" }, { accounts: "LACC" }, "PWR-T1", "PWR-R1", "PWR-D1"]);
+  assert.deepEqual([idm.schema, idm.keys, idm.legacyKeys, idm.quickKeys, idm.ids["T-12"], idm.ids["ACC-R5"], idm.ids["feat-password-reset/D-1"]],
+    ["hitl.id-map/1", { "feat-2fa": "TFA", "feat-password-reset": "PWR" }, { accounts: "LACC" }, { ".hitl/tasks/fix-label-typo.md": "QFLT" }, "PWR-T1", "PWR-R1", "PWR-D1"]);
   // nothing reads as drift or a changed base after a pure rename
   const v = cli(root, "spec", "validate", "--json").json();
   assert.deepEqual([v.counts.error, v.counts.warn], [0, 0], JSON.stringify(v.items));
@@ -215,6 +240,66 @@ test("readKeyRegistry: proposals (active + archived), legacy keys in living ids,
   assert.equal(cli(root, "migrate", "--ids", "--keys", KEYS).code, 0);
   const reg = await readKeyRegistry(root);
   assert.deepEqual([...reg.byChange], [["feat-password-reset", "PWR"], ["feat-2fa", "TFA"]]);
-  assert.ok(["QT", "PWR", "TFA", "LACC"].every((k) => reg.byKey.has(k)));
+  assert.ok(["QT", "PWR", "TFA", "LACC", "QFLT"].every((k) => reg.byKey.has(k)));
+  assert.equal(checkKey(reg, "QFLT", "feat-new").code, "CHANGE_KEY_TAKEN");
+  assert.match(checkKey(reg, "QFLT", "feat-new").message, /the quick file tasks\/fix-label-typo\.md/);
   assert.equal(cli(root, "spec", "key", "--check", "LACC").code, 1);
+});
+
+test("migrate --ids (0.13.2): a 0.13.1 project's QT quick task moves to its file's own key (tags, lock, review dir, tickets map, id map)", () => {
+  const root = legacy();
+  assert.equal(cli(root, "index", "--all", "--quiet").code, 0);
+  assert.equal(cli(root, "migrate", "--ids", "--keys", KEYS).code, 0);
+  // back to what 0.13.0–0.13.1 wrote: the quick task under the shared key QT, no header key, a review and a ticket
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  for (const f of walk(root)) { const t = fs.readFileSync(f, "utf8"); if (t.includes("QFLT")) fs.writeFileSync(f, t.replace(/ \| key: QFLT/g, "").replace(/QFLT/g, "QT")); }
+  fs.mkdirSync(path.join(root, ".hitl/reviews/QT-T1"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".hitl/reviews/QT-T1/decisions.json"), '{"task":"QT-T1"}\n');
+  const lm = JSON.parse(rd(root, ".hitl/linear.map.json"));
+  lm.tasks["QT-T1"] = { issue: "ENG-9", pushed: { title: "QT-T1 · Fix the label typo", relations: [] } };
+  fs.writeFileSync(path.join(root, ".hitl/linear.map.json"), JSON.stringify(lm, null, 2));
+  assert.match(rd(root, ".hitl/tasks/fix-label-typo.md"), /^← Change: none\n[\s\S]*^## QT-T1 /m);
+  // a keyed project: QT is legacy → status routes to /hitl:migrate, tasks --check names IDS_LEGACY
+  const st = cli(root, "status", "--json").json();
+  assert.equal(st.next.command, "/hitl:migrate");
+  assert.match(st.idsLegacy.reasons.join(" "), /legacy QT-T<n> quick-task ids in \.hitl\/tasks\/fix-label-typo\.md/);
+  assert.match(cli(root, "status", "--brief").out, /^⚠️ HITL: legacy quick-task ids \(legacy QT-T<n> .* run \/hitl:migrate/);
+  const ck = cli(root, "tasks", "--check");
+  assert.equal(ck.code, 1);
+  assert.match(ck.out + ck.err, /IDS_LEGACY: QT-T1 uses the legacy shared quick key QT/);
+  // dry run → the quick file's own key; apply rewrites everything that names QT-T1
+  const d = cli(root, "migrate", "--ids", "--dry-run", "--json").json();
+  assert.equal(d.status, "plan");
+  const K = d.quickKeys[0].key;
+  assert.match(K, /^QF[A-Z]{3}$/);
+  assert.deepEqual(d.map.tasks, { "QT-T1": `${K}-T1` });
+  const r = cli(root, "migrate", "--ids", "--keys", `quick:fix-label-typo=${K}`, "--json");
+  assert.equal(r.code, 0, r.err + r.out);
+  assert.match(rd(root, ".hitl/tasks/fix-label-typo.md"), new RegExp(`^← Change: none \\| key: ${K}\\n[\\s\\S]*^## ${K}-T1 Fix the label typo$[\\s\\S]*- \\[ \\] ${K}-T1\\.AC1 `, "m"));
+  assert.match(rd(root, "src/labels.py"), new RegExp(`@task ${K}-T1 @impl agent[\\s\\S]*# TODO\\(impl ${K}-T1\\)`));
+  assert.ok(Object.keys(JSON.parse(rd(root, ".hitl/index/skeleton.lock.json")).tasks).includes(`${K}-T1`));
+  assert.ok(fs.existsSync(path.join(root, `.hitl/reviews/${K}-T1/decisions.json`)) && !fs.existsSync(path.join(root, ".hitl/reviews/QT-T1")));
+  assert.equal(JSON.parse(rd(root, ".hitl/linear.map.json")).tasks[`${K}-T1`].issue, "ENG-9");
+  const idm = JSON.parse(rd(root, ".hitl/index/id-map.json"));
+  assert.deepEqual([idm.ids["QT-T1"], idm.ids["T-20"], idm.quickKeys[".hitl/tasks/fix-label-typo.md"]], [`${K}-T1`, `${K}-T1`, K], "older map entries follow the rename");
+  assert.equal(cli(root, "tasks", "--check").code, 0);
+  assert.equal(cli(root, "status", "--json").json().idsLegacy, undefined);
+  assert.equal(cli(root, "migrate", "--ids", "--json").json().status, "current");
+  assert.match(cli(root, "context", "QT-T1").out, new RegExp(`^# Context ${K}-T1 — Fix the label typo`));
+});
+
+test("migrate --ids: a keyed quick task moved into a change is renumbered under the change key; its old quick key goes", () => {
+  const root = legacy();
+  assert.equal(cli(root, "index", "--all", "--quiet").code, 0);
+  assert.equal(cli(root, "migrate", "--ids", "--keys", KEYS).code, 0);
+  const Q = ".hitl/tasks/fix-label-typo.md";
+  fs.writeFileSync(path.join(root, Q), rd(root, Q).replace("← Change: none | key: QFLT", "← Change: feat-password-reset | key: QFLT"));
+  const ck = cli(root, "tasks", "--check");
+  assert.match(ck.out + ck.err, /TASK_KEY_MISMATCH: QFLT-T1 does not use the key PWR of feat-password-reset/);
+  const d = cli(root, "migrate", "--ids", "--json");
+  assert.equal(d.code, 0, d.err + d.out);
+  assert.deepEqual([d.json().map.tasks, d.json().quickKeys], [{ "QFLT-T1": "PWR-T3" }, []]);
+  assert.match(rd(root, Q), /^← Change: feat-password-reset\n[\s\S]*^## PWR-T3 Fix the label typo$/m);
+  assert.match(rd(root, "src/labels.py"), /@task PWR-T3 @impl agent/);
+  assert.equal(cli(root, "tasks", "--check").code, 0);
 });

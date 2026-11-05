@@ -15,7 +15,8 @@ const K = "[A-Z][A-Z0-9]{1,5}";
 // `<KEY>-R<n>` (the key is now a change key, not a capability key); tasks, ACs and decisions gain it.
 /** Change key: 2–5 upper-case letters. */
 export const CHANGE_KEY_RE = /^[A-Z]{2,5}$/;
-/** Reserved key of every quick task file (`.hitl/tasks/*.md`): `QT-T<n>`. */
+/** Legacy (0.13.0–0.13.1) shared key of the quick tasks (`QT-T<n>`): reserved, never given to a new task. Since 0.13.2
+ *  each quick file has its own key in its header (`← Change: none | key: QFLKM`); v0.5 planning-linked files keep QT. */
 export const QUICK_KEY = "QT";
 export const KEY_SRC = "[A-Z]{2,5}";
 /** Source of a task id `PWR-T3` / an AC id `PWR-T3.AC2` / a task-or-AC ref / a decision id `PWR-D1` (embed in larger regexes). */

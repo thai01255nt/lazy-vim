@@ -1,5 +1,6 @@
-// `hitl-index migrate --ids [--dry-run] [--keys "<change-id>=KEY,…,cap:<capability>=KEY"] [--force] [--json]` — 0.13: renumber
-// pre-0.13 ids (T-n, D-n, capability-keyed spec ids) into change-key scoped ids (lib/migrateids.mjs); refuses while the
+// `hitl-index migrate --ids [--dry-run] [--keys "<change-id>=KEY,…,cap:<capability>=KEY,quick:<slug>=KEY"] [--force] [--json]`
+// — 0.13: renumber pre-0.13 ids (T-n, D-n, capability-keyed spec ids) into change-key scoped ids, and (0.13.2) legacy
+// `QT-T<n>` quick tasks into a key per quick file (lib/migrateids.mjs); refuses while the
 // files it touches have uncommitted git changes unless --force; a second run is a no-op.
 // `hitl-index migrate [--dry-run] [--json]` — move a ≤ 0.3 project state dir `.claude/custom/` to `.hitl/` (0.4+).
 // `hitl-index migrate --specs [<planning-name>…] [--dry-run] [--map <json|file>] [--archive-done] [--json]` — convert v0.5
@@ -145,6 +146,7 @@ async function runIds(a, ctx) {
     say("| change | key | source |\n|---|---|---|");
     for (const k of plan.keys) say(`| ${k.label}${k.archived ? " (archived)" : ""} | ${k.key} | ${k.source} |`);
     for (const k of plan.legacyKeys) say(`| cap:${k.capability} (legacy ${k.oldKey ?? "?"}, ${k.ids} id(s)) | ${k.key} | ${k.source} |`);
+    for (const k of plan.quickKeys) say(`| quick:${k.slug} (${k.file}) | ${k.key} | ${k.source} |`);
     const show = (name, mp) => { const e = Object.entries(mp); if (e.length) say(`${name} (${e.length}): ${e.slice(0, 40).map(([o, n]) => `${o}→${n}`).join(", ")}${e.length > 40 ? ", …" : ""}`); };
     show("tasks", plan.map.tasks); show("spec ids", plan.map.specs); show("decisions", plan.map.decisions);
     for (const [c, mp] of Object.entries(plan.map.local)) show(`spec ids added by ${c}`, mp);
@@ -163,7 +165,7 @@ async function runIds(a, ctx) {
     if (!json) console.error(`❌ uncommitted changes in ${dirty.length} file(s) migrate would touch or read: ${dirty.slice(0, 10).join(", ")}${dirty.length > 10 ? ", …" : ""} — commit or stash them first (or --force)`);
     if (!dry) return done(1);
   }
-  if (dry) { say(`🎯 apply: hitl-index migrate --ids --keys "${[...plan.keys.filter((k) => k.source !== "proposal").map((k) => `${k.label}=${k.key}`), ...plan.legacyKeys.map((k) => `cap:${k.capability}=${k.key}`)].join(",")}"`); return done(0); }
+  if (dry) { say(`🎯 apply: hitl-index migrate --ids --keys "${[...plan.keys.filter((k) => k.source !== "proposal").map((k) => `${k.label}=${k.key}`), ...plan.legacyKeys.map((k) => `cap:${k.capability}=${k.key}`), ...plan.quickKeys.map((k) => `quick:${k.slug}=${k.key}`)].join(",")}"`); return done(0); }
   const r = await m.applyMigrateIds(ctx.root, plan);
   Object.assign(res, { status: "applied", written: r.written, renamed: r.renamed, idMap: r.idMap });
   try { const { updateIndex } = await import("../lib/indexer.mjs"); await updateIndex(ctx.root, null, { full: true }); res.reindexed = true; } catch (e) { res.reindexError = e.message; }

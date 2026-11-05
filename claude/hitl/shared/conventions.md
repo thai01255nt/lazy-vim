@@ -66,9 +66,9 @@ rule or decision of an active change), do not amend it now:
 ## Ids (details: `conventions-spec.md`)
 Change id `[type]-[slug]` with a change key `<KEY>` (2–5 capitals, proposal meta `| key: PWR`, unique forever). Every id
 starts with the key of the change that created it: spec ids `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-UC1`; decisions
-`PWR-D1`; tasks `PWR-T3`, ACs `PWR-T3.AC2`; quick tasks `QT-T7`. Notes `N-k` and findings `F-n` stay local.
+`PWR-D1`; tasks `PWR-T3`, ACs `PWR-T3.AC2`; a quick file has its own key (`QFLKM-T1`). Notes `N-k` and findings `F-n` stay local.
 Ids come from `hitl-index` (`spec next-id <change-id>`, `next-id <change-id>`) and are never renumbered or reused.
-Pre-0.13 ids (`T-n`, `D-n`) → `IDS_LEGACY`: run `/hitl:migrate`.
+Pre-0.13 ids (`T-n`, `D-n`) and legacy shared quick ids (`QT-T7`) → `IDS_LEGACY`: run `/hitl:migrate`.
 
 ## Never
 - Edit `.hitl/specs/**`, `.hitl/archive/**` (except tooling-written status in archived `tasks.md`) or `**/.base.json`:

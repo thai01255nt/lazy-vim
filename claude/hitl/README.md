@@ -89,6 +89,17 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.13.1
+
+0.13.2: **mỗi file task quick có key riêng** — hai nhánh git cùng tạo task quick không còn đụng id (trước đây cùng
+`QT-T<max+1>`). Header `← Change: none | key: QFLKM`, task `QFLKM-T1`; key = `Q` + 1 chữ đầu của slug + 3 chữ từ hash
+(slug + thời điểm + ngẫu nhiên), 5 chữ, không trùng key nào đã có (change active/archive, quick, legacy). CLI
+`hitl-index next-id --quick <slug> [--json]` sinh key, không có gate. `QT` chỉ còn là key legacy: project đã có key mà
+còn `QT-T<n>` → `IDS_LEGACY` → chạy **`/hitl:migrate`** một lần (đổi `QT-T7` → `QFLKM-T1` trong file quick, tag code,
+lock, map ticket, thư mục review, `id-map.json`; `--keys quick:<slug>=KEY` để tự chọn). `tasks --check` báo
+`TASK_KEY_MISMATCH` (task không dùng key của file) và `QUICK_KEY_TAKEN` (key trùng file quick khác hoặc change).
+File v0.5 nối `← Planning:` vẫn dùng `QT`.
+
 ### Nâng cấp từ 0.13.0
 
 0.13.1 thêm **`/hitl:overlap <change-id> [<change khác> …]`** (hoặc `--with B,C`; không nêu thì so với mọi change đang
@@ -111,9 +122,9 @@ khác). Không cần migrate.
   `> change: feat-password-reset | key: PWR | status: …`. `/hitl:plan` gợi ý key từ tiêu đề ở gate đầu tiên
   (`hitl-index spec key <change-id> --title "…"`), bạn nhận hoặc sửa. Trùng → `CHANGE_KEY_TAKEN`.
 - Mọi id bắt đầu bằng key của change **tạo ra** nó, số đếm max+1 trong change: task `PWR-T1`, AC `PWR-T1.AC2`,
-  requirement `PWR-R1`, scenario `PWR-R1.S1`, rule `PWR-BR1`, flow `PWR-UC1`, decision `PWR-D1`. Task quick dùng chung
-  key `QT` (`QT-T7`). Capability chỉ còn là thư mục (`specs/<cap>/spec.md`), không nằm trong id; meta spec bỏ `| key:`.
-  MODIFIED/REMOVED giữ id gốc; requirement sống giữ id của change đã tạo nó. Note `N-k`, finding `F-n`, thuật ngữ
+  requirement `PWR-R1`, scenario `PWR-R1.S1`, rule `PWR-BR1`, flow `PWR-UC1`, decision `PWR-D1`. Task quick: mỗi file
+  một key riêng (`QFLKM-T1`, từ 0.13.2; 0.13.0–0.13.1 dùng chung `QT`). Capability chỉ còn là thư mục
+  (`specs/<cap>/spec.md`), không nằm trong id; meta spec bỏ `| key:`. MODIFIED/REMOVED giữ id gốc; requirement sống giữ id của change đã tạo nó. Note `N-k`, finding `F-n`, thuật ngữ
   glossary không đổi.
 - `/hitl:migrate`: chạy thử (`hitl-index migrate --ids --dry-run --json`) → một bảng key cho mọi change (cả archive) +
   key legacy cho id sống không rõ nguồn (`L` + key capability cũ, vd. `LACC-R1`), bạn nhận/sửa cả bảng một lần → bản
@@ -124,7 +135,7 @@ khác). Không cần migrate.
   commit (trừ khi bạn chọn `--force`). Chạy lại lần hai: không làm gì.
 - Chưa migrate: id cũ (`T-n`, `D-n`, `hitl.lock/1`) báo `IDS_LEGACY` → `/hitl:migrate`, không crash; không đọc song
   song hai định dạng.
-- CLI mới/đổi: `hitl-index next-id <change-id>` (quick: `--quick`), `hitl-index spec next-id <change-id> [--kind
+- CLI mới/đổi: `hitl-index next-id <change-id>` (quick: `--quick <slug>`), `hitl-index spec next-id <change-id> [--kind
   R|BR|UC|D]`, `hitl-index spec key`, `hitl-index migrate --ids`.
 
 ### Nâng cấp từ 0.11

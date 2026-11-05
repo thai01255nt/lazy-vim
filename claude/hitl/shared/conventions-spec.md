@@ -9,13 +9,16 @@ Read with `conventions.md` (core).
 ## Naming and layout
 - Change id: `[type]-[slug]`, type ∈ feat|fix|refactor|perf|docs|test|chore; slug = short kebab case; ≤ 48 chars.
 - Change key = 2–5 capitals (`PWR`) in the proposal meta, unique forever (active and archived changes, legacy keys,
-  reserved `QT`; `CHANGE_KEY_TAKEN`); suggested by `hitl-index spec key <change-id> --title "…"`, never changed.
+  quick-file keys, reserved `QT`; `CHANGE_KEY_TAKEN`); suggested by `hitl-index spec key <change-id> --title "…"`, never changed.
 - Capability = a business area (`accounts`), flat kebab case; it is the folder of the spec, not part of any id.
 - Spec ids (`shared/spec-format.md`) carry the key of the change that created them: requirement `PWR-R1`, scenario
   `PWR-R1.S1`, rule `PWR-BR1`, flow `PWR-UC1`, from `hitl-index spec next-id <change-id>`; MODIFIED/REMOVED keep the
   original id; ids are identity, never renumbered or reused. Decisions `PWR-D1` (`spec next-id <change-id> --kind D`),
   max+1 within the change, never edited after approval (supersede, `amend-spec.md`). Task ids `PWR-T3` from
-  `hitl-index next-id <change-id>` (quick tasks `QT-T<n>`: `next-id --quick`).
+  `hitl-index next-id <change-id>`. A quick file (`tasks/quick-<slug>.md`) has its own key (0.13.2):
+  `hitl-index next-id --quick <slug>` → `QFLKM-T1`, header `← Change: none | key: QFLKM` (no gate; unique across
+  branches by hash). A quick key used twice, or also a change's key → `QUICK_KEY_TAKEN`; a task not under its file's
+  key → `TASK_KEY_MISMATCH`; a legacy shared `QT-T<n>` in a keyed project → `IDS_LEGACY` (`/hitl:migrate`).
 - Project dir `.hitl/`:
   `docs/` (steering: BUSINESS-CONTEXT, ARCHITECTURE, PATTERNS-CONVENTIONS, CODEBASE-MAP, optional CONSTITUTION) ·
   `specs/<capability>/spec.md` + `specs/GLOSSARY.md` (living specs) ·

@@ -2,7 +2,8 @@
 ← Change: {change-id}
 > status: draft
 
-<!-- task ids {KEY}-T<n> from `hitl-index next-id {change-id}` ({KEY} = the change key; quick tasks: QT-T<n>) -->
+<!-- task ids {KEY}-T<n> from `hitl-index next-id {change-id}` ({KEY} = the change key). A quick file instead:
+     header `← Change: none | key: {QKEY}`, one task {QKEY}-T1 from `hitl-index next-id --quick {slug}` -->
 
 ## PWR-T12 Register user with unique email
 - prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo

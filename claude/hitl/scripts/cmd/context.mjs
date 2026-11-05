@@ -16,11 +16,12 @@ export async function run(argv, ctx) {
   const a = parseArgv(argv, { flags: ["contract"], values: ["out", "budget"] });
   if (!a._[0]) throw Object.assign(new Error("context <task-id|ref> required"), { usage: true });
   let target = a._[0];
-  // 0.13: an old id (T-3, T-3.AC2, ACC-R3.S1, feat-x/D-1) resolves through .hitl/index/id-map.json (one release)
+  // 0.13: an old id (T-3, T-3.AC2, ACC-R3.S1, feat-x/D-1; 0.13.2: a legacy quick QT-T7) resolves through
+  // .hitl/index/id-map.json (one release)
   const { readIdMap } = await import("../lib/keys.mjs");
-  const map = /^(?:T-\d+|[\w-]+\/D-\d+|[A-Z][A-Z0-9]{1,5}-(?:R|BR|UC)\d+)/.test(target) ? await readIdMap(ctx.root) : null;
+  const map = /^(?:T-\d+|QT-T\d+|[\w-]+\/D-\d+|[A-Z][A-Z0-9]{1,5}-(?:R|BR|UC)\d+)/.test(target) ? await readIdMap(ctx.root) : null;
   if (map) {
-    const m = /^(T-\d+|[A-Z][A-Z0-9]{1,5}-R\d+|[A-Z][A-Z0-9]{1,5}-(?:BR|UC)\d+|[\w-]+\/D-\d+)(\.(?:AC|S)\d+)?$/.exec(target);
+    const m = /^(T-\d+|QT-T\d+|[A-Z][A-Z0-9]{1,5}-R\d+|[A-Z][A-Z0-9]{1,5}-(?:BR|UC)\d+|[\w-]+\/D-\d+)(\.(?:AC|S)\d+)?$/.exec(target);
     const nid = m && map.ids[m[1]] ? map.ids[m[1]] + (m[2] || "") : null;
     if (nid) {
       if (ctx.json && !/^[A-Z]{2,5}-T\d+$/.test(nid)) { console.log(JSON.stringify({ old: target, id: nid, via: "id-map" })); return 0; }

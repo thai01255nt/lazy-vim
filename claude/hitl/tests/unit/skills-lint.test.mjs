@@ -303,5 +303,23 @@ test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate
   assert.doesNotMatch(read("README.md"), /B không tạo với `--before`/);
   assert.match(read("HUONG-DAN.md"), /^\/hitl:overlap feat-fee feat-waive feat-report/m);
   assert.doesNotMatch(read("HUONG-DAN.md"), /Chồng lấn tình cờ/);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.13.1");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.13\.[1-9]\d*$|^0\.(1[4-9]|[2-9]\d)\.\d+$/, "version ≥ 0.13.1");
+});
+
+test("0.13.2: a key per quick file — tasks quick mode, migrate, id docs, upgrade notes", () => {
+  const tk = read("skills/tasks/SKILL.md");
+  assert.match(tk, /`hitl-index next-id --quick <slug> --json`/);
+  assert.match(tk, /`← Change: none \| key: <key>`/);
+  assert.doesNotMatch(tk, /every quick file shares the key `QT`/);
+  const mg = read("skills/migrate/SKILL.md");
+  assert.match(mg, /`quickKeys\[\]`/);
+  assert.match(mg, /quick:<slug>=<KEY>/);
+  assert.match(mg, /QT-T7 → QFLKM-T1/);
+  assert.match(read("shared/spec-format.md"), /\| quick-file key \(0\.13\.2\) \|/);
+  assert.match(read("shared/conventions-spec.md"), /QUICK_KEY_TAKEN/);
+  assert.match(read("shared/templates/tasks.md"), /next-id --quick \{slug\}/);
+  assert.match(read("skills/flow/references/help.md"), /a quick file has its own key/);
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.13\.1/m);
+  assert.match(read("HUONG-DAN.md"), /Từ 0\.13\.2, task quick cũ dạng `QT-T7`/);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.13.2");
 });

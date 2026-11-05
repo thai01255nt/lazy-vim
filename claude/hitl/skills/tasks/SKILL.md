@@ -14,7 +14,9 @@ read `${CLAUDE_SKILL_DIR}/references/slicing-and-risk.md` before drafting. Forma
 Arguments: `$ARGUMENTS`
 
 ## 1. Resolve the source
-- `quick <description>` → quick mode: no change. Target `.hitl/tasks/quick-<slug>.md`, header `← Change: none`, one task, id `QT-T<n>` (`hitl-index next-id --quick`; every quick file shares the key `QT`).
+- `quick <description>` → quick mode: no change. Target `.hitl/tasks/quick-<slug>.md`, one task. Its id and key come from
+  `hitl-index next-id --quick <slug> --json` → `{next: "QFLKM-T1", key: "QFLKM"}` (a fresh key per quick file, no gate);
+  header `← Change: none | key: <key>`; ACs `<key>-T1.AC<k>`. Never `QT` (legacy).
 - Else the change id = argument, else the one used in this conversation, else `hitl-index change --json` and the active
   changes in phase `tasks` (or matching the user's words). Several → ⛔ GATE `Use which change? (1/2/…)` END THE TURN.
 - None → `🛑 No change. Run /hitl:plan first.` Stop. A v0.5 planning file name → `🛑 v0.5 planning — migrate first
@@ -36,7 +38,7 @@ Arguments: `$ARGUMENTS`
 - `docs/PATTERNS-CONVENTIONS.md`, `docs/CODEBASE-MAP.md` (if present), `.hitl/hitl.config.json`
   (`risk.corePaths`, `risk.securityPaths`).
 - `hitl-index tasks --json` (existing tasks and ids). `hitl-index next-id <change-id>` → first new id
-  `<KEY>-T<n>` (the change key; quick mode: `hitl-index next-id --quick` → `QT-T<n>`); number further tasks sequentially.
+  `<KEY>-T<n>` (the change key; quick mode: the id and key from §1); number further tasks sequentially.
 
 ## 3. Facts (never guess)
 For every candidate target symbol: `hitl-index context <ref> --json` (exists? file? callers?) or Grep.
@@ -55,11 +57,12 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
 - Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high → tell the user and recommend `/hitl:plan` at the gate.
 
 ## 5. Write and validate (loop until clean)
-1. 📝 Write the file: header (`# <Title> Tasks`, `← Change: <id>`, `> status: draft`), then tasks sorted by prio.
+1. 📝 Write the file: header (`# <Title> Tasks`, `← Change: <id>` — quick: `← Change: none | key: <key>` — `> status: draft`), then tasks sorted by prio.
    Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
    (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
-   `new` symbol already exists, AC without test-plan row, bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`) and re-run.
+   `new` symbol already exists, AC without test-plan row, bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
+   `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids) and re-run.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.

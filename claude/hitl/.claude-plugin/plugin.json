@@ -1,6 +1,6 @@
 {
   "name": "hitl",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Human-in-the-loop SDD workflow: one entry for new work (/hitl:go routes to a note, tdd, quick task or plan; --before plans a prerequisite change the other change waits for; /hitl:overlap checks one change against other active changes with a witness per finding), spec-only planning (proposal + spec deltas, grill-style interview), developer design, tasks, then reviewed code skeletons, locked failing tests, per-function human/agent implementation and layered review (or build-then-review), with living specs + archive, change-key scoped ids (PWR-T1, PWR-R1, PWR-D1; /hitl:migrate upgrades a 0.12 project), a deterministic AST index, drift checks, requirement→scenario→test traceability, and optional one-way ticket sync (Linear, Jira, GitHub Issues).",
   "author": {
     "name": "Thai"

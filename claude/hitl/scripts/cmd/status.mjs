@@ -176,10 +176,12 @@ export async function run(argv, ctx) {
     const changes = await changesInfo(ctx.root, statuses);
     const ni = await notesInfo(ctx.root, g);
     let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
-    // 0.13: pre-0.13 ids (T-n, D-n, keyless changes, a hitl.lock/1 with T-n) route to /hitl:migrate first
+    // 0.13: pre-0.13 ids (T-n, D-n, keyless changes, a hitl.lock/1 with T-n) route to /hitl:migrate first; 0.13.2: so
+    // do legacy QT-T<n> quick ids in a keyed project
     const legacy = await (await import("../lib/migrateids.mjs")).legacyIdState(ctx.root).catch(() => ({ legacy: false, reasons: [] }));
     const idsLegacy = legacy.legacy ? { code: "IDS_LEGACY", reasons: legacy.reasons } : null;
-    if (idsLegacy) next = { ...next, task: null, command: "/hitl:migrate", reason: `IDS_LEGACY: pre-0.13 ids (${legacy.reasons[0]})` };
+    const legacyWhat = legacy.quickOnly ? "legacy quick-task ids" : "pre-0.13 ids";
+    if (idsLegacy) next = { ...next, task: null, command: "/hitl:migrate", reason: `IDS_LEGACY: ${legacyWhat} (${legacy.reasons[0]})` };
     const waitOf = (id) => { const c = tmeta(id).change; const x = c && (ni.waits || []).find((y) => y.change === c); return x ? { change: c, for: x.for, amend: x.amend.map((n) => n.id) } : null; };
     const ld = lockedDrift(drift, lock);
     if (T && !statuses.tasks[T]) {
@@ -207,7 +209,7 @@ export async function run(argv, ctx) {
       return 0;
     }
     if (v.brief) {
-      if (idsLegacy) console.log(`⚠️ HITL: pre-0.13 ids (${idsLegacy.reasons[0]}) — run /hitl:migrate`);
+      if (idsLegacy) console.log(`⚠️ HITL: ${legacyWhat} (${idsLegacy.reasons[0]}) — run /hitl:migrate`);
       const ft = next.task ? statuses.tasks[next.task] : null;
       const m = next.task ? tmeta(next.task) : {};
       console.log(next.task ? `HITL: ${next.task} ${m.title || ""} — ${ft?.status} (${m.prio || "P?"}, ${ft?.risk}) · next: ${next.command}`.replace(/\s+—/, " —")

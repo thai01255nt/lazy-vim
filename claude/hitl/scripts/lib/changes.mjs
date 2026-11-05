@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { paths } from "./project.mjs";
 import { readJson, readText, writeTextAtomic, stableJson } from "./fsutil.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
+import { describeOwner } from "./keys.mjs";
 import { ARCHIVE_DIR_RE, CAP_RE, NO_BEHAVIOUR_TYPES, allocate, archiveDirName, changeType, formatId, isChangeId, parseId, rewriteIds, sortIds } from "./specids.mjs";
 const RX_CLAR = /\[NEEDS CLARIFICATION:/;
 import { artifactDecision, bizLint, blockHash, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
@@ -347,7 +348,7 @@ export function validateChange({ change: ch, living, others = [], config = {}, k
       push("error", "CHANGE_KEY_MISSING", proposalFile, ch.id, null, `proposal meta has no "| key: <KEY>" (2–5 upper-case letters; /hitl:plan suggests one; a pre-0.13 project: run /hitl:migrate)`);
     if (key) {
       const taken = others.find((o) => o.proposal?.key === key);
-      const owner = taken ? `change ${taken.id}` : (keys?.get(key) || []).filter((o) => o.change !== ch.id).map((o) => (o.source === "quick" ? "the quick tasks (reserved)" : o.change ? `${o.archived ? "archived " : ""}change ${o.change}` : `legacy ids in ${o.source}`))[0];
+      const owner = taken ? `change ${taken.id}` : (keys?.get(key) || []).filter((o) => o.change !== ch.id).map(describeOwner)[0];
       if (owner) push("error", "CHANGE_KEY_TAKEN", proposalFile, key, null, `key ${key} is taken by ${owner}; pick another (hitl-index spec key ${ch.id})`);
     }
   }
