@@ -103,7 +103,8 @@ unavailable → one ⚠️ line, ask the `[S]` and current-behaviour questions f
   category asks nothing. `deep <ID|topic>` → the technique menu (`references/deep.md`).
 - Header `🌳 Round <n> — [R][S][A][T]   (settled: <ids> · S: <scenarios> · open: <n> · 🔥 <hotspots>)` + the coverage
   line `Độ phủ: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — · …` (user's language). END THE TURN after `Reply:`.
-- On the reply, record per interview.md §7 — only `proposal.md`, `specs/<cap>/spec.md`, `glossary.md`; a design
+- On the reply, record the settled answers per interview.md §7 (a question or discussion records nothing:
+  interview.md §6) — only `proposal.md`, `specs/<cap>/spec.md`, `glossary.md`; a design
   idea is parked (interview.md §8) — then recompute the frontier. Recording rules:
   - EARS statement with exactly one `SHALL|MUST|SHOULD|MAY` and a named actor (ISO 29148 / INCOSE: singular,
     unambiguous, verifiable — no vague words like "fast", "easy", "nhanh", "dễ dùng", "v.v."; ask for the number

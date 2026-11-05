@@ -65,7 +65,7 @@ Only the questions that depend on a pending fact wait; ask the rest of the front
 - Frontier order: parked ideas and decisions that unblock others first (boundaries and components → data and contracts
   → errors → test strategy → risks → rollout). Discussion Mode when several approaches are valid (tie the
   recommendation to a requirement id or a `## Context` fact); Suggestion Mode for clear best practice.
-- Record after every reply (interview.md §7): D rows (`serves` = requirement/rule ids from the spec view; `alternatives`
+- Record the settled answers after every reply (interview.md §7; a question or discussion records nothing, §6): D rows (`serves` = requirement/rule ids from the spec view; `alternatives`
   filled; status `proposed` until the developer agrees, then `accepted`) plus a MADR record `### D-n <title>` (Context
   and problem, Considered options, Decision outcome, Consequences good/bad, optional Decision drivers/Confirmation) for
   every decision with ≥ 2 real options or a high cost if wrong, `## Architecture (C4)` (Context/Container mermaid, only

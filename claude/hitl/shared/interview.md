@@ -62,7 +62,7 @@ Mechanics in `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/elicitation.md` (plan
 ❓ **Q2** [A] - **<question title>**: <body>
 💡 Recommended: <answer>
 
-Reply: "Y" (accept all) · "Q2: <your answer>" · "deep <ID|topic>" · "add <artifact>" / "drop <artifact>" · "done"
+Reply: "Y" (accept all) · "Q2: <your answer>" · "Q2: <your question>" (we discuss first) · "deep <ID|topic>" · "add <artifact>" / "drop <artifact>" · "done"
 ```
 - Each question body starts with one context sentence; an id in it carries its title the first time (Plain replies in
   `conventions.md`).
@@ -95,9 +95,20 @@ Reply: "Y" (accept all) · "Q2: <your answer>" · "deep <ID|topic>" · "add <art
 - `deep <ID|topic>` (plan) → the technique menu of elicitation.md §3 as the next gate.
 - `done` → stop asking; unanswered questions go to `## Open questions` with their recommendation (plan: then the
   stop rule decides whether the spec may close).
-- Free text that answers no question → treat it as new information: record what it settles, then recompute.
+- Free text that states a decision or a fact → new information: record what it settles, then recompute. Free text
+  that asks or thinks aloud → a discussion (below).
+- **A question is never an answer.** A reply part that asks ("?", why, what if, "tại sao", "khác gì", "nghĩa là gì",
+  "nếu … thì sao"), doubts ("not sure", "chưa chắc", "để nghĩ") or argues an option → a **discussion turn**:
+  1. Record nothing for that question; it stays open. Answered parts of the same reply are recorded as usual.
+  2. Start with `💬 Q2 — <title>` (no round header). Answer the question directly first (a fact → look it up, never
+     guess). Then brainstorm: the options with pros/cons, one concrete example, what each choice changes in the spec.
+     End with your updated `💡 Recommended:`.
+  3. Re-ask only the open question(s), same numbers, as a ⛔ GATE. No new questions while a discussion is open.
+  4. Repeat until the user decides (`Qn: <answer>`, `Y` = the updated recommendation, "ok", "chốt"). Only then record.
+- Not sure whether a part is an answer or a question → treat it as a question and confirm in one line ("You mean
+  <answer>, right?"). Never record a guess.
 
-## 7. Recording (after every reply, before the next round)
+## 7. Recording (settled answers only, after the reply, before the next round; a discussion records nothing)
 Plan writes only the change's business files; design writes only its dev files (see each SKILL.md):
 - `[R]` → a requirement block in `specs/<capability>/spec.md` (ADDED, or MODIFIED with the full block + `Changed:`),
   id from `hitl-index spec next-id <capability> --kind R`. Statement = one EARS sentence with one RFC 2119 keyword in

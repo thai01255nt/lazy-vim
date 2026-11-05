@@ -82,6 +82,9 @@ test("shared language (0.8): [T] tag + credited Shared language, Plain replies s
   const iv = read("shared/interview.md");
   assert.match(iv, /^\| `\[T\]` \|/m, "interview: [T] row");
   assert.match(iv, /^## 10\. Shared language/m);
+  assert.match(iv, /\*\*A question is never an answer\.\*\*/, "interview §6: a question/discussion records nothing");
+  assert.match(iv, /^## 7\. Recording \(settled answers only/m, "interview §7: records settled answers only");
+  for (const s of ["plan", "design"]) assert.match(read(`skills/${s}/SKILL.md`), /question or discussion records nothing/, `${s}: no recording on a question`);
   assert.match(iv, /Adapted from mattpocock\/skills \(MIT\) — see NOTICE\.md\. Source: skills\/engineering\/domain-modeling\//);
   const conv = read("shared/conventions.md");
   const plain = conv.split(/^## Plain replies.*$/m)[1]?.split(/^## /m)[0] ?? "";
