@@ -1,7 +1,7 @@
 // Tasks markdown parser + checker (§E.4; design v3 §2.9, §5.3).
 // Task docs live in `.hitl/changes/<id>/tasks.md` (active change), `.hitl/archive/<date>-<id>/tasks.md` (archived)
 // and `.hitl/tasks/*.md` (quick tasks + v0.5 legacy files linked with `← Planning:`). A quick file (`← Change: none`)
-// has its own key since 0.13.2: `← Change: none | key: QFLKM`, task `QFLKM-T1`.
+// has its own key since 0.13.2: `← Change: none | key: QFLT`, task `QFLT-T1`.
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { paths } from "./project.mjs";
@@ -66,7 +66,7 @@ export const isArchivedTask = (lock, tasks, T) => !!archivedChangeOf(lock, tasks
 /**
  * parseTasksMd(text, file) -> {file, planning, change, archived, changeDir, status, tasks: Task[]}
  * `change` comes from `← Change: <id>` (else from the file location); `planning` only from the legacy `← Planning:`.
- * `key`: a quick file's own key (`← Change: none | key: QFLKM`), also on each task as `quickKey`; `quick`: a tasks file
+ * `key`: a quick file's own key (`← Change: none | key: QFLT`), also on each task as `quickKey`; `quick`: a tasks file
  * under `.hitl/tasks/` with no change and no planning link.
  * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them.
  */
@@ -92,7 +92,7 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       if ((m = line.match(RX.planning))) doc.planning = m[1];
       else if ((m = line.match(RX.change))) {
         doc.change = m[1] === "none" ? "none" : m[1];
-        // a quick file moved into a change (`← Change: feat-x | key: QFLKM`): the old key is ignored; its ids no
+        // a quick file moved into a change (`← Change: feat-x | key: QFLT`): the old key is ignored; its ids no
         // longer match the change key (TASK_KEY_MISMATCH) until `migrate --ids` renumbers them and drops the key
         if (m[2] && m[1] !== "none") doc.staleKey = m[2];
         else if (m[2] && !CHANGE_KEY_RE.test(m[2])) keyError = `quick-file key "${m[2]}" must be 2–5 upper-case letters (A–Z)`;
@@ -180,7 +180,7 @@ export async function checkTasks(root, tasks, index) {
   let specCtx = null;
   for (const t of tasks) ids.set(t.id, (ids.get(t.id) || 0) + 1);
   // 0.13: a task id carries its change's key (proposal meta); 0.13.2: a quick task carries its quick file's key
-  // (`← Change: none | key: QFLKM`). A keyless quick file still holds legacy `QT-T<n>` ids: current in a keyless
+  // (`← Change: none | key: QFLT`). A keyless quick file still holds legacy `QT-T<n>` ids: current in a keyless
   // project (no key anywhere yet), IDS_LEGACY once the project has keys. v0.5 planning-linked files keep QT.
   let reg = null, keyed = null;
   const registry = async () => { if (!reg) { const { readKeyRegistry } = await import("./keys.mjs"); reg = await readKeyRegistry(root); } return reg; };

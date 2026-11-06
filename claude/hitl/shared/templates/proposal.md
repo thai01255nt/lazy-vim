@@ -3,7 +3,7 @@
 # {Change title}
 > change: {change-id} | key: {KEY} | status: draft | created: {YYYY-MM-DD} | updated: {YYYY-MM-DD}
 
-<!-- {KEY}: 2–5 upper-case letters, unique forever (hitl-index spec key <change-id> --title "…"); every id of this
+<!-- {KEY}: 2–5 upper-case letters, unique forever (hitl-index spec key <change-id>: type letter + 3 initials of the id); every id of this
      change starts with it ({KEY}-R1, {KEY}-T1, {KEY}-D1). -->
 <!-- WHAT / WHY only, in the user's words. No file names, code names, libraries, SQL or HTTP verbs (BIZ_CODE_TOKEN). -->
 ## Why

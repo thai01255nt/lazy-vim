@@ -66,8 +66,8 @@ test("checkTasks reports missing files, collisions, AC rows, duplicates", async 
   assert.match(msgs, /malformed meta/);
   writeFileSync(join(root, ".hitl/index_dummy"), "");
   // 0.13.2: a new quick file gets its own key (not QT max+1); `slug` gives its readable letters
-  assert.match(await nextTaskId(root), /^Q[A-Z]{4}-T1$/);
-  assert.match(await nextTaskId(root, "quick", { slug: "fix-label-typo" }), /^QF[A-Z]{3}-T1$/);
+  assert.match(await nextTaskId(root), /^Q[A-Z]{1,4}-T1$/);
+  assert.equal(await nextTaskId(root, "quick", { slug: "fix-label-typo" }), "QFLT-T1");
 });
 
 const SPEC_MD = `# Users Tasks
@@ -140,7 +140,7 @@ test("checkTasks: unknown/inactive R, unknown D, missing planning; legacy D refs
   assert.deepEqual(await checkTasks(root, await readTasks(root), { symbols: {} }), []);
 });
 
-// 0.13.2 — a key per quick file (`← Change: none | key: QFLKM`)
+// 0.13.2 — a key per quick file (`← Change: none | key: QFLT`)
 const quickMd = (key, id) => `# Q Tasks\n← Change: none${key ? ` | key: ${key}` : ""}\n> status: approved\n\n## ${id} Fix it\n- prio: P2 | risk: low | impl: agent | blocked-by: none | status: todo\n`;
 const qroot = (files) => {
   const root = mkdtempSync(join(tmpdir(), "hitl-qkey-"));
@@ -150,13 +150,13 @@ const qroot = (files) => {
 const keyedProposal = (id, key) => `# P\n> change: ${id} | key: ${key} | status: approved\n`;
 
 test("parseTasksMd: a quick file's header key; a bad key is a parse error; a key on a change line is ignored", () => {
-  const d = parseTasksMd(quickMd("QFLKM", "QFLKM-T1"), ".hitl/tasks/quick-fix-label.md");
-  assert.deepEqual([d.quick, d.key, d.change, d.tasks[0].quick, d.tasks[0].quickKey, d.tasks[0].parseErrors], [true, "QFLKM", null, true, "QFLKM", []]);
+  const d = parseTasksMd(quickMd("QFLT", "QFLT-T1"), ".hitl/tasks/quick-fix-label.md");
+  assert.deepEqual([d.quick, d.key, d.change, d.tasks[0].quick, d.tasks[0].quickKey, d.tasks[0].parseErrors], [true, "QFLT", null, true, "QFLT", []]);
   assert.deepEqual([parseTasksMd(quickMd(null, "QT-T3"), ".hitl/tasks/quick-a.md").key, parseTasksMd(MD, ".hitl/tasks/feat-x.md").quick], [null, false]);
   assert.match(parseTasksMd(quickMd("qx1", "QX-T1"), ".hitl/tasks/quick-a.md").tasks[0].parseErrors[0], /quick-file key "qx1" must be 2–5 upper-case letters/);
   // a quick file moved into a change keeps a stale key on its change line: ignored (migrate --ids renumbers and drops it)
-  const c = parseTasksMd("# T\n← Change: feat-x | key: QFLKM\n\n## QFLKM-T1 A\n- prio: P1 | risk: low | impl: agent | blocked-by: none | status: todo\n", ".hitl/tasks/quick-a.md");
-  assert.deepEqual([c.change, c.quick, c.key, c.staleKey, c.tasks[0].parseErrors], ["feat-x", false, null, "QFLKM", []]);
+  const c = parseTasksMd("# T\n← Change: feat-x | key: QFLT\n\n## QFLT-T1 A\n- prio: P1 | risk: low | impl: agent | blocked-by: none | status: todo\n", ".hitl/tasks/quick-a.md");
+  assert.deepEqual([c.change, c.quick, c.key, c.staleKey, c.tasks[0].parseErrors], ["feat-x", false, null, "QFLT", []]);
 });
 
 test("checkTasks (0.13.2): quick key mismatch, quick key collisions, legacy QT only in a keyed project", async () => {

@@ -18,8 +18,8 @@ renumbered under the key of the change that created it: tasks `T-12` → `PWR-T1
 `ACC-R3` → `PWR-R1` (scenarios `PWR-R1.S1`), rules `PWR-BR1`, flows `PWR-UC1`, decisions `D-1` → `PWR-D1`. Living ids
 whose creating change is unknown (written before hitl) get a legacy key per capability: `L` + the old capability key
 (`LACC-R1`). Each quick file (`.hitl/tasks/quick-<slug>.md`) gets a key of its own in its header
-(`← Change: none | key: QFLKM`; `Q` + slug letters + hash letters, the same in the dry run and the apply): its `T-20` or
-legacy shared `QT-T7` becomes `QFLKM-T1` — 0.13.0–0.13.1 projects run `/hitl:migrate` once more for this alone.
+(`← Change: none | key: QFLT`; `Q` + 3 initials of the slug, deterministic, so the dry run and the apply agree): its `T-20` or
+legacy shared `QT-T7` becomes `QFLT-T1` — 0.13.0–0.13.1 projects run `/hitl:migrate` once more for this alone.
 Notes `N-k`, findings `F-n` and glossary terms do not change.
 The CLI rewrites active changes, archives, living specs (their meta lines lose `| key:`), quick tasks, notes, code
 tags (`@task`, `@ac`, `@dec`, `TODO(impl …)`), the lock (`hitl.lock/2`, hashes of tag-only edits re-baselined so no
@@ -40,7 +40,7 @@ JSON fields used below: `keys[]` {label, change, archived, key, source}, `legacy
 
 ## 2. ⛔ GATE — the key table (accept or edit all at once)
 One table for every change (active and archived) plus the legacy capability keys and the quick files; `source` is
-`suggested` (from the change id and title; a quick file's from its slug and a hash), `proposal` (already set) or `given`:
+`suggested` (type letter + 3 initials of the change id, e.g. `feat-password-reset` → `FPSR`; a quick file's `Q` + 3 slug initials; a 5th letter only on collision), `proposal` (already set) or `given`:
 ```
 🔑 Change keys (2–5 capitals, unique forever)
 | # | change | state | key | source |
@@ -48,7 +48,7 @@ One table for every change (active and archived) plus the legacy capability keys
 | 1 | feat-password-reset | archived 2026-10-20 | PWR | suggested |
 | 2 | feat-fee | active | FEE | suggested |
 | 3 | accounts (living ids of unknown origin) | legacy | LACC | suggested |
-| 4 | tasks/quick-fix-label.md (quick, QT-T7) | quick | QFLKM | suggested |
+| 4 | tasks/quick-fix-label-typo.md (quick, QT-T7) | quick | QFLT | suggested |
 Keys OK? (Y) · or edit rows: "2 FEES, 3 LACT"
 ```
 END THE TURN. On edits: re-run the dry run with
@@ -59,7 +59,7 @@ the table again only when the CLI refuses a key (`CHANGE_KEY_TAKEN`, not 2–5 c
 From the (re-)run dry run:
 ```
 🔁 Rename map — tasks 14 · spec ids 12 · decisions 6 (ACs and scenarios follow their task / requirement)
-   T-12 → PWR-T1 · T-12.AC2 → PWR-T1.AC2 · ACC-R3 → PWR-R1 · ACC-R3.S1 → PWR-R1.S1 · D-1 (feat-password-reset) → PWR-D1 · QT-T7 → QFLKM-T1 · …
+   T-12 → PWR-T1 · T-12.AC2 → PWR-T1.AC2 · ACC-R3 → PWR-R1 · ACC-R3.S1 → PWR-R1.S1 · D-1 (feat-password-reset) → PWR-D1 · QT-T7 → QFLT-T1 · …
 📝 Files: .hitl/changes/ 12 · .hitl/archive/ 18 · .hitl/specs/ 3 · .hitl/tasks/ 1 · source files with tags 9
    lock: hitl.lock/2, 31 entries re-keyed, 4 hashes re-baselined · tickets map 1 · review dirs 3
 ⚠️ unresolved: <one line each, e.g. a `@dec D-2` whose change cannot be found> (they stay as they are)

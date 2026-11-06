@@ -96,7 +96,7 @@ test("spec key: suggests a free change key; --check refuses a taken one (CHANGE_
   assert.match(k.key, /^[A-Z]{2,5}$/);
   assert.equal(k.existing, false);
   assert.ok(!["PWR", "TFA", "LACC", "QT"].includes(k.key));
-  assert.equal(cli(root, "spec", "key", "feat-one", "--title", "Receipt").out.trim(), "RCPT");
+  assert.equal(cli(root, "spec", "key", "feat-receipt-print-job", "--title", "Ignored").out.trim(), "FRPJ");
   const taken = cli(root, "spec", "key", "--check", "TFA");
   assert.equal(taken.code, 1);
   assert.match(taken.out, /CHANGE_KEY_TAKEN key TFA is taken by archived change feat-2fa/);

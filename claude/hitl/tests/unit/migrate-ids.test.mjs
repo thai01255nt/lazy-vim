@@ -33,10 +33,11 @@ test("id grammar: task, AC and decision ids carry a 2–5 letter change key", ()
   assert.deepEqual(["PWR-T10", "FEE-T2", "PWR-T2", "PWR-T2.AC1"].sort(compareTaskIds), ["FEE-T2", "PWR-T2", "PWR-T2.AC1", "PWR-T10"]);
 });
 
-test("keys: suggestions from the title, free of every taken key; legacy keys per capability; checkKey codes", () => {
-  assert.equal(keyCandidates("feat-receipt", "Receipt")[0], "RCPT");
-  assert.equal(keyCandidates("feat-x", "Password reset by email")[0], "PRE");
-  assert.equal(suggestKey("feat-receipt", "Receipt", new Set(["RCPT"])) !== "RCPT", true);
+test("keys: type letter + 3 initials of the change id, 5th letter on collision; legacy keys per capability; checkKey codes", () => {
+  assert.deepEqual(["refactor-lua-const-mirror", "feat-billing-exec-settle", "feat-executor-answer-contract", "fix-login-page", "fix-login", "perf-cache-warm-up-job"].map((id) => keyCandidates(id, "Ignored title")[0]), ["RLCM", "FBES", "FEAC", "XLGP", "XLGN", "PCWU"]);
+  assert.equal(keyCandidates("ops-rotate-api-keys")[0], "ORAK", "an unknown type gives its first letter");
+  assert.equal(suggestKey("feat-executor-answer-contract", null, new Set(["FEAC"])), "FEACA", "a taken key gets a 5th letter");
+  assert.equal(suggestKey("feat-executor-answer-contract", null, new Set(["FEAC", "FEACA"])), "FEACB");
   assert.match(suggestKey("feat-a-b", null, new Set()), /^[A-Z]{2,5}$/);
   assert.equal(legacyKeyFor("accounts", "ACC", new Set()), "LACC");
   assert.equal(legacyKeyFor("billing-and-invoices", "BILLS", new Set()), "LBILL", "clipped to 5 letters");
@@ -61,29 +62,27 @@ test("pre-0.13 ids: tasks docs record them, tags reject them with the migrate hi
   assert.equal(cli(root, "migrate", "--ids", "--keys", KEYS).code, 0);
   assert.equal(await nextTaskId(root, "feat-password-reset"), "PWR-T3");
   // 0.13.2: a new quick file gets a fresh key of its own, never QT and never a taken key
-  assert.match(await nextTaskId(root, "quick"), /^Q[A-Z]{4}-T1$/);
+  assert.match(await nextTaskId(root, "quick"), /^Q[A-Z]{1,4}-T1$/);
   assert.equal(await nextTaskId(root, "quick", { slug: "fix-greeting", seed: "s" }), await nextTaskId(root, "quick", { slug: "fix-greeting", seed: "s" }));
   await assert.rejects(nextTaskId(root, "feat-nope"), /no key yet/);
   assert.equal(cli(root, "next-id", "feat-password-reset").out.trim(), "PWR-T3");
-  assert.match(cli(root, "next-id", "--quick", "quick-fix-greeting").out.trim(), /^QF[A-Z]{3}-T1$/);
+  assert.equal(cli(root, "next-id", "--quick", "quick-fix-greeting").out.trim(), "QFXG-T1");
   const j = cli(root, "next-id", "--quick", "fix-greeting", "--json").json();
-  assert.ok(/^QF[A-Z]{3}$/.test(j.key) && j.next === `${j.key}-T1`);
+  assert.ok(j.key === "QFXG" && j.next === "QFXG-T1");
   assert.equal(cli(root, "next-id").code, 2);
   assert.equal(cli(root, "next-id", "--quick", "a", "b").code, 2);
 });
 
-test("quick keys (0.13.2): Q + slug letters + hash letters, 5 in all; free of taken keys; header insertion", () => {
-  assert.deepEqual(["fix-label-typo", "quick-typo.md", "typo", "42", ""].map(quickSlugLetters), ["F", "T", "T", "", ""]);
-  assert.match(quickKeyCandidate("fix-label-typo", "seed"), /^QF[A-Z]{3}$/);
-  assert.match(quickKeyCandidate("", "seed"), /^Q[A-Z]{4}$/);
-  assert.equal(makeQuickKey("fix-label-typo", new Set(), { seed: "s" }), makeQuickKey("fix-label-typo", new Set(), { seed: "s" }), "a seed makes it deterministic");
-  const first = makeQuickKey("fix-label-typo", new Set(), { seed: "s" });
-  const second = makeQuickKey("fix-label-typo", new Set([first]), { seed: "s" });
-  assert.ok(second !== first && /^QF[A-Z]{3}$/.test(second), "a taken key is skipped");
-  for (let i = 0; i < 50; i++) assert.match(makeQuickKey("x", new Set()), /^QX[A-Z]{3}$/);
-  assert.equal(setQuickFileKey("# T\n← Change: none\n> status: draft\n", "QFLKM"), "# T\n← Change: none | key: QFLKM\n> status: draft\n");
-  assert.equal(setQuickFileKey("# T\n← Change: none | key: QABCD\n", "QFLKM"), "# T\n← Change: none | key: QABCD\n");
-  assert.equal(setQuickFileKey("# T\n\n## QT-T1 A\n", "QFLKM"), "# T\n← Change: none | key: QFLKM\n\n## QT-T1 A\n");
+test("quick keys: Q + 3 initials of the slug, 5th letter on collision, deterministic; header insertion", () => {
+  assert.deepEqual(["fix-label-typo", "quick-mirror-plain-str.md", "typo", "42", ""].map(quickSlugLetters), ["FLT", "MPS", "TPY", "", ""]);
+  assert.equal(quickKeyCandidate("mirror-plain-str"), "QMPS");
+  assert.equal(quickKeyCandidate(""), "QX");
+  assert.equal(makeQuickKey("fix-label-typo", new Set()), "QFLT");
+  assert.equal(makeQuickKey("fix-label-typo", new Set(["QFLT"])), "QFLTA", "a taken key gets a 5th letter");
+  assert.equal(makeQuickKey("t", new Set()), "QTXX", "never QT");
+  assert.equal(setQuickFileKey("# T\n← Change: none\n> status: draft\n", "QFLT"), "# T\n← Change: none | key: QFLT\n> status: draft\n");
+  assert.equal(setQuickFileKey("# T\n← Change: none | key: QABCD\n", "QFLT"), "# T\n← Change: none | key: QABCD\n");
+  assert.equal(setQuickFileKey("# T\n\n## QT-T1 A\n", "QFLT"), "# T\n← Change: none | key: QFLT\n\n## QT-T1 A\n");
 });
 
 test("helpers: --keys parsing, task id rewrite, proposal key insertion, capability key strip", () => {
@@ -121,7 +120,7 @@ test("migrate --ids: dry run plans everything and writes nothing; keys table; re
   assert.equal(d.status, "plan");
   assert.equal(d.quickKeys.length, 1);
   assert.deepEqual([d.quickKeys[0].file, d.quickKeys[0].slug, d.quickKeys[0].source], [".hitl/tasks/fix-label-typo.md", "fix-label-typo", "suggested"]);
-  assert.match(d.quickKeys[0].key, /^QF[A-Z]{3}$/, "a quick file's own key: Q + slug letters + hash letters");
+  assert.match(d.quickKeys[0].key, /^QF[A-Z]{2,3}$/, "a quick file's own key: Q + 3 initials of the slug");
   assert.equal(cli(root, "migrate", "--ids", "--dry-run", "--json").json().quickKeys[0].key, d.quickKeys[0].key, "deterministic: the dry run and the apply agree");
   assert.equal(rd(root, ".hitl/changes/feat-password-reset/tasks.md"), before, "dry run wrote nothing");
   assert.ok(!fs.existsSync(path.join(root, ".hitl/index/id-map.json")));
@@ -271,7 +270,7 @@ test("migrate --ids (0.13.2): a 0.13.1 project's QT quick task moves to its file
   const d = cli(root, "migrate", "--ids", "--dry-run", "--json").json();
   assert.equal(d.status, "plan");
   const K = d.quickKeys[0].key;
-  assert.match(K, /^QF[A-Z]{3}$/);
+  assert.match(K, /^QF[A-Z]{2,3}$/);
   assert.deepEqual(d.map.tasks, { "QT-T1": `${K}-T1` });
   const r = cli(root, "migrate", "--ids", "--keys", `quick:fix-label-typo=${K}`, "--json");
   assert.equal(r.code, 0, r.err + r.out);

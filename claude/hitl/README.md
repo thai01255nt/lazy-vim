@@ -92,10 +92,10 @@ Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test
 ### Nâng cấp từ 0.13.1
 
 0.13.2: **mỗi file task quick có key riêng** — hai nhánh git cùng tạo task quick không còn đụng id (trước đây cùng
-`QT-T<max+1>`). Header `← Change: none | key: QFLKM`, task `QFLKM-T1`; key = `Q` + 1 chữ đầu của slug + 3 chữ từ hash
-(slug + thời điểm + ngẫu nhiên), 5 chữ, không trùng key nào đã có (change active/archive, quick, legacy). CLI
+`QT-T<max+1>`). Header `← Change: none | key: QFLT`, task `QFLT-T1`; key = `Q` + chữ đầu của 3 từ đầu trong slug
+(`fix-label-typo` → `QFLT`), thêm chữ thứ 5 chỉ khi đã bị dùng, không trùng key nào đã có (change active/archive, quick, legacy). CLI
 `hitl-index next-id --quick <slug> [--json]` sinh key, không có gate. `QT` chỉ còn là key legacy: project đã có key mà
-còn `QT-T<n>` → `IDS_LEGACY` → chạy **`/hitl:migrate`** một lần (đổi `QT-T7` → `QFLKM-T1` trong file quick, tag code,
+còn `QT-T<n>` → `IDS_LEGACY` → chạy **`/hitl:migrate`** một lần (đổi `QT-T7` → `QFLT-T1` trong file quick, tag code,
 lock, map ticket, thư mục review, `id-map.json`; `--keys quick:<slug>=KEY` để tự chọn). `tasks --check` báo
 `TASK_KEY_MISMATCH` (task không dùng key của file) và `QUICK_KEY_TAKEN` (key trùng file quick khác hoặc change).
 File v0.5 nối `← Planning:` vẫn dùng `QT`.
@@ -120,10 +120,10 @@ khác). Không cần migrate.
 0.13 đổi **mọi id sang khoá của change** (change key). Chạy **`/hitl:migrate` một lần** sau khi cập nhật plugin.
 - Mỗi change có một key 2–5 chữ in hoa, duy nhất mãi mãi (tính cả change đã archive), ghi trong meta proposal:
   `> change: feat-password-reset | key: PWR | status: …`. `/hitl:plan` gợi ý key từ tiêu đề ở gate đầu tiên
-  (`hitl-index spec key <change-id> --title "…"`), bạn nhận hoặc sửa. Trùng → `CHANGE_KEY_TAKEN`.
+  (`hitl-index spec key <change-id>`: chữ loại — feat F · fix X · refactor R · perf P · docs D · test T · chore C — + chữ đầu của 3 từ đầu trong change id, vd `feat-billing-exec-settle` → `FBES`; chữ thứ 5 chỉ khi trùng), bạn nhận hoặc sửa. Trùng → `CHANGE_KEY_TAKEN`.
 - Mọi id bắt đầu bằng key của change **tạo ra** nó, số đếm max+1 trong change: task `PWR-T1`, AC `PWR-T1.AC2`,
   requirement `PWR-R1`, scenario `PWR-R1.S1`, rule `PWR-BR1`, flow `PWR-UC1`, decision `PWR-D1`. Task quick: mỗi file
-  một key riêng (`QFLKM-T1`, từ 0.13.2; 0.13.0–0.13.1 dùng chung `QT`). Capability chỉ còn là thư mục
+  một key riêng (`QFLT-T1`, từ 0.13.2; 0.13.0–0.13.1 dùng chung `QT`). Capability chỉ còn là thư mục
   (`specs/<cap>/spec.md`), không nằm trong id; meta spec bỏ `| key:`. MODIFIED/REMOVED giữ id gốc; requirement sống giữ id của change đã tạo nó. Note `N-k`, finding `F-n`, thuật ngữ
   glossary không đổi.
 - `/hitl:migrate`: chạy thử (`hitl-index migrate --ids --dry-run --json`) → một bảng key cho mọi change (cả archive) +

@@ -2,7 +2,7 @@
 //   tasks T-n → KEY-T<m> (per change, old order), ACs follow; spec ids ACC-R3 → KEY-R<m> of the archived (or active)
 //   change that ADDED them, else a legacy key per capability (L + old capability key: LACC-R<m>); scenarios follow their
 //   requirement; decisions D-n → KEY-D<n> (per design.md); quick tasks (T-n, or 0.13.0–0.13.1 `QT-T<n>`) → a key per
-//   quick file (0.13.2: `← Change: none | key: QFLKM`, task QFLKM-T1; deterministic, so the dry run and the apply agree).
+//   quick file (0.13.2: `← Change: none | key: QFLT`, task QFLT-T1; deterministic, so the dry run and the apply agree).
 // Touches active changes, archives, living specs (capability keys leave the meta line), quick tasks, notes, reviews,
 // code tags (@task, @ac, @dec, TODO(impl …)), the lock (→ hitl.lock/2, re-keyed, hashes of the tag-only edits
 // re-baselined), state.json and the tickets maps; writes .hitl/index/id-map.json. Pure planning + one apply step.
@@ -513,7 +513,7 @@ export async function applyMigrateIds(root, plan) {
   if (json.state) await writeTextAtomic(P.state, stableStringify(json.state));
   for (const [n, m] of Object.entries(json.maps || {})) await writeTextAtomic(join(P.custom, n), JSON.stringify(m, null, 2) + "\n");
   const prev = await readJson(idMapPath(root), null);
-  // older entries follow this run's renames (0.13.1 `T-20 → QT-T1`, now `QT-T1 → QFLKM-T1`: T-20 → QFLKM-T1)
+  // older entries follow this run's renames (0.13.1 `T-20 → QT-T1`, now `QT-T1 → QFLT-T1`: T-20 → QFLT-T1)
   const prevIds = Object.fromEntries(Object.entries(prev?.ids || {}).map(([o, n]) => [o, plan.map.tasks[n] ?? plan.map.specs[n] ?? n]));
   const ids = { ...prevIds, ...plan.map.tasks, ...plan.map.specs, ...plan.map.decisions };
   for (const [ch, m] of Object.entries(plan.map.local)) for (const [o, n] of Object.entries(m)) ids[`${ch}/${o}`] = n;

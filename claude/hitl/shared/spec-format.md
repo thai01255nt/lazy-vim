@@ -43,7 +43,7 @@ Requirement-quality lints run on a change's ADDED/MODIFIED blocks only; `spec.qu
 | rule / flow | `<KEY>-BR<n>` / `<KEY>-UC<n>` | `PWR-BR1`, `PWR-UC1` |
 | decision (design.md) | `<KEY>-D<n>` | `PWR-D1` |
 | task / acceptance criterion | `<KEY>-T<n>` / `<KEY>-T<n>.AC<k>` | `PWR-T3`, `PWR-T3.AC2` |
-| quick-file key (0.13.2) | each `.hitl/tasks/quick-<slug>.md` has its own key in its header `← Change: none \| key: QFLKM`: `Q` + the first letter of the slug + 3 hash letters, 5 in all (`hitl-index next-id --quick <slug>`); its task is `<KEY>-T1`. The shared `QT` (`QT-T7`, 0.13.0–0.13.1) is legacy: `/hitl:migrate` | `QFLKM`, `QFLKM-T1.AC1` |
+| quick-file key (0.13.2) | each `.hitl/tasks/quick-<slug>.md` has its own key in its header `← Change: none \| key: QFLT`: `Q` + the initials of the first 3 slug words (`fix-label-typo` → `QFLT`), a 5th letter only when taken (`hitl-index next-id --quick <slug>`); its task is `<KEY>-T1`. The shared `QT` (`QT-T7`, 0.13.0–0.13.1) is legacy: `/hitl:migrate` | `QFLT`, `QFLT-T1.AC1` |
 | glossary term, note, finding | local: the term (case-folded), `N-k`, `F-n` | `Reset link`, `N-2`, `F-1` |
 
 - `<KEY>` is the key of the change that **created** the id. ADDED blocks use the change's own key

@@ -45,7 +45,7 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    - Partial matches → they go into the gate below as `Continue with existing change? (1/2/new)`.
    - Otherwise propose `<type>-<slug>` (type from the request: feat/fix/refactor/perf/docs/test/chore; slug ≤ 4 words).
    - A new change also needs its **change key** (2–5 capitals, unique forever, the prefix of every id of the change:
-     `PWR-R1`, `PWR-T1`, `PWR-D1`): `hitl-index spec key <id> --title "<title>"` prints a free suggestion → the `K.`
+     `PWR-R1`, `PWR-T1`, `PWR-D1`): `hitl-index spec key <id>` prints a free suggestion (type letter + 3 initials of the id) → the `K.`
      line of the gate. A resumed change whose proposal has no `| key:` (or `IDS_LEGACY` from the CLI) → 🛑
      `pre-0.13 ids: run /hitl:migrate first`, stop.
 2. **Legacy v0.5 planning** (`.hitl/planning/*.md` exists): read `references/migrate.md` and follow its steps 1–2 (dry

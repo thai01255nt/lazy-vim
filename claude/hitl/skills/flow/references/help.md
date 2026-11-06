@@ -34,7 +34,7 @@ suggestions** (duplication, names off the glossary, pass-through functions, deep
 
 **Ids** (0.13): every change has a short key (2–5 capitals, e.g. `PWR`, chosen at `/hitl:plan`); every id starts
 with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-D1`, tasks `PWR-T3`, ACs `PWR-T3.AC2`
-(a quick file has its own key, `QFLKM-T1`). Upgrading from 0.12, or from 0.13.0–0.13.1 with `QT-T<n>` quick tasks: run
+(a quick file has its own key, `QFLT-T1`). Upgrading from 0.12, or from 0.13.0–0.13.1 with `QT-T<n>` quick tasks: run
 `/hitl:migrate` once.
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same

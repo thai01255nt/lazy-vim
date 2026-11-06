@@ -15,7 +15,7 @@ Arguments: `$ARGUMENTS`
 
 ## 1. Resolve the source
 - `quick <description>` → quick mode: no change. Target `.hitl/tasks/quick-<slug>.md`, one task. Its id and key come from
-  `hitl-index next-id --quick <slug> --json` → `{next: "QFLKM-T1", key: "QFLKM"}` (a fresh key per quick file, no gate);
+  `hitl-index next-id --quick <slug> --json` → `{next: "QFLT-T1", key: "QFLT"}` (a fresh key per quick file, no gate);
   header `← Change: none | key: <key>`; ACs `<key>-T1.AC<k>`. Never `QT` (legacy).
 - Else the change id = argument, else the one used in this conversation, else `hitl-index change --json` and the active
   changes in phase `tasks` (or matching the user's words). Several → ⛔ GATE `Use which change? (1/2/…)` END THE TURN.

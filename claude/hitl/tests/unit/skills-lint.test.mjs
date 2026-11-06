@@ -246,7 +246,7 @@ test("0.13: /hitl:migrate skill gates the id migration; docs use change-key ids"
   assert.match(m, /id-map\.json/);
   assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:migrate` \|/m);
   assert.match(read("skills/flow/SKILL.md"), /IDS_LEGACY[\s\S]*\/hitl:migrate/);
-  assert.match(read("skills/plan/SKILL.md"), /hitl-index spec key <id> --title/);
+  assert.match(read("skills/plan/SKILL.md"), /hitl-index spec key <id>`/);
   assert.match(read("shared/templates/proposal.md"), /\| key: \{KEY\}/);
   assert.doesNotMatch(read("shared/templates/spec.md"), /\| key:/, "capability keys left the living spec meta");
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.12/m);
@@ -314,7 +314,7 @@ test("0.13.2: a key per quick file — tasks quick mode, migrate, id docs, upgra
   const mg = read("skills/migrate/SKILL.md");
   assert.match(mg, /`quickKeys\[\]`/);
   assert.match(mg, /quick:<slug>=<KEY>/);
-  assert.match(mg, /QT-T7 → QFLKM-T1/);
+  assert.match(mg, /QT-T7 → QFLT-T1/);
   assert.match(read("shared/spec-format.md"), /\| quick-file key \(0\.13\.2\) \|/);
   assert.match(read("shared/conventions-spec.md"), /QUICK_KEY_TAKEN/);
   assert.match(read("shared/templates/tasks.md"), /next-id --quick \{slug\}/);
