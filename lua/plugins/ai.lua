@@ -529,6 +529,32 @@ return {
       { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
       { "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
       { "<leader>ac", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
+      {
+        "<leader>aA",
+        function()
+          -- agent-manager in a right split (40%): same session as the tmux
+          -- window, live (one claude process).
+          local term = Snacks.terminal.toggle("agent-manager", {
+            win = {
+              position = "right",
+              width = 0.4,
+              keys = {
+                -- agent-manager uses <esc> a lot: no double-esc to normal mode
+                term_normal = false,
+                am_hide = { "<A-a>", "hide", mode = "t", desc = "Hide agent-manager" },
+              },
+            },
+          })
+          -- a re-shown window lands in normal mode, where typing hits E21
+          -- ('modifiable' is off): always go back to terminal mode
+          vim.schedule(function()
+            if term and term:valid() and vim.api.nvim_get_current_buf() == term.buf then
+              vim.cmd.startinsert()
+            end
+          end)
+        end,
+        desc = "Agent Manager (right split)",
+      },
       { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
       { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
       { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
