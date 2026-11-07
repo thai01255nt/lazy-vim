@@ -268,7 +268,15 @@ return {
       vim.keymap.set("n", "<space>rr", "<cmd>IronRestart<cr>", { desc = "[r]epl [r]estart" })
       vim.keymap.set("n", "<space>rf", "<cmd>IronFocus<cr>", { desc = "[r]epl [f]ocus" })
       vim.keymap.set("n", "<space>rh", "<cmd>IronHide<cr>", { desc = "[r]epl [h]ide" })
-      vim.keymap.set("t", "<C-[>", "<C-\\><C-n>", { desc = "[r]epl exit terminal mode" })
+      -- <C-[> is <Esc>: keep it buffer-local to iron REPLs (filetype "iron"),
+      -- a global tmap would steal <Esc> from every terminal (agent-manager,
+      -- Claude Code, lazygit)
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "iron",
+        callback = function(ev)
+          vim.keymap.set("t", "<C-[>", "<C-\\><C-n>", { buffer = ev.buf, desc = "[r]epl exit terminal mode" })
+        end,
+      })
     end,
   },
 }
