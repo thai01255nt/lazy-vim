@@ -28,6 +28,10 @@ A step marked `⛔ GATE` is a real stop:
 - Use the project's words: the `### Term:` names in `.hitl/specs/GLOSSARY.md` and the change's `glossary.md`, never their
   `_Avoid_` words, in replies, questions, task titles, test names and findings. A word that is not there → define it in the
   same sentence (plan: ask a `[T]` question).
+- Precise words: avoid vague or overloaded words. A word that can be misread (another meaning in the codebase, in another
+  field, or too general) → a more specific word, the standard's own term (e.g. RFC 9457 "problem details"), or a short
+  scope note. Mainly when a topic or term is first introduced; afterwards keep the settled words. One precise word or a
+  short scope note, never a longer explanation or an extra question.
 - Terms stay English (they match code and test names); a Vietnamese reply is Vietnamese prose that uses the English term,
   e.g. "*Reset link* (đường dẫn đặt lại mật khẩu) hết hạn sau 30 phút".
 - Context first: one sentence on where we are and why, then the detail or the question.
