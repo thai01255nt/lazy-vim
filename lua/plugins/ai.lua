@@ -538,6 +538,9 @@ return {
             win = {
               position = "right",
               width = 0.4,
+              -- keep its width when Claude Code opens beside it
+              wo = { winfixwidth = true },
+              stack = false,
               keys = {
                 -- agent-manager uses <esc> a lot: no double-esc to normal mode
                 term_normal = false,
@@ -545,6 +548,16 @@ return {
               },
             },
           })
+          -- Snacks stacks a new right split under any window tagged
+          -- position = "right" and equalizes their heights. Retag this one so
+          -- Claude Code opens as its own column at the far right instead.
+          if term and term.win and vim.api.nvim_win_is_valid(term.win) then
+            local tag = vim.w[term.win].snacks_win
+            if tag then
+              tag.position = "agent-manager"
+              vim.w[term.win].snacks_win = tag
+            end
+          end
           -- a re-shown window lands in normal mode, where typing hits E21
           -- ('modifiable' is off): always go back to terminal mode
           vim.schedule(function()
