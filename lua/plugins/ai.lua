@@ -519,9 +519,65 @@ return {
     dependencies = { "folke/snacks.nvim" },
     opts = {
       terminal = {
-        split_width_percentage = 0.45,
+        split_width_percentage = 0.4,
       },
     },
+    init = function()
+      -- Claude Code opens at the far right; when agent-manager (<leader>aA) is
+      -- shown, move agent-manager back to the far right so the layout is
+      -- editor | Claude Code | agent-manager. Agent-manager keeps the width it
+      -- opened with (w:am_width), also after a window next to it closes.
+      local function agent_manager_win()
+        for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+          local tag = vim.w[win].snacks_win
+          if tag and tag.position == "agent-manager" then
+            return win
+          end
+        end
+      end
+      local function restore_am_width(am)
+        if vim.w[am].am_width then
+          vim.api.nvim_win_set_width(am, vim.w[am].am_width)
+        end
+      end
+      local group = vim.api.nvim_create_augroup("claude_left_of_agent_manager", { clear = true })
+      vim.api.nvim_create_autocmd("BufWinEnter", {
+        group = group,
+        callback = function(ev)
+          if not package.loaded["claudecode.terminal"] then
+            return
+          end
+          vim.schedule(function()
+            if require("claudecode.terminal").get_active_terminal_bufnr() ~= ev.buf then
+              return
+            end
+            local cc, am = vim.fn.bufwinid(ev.buf), agent_manager_win()
+            if cc == -1 or not am then
+              return
+            end
+            local cc_width = vim.api.nvim_win_get_width(cc)
+            if vim.api.nvim_win_get_position(am)[2] < vim.api.nvim_win_get_position(cc)[2] then
+              vim.api.nvim_win_call(am, function()
+                vim.cmd.wincmd("L")
+              end)
+            end
+            restore_am_width(am)
+            vim.api.nvim_win_set_width(cc, cc_width)
+          end)
+        end,
+      })
+      vim.api.nvim_create_autocmd("WinClosed", {
+        group = group,
+        callback = function()
+          vim.schedule(function()
+            local am = agent_manager_win()
+            if am then
+              restore_am_width(am)
+            end
+          end)
+        end,
+      })
+    end,
     keys = {
       { "<leader>aC", "<cmd>ClaudeCode<cr><cmd>ClaudeCode<cr>", desc = "Connect Claude" },
       { "<leader>a", nil, desc = "AI/Claude Code" },
@@ -532,12 +588,12 @@ return {
       {
         "<leader>aA",
         function()
-          -- agent-manager in a right split (40%): same session as the tmux
+          -- agent-manager in a right split (50%): same session as the tmux
           -- window, live (one claude process).
           local term = Snacks.terminal.toggle("agent-manager", {
             win = {
               position = "right",
-              width = 0.4,
+              width = 0.5,
               -- keep its width when Claude Code opens beside it
               wo = { winfixwidth = true },
               stack = false,
@@ -557,6 +613,7 @@ return {
               tag.position = "agent-manager"
               vim.w[term.win].snacks_win = tag
             end
+            vim.w[term.win].am_width = vim.api.nvim_win_get_width(term.win)
           end
           -- a re-shown window lands in normal mode, where typing hits E21
           -- ('modifiable' is off): always go back to terminal mode
