@@ -519,8 +519,6 @@ return {
     dependencies = { "folke/snacks.nvim" },
     opts = {
       terminal = {
-        -- left split: agent-manager (<leader>aA) keeps the right side
-        split_side = "left",
         split_width_percentage = 0.45,
       },
     },
