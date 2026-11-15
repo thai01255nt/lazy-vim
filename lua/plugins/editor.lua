@@ -323,6 +323,17 @@ return {
           },
         },
       },
+      -- <C-h/j/k/l> in terminal mode wrap around (lua/win_nav.lua)
+      terminal = {
+        win = {
+          keys = {
+            nav_h = { "<C-h>", require("win_nav").term("h"), desc = "Go to Left Window", expr = true, mode = "t" },
+            nav_j = { "<C-j>", require("win_nav").term("j"), desc = "Go to Lower Window", expr = true, mode = "t" },
+            nav_k = { "<C-k>", require("win_nav").term("k"), desc = "Go to Upper Window", expr = true, mode = "t" },
+            nav_l = { "<C-l>", require("win_nav").term("l"), desc = "Go to Right Window", expr = true, mode = "t" },
+          },
+        },
+      },
     },
     keys = {
       { "<leader>lg", function() Snacks.lazygit() end, desc = "LazyGit" },

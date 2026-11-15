@@ -30,6 +30,12 @@ keymap.set("n", "sh", "<C-w>h")
 keymap.set("n", "sk", "<C-w>k")
 keymap.set("n", "sj", "<C-w>j")
 keymap.set("n", "sl", "<C-w>l")
+-- <C-h/j/k/l> wrap around at the edge (terminal mode: lua/plugins/editor.lua)
+for _, dir in ipairs({ "h", "j", "k", "l" }) do
+  keymap.set("n", "<C-" .. dir .. ">", function()
+    require("win_nav").go(dir)
+  end, { desc = "Go to window " .. dir .. " (wrap)" })
+end
 -- swap window
 keymap.set("n", "sw", "<C-w>r")
 -- rotate window from horizontal to vertical
