@@ -22,6 +22,23 @@ keymap.set("n", "<leader>bn", ":edit %:h/", { desc = "[b]uffer [n]ew in current 
 keymap.set("n", "<leader>te", ":tabedit %:h/", { desc = "new [t]ab [e]dit in current folder" })
 keymap.set("n", "<tab>", ":tabnext<Return>", opts)
 keymap.set("n", "<s-tab>", ":tabprev<Return>", opts)
+-- Move current window to tab N (count), e.g. 2<leader>tm; no count = next tab
+keymap.set("n", "<leader>tm", function()
+  local ntabs = vim.fn.tabpagenr("$")
+  local target = vim.v.count > 0 and vim.v.count or (vim.fn.tabpagenr() % ntabs) + 1
+  if ntabs < 2 or target > ntabs or target == vim.fn.tabpagenr() then
+    vim.notify("No other tab " .. target, vim.log.levels.WARN)
+    return
+  end
+  if #vim.api.nvim_tabpage_list_wins(0) == 1 then
+    vim.notify("Only window in this tab: use <C-w>T", vim.log.levels.WARN)
+    return
+  end
+  local buf = vim.api.nvim_get_current_buf()
+  vim.cmd("close")
+  vim.cmd("tabnext " .. target)
+  vim.cmd("vert sbuffer " .. buf)
+end, { desc = "[t]ab [m]ove window to tab N" })
 -- split window
 keymap.set("n", "ss", ":split<Return>", opts)
 keymap.set("n", "sv", ":vsplit<Return>", opts)
