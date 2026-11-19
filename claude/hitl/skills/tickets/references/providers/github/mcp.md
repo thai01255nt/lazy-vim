@@ -17,7 +17,7 @@ and `meta`. `<o>/<r>` = status `team`; an existing issue is addressed by its num
 | `priorityName` | issue field `github.priorityField` (`Priority`) | no MCP tool → `gh api graphql` when available, else `skippedFields: ["priority"]`; `github.priorityLabels: true` → also the label `priority:<priorityName>`, every other `priority:*` label removed (`push-ops.md`) |
 | `projectId` | `milestone` (number) | the change's milestone, or a pinned one (`github.project`; never edit it) |
 | `parentId` | sub-issue of the parent | `sub_issue_write` (method `add`) on parent number with `sub_issue_id` = this issue's REST **id**; else `gh api -X POST repos/<o>/<r>/issues/<parent n>/sub_issues -F sub_issue_id=<id>` |
-| `blockedBy` | issue dependency "blocked by" | `gh api -X POST repos/<o>/<r>/issues/<n>/dependencies/blocked_by -F issue_id=<blocker REST id>`; not available → `skippedFields: ["blockedBy"]` + `📌` note |
+| `blockedBy` | issue dependency "blocked by" | `gh api -X POST repos/<o>/<r>/issues/<n>/dependencies/blocked_by -F issue_id=<blocker REST id>`; not available → `skippedFields: ["blockedBy"]` + a `_Yours:_` line |
 | comment `body` | `add_issue_comment` | no update tool → a new comment; report its id as `commentId` |
 
 Results: `id` = the issue's REST `id` (string), `issue` = `#<number>`, `url` = `html_url`, `description` = body as

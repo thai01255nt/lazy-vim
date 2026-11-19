@@ -113,16 +113,16 @@ async function runSpecs(a, ctx) {
       return { status: "applied", keys: Object.fromEntries(ip.keys.map((k) => [k.label, k.key])), tasks: ip.map.tasks, written: r.written };
     };
     const out = await m.applyMigrateSpecs(ctx.root, ctx.config, plan, { idsFirst: a["archive-done"] ? idsFirst : null });
-    if (out.ids) { res.ids = out.ids; say(out.ids.status === "applied" ? `🔑 0.13 ids: ${Object.entries(out.ids.keys).map(([c, k]) => `${c}=${k}`).join(", ")}` : `⚠️ migrate --ids ${out.ids.status}: run /hitl:migrate`); }
+    if (out.ids) { res.ids = out.ids; say(out.ids.status === "applied" ? `0.13 ids: ${Object.entries(out.ids.keys).map(([c, k]) => `${c}=${k}`).join(", ")}` : `⚠️ migrate --ids ${out.ids.status}: run /hitl:migrate`); }
     res.written = out.written; res.archived = out.archived;
     // scratch files of the spec agents stay out of git (design v3 §4.5)
     const gi = join(ctx.root, HITL_DIR, ".gitignore");
     const giOld = await readText(gi, null);
     if (giOld !== null) { const g = mergeGitignore(giOld); if (g.added.length) await writeTextAtomic(gi, g.text); res.gitignore = { path: `${HITL_DIR}/.gitignore`, added: g.added }; }
-    for (const x of out.archived) say(x.ok ? `📦 archived ${x.change} → ${x.to}` : `⚠️ ${x.change} stays in changes/ (archive refused: ${x.error || [...(x.conflicts || []).map((c) => c.code), ...(x.errors || []).map((e) => e.code)].join(", ") || "tasks not done"})`);
+    for (const x of out.archived) say(x.ok ? `archived ${x.change} → ${x.to}` : `⚠️ ${x.change} stays in changes/ (archive refused: ${x.error || [...(x.conflicts || []).map((c) => c.code), ...(x.errors || []).map((e) => e.code)].join(", ") || "tasks not done"})`);
     say(`migrated ${plan.plan.length} planning file(s); git is not run — stage the moves with git add -A -- ${HITL_DIR}`);
-    say(out.ids?.status === "applied" ? `🎯 next: hitl-index spec validate --json, then review the capability names (/hitl:plan <change-id> amend)`
-      : `🎯 next: /hitl:migrate (hitl-index migrate --ids: change keys and 0.13 ids), then hitl-index spec validate --json`);
+    say(out.ids?.status === "applied" ? `_Next:_ hitl-index spec validate --json, then review the capability names (/hitl:plan <change-id> amend)`
+      : `_Next:_ /hitl:migrate (hitl-index migrate --ids: change keys and 0.13 ids), then hitl-index spec validate --json`);
   }
   res.status = "ok";
   if (json) console.log(JSON.stringify(res, null, 2));
@@ -142,7 +142,7 @@ async function runIds(a, ctx) {
   const dirty = m.dirtyFiles(ctx.root, plan.files.code) || [];
   res.dirty = dirty;
   if (!json) {
-    say(`${dry ? "🔎 would migrate" : "migrating"} to 0.13 ids:`);
+    say(`${dry ? "would migrate" : "migrating"} to 0.13 ids:`);
     say("| change | key | source |\n|---|---|---|");
     for (const k of plan.keys) say(`| ${k.label}${k.archived ? " (archived)" : ""} | ${k.key} | ${k.source} |`);
     for (const k of plan.legacyKeys) say(`| cap:${k.capability} (legacy ${k.oldKey ?? "?"}, ${k.ids} id(s)) | ${k.key} | ${k.source} |`);
@@ -151,7 +151,7 @@ async function runIds(a, ctx) {
     show("tasks", plan.map.tasks); show("spec ids", plan.map.specs); show("decisions", plan.map.decisions);
     for (const [c, mp] of Object.entries(plan.map.local)) show(`spec ids added by ${c}`, mp);
     say(`files: ${plan.files.hitl.length} in ${HITL_DIR}/, ${plan.files.code.length} source file(s)${plan.files.renamed.length ? `, ${plan.files.renamed.length} review path(s) renamed` : ""} · lock: ${plan.lock.tasks} task(s) re-keyed, ${plan.lock.rebaselined} hash(es) re-baselined${plan.lock.schema ? ` (${plan.lock.schema})` : ""}`);
-    for (const f of plan.files.code) say(`  ✏️ ${f}`);
+    for (const f of plan.files.code) say(`  - ${f}`);
     for (const u of plan.unresolved) say(`⚠️ unresolved ${u.id} ${u.file}:${u.line} — ${u.reason}`);
     for (const w of plan.warnings) say(`⚠️ ${w}`);
   }
@@ -165,12 +165,12 @@ async function runIds(a, ctx) {
     if (!json) console.error(`❌ uncommitted changes in ${dirty.length} file(s) migrate would touch or read: ${dirty.slice(0, 10).join(", ")}${dirty.length > 10 ? ", …" : ""} — commit or stash them first (or --force)`);
     if (!dry) return done(1);
   }
-  if (dry) { say(`🎯 apply: hitl-index migrate --ids --keys "${[...plan.keys.filter((k) => k.source !== "proposal").map((k) => `${k.label}=${k.key}`), ...plan.legacyKeys.map((k) => `cap:${k.capability}=${k.key}`), ...plan.quickKeys.map((k) => `quick:${k.slug}=${k.key}`)].join(",")}"`); return done(0); }
+  if (dry) { say(`_Next:_ hitl-index migrate --ids --keys "${[...plan.keys.filter((k) => k.source !== "proposal").map((k) => `${k.label}=${k.key}`), ...plan.legacyKeys.map((k) => `cap:${k.capability}=${k.key}`), ...plan.quickKeys.map((k) => `quick:${k.slug}=${k.key}`)].join(",")}"`); return done(0); }
   const r = await m.applyMigrateIds(ctx.root, plan);
   Object.assign(res, { status: "applied", written: r.written, renamed: r.renamed, idMap: r.idMap });
   try { const { updateIndex } = await import("../lib/indexer.mjs"); await updateIndex(ctx.root, null, { full: true }); res.reindexed = true; } catch (e) { res.reindexError = e.message; }
   say(`✅ migrated: ${r.written} file(s) written, ${r.renamed} renamed; id map → ${r.idMap}; git is not run — review and commit (chore(hitl): migrate to 0.13 ids)`);
-  say("🎯 next: hitl-index spec validate · hitl-index trace --check · hitl-index drift · hitl-index status");
+  say("_Next:_ hitl-index spec validate · hitl-index trace --check · hitl-index drift · hitl-index status");
   return done(0);
 }
 

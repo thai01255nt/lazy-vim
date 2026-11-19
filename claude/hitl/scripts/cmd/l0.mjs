@@ -85,6 +85,6 @@ export async function run(argv, ctx) {
   const l0 = await computeL0(ctx.root, ctx.config, T);
   await writeJsonSorted(join(p2paths(ctx.root).reviews, T, "l0.json"), l0);
   if (ctx.json || v.json) console.log(JSON.stringify(l0, null, 2));
-  else for (const g of l0.gates) console.log(`${g.result === "pass" ? "✅" : g.result === "skip" ? "⏭️" : g.result === "warn" ? "⚠️" : "❌"} ${g.name}: ${g.result}${g.detail ? " — " + g.detail : ""}`);
+  else for (const g of l0.gates) console.log(`${g.result === "pass" ? "✅" : g.result === "skip" ? "_Skip:_" : g.result === "warn" ? "⚠️" : "❌"} ${g.name}: ${g.result}${g.detail ? " — " + g.detail : ""}`);
   return 0;
 }

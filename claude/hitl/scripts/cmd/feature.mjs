@@ -15,7 +15,7 @@ const OPTS = { lane: { type: "string" }, report: { type: "boolean" }, json: { ty
 const USAGE = "usage: hitl-index feature <change-id> [--lane fast] [--report [--security-audit <audit-dir>]] [--json]";
 
 const ACTION_TEXT = {
-  implement: (i) => (i.lane === "normal" ? `/hitl:implement ${i.id}` : `${i.lane === "override" ? "⚠️ override" : "⚡ fast"} lane: skeleton → tests → implement`),
+  implement: (i) => (i.lane === "normal" ? `/hitl:implement ${i.id}` : `${i.lane === "override" ? "⚠️ override" : "_Fast_"} lane: skeleton → tests → implement`),
   skeleton: (i) => `/hitl:skeleton ${i.id} (stops at its gate)`,
   test: (i) => `/hitl:test ${i.id} (stops at its gate)`,
   approve: (i) => `human: /hitl:approve ${i.id}`,
@@ -64,16 +64,16 @@ export async function run(argv, ctx) {
     const r = await featureReport(ctx.root, ctx.config, plan, g.state, v["security-audit"]);
     if (r.error) { if (json) console.log(JSON.stringify({ error: r.error }, null, 2)); else console.log(`❌ ${r.error}`); return 1; }
     if (json) console.log(JSON.stringify({ feature: plan.name, verdict: r.verdict, humanRequired: r.humanRequired, counts: r.counts, report: r.file, securityLensTasks: r.securityLensTasks }, null, 2));
-    else { console.log(r.markdown.trimEnd()); console.log(`\n📝 ${r.file}`); }
+    else { console.log(r.markdown.trimEnd()); console.log(`\n_Wrote:_ ${r.file}`); }
     return 0;
   }
   if (json) { console.log(JSON.stringify(plan, null, 2)); return 0; }
-  console.log(`🎯 Feature ${plan.name} — ${plan.items.length} task(s) · ${plan.file}${plan.laneFast ? " · --lane fast" : ""}`);
+  console.log(`Feature ${plan.name} — ${plan.items.length} task(s) · ${plan.file}${plan.laneFast ? " · --lane fast" : ""}`);
   console.log("| # | task | risk | lane | status | action |\n|---|---|---|---|---|---|");
   plan.items.forEach((i, n) => console.log(`| ${n + 1} | ${i.id} ${i.title} | ${i.risk}${i.riskReasons.length ? ` (${i.riskReasons.join(", ")})` : ""} | ${i.lane} | ${i.status} | ${ACTION_TEXT[i.action](i)} |`));
   if (plan.cycle.length) console.log(`⚠️ blocked-by cycle: ${plan.cycle.join(", ")}`);
-  if (plan.stop) console.log(`🛑 ${plan.stop}`);
-  else if (plan.phase === "review") console.log(`🎯 next: review every task, then hitl-index feature ${feature.change || plan.file} --report`);
-  else console.log(`🎯 next: ${plan.current.id}`);
+  if (plan.stop) console.log(`_Stop:_ ${plan.stop}`);
+  else if (plan.phase === "review") console.log(`_Next:_ review every task, then hitl-index feature ${feature.change || plan.file} --report`);
+  else console.log(`_Next:_ ${plan.current.id}`);
   return 0;
 }

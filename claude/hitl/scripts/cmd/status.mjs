@@ -35,17 +35,17 @@ export async function notesInfo(root, g) {
   return { changes, byTask, pending, waits };
 }
 
-/** `status --brief` lines for changes that wait for another change (0.12): ⏳ waits, 📥 notes to take in. */
+/** `status --brief` lines for changes that wait for another change (0.12): `_Waits:_` waits, `_Take in:_` notes to take in. */
 export function waitLines(ni) {
   const out = [];
   for (const x of ni?.waits || []) {
-    if (x.for.length) out.push(`⏳ ${x.change} waits for ${x.for.map((f) => `${f.change}${f.state === "gone" ? " (gone: dismiss its notes)" : ""} (${f.notes.join(", ")})`).join(", ")}: no task approval, implement or archive of ${x.change} until then`);
-    if (x.amend.length) out.push(`📥 ${x.change} must take in ${x.amend.map((n) => `${n.id} from ${n.source}`).join(", ")} first → ${x.amend[0].apply}`);
+    if (x.for.length) out.push(`_Waits:_ ${x.change} waits for ${x.for.map((f) => `${f.change}${f.state === "gone" ? " (gone: dismiss its notes)" : ""} (${f.notes.join(", ")})`).join(", ")}: no task approval, implement or archive of ${x.change} until then`);
+    if (x.amend.length) out.push(`_Take in:_ ${x.change} must take in ${x.amend.map((n) => `${n.id} from ${n.source}`).join(", ")} first → ${x.amend[0].apply}`);
   }
   return out;
 }
 
-/** One line per change whose phase brief file waits for answers (0.14): `📝 <id> — <kind> brief round <n>: <k> unanswered → …`. */
+/** One line per change whose phase brief file waits for answers (0.14): `_Brief:_ <id> — <kind> brief round <n>: <k> unanswered → …`. */
 export function briefLines(changes) {
   const out = [];
   for (const c of changes || []) {
@@ -54,7 +54,7 @@ export function briefLines(changes) {
     const want = c.phase === "spec" ? "plan" : c.phase === "design" ? "design" : null;
     if (b.kind !== want) continue;
     const cmd = `${b.kind === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id}`;
-    out.push(`📝 ${c.id} — ${b.kind} brief round ${b.round}: ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
+    out.push(`_Brief:_ ${c.id} — ${b.kind} brief round ${b.round}: ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
   }
   return out;
 }
@@ -63,7 +63,7 @@ export function briefLines(changes) {
 export function notesLine(ni) {
   if (!ni?.changes.length) return null;
   const parts = ni.changes.map((c) => `${c.change} ${[c.counts.open ? `${c.counts.open} open` : null, c.counts.reopenPending ? `${c.counts.reopenPending} reopen pending` : null].filter(Boolean).join(", ")}`);
-  return `📌 notes: ${parts.join(" · ")} → ${ni.changes[0].first}`;
+  return `_Note_ ${parts.join(" · ")} → ${ni.changes[0].first}`;
 }
 
 export const OPTS = { brief: { type: "boolean" }, json: { type: "boolean" }, "sync-tags": { type: "boolean" }, "by-prio": { type: "boolean" }, "work-order": { type: "boolean" }, soft: { type: "boolean" }, quiet: { type: "boolean" }, root: { type: "string" } };
@@ -163,7 +163,7 @@ export function briefSuffix(trace, tickets) {
   const acs = trace?.summary?.acs;
   if (acs?.total > 0) {
     out += ` · trace: AC ${acs.proven}/${acs.total} proven`;
-    if (trace.counts.block) out += `, ⛔ ${trace.counts.block}`;
+    if (trace.counts.block) out += `, _Block_ ${trace.counts.block}`;
     if (trace.counts.warn) out += `, ⚠️ ${trace.counts.warn}`;
   }
   if (tickets?.enabled && tickets.configured && (tickets.outOfSync || tickets.queued))
@@ -245,7 +245,7 @@ export async function run(argv, ctx) {
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` 📌 ${nb.map((x) => x.id).join(",")}` : ""}${waitOf(id) ? ` ⏳ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
@@ -262,7 +262,7 @@ export async function run(argv, ctx) {
     if (nl) console.log(`\n${nl}`);
     for (const l of waitLines(ni)) console.log(l);
     for (const l of briefLines(changes)) console.log(l);
-    console.log(`\n🎯 next: ${next.command} (${next.reason})`);
+    console.log(`\n_Next:_ ${next.command} (${next.reason})`);
     return 0;
   } catch (e) {
     if (soft) { console.log(`HITL: status unavailable (${e.message})`); return 0; }

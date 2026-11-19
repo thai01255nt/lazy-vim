@@ -82,9 +82,9 @@ test("brief: marks written right under an answer (prettier pulls them into the b
 → recorded: FA-R1
 ### Q2 [R] Why?
 > tại sao?
-💬 Because it saves a day.
+_Disc:_ Because it saves a day.
 Option 1: CSV. Option 2: Excel.
-💡 Recommended: CSV only.
+_Rec:_ CSV only.
 → carried to Round 2
 ### Notes — anything the questions missed, or a change to an earlier answer
 > Q1: also auditors
@@ -99,7 +99,7 @@ Option 1: CSV. Option 2: Excel.
   execFileSync(PRETTIER, ["--write", "--no-config", "plan-brief.md"], { cwd: tmp, stdio: "ignore" });
   const after = fs.readFileSync(path.join(tmp, "plan-brief.md"), "utf8");
   assert.match(after, /^> → recorded: FA-R1$/m, "prettier rewrote the mark into the blockquote");
-  assert.match(after, /^> 💬 Because/m);
+  assert.match(after, /^> _Disc:_ Because/m);
   const a = parseBrief(text), b = parseBrief(after);
   assert.deepEqual(norm(b), norm(a));
   const q = (x, id) => x.questions.find((y) => y.id === id);

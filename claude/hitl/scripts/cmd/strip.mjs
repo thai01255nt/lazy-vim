@@ -12,12 +12,12 @@ export async function run(argv, ctx) {
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   const r = await strip(ctx.root, { target, dryRun: !!v["dry-run"], config: ctx.config });
   if (json) { console.log(JSON.stringify({ ...r, dryRun: !!v["dry-run"] }, null, 2)); return r.ok ? 0 : 1; }
-  if (!r.ok) { console.log(`🛑 strip ${target}: ${r.error}`); return 1; }
+  if (!r.ok) { console.log(`_Stop:_ strip ${target}: ${r.error}`); return 1; }
   const name = (id) => id.split("#").at(-1);
-  console.log(`✂️ strip ${target}${v["dry-run"] ? " (dry run)" : ""}: ${r.symbols.length} symbol(s) in ${r.files.length} file(s) · tasks ${r.tasks.join(", ")}`);
+  console.log(`strip ${target}${v["dry-run"] ? " (dry run)" : ""}: ${r.symbols.length} symbol(s) in ${r.files.length} file(s) · tasks ${r.tasks.join(", ")}`);
   for (const s of r.symbols) console.log(`  ${s.file}  ${name(s.id)}  (-@${s.removed.join(" -@")})`);
-  for (const s of r.skipped) console.log(`  ⏭ ${name(s.id)}: ${s.reason}`);
-  if (r.notDone.length) console.log(`  ⏭ not done: ${r.notDone.map((t) => `${t.id} (${t.status})`).join(", ")}`);
+  for (const s of r.skipped) console.log(`  _Skip:_ ${name(s.id)}: ${s.reason}`);
+  if (r.notDone.length) console.log(`  _Skip:_ not done: ${r.notDone.map((t) => `${t.id} (${t.status})`).join(", ")}`);
   if (r.verified) console.log("✅ verified: signatures, intents, bodies and task statuses unchanged · lock untouched");
   return 0;
 }

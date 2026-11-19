@@ -133,8 +133,8 @@ test("feature summary report: per-task verdict, risk, override, trace, pending f
   const L = r.markdown.split("\n");
   assert.equal(L[0], "# Feature feat-x: 3 tasks");
   assert.equal(L[1], "verdict: not reviewed | PASS 1 · WITH FIXES 1 · FAIL 0 · not reviewed 1 | override: 1 | human required: 2");
-  assert.match(r.markdown, /\| QT-T1 \| task QT-T1 \| low \| — \| done \| PASS \| ⛔ 0 · ⚠️ 1 \| — \|/);
-  assert.match(r.markdown, /\| QT-T2 \| task QT-T2 \| high \(security\) \| ⚠️ yes \| review \| WITH FIXES \| ⛔ 0 · ⚠️ 0 \| 1 \|/);
+  assert.match(r.markdown, /\| QT-T1 \| task QT-T1 \| low \| — \| done \| PASS \| _Block_ 0 · ⚠️ 1 \| — \|/);
+  assert.match(r.markdown, /\| QT-T2 \| task QT-T2 \| high \(security\) \| ⚠️ yes \| review \| WITH FIXES \| _Block_ 0 · ⚠️ 0 \| 1 \|/);
   assert.match(r.markdown, /\| QT-T3 \| task QT-T3 \| low \| — \| green \| not reviewed \| — \| — \|/);
   assert.match(r.markdown, /- QT-T2 F-3 \[critical · conf 95\] a — src\/a\.ts:3 → `\/hitl:review QT-T2 fix F-3`/);
   assert.ok(!/F-2\]|\bb — /.test(r.markdown), "decided finding not pending");
@@ -156,7 +156,7 @@ test("feature report: security lens suggestion, recorded full audit link, needs_
   assert.ok(!none.markdown.includes("## Security audit"), "no section without a security signal");
   const sug = buildFeatureReport({ plan, perTask, config: {}, now: NOW });
   assert.deepEqual(sug.securityLensTasks, ["QT-T2"]);
-  assert.match(sug.markdown, /## Security audit\n- security lens ran: QT-T2\n- 💡 full six-phase audit \(suggestion, not run\): `\/hitl:review --security-audit \.hitl\/tasks\/feat-x\.md`/);
+  assert.match(sug.markdown, /## Security audit\n- security lens ran: QT-T2\n- _Tip:_ full six-phase audit \(not run\): `\/hitl:review --security-audit \.hitl\/tasks\/feat-x\.md`/);
   assert.match(sug.markdown, /- QT-T2 F-1 \[needs_validation · conf 85\] spoofable client ip/);
   const done = buildFeatureReport({ plan, perTask, config: {}, now: NOW, securityAudit: { report: "/home/u/security-audit-skill/app/run-1/REPORT.md", at: "2026-10-25T00:00:00Z" } });
   assert.match(done.markdown, /- full audit: \/home\/u\/security-audit-skill\/app\/run-1\/REPORT\.md \(2026-10-25T00:00:00Z\)/);

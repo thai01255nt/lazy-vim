@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { parseBrief, answerKind, briefSummary, briefNext, pickBrief } from "../../scripts/lib/brief.mjs";
+import { parseBrief, answerKind, briefSummary, briefNext, pickBrief, ownYKind } from "../../scripts/lib/brief.mjs";
 import { computeNext, nextForChange } from "../../scripts/lib/nextstep.mjs";
 import { cli, specProject } from "./notes.test.mjs";
 
@@ -19,10 +19,10 @@ Admins export the orders of a month to CSV.
 Accountants import it.
 
 ## Round 1 ✅
-🔗 parent feat-report — shared: none found yet
+_Parent:_ feat-report — shared: none found yet
 
 ### Q0 Change id and key: \`feat-export-csv\` / \`FEC\` — keep?
-💡 Recommended: keep \`feat-export-csv\` / \`FEC\`.
+_Rec:_ keep \`feat-export-csv\` / \`FEC\`.
 > Y
 → recorded: kept
 
@@ -35,31 +35,31 @@ warehouse staff no.
 ### Q2 [R] What is out of scope?
 _e.g. "no Excel"_
 > tại sao phải loại Excel?
-💬 Excel needs a library; CSV opens in Excel too.
+_Disc:_ Excel needs a library; CSV opens in Excel too.
 Option 1: CSV only. Option 2: CSV and Excel.
-💡 Recommended: CSV only.
+_Rec:_ CSV only.
 → carried to Round 2
 
 ### Q3 [R] Use Redis for the export queue?
 > use Redis
 → parked for design
 
-## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Edge ❌   (🔥 FEC-R2, big files)
+## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Edge ❌   (_Hot_ FEC-R2, big files)
 Accept all recommendations of this round: > được
 ### Q2 [R] What is out of scope?
-💡 Recommended: CSV only.
+_Rec:_ CSV only.
 >
 
-### Q8 [R] 🔥 What happens above 10 000 rows?
+### Q8 [R] _Hot_ What happens above 10 000 rows?
 One file can get very large.
-💡 Recommended: split into several files of ≤ 10 000 rows.
+_Rec:_ split into several files of ≤ 10 000 rows.
 > không biết
 
 ### Q9 [T] Is an "export" the same as a "report"?
 >
 
 ### Q10 [R] Must finance be told?
-💡 Recommended: no.
+_Rec:_ no.
 > deep FEC-R2
 `;
 
@@ -77,7 +77,7 @@ test("parseBrief: header, description, rounds, questions, answers, marks", () =>
   assert.equal(q(1, "Q1").hint, 'e.g. "accountants and admins; warehouse staff not"');
   assert.deepEqual(q(1, "Q1").recorded, ["FEC-R1", "FEC-R1.S1"]);
   assert.deepEqual([q(1, "Q2").discussed, q(1, "Q2").carried, q(1, "Q2").settled, q(1, "Q2").recommended], [true, 2, true, "CSV only."]);
-  assert.equal(q(1, "Q2").answer, "tại sao phải loại Excel?", "the 💬 block is not part of the answer");
+  assert.equal(q(1, "Q2").answer, "tại sao phải loại Excel?", "the _Disc:_ block is not part of the answer");
   assert.equal(q(1, "Q3").parked, true);
   assert.ok(b.questions.filter((x) => x.round === 1).every((x) => !x.pending), "a ✅ round has nothing pending");
   // round 2: accept-all Y (vi) covers questions with a recommendation and an empty answer only
@@ -89,6 +89,28 @@ test("parseBrief: header, description, rounds, questions, answers, marks", () =>
   assert.deepEqual(b.counts, { questions: 8, pending: 4, answered: 3, unanswered: 1, notes: 0 });
   assert.deepEqual(b.items, []);
   assert.deepEqual(briefSummary(b), { kind: "plan", file: ".hitl/changes/feat-export-csv/plan-brief.md", status: "open", round: 2, open: true, unanswered: 1, pending: 4, notes: 0 });
+});
+
+// 0.15.0: the labels replaced the icons; briefs written before still parse the same (💡 Recommended, 💬, 🔥, 📥 For,
+// 💡 Needs spec, 💡 My Recommendation)
+const toIcons = (s) => s.replaceAll("_Rec:_", "💡 Recommended:").replaceAll("_Disc:_", "💬").replaceAll("_Hot_", "🔥")
+  .replace(/_To ([^_]+):_/g, "📥 For $1:").replaceAll("_Needs spec:_", "💡 Needs spec:");
+
+test("0.15.0: pre-0.15 icon forms parse like the labels (💡 Recommended, 💬, 🔥 in heading and round line)", () => {
+  const labels = parseBrief(PLAN, "x/plan-brief.md");
+  const icons = parseBrief(toIcons(PLAN), "x/plan-brief.md");
+  assert.ok(toIcons(PLAN).includes("💬") && toIcons(PLAN).includes("(🔥 FEC-R2"), "the icon fixture really uses icons");
+  assert.deepEqual(icons, labels);
+  assert.deepEqual(icons.rounds[1].hot, ["FEC-R2", "big files"]);
+  const q8 = icons.questions.find((x) => x.round === 2 && x.id === "Q8");
+  assert.deepEqual([q8.hot, q8.title, q8.recommended], [true, "What happens above 10 000 rows?", "split into several files of ≤ 10 000 rows."]);
+  const my = parseBrief("## Round 2\n### Q4 [D] How?\nOption 1: a\n💡 **My Recommendation**: Option 1 — reasoning: X\n>\n");
+  assert.equal(my.questions[0].recommended, "Option 1 — reasoning: X");
+  // a formatter-mangled discussion under an answer, old and new form
+  for (const d of ["💬", "_Disc:_"]) {
+    const m = parseBrief(`## Round 2\n### Q4 [R] Why?\n> why not Excel?\n> ${d} Excel needs a library.\n> _Rec:_ CSV only.\n`);
+    assert.deepEqual([m.questions[0].answer, m.questions[0].discussed, m.questions[0].recommended], ["why not Excel?", true, "CSV only."], d);
+  }
 });
 
 test("answerKind: English and Vietnamese keywords", () => {
@@ -104,11 +126,11 @@ test("accept-all on the next line; tolerant without a header; close items with o
 Accept all recommendations of this round: >
 > Y
 ### Q20 [D] Store the token hashed?
-💡 My Recommendation: Option 2 — reasoning: PWR-R1
+_Rec:_ Option 2 — reasoning: PWR-R1
 → recorded: PWR-D5
 
 ## Close
-🏗️ Design feat-password-reset — D: 5
+_Summary:_ design feat-password-reset — D: 5
 - gap one
 ### O1 ⚠️ Overlap with feat-x — witness (1/2/3)
 > 3
@@ -132,8 +154,8 @@ Accept all recommendations of this round: >
   assert.deepEqual([briefSummary(done).open, done.counts.unanswered], [false, 0]);
 });
 
-test("0.14.1: accept-all never answers a `(needs its own Y)` question (Q0, 📥 For, 💡 Needs spec); `→ dropped (scope changed)` settles", () => {
-  const b = parseBrief(`# Design brief — feat-a
+test("0.14.1: accept-all never answers a `(needs its own Y)` question (Q0, `_To P:_`, `_Needs spec:_`); `→ dropped (scope changed)` settles", () => {
+  const b0 = `# Design brief — feat-a
 > change: feat-a | key: FA | kind: design | status: open | round: 2
 
 ## Round 2 — D: FA-D1…FA-D2 settled · open: 5
@@ -142,38 +164,38 @@ Accept all recommendations of this round: > Y
 
 ### Q0 Change id and key: \`feat-a\` / \`FA\` — keep? (needs its own Y)
 
-💡 Recommended: rename the key to \`FAB\` (FA is taken).
+_Rec:_ rename the key to \`FAB\` (FA is taken).
 
 >
 
-### Q4 📥 For feat-b: the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b? (needs its own Y)
+### Q4 _To feat-b:_ the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b? (needs its own Y)
 
-💡 Recommended: Y (feat-b owns the export).
-
->
-
-### Q5 💡 Needs spec: an admin can cancel a running export (needs its own Y)
-
-📐 + FA-R4 …
-💡 Recommended: Y.
+_Rec:_ Y (feat-b owns the export).
 
 >
 
-### Q6 💡 Needs spec: retry a failed export (needs its own Y)
+### Q5 _Needs spec:_ an admin can cancel a running export (needs its own Y)
 
-💡 Recommended: Y.
+_Delta:_ + FA-R4 …
+_Rec:_ Y.
+
+>
+
+### Q6 _Needs spec:_ retry a failed export (needs its own Y)
+
+_Rec:_ Y.
 
 > Y
 
 ### Q7 [D] Stream rows or buffer them?
 
-💡 Recommended: stream.
+_Rec:_ stream.
 
 >
 
 ### Q8 [D] Use a queue?
 
-💡 Recommended: no.
+_Rec:_ no.
 
 >
 
@@ -181,23 +203,31 @@ Accept all recommendations of this round: > Y
 
 ### Q9 [D] Which format?
 
-💡 Recommended: CSV.
+_Rec:_ CSV.
 
 > n
 
 → recorded: declined
-`);
+`;
+  const b = parseBrief(b0);
   const q = (id) => b.questions.find((x) => x.id === id);
   assert.deepEqual(["Q0", "Q4", "Q5", "Q6", "Q7"].map((id) => q(id).ownY), ["rename", "note", "spec", "spec", null]);
-  assert.equal(q("Q4").title, "📥 For feat-b: the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b?", "the marker text leaves the title");
+  assert.equal(q("Q4").title, "_To feat-b:_ the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b?", "the marker text leaves the title");
   assert.deepEqual(["Q0", "Q4", "Q5"].map((id) => [q(id).acceptedByRound, q(id).answered, q(id).pending]), [[false, false, true], [false, false, true], [false, false, true]], "an empty answer stays unanswered under accept-all Y");
   assert.deepEqual([q("Q6").kind, q("Q6").answered, q("Q6").acceptedByRound], ["accept", true, false], "its own Y answers it");
   assert.deepEqual([q("Q7").acceptedByRound, q("Q7").answered], [true, true], "an ordinary question is accepted by the round");
   assert.deepEqual([q("Q8").dropped, q("Q8").settled, q("Q8").pending, q("Q8").recorded], [true, true, false, []]);
   assert.deepEqual([q("Q9").kind, q("Q9").recorded, q("Q9").pending], ["decline", ["declined"], false]);
   assert.deepEqual(b.counts, { questions: 7, pending: 5, answered: 2, unanswered: 3, notes: 0 });
+  // pre-0.15 icon headings (📥 For <P>, 💡 Needs spec) are `(needs its own Y)` questions too
+  const old = parseBrief(toIcons(b0));
+  assert.deepEqual(["Q0", "Q4", "Q5", "Q6", "Q7"].map((id) => old.questions.find((x) => x.id === id).ownY), ["rename", "note", "spec", "spec", null]);
+  assert.equal(old.questions.find((x) => x.id === "Q4").title, "📥 For feat-b: the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b?");
+  assert.equal(ownYKind(5, "💡 Needs spec: x"), "spec"); assert.equal(ownYKind(5, "_Needs spec:_ x"), "spec");
+  assert.equal(ownYKind(5, "📥 For feat-b: x"), "note"); assert.equal(ownYKind(5, "_To feat-b:_ x"), "note");
+  assert.equal(ownYKind(5, "_Rec:_ x"), null);
   // the `(needs its own Y)` text alone also marks a question
-  assert.equal(parseBrief("## Round 2\nAccept all recommendations of this round: > Y\n### Q3 Something else (needs its own Y)\n💡 Recommended: x\n>\n").questions[0].ownY, "other");
+  assert.equal(parseBrief("## Round 2\nAccept all recommendations of this round: > Y\n### Q3 Something else (needs its own Y)\n_Rec:_ x\n>\n").questions[0].ownY, "other");
 });
 
 test("Notes blocks: empty, filled (vi, several lines), marked, in Close; only unmarked text is pending; never unanswered", () => {
@@ -224,7 +254,7 @@ test("Notes blocks: empty, filled (vi, several lines), marked, in Close; only un
 ## Round 3 — Coverage: Scope ✅
 Accept all recommendations of this round: >
 ### Q3 [R] How many rows?
-💡 Recommended: 10 000.
+_Rec:_ 10 000.
 >
 
 ### Notes — anything the questions missed, or a change to an earlier answer
@@ -239,13 +269,13 @@ Thêm một dòng tổng ở cuối file.
   assert.deepEqual(b.counts, { questions: 3, pending: 2, answered: 1, unanswered: 1, notes: 1 }, "Q3 stays unanswered; the Notes count as an answer");
   assert.equal(briefSummary(b).notes, 1);
   // a round with only Notes filled has something to process
-  const only = parseBrief("# Plan brief — feat-a\n> change: feat-a | status: open | round: 2\n## Round 2\n### Q4 [R] X?\n💡 Recommended: y\n>\n### Notes — …\n> one more thing: export by week too\n");
+  const only = parseBrief("# Plan brief — feat-a\n> change: feat-a | status: open | round: 2\n## Round 2\n### Q4 [R] X?\n_Rec:_ y\n>\n### Notes — …\n> one more thing: export by week too\n");
   assert.deepEqual([only.counts.answered, only.counts.unanswered, only.counts.notes, only.questions[0].answer], [1, 1, 1, ""], "the Notes answer is not Q4's");
-  // a question in Notes: 💬 + carried mark
-  const asked = parseBrief("## Round 2 ✅\n### Notes\n> tại sao không xuất Excel?\n💬 Excel needs a library…\n→ carried to Round 3\n");
+  // a question in Notes: _Disc:_ + carried mark
+  const asked = parseBrief("## Round 2 ✅\n### Notes\n> tại sao không xuất Excel?\n_Disc:_ Excel needs a library…\n→ carried to Round 3\n");
   assert.deepEqual([asked.rounds[0].notes.discussed, asked.rounds[0].notes.carried, asked.rounds[0].notes.pending], [true, 3, false]);
   // Close: Notes before the approve question; neither is mixed into the other
-  const c = parseBrief("# Plan brief — feat-a\n> change: feat-a | status: closing | round: 4\n## Close\n📋 summary\n\n### Notes — anything the questions missed, or a change to an earlier answer\n> also log who exported\n\n### Approve the spec? (Y/n) — then /hitl:design\n>\n");
+  const c = parseBrief("# Plan brief — feat-a\n> change: feat-a | status: closing | round: 4\n## Close\n_Summary:_ feat-a\n\n### Notes — anything the questions missed, or a change to an earlier answer\n> also log who exported\n\n### Approve the spec? (Y/n) — then /hitl:design\n>\n");
   assert.deepEqual(c.close.items.map((it) => it.title), ["Approve the spec? (Y/n) — then /hitl:design"]);
   assert.deepEqual([c.close.notes.text, c.close.notes.pending, c.close.kind], ["also log who exported", true, "empty"]);
   assert.deepEqual(c.counts, { questions: 0, pending: 2, answered: 1, unanswered: 1, notes: 1 });
@@ -286,7 +316,7 @@ test("hitl-index brief: parsed JSON; change/status --json carry brief and the an
   assert.deepEqual([b.kind, b.round, b.counts.unanswered, b.summary.unanswered], ["plan", 2, 1, 1]);
   assert.equal(b.questions.find((q) => q.round === 2 && q.id === "Q8").kind, "unknown");
   r = cli(root, "brief", "feat-export-csv");
-  assert.match(r.out, /📝 feat-export-csv — plan brief round 2 \(open\): 4 pending, 1 unanswered/);
+  assert.match(r.out, /_Brief:_ feat-export-csv — plan brief round 2 \(open\): 4 pending, 1 unanswered/);
   assert.match(r.out, /Q9 \[T\] Is an "export" the same as a "report"\? — unanswered/);
   assert.equal(cli(root, "brief", "feat-export-csv", "--kind", "design", "--json").code, 1, "no design brief");
   assert.equal(cli(root, "brief", "feat-password-reset").code, 1);
@@ -298,11 +328,11 @@ test("hitl-index brief: parsed JSON; change/status --json carry brief and the an
   assert.equal(cli(root, "change", "feat-password-reset", "--json").json().changes[0].brief, undefined, "no brief file: no field");
   const s = cli(root, "status", "--json").json();
   assert.equal(s.changes.find((x) => x.id === "feat-export-csv").brief.unanswered, 1);
-  assert.match(cli(root, "status", "--brief").out, /📝 feat-export-csv — plan brief round 2: 1 unanswered → answer \.hitl\/changes\/feat-export-csv\/plan-brief\.md, then \/hitl:plan feat-export-csv/);
+  assert.match(cli(root, "status", "--brief").out, /_Brief:_ feat-export-csv — plan brief round 2: 1 unanswered → answer \.hitl\/changes\/feat-export-csv\/plan-brief\.md, then \/hitl:plan feat-export-csv/);
   // every question answered → the next step is the skill itself
   fs.writeFileSync(path.join(root, DIR, "plan-brief.md"), PLAN.replace("### Q9 [T] Is an \"export\" the same as a \"report\"?\n>", "### Q9 [T] Is an \"export\" the same as a \"report\"?\n> no"));
   assert.equal(cli(root, "change", "feat-export-csv", "--json").json().changes[0].next, "/hitl:plan feat-export-csv");
-  assert.match(cli(root, "status", "--brief").out, /📝 feat-export-csv — plan brief round 2: 0 unanswered → \/hitl:plan feat-export-csv/);
+  assert.match(cli(root, "status", "--brief").out, /_Brief:_ feat-export-csv — plan brief round 2: 0 unanswered → \/hitl:plan feat-export-csv/);
   // the brief files are not spec files: validate reports the same with and without them
   fs.writeFileSync(path.join(root, DIR, "design-brief.md"), "# Design brief — feat-export-csv\n### Q1 [D] `src/x.ts` SELECT * FROM t\n>\n");
   const after = cli(root, "spec", "validate", "feat-export-csv", "--json");
@@ -378,7 +408,7 @@ test("hitl-index brief rename: moves the folder, rewrites meta lines, ids with t
 });
 
 // ---- evals (dry): the 0.14 brief checks of evals/grade.mjs on synthetic transcripts and files (no claude calls)
-test("evals (dry): plan-vi passes on a brief round 1 and fails on a chat round; design-r1 needs a 💡 on every question", async () => {
+test("evals (dry): plan-vi passes on a brief round 1 and fails on a chat round; design-r1 needs a `_Rec:_` line on every question", async () => {
   const { gradeRun } = await import("../../evals/grade.mjs");
   const { spawnSync } = await import("node:child_process");
   const os = await import("node:os");
@@ -400,13 +430,13 @@ test("evals (dry): plan-vi passes on a brief round 1 and fails on a chat round; 
   const desc = c.prompt.replace(`/hitl:plan ${id} `, "");
   const tpl = fs.readFileSync(path.resolve(import.meta.dirname, "../../shared/templates/plan-brief.md"), "utf8")
     .replaceAll("{change-id}", id).replaceAll("{KEY}", "FDCA").replace("{YYYY-MM-DD}", "2026-11-19")
-    .replace(/\{the user's description, verbatim\.[^}]*\}/, desc).replace(/\{🔗 parent[^}]*\}\n/, "");
+    .replace(/\{the user's description, verbatim\.[^}]*\}/, desc).replace(/\{_Parent:_[^}]*\}\n/, "");
   fs.writeFileSync(path.join(dir, "plan-brief.md"), tpl);
-  const chat = `📝 Brief ready: .hitl/changes/${id}/plan-brief.md — answer in the file, then run /hitl:plan ${id}`;
+  const chat = `Brief ready: .hitl/changes/${id}/plan-brief.md — answer in the file, then run /hitl:plan ${id}`;
   let g = grade(c, root, chat);
   for (const k of ["plan_brief_written", "plan_brief_round1", "plan_brief_chat", "plan_coverage_table", "plan_change_created"]) assert.ok(g[k].ok, `${k}: ${g[k].why}`);
-  assert.equal(grade(c, root, "🌳 Round 1\n❓ **Q1** [R] - **Who?**: …\n💡 Recommended: admins\nReply: Y").plan_brief_chat.ok, false, "a chat round fails");
-  fs.writeFileSync(path.join(dir, "plan-brief.md"), tpl.replace(/(### Q3 .*\n)/, "$1💡 Recommended: admins only\n"));
+  assert.equal(grade(c, root, "Round 1\n❓ **Q1** [R] - **Who?**: …\n_Rec:_ admins\nReply: Y").plan_brief_chat.ok, false, "a chat round fails");
+  fs.writeFileSync(path.join(dir, "plan-brief.md"), tpl.replace(/(### Q3 .*\n)/, "$1_Rec:_ admins only\n"));
   assert.equal(grade(c, root, chat).plan_brief_round1.ok, false, "a recommendation in plan round 1 fails");
   // design-r1: the template filled in, then one question without a recommendation
   const d = scenarios.find((x) => x.id === "design-r1");
@@ -415,10 +445,10 @@ test("evals (dry): plan-vi passes on a brief round 1 and fails on a chat round; 
     .replaceAll("{change-id}", "feat-password-reset").replaceAll("{KEY}", "PWR").replace(/Q\{n\}/g, () => `Q${++n}`);
   const pr = path.join(root, ".hitl/changes/feat-password-reset/design-brief.md");
   fs.writeFileSync(pr, filled);
-  const dchat = "📝 Design brief ready: .hitl/changes/feat-password-reset/design-brief.md — answer, then /hitl:design feat-password-reset";
+  const dchat = "Design brief ready: .hitl/changes/feat-password-reset/design-brief.md — answer, then /hitl:design feat-password-reset";
   g = grade(d, root, dchat);
   assert.ok(g.design_brief_r1.ok, g.design_brief_r1.why);
   assert.ok(g.design_brief_chat.ok, g.design_brief_chat.why);
-  fs.writeFileSync(pr, filled.replace(/(### Q2 [^\n]*\n\n)💡 Recommended:[^\n]*\n/, "$1"));
+  fs.writeFileSync(pr, filled.replace(/(### Q2 [^\n]*\n\n)_Rec:_[^\n]*\n/, "$1"));
   assert.equal(grade(d, root, dchat).design_brief_r1.ok, false);
 });

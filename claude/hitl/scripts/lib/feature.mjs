@@ -76,7 +76,7 @@ export const laneOf = (risk, laneFast) => (risk === "low" ? "fast" : laneFast ? 
 /**
  * What the feature run does next with one task.
  * implement = /hitl:implement logic for its lane (fast/override run skeleton → tests → implement without gates);
- * skeleton|test = run that skill (it stops at its ⛔ gate); approve|approve-tests = stop, the human types /hitl:approve;
+ * skeleton|test = run that skill (it stops at its gate); approve|approve-tests = stop, the human types /hitl:approve;
  * skip = already implemented; blocked = waits for a task outside the feature.
  */
 export function actionFor(status, lane, testsLocked, reopenStage = null) {
@@ -160,7 +160,7 @@ export function buildFeatureReport(o) {
     for (const { F, f } of pend) cards.push(`- ${it.id} ${F} [${f.verdict === "needs_validation" ? "needs_validation" : f.severity} · conf ${confOf(f)}] ${f.title || f.key} — ${f.file || "?"}${f.line ? ":" + f.line : ""} → \`/hitl:review ${it.id} fix ${F}\` or accept/reject/defer`);
     if (it.override) human.push(`- ${it.id}: ⚠️ human-override (fast lane forced${it.riskReasons.length ? `; risk: ${it.riskReasons.join(", ")}` : ""}) — review every function in ${p.report || `reviews/${it.id}.review.md`}`);
     const risk = `${it.risk}${it.riskReasons.length ? ` (${it.riskReasons.join(", ")})` : ""}`;
-    const trace = p.l0?.trace ? `⛔ ${tc.block || 0} · ⚠️ ${tc.warn || 0}` : "—";
+    const trace = p.l0?.trace ? `_Block_ ${tc.block || 0} · ⚠️ ${tc.warn || 0}` : "—";
     rows.push(`| ${it.id} | ${String(it.title).replace(/\|/g, "\\|")} | ${risk} | ${it.override ? "⚠️ yes" : "—"} | ${it.status} | ${verdict} | ${trace} | ${pend.length || "—"} |`);
   }
   const verdict = plan.items.length ? Object.keys(counts).filter((k) => counts[k]).sort((a, b) => VERDICT_RANK[a] - VERDICT_RANK[b])[0] : "not reviewed";
@@ -179,7 +179,7 @@ export function buildFeatureReport(o) {
     L.push("", "## Security audit");
     if (o.securityAudit) L.push(`- full audit: ${o.securityAudit.report} (${o.securityAudit.at || "date unknown"})`);
     if (securityLensTasks.length) L.push(`- security lens ran: ${securityLensTasks.join(", ")}`);
-    if (!o.securityAudit && securityLensTasks.length) L.push(`- 💡 full six-phase audit (suggestion, not run): \`/hitl:review --security-audit ${plan.file}\``);
+    if (!o.securityAudit && securityLensTasks.length) L.push(`- _Tip:_ full six-phase audit (not run): \`/hitl:review --security-audit ${plan.file}\``);
   }
   if (plan.stop || plan.cycle.length) {
     L.push("", "## Stopped");

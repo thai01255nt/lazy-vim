@@ -197,7 +197,7 @@ test("renderTraceMd: header, matrix rows, decisions line, markers, no percentage
   const md = renderTraceMd(all(b));
   assert.match(md, /^# Trace — feat-users\.md \(planning approved · R 3 · D 1\)\n\| R \| AC \| tests \(fresh\) \| symbols \(status\) \|/);
   assert.match(md, /\| R-1 must \| QT-T1\.AC1 \| "QT-T1\.AC1 rejects" ✅ \| UserService\.createUser \(green\) \|/);
-  assert.match(md, /\| R-2 must \| QT-T1\.AC2 \| "QT-T1\.AC2 returns" 📝 \|/);
+  assert.match(md, /\| R-2 must \| QT-T1\.AC2 \| "QT-T1\.AC2 returns" _Todo_ \|/);
   assert.match(md, /\| R-3 should \| — \| — \| — \|/);
   assert.match(md, /Decisions: D-1 → QT-T1, UserService\.createUser \(@dec\)/);
   assert.match(md, /⚠️ REQ_NO_AC R-3 — no AC references R-3/);

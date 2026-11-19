@@ -25,8 +25,8 @@ each op's `meta`. Ids per `connect.md` (REST numeric, strings; `#n` addresses an
   (c) `title`, `body`, `milestone` (`projectId`). Then `priorityName` → the issue field per `mcp.md`; `parentId` →
   sub-issue add. Result: `ok`, `description`, `skippedFields`.
 - `addRelations` → per `payload.blockedBy[]`: `gh api -X POST repos/<o>/<r>/issues/<n>/dependencies/blocked_by
-  -F issue_id=<blocker id>`. Not available → `ok:true`, `skippedFields: ["blockedBy"]`, print `📌 mark <issue> blocked
+  -F issue_id=<blocker id>`. Not available → `ok:true`, `skippedFields: ["blockedBy"]`, print `_Yours:_ mark <issue> blocked
   by <issues> by hand`.
-- `manualNote` → print `📌 <payload.message>`; `ok: true`.
+- `manualNote` → print `_Yours:_ <payload.message>`; `ok: true`.
 - `upsertComment` → `add_issue_comment` on `#n` (no update tool → a new comment). Result: `commentId`.
 - `cancelIssue` → close with `state_reason: not_planned`.

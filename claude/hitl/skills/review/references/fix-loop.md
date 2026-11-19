@@ -16,7 +16,7 @@
 ```
 
 No performative agreement ("You're absolutely right!", "Great catch!", thanks). State the fix or the pushback.
-If any finding in a batch is unclear → ⛔ GATE with the unclear findings **before** fixing any of them (items may be
+If any finding in a batch is unclear → GATE with the unclear findings **before** fixing any of them (items may be
 related).
 
 ## 2. Push back when
@@ -36,7 +36,7 @@ If you pushed back and were wrong, say so in one line and fix it.
 | `@impl agent` symbol, reproducible behaviour (wrong result, missing error path, leak, race) | agent, **test first** | see §4 |
 | `@impl agent` symbol, not reproducible by a test (naming, structure, perf without a measurable trigger) | agent | implementer fixes; existing tests must stay green |
 | category `structure` (refactor suggestion) | agent (manual symbol: human card) | refactor pass, §6 |
-| `@impl manual` symbol | human | print a ✍️ card: file:line, evidence, suggested fix, test to run. Never edit it. |
+| `@impl manual` symbol | human | print a `_Yours:_` card: file:line, evidence, suggested fix, test to run. Never edit it. |
 | category `intent`, `todo-flow` (contract wrong), `scope` needing a new public symbol, or any change to a locked signature/docstring | human | explain what would change in the skeleton; the human edits it and runs `/hitl:approve <T>` — or `amend F-n` (accept + amend spec, `shared/amend-spec.md`) when the plan's decision/requirement is what is wrong |
 | test weakened / edited locked test | human | the human approves the new test (`/hitl:approve <T> tests`) or reverts it |
 
@@ -58,7 +58,7 @@ If you pushed back and were wrong, say so in one line and fix it.
 
 - Clarify unclear findings first. Then: critical/blocking (security, wrong results) → simple → complex.
 - One finding per implementer call. Fresh test run after each.
-- Max `review.maxFixRounds` (config, default 2) rounds per finding. Still failing → 🛑 escalate to the human with the evidence
+- Max `review.maxFixRounds` (config, default 2) rounds per finding. Still failing → _Stop:_ escalate to the human with the evidence
   (failing output, what was tried). Do not keep looping.
 - After the batch: run `/hitl:review <T> recheck` logic (incremental L0 + L1 on changed symbols), then the report.
 
@@ -72,6 +72,6 @@ A suggestion, never required: `defer F-n` is fine. On `fix F-n`:
    A private-helper test (tests lens) → test-author moves it to the seam; the human re-locks it (`/hitl:approve <T> tests`).
 3. Fresh run: all green and no `TEST_CHANGED` in L0 drift → `✅ F-n refactored, task tests n/n`. Otherwise: spawn
    `hitl:implementer` once more with `Undo your refactor of F-n: restore every changed line exactly; all tests stay
-   green.`, re-run; still not clean → 🛑 show `git diff -- <files>` and stop for the human.
+   green.`, re-run; still not clean → _Stop:_ show `git diff -- <files>` and stop for the human.
 4. Beyond the task (other tasks' code, a shared module, a wide rename) → do not edit; `defer F-n` and propose
    `/hitl:plan refactor-<slug>` (no behaviour change).

@@ -406,8 +406,8 @@ export function validateChange({ change: ch, living, others = [], config = {}, k
   // [NEEDS CLARIFICATION] in business files
   const bfiles = [proposalFile, ...ch.deltas.map((d) => d.file), ...(ch.glossaryDelta ? [ch.glossaryDelta.file] : [])];
   // stop rule of /hitl:plan (skills/plan/references/elicitation.md §4): no SHALL/MUST requirement with an open
-  // clarification, every coverage category clear or n/a with a reason — unless the user forced it ("💡 Forced:" in
-  // ## Open questions), which also keeps NEEDS_CLARIFICATION a warning in an approved change
+  // clarification, every coverage category clear or n/a with a reason — unless the user forced it ("_Forced:_", pre-0.15 "💡 Forced:",
+  // in ## Open questions), which also keeps NEEDS_CLARIFICATION a warning in an approved change
   const forced = (ch.proposal?.forced || []).length > 0;
   for (const f of bfiles) for (const c of findClarifications(ch.texts.get(f) || ""))
     push(approved && !forced ? "error" : "warn", "NEEDS_CLARIFICATION", f, null, c.line, `${c.text}${approved ? (forced ? " in an approved change (forced)" : " in an approved change") : ""}`);

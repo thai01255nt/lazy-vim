@@ -137,7 +137,7 @@ export function pickServer(config, visible, mode = "run") {
     return { ...base, candidates: names, action: "pick", message: `${names.length} ${L} servers visible: pick one (one OAuth per ${P.workspace.what})` };
   }
   return { ...base, candidates: names, server: names.length === 1 ? names[0] : null, action: "legacy",
-    message: `${k}.server is not pinned: use the server whose ${P.team}s contain the mapped ${P.team} id · 💡 pin it: /hitl:tickets init (or hitl-index init --set ${k}.server=<name>)` };
+    message: `${k}.server is not pinned: use the server whose ${P.team}s contain the mapped ${P.team} id · _Tip:_ pin it: /hitl:tickets init (or hitl-index init --set ${k}.server=<name>)` };
 }
 
 /**
@@ -374,7 +374,7 @@ export function buildPlan(I) {
   if (!base.configured) { base.warnings.push("run /hitl:tickets init"); return base; }
   if (pref && !pref.id) { base.configured = false; base.warnings.push(`${P.name}.project "${pref.unresolved}" is not resolved to an id — run /hitl:tickets init`); return base; }
   const warnings = new Set();
-  if (!cfg.server) warnings.add(`${P.name}.server not pinned — 💡 /hitl:tickets init (hitl-index init --set ${P.name}.server=<name>)`);
+  if (!cfg.server) warnings.add(`${P.name}.server not pinned — _Tip:_ /hitl:tickets init (hitl-index init --set ${P.name}.server=<name>)`);
   const scope = I.scope || { kind: "all" };
   const all = taskRows(I, cfg);
   const inScope = all.filter((r) => scope.kind === "all" || (scope.kind === "tasks" && scope.ids.includes(r.task.id)) || (scope.kind === "file" && r.doc.file === scope.file));

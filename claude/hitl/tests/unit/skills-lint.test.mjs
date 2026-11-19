@@ -96,7 +96,7 @@ test("shared language (0.8): [T] tag + credited Shared language, Plain replies s
   assert.ok(g.includes("_Avoid_") && g.includes("In this project"), "glossary template rules");
   assert.match(g, /@ 4ae2317/);
   for (const s of ["plan", "design", "tasks"]) assert.match(read(`skills/${s}/SKILL.md`), /GLOSSARY\.md/, `${s} loads the glossary`);
-  assert.match(read("skills/design/SKILL.md"), /💡 Needs term/);
+  assert.match(read("skills/design/SKILL.md"), /_Needs term:_/);
   assert.match(read("agents/spec-scout.md"), /"vocabulary":/);
   assert.doesNotMatch(read("skills/tasks/references/slicing-and-risk.md"), /glossary \(BUSINESS-CONTEXT\)/);
   assert.doesNotMatch(read("skills/review/SKILL.md"), /Decide: F-1 \(accept/, "review gate glosses each finding");
@@ -129,10 +129,10 @@ test("test patterns (0.8): one source of truth, inner loop, tdd routing", () => 
 
 test("churn (0.9): capture rule next to Plain replies, Impact block, approve forms, docs rows", () => {
   const conv = read("shared/conventions.md");
-  const order = ["## Plain replies", "## Edits to approved behaviour stated in chat (📌 notes)", "## No over-questioning"].map((h) => conv.indexOf(h));
+  const order = ["## Plain replies", "## Edits to approved behaviour stated in chat (notes `N-k`)", "## No over-questioning"].map((h) => conv.indexOf(h));
   assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], "capture section sits right after Plain replies");
-  const cap = conv.split("## Edits to approved behaviour stated in chat (📌 notes)")[1].split(/^## /m)[0];
-  assert.match(cap, /📌 Note for <change>, refs <ids \(titles\)>\? \(Y\/n\)/);
+  const cap = conv.split("## Edits to approved behaviour stated in chat (notes `N-k`)")[1].split(/^## /m)[0];
+  assert.match(cap, /_Note_ for <change>, refs <ids \(titles\)>\? \(Y\/n\)/);
   assert.match(cap, /hitl-index note add --change/);
   assert.match(cap, /a question \(discuss it; nothing is recorded\)/);
   assert.match(cap, /explicit "amend\/apply it now" \(go straight to `amend-spec\.md`\)/);
@@ -147,7 +147,7 @@ test("churn (0.9): capture rule next to Plain replies, Impact block, approve for
   for (const s of ["plan", "design"]) assert.match(read(`skills/${s}/SKILL.md`), /amend \[N-k\]/, `${s} amend N-k`);
   assert.match(read("skills/test/SKILL.md"), /\*\*reopen fill\*\*/);
   assert.match(read("skills/skeleton/SKILL.md"), /\*\*reopen mode\*\*/);
-  assert.match(read("skills/flow/SKILL.md"), /📌 PWR-T14 blocked by N-3/);
+  assert.match(read("skills/flow/SKILL.md"), /_Note_ PWR-T14 blocked by N-3/);
   assert.match(read("skills/archive/SKILL.md"), /preconditions\.notes\.open/);
   assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:approve <id> reopen \[N-k\]` \|/m);
   assert.match(read("README.md"), /^### 4c\. Yêu cầu đổi giữa chừng/m);
@@ -220,7 +220,7 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.match(fm("tasks").description, /\/hitl:go/);
   assert.match(fm("tasks")["argument-hint"], /update \[<what>\]/);
   assert.match(read("skills/tasks/SKILL.md"), /`<change-id> update \[<what>\]`/);
-  assert.match(read("skills/flow/SKILL.md"), /🎯 next: \/hitl:go <description>/);
+  assert.match(read("skills/flow/SKILL.md"), /_Next:_ \/hitl:go <description>/);
   const help = read("skills/flow/references/help.md");
   assert.match(help, /^\| `\/hitl:go <description> \[--plan\\\|--quick\\\|--tdd\]( \[--before <id>\])?` \|/m);
   assert.match(help, /^\/hitl:setup → \/hitl:overview → \/hitl:go <description>/m);
@@ -257,7 +257,7 @@ test("0.13: /hitl:migrate skill gates the id migration; docs use change-key ids"
   for (const f of files) assert.doesNotMatch(read(f), /(?<![\w-])(?:T|D)-\d+\b/, `${f} shows a pre-0.13 id`);
 });
 
-test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate, trigger split, docs; §4 heading; parent 🔗 lines", () => {
+test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate, trigger split, docs; §4 heading; parent `_Parent:_` lines", () => {
   const fm = (s) => frontmatter(read(`skills/${s}/SKILL.md`));
   const o = read("skills/overlap/SKILL.md"), of = fm("overlap");
   assert.equal(of.name, "overlap");
@@ -268,9 +268,9 @@ test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate
   assert.match(of.description, /Not for new work \(\/hitl:go\), a task id or status \(\/hitl:flow\), or an archived change/);
   for (const re of [/hitl-index overlap <A> \[--with <B,C>\] --json/, /subagent_type: hitl:spec-reviewer/, /Mode: overlap/, /never one\s+per pair/,
     /hitl-index overlap <A> --with <candidate ids> --review --json/, /✅ <A>: no overlap with/, /no judge, no gate/,
-    /1\. adjust <one side> · 2\. both sides \(📥 source notes into the affected\s+change\(s\), which then wait until the other is archived\) · 3\. not an overlap/,
+    /1\. adjust <one side> · 2\. both sides \(source notes into the affected\s+change\(s\), which then wait until the other is archived\) · 3\. not an overlap/,
     /"1 2, 2 3"/, /\/hitl:plan <change> amend/, /Never run the amend yourself/, /hitl-index note add --change <affected>\s+--source <other>/,
-    /\*\*3\. not an overlap\*\* → write nothing/, /🎯 next: \/hitl:flow/, /🎯 next: \/hitl:go/, /This skill writes no file/]) assert.match(o, re);
+    /\*\*3\. not an overlap\*\* → write nothing/, /_Next:_ \/hitl:flow/, /_Next:_ \/hitl:go/, /This skill writes no file/]) assert.match(o, re);
   const sr = read("agents/spec-reviewer.md");
   assert.match(sr, /\*\*Overlap mode\*\*/); assert.match(sr, /"schema": "hitl\.overlap-review\/1"/);
   assert.match(sr, /verbatim quote from each\s+change it names/); assert.match(sr, /as one cluster/);
@@ -286,16 +286,16 @@ test("0.13.1: /hitl:overlap — read-only skill, one cluster judge, witness gate
   const sc = JSON.parse(read("evals/scenarios.json")).cases;
   assert.equal(sc.find((c) => c.id === "overlap-gate")?.fixture, "churn-overlap");
   assert.match(read("evals/fixtures/build.sh"), /churn\|churn-noted\|churn-recheck\|churn-waiting\|churn-overlap\)/);
-  // other-changes.md: §4 is about every unlinked change; parents get 🔗 lines; §6 points at the skill
+  // other-changes.md: §4 is about every unlinked change; parents get `_Parent:_` lines; §6 points at the skill
   const oc = read("shared/other-changes.md");
   assert.match(oc, /^## 4\. Overlap with active changes B is not linked to \(with or without `--before`\)$/m);
   assert.doesNotMatch(oc, /Accidental overlap|B was not created with `--before`/);
-  assert.match(oc, /`🔗 parent <P> — shared: <evidence refs \(titles\)>`/);
+  assert.match(oc, /`_Parent:_ <P> — shared: <evidence refs \(titles\)>`/);
   assert.match(oc, /^## 6\. On demand: `\/hitl:overlap <A> \[<B> <C> …\]`/m);
   assert.match(oc, /branch merge/);
-  assert.match(read("skills/plan/SKILL.md"), /`🔗 parent <P> — shared: <evidence refs \(titles\)>`/);
+  assert.match(read("skills/plan/SKILL.md"), /`_Parent:_ <P> — shared: <evidence refs \(titles\)>`/);
   assert.match(read("skills/plan/SKILL.md"), /`parent: true`/);
-  assert.match(read("skills/design/SKILL.md"), /`🔗 parent <P> — shared: <the new contract\/file refs>`/);
+  assert.match(read("skills/design/SKILL.md"), /`_Parent:_ <P> — shared: <the new contract\/file refs>`/);
   // docs
   assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:overlap <id> \[<id> …\]` \|/m);
   assert.match(read("README.md"), /^\| `\/hitl:overlap <change-id> \[<change khác> …\]` · `--with B,C` \|/m);
@@ -330,24 +330,24 @@ test("0.14: plan and design interview in a brief file; no chat rounds, no design
   assert.match(iv, /^## 4\. The brief file and the round format/m);
   assert.match(iv, /There is no\s+chat round mode/);
   assert.match(iv, /`Accept all recommendations of this round: >`/);
-  for (const w of ["`được`", "`đồng ý`", "`ừ`", "`không biết`", "`chưa biết`", "`xong`", "`deep`", "→ carried to Round <n>", "→ recorded: <ids>", "💬"])
+  for (const w of ["`được`", "`đồng ý`", "`ừ`", "`không biết`", "`chưa biết`", "`xong`", "`deep`", "→ carried to Round <n>", "→ recorded: <ids>", "_Disc:_"])
     assert.ok(iv.includes(w), `interview: ${w}`);
   assert.doesNotMatch(iv, /Reply:/, "no chat Reply: line left in the overlay");
   const plan = read("skills/plan/SKILL.md");
-  assert.match(plan, /📝 Brief ready: \.hitl\/changes\/<id>\/plan-brief\.md — answer in the file, then run \/hitl:plan <id>/);
+  assert.match(plan, /Brief ready: \.hitl\/changes\/<id>\/plan-brief\.md — answer in the file, then run \/hitl:plan <id>/);
   assert.match(plan, /\*\*Round 1 carries no recommendations\*\*/);
   assert.match(plan, /hitl-index brief rename <id>/);
   assert.match(plan, /### Approve the spec\? \(Y\/n\)/);
   assert.match(plan, /Unchanged by the brief file: amend stays one chat gate/);
   assert.doesNotMatch(plan, /Reply:|Spec complete\?/);
   const design = read("skills/design/SKILL.md");
-  assert.match(design, /\*\*Every question carries `💡 Recommended`\*\*/);
-  assert.match(design, /📝 Design brief ready: \.hitl\/changes\/<id>\/design-brief\.md/);
+  assert.match(design, /\*\*Every question carries `_Rec:_`\*\*/);
+  assert.match(design, /Design brief ready: \.hitl\/changes\/<id>\/design-brief\.md/);
   assert.match(design, /### Approve the design\? \(Y\/n\)/);
   for (const f of ["skills/design/SKILL.md", "skills/flow/references/help.md", "README.md", "HUONG-DAN.md", "skills/implement/SKILL.md", "evals/scenarios.json", "evals/README.md", "evals/judge.mjs"])
     assert.doesNotMatch(read(f).replace(/^### Nâng cấp từ 0\.13\.2[\s\S]*?(?=^### )/m, ""), /design[^\n|]*--auto|--auto[^\n|]*design/, `${f} still offers /hitl:design --auto`);
   assert.doesNotMatch(frontmatter(design)["argument-hint"], /--auto/);
-  assert.match(read("skills/flow/SKILL.md"), /📝 <id> — <kind> brief round <round>: <unanswered> unanswered/);
+  assert.match(read("skills/flow/SKILL.md"), /_Brief:_ <id> — <kind> brief round <round>: <unanswered> unanswered/);
   assert.match(read("skills/flow/references/help.md"), /\*\*Brief files\*\* \(0\.14\)/);
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.13\.2/m);
   assert.match(read("README.md"), /\*\*`\/hitl:design --auto` bị bỏ\*\*/);
@@ -364,9 +364,50 @@ test("0.14: plan and design interview in a brief file; no chat rounds, no design
 
 test("0.14.1: markdown files hitl writes are prettier-stable (markdownlint style)", () => {
   assert.match(read("shared/conventions.md"), /^## Markdown files hitl writes/m);
-  assert.match(read("shared/conventions.md"), /a Claude mark \(`→ …`, `💬`\) never\s+directly under a `>` line/);
-  assert.match(read("shared/interview.md"), /\*\*A Claude mark \(`→ …`\) or a `💬`\s+line never sits directly under a `>` line\*\*/);
+  assert.match(read("shared/conventions.md"), /a Claude mark \(`→ …`, `_Disc:_`\) never\s+directly under a `>` line/);
+  assert.match(read("shared/interview.md"), /\*\*A Claude mark \(`→ …`\) or a `_Disc:_`\s+line never sits directly under a `>` line\*\*/);
   assert.doesNotMatch(read("shared/interview.md"), /a line\s+without `>` right after an answer line continues it/);
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.14\.0/m);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.14.1");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.14\.[1-9]$|^0\.(1[5-9]|[2-9]\d)\.\d+$/, "version ≥ 0.14.1");
+});
+
+// 0.15.0 — italic word labels instead of emoji; only ✅ ❌ ⚠️ and → stay. Vendored text and the parsers' pre-0.15
+// compatibility patterns are the only exceptions.
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2139}\u{21AA}\u{21D2}\u{2B00}-\u{2BFF}]/u;
+const KEPT = /[\u{2705}\u{274C}\u{26A0}]/gu;
+const walkRel = (rel) => fs.statSync(path.join(ROOT, rel)).isDirectory()
+  ? fs.readdirSync(path.join(ROOT, rel)).flatMap((n) => walkRel(`${rel}/${n}`)) : [rel];
+const VENDORED_TEXT = /^skills\/(grilling\/SKILL\.md|security-audit\/|tdd\/(tests|mocking)\.md)/;
+const COMPAT = new Set(["scripts/lib/brief.mjs", "scripts/lib/specmd.mjs", "scripts/lib/changes.mjs", "skills/grilling/UPSTREAM.md"]);
+
+test("0.15.0: no emoji outside ✅ ❌ ⚠️ in skills, shared, agents, scripts, hooks, templates, help, README, HUONG-DAN", () => {
+  const files = ["skills", "shared", "agents", "scripts", "hooks", "evals/fixtures/briefs"].flatMap(walkRel)
+    .filter((f) => /\.(md|mjs|js|json|sh)$/.test(f) && !VENDORED_TEXT.test(f) && !COMPAT.has(f)).concat("HUONG-DAN.md", "NOTICE.md");
+  const bad = [];
+  for (const f of files) read(f).split("\n").forEach((l, i) => { if (EMOJI.test(l.replace(KEPT, ""))) bad.push(`${f}:${i + 1}: ${l.trim().slice(0, 80)}`); });
+  // README: only the 0.15.0 upgrade note names the old icons
+  const readme = read("README.md");
+  const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.14.1"), readme.indexOf("### Nâng cấp từ 0.14.0"));
+  readme.replace(note, "").split("\n").forEach((l, i) => { if (EMOJI.test(l.replace(KEPT, ""))) bad.push(`README.md:${i + 1}: ${l.trim().slice(0, 80)}`); });
+  assert.deepEqual(bad, []);
+});
+
+test("0.15.0: label legend in help, pointer in conventions, upgrade note; brief means only the brief file", () => {
+  const help = read("skills/flow/references/help.md");
+  assert.match(help, /^## Labels$/m);
+  for (const l of ["_Rec:_", "_Assumed:_", "_Tip:_", "_Info:_", "_Next:_", "_Stop:_", "_Gate:_", "_Block:_", "_Disc:_", "_Hot_",
+    "_Needs spec:_", "_Needs term:_", "_Parked:_", "_Forced:_", "_Note_", "_To P:_", "_From P:_", "_Take in:_", "_Waits:_",
+    "_Blocks:_", "_Unblocked:_", "_Parent:_", "_Overlap?_", "_Delta:_", "_Impact:_", "_Reopen_", "_Yours:_", "_Fast_", "_Route:_",
+    "_Brief:_", "_Summary:_", "_Skip:_"]) assert.ok(help.includes(`| \`${l}\` |`), `legend lacks ${l}`);
+  assert.match(read("shared/conventions.md"), /skills\/flow\/references\/help\.md` § Labels/);
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.14\.1/m);
+  for (const f of ["skills/go/SKILL.md", "skills/flow/SKILL.md"]) {
+    assert.match(read(f), /Status summary \(injected\):/, f);
+    assert.doesNotMatch(read(f), /Brief status/, f);
+  }
+  assert.match(read("skills/tidy/SKILL.md"), /and this prompt:/);
+  assert.match(read("agents/work-router.md"), /"summary": "/);
+  assert.doesNotMatch(read("agents/work-router.md"), /"brief":/);
+  assert.match(read("skills/go/SKILL.md"), /--text "<\.summary>"/);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.15.0");
 });

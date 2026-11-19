@@ -18,7 +18,7 @@ Match by meaning; if the schema names the same thing differently, use its name. 
 | `stateId` | not a field: a **transition** | `getTransitionsForJiraIssue` → the transition whose target status id = `stateId` → `transitionJiraIssue`; none → `skippedFields: ["stateId"]` |
 | `parentId` | `parent: {id}` (or `{key}`) | epic or parent issue of the change |
 | `projectId` | `parent: {id}` too | a pinned epic (`jira.project`); never edit that epic |
-| `blockedBy` | issue link type **Blocks** (this issue is the *inward* "is blocked by") | no link tool → `skippedFields: ["blockedBy"]` + `📌` note |
+| `blockedBy` | issue link type **Blocks** (this issue is the *inward* "is blocked by") | no link tool → `skippedFields: ["blockedBy"]` + a `_Yours:_` line |
 | comment `body` | `commentBody` | create only (no update tool) → report the new `commentId` |
 
 Results to extract: `id` (numeric, as a string), `key` → `issue` (e.g. `PAY-12`), `url` = `https://<site>/browse/<key>`

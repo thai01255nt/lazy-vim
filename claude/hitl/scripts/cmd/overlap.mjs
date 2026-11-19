@@ -6,7 +6,7 @@
 // `linked` = the two changes are already tied by notes (`source:`); `parent` = the other change holds notes from this one
 // (it waits for this change, e.g. this change was created `--before` it); `waitsFor` = the reverse.
 // `--review` (used by /hitl:overlap): read the spec-reviewer's overlap verdict (.hitl/.inbox/overlap-review.json), drop
-// every finding without a Given/When/Then witness quoting each change it names, print the ⛔ gate lines, remove the file.
+// every finding without a Given/When/Then witness quoting each change it names, print the gate lines, remove the file.
 import { join } from "node:path";
 import { rm } from "node:fs/promises";
 import { parseArgv } from "../lib/project.mjs";
@@ -70,9 +70,9 @@ export async function run(argv, ctx) {
     return 0;
   }
   for (const c of candidates) {
-    if (c.parent) console.log(`🔗 parent ${c.other} — shared: ${c.evidence.length ? evidenceLine(c.evidence) : "none found yet"}`);
-    else console.log(`🔎 ${id} may overlap ${c.other}${c.linked ? " (linked by notes)" : ""}: ${evidenceLine(c.evidence)}`);
-    if (hasCode(c.code)) console.log(`   🧩 code: ${codeLine(c.code, id, c.other)}`);
+    if (c.parent) console.log(`_Parent:_ ${c.other} — shared: ${c.evidence.length ? evidenceLine(c.evidence) : "none found yet"}`);
+    else console.log(`_Overlap?_ ${id} may overlap ${c.other}${c.linked ? " (linked by notes)" : ""}: ${evidenceLine(c.evidence)}`);
+    if (hasCode(c.code)) console.log(`   code: ${codeLine(c.code, id, c.other)}`);
   }
   return 0;
 }
@@ -100,6 +100,6 @@ async function review(root, id, chA, others, { json, keep }) {
   if (json) { console.log(JSON.stringify(out, null, 2)); return 0; }
   if (!findings.length) console.log(`✅ ${id}: no overlap with a witness among ${out.targets.join(", ") || "no other change"}`);
   for (const f of findings) console.log(f.line);
-  for (const d of dropped) console.log(`💡 dropped ${d.id}: ${d.reason}`);
+  for (const d of dropped) console.log(`_Info:_ dropped ${d.id}: ${d.reason}`);
   return 0;
 }

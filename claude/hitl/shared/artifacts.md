@@ -39,13 +39,13 @@ glossary term.
 - **High → act, no question**: (a) any hard signal → include; (b) no signal from U, S or C → skip; (c) U explicitly
   excludes it → skip. Print one line each time (plan/design: an info line under the brief's round heading) and record
   the row as `assumed → included|skipped`:
-  `💡 Assumed: include decision table for ACC-BR1 (2 interacting conditions)` ·
-  `💡 Assumed: skip use-case flow (single actor, 2 steps)`.
+  `_Assumed:_ include decision table for ACC-BR1 (2 interacting conditions)` ·
+  `_Assumed:_ skip use-case flow (single actor, 2 steps)`.
 - **Uncertain → ask** as `[A]` in the next round, with a recommendation (max 2 `[A]` per round), and record
   `asked → included|skipped`, when: only a soft signal; or signals conflict (U says "simple", C shows a persisted
   change); or the artifact is security/data-related and its evidence is soft (skipping it costs more).
 - Never ask about an artifact with no signal. Re-evaluate every round; new evidence can add one
-  (`💡 Added artifact: …`). The user may write `add <artifact>` / `drop <artifact>` as the answer to any question of a
+  (`_Assumed:_ added artifact: …`). The user may write `add <artifact>` / `drop <artifact>` as the answer to any question of a
   brief file (interview.md §6).
 
 `[A]` question in a brief round (format: interview.md §4):
@@ -53,7 +53,7 @@ glossary term.
 ### Q3 [A] Business rule for reset limits?
 
 You said "not too many resets". Should this be a named business rule with a number, visible to BA/QA?
-💡 Recommended: yes — PWR-BR2 "max 3 requests / hour / account" (abuse protection; testable)
+_Rec:_ yes — PWR-BR2 "max 3 requests / hour / account" (abuse protection; testable)
 
 >
 ```

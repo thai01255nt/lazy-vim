@@ -26,7 +26,7 @@ export async function run(argv, ctx) {
   }
   for (const c of changes.filter((x) => !x.archived)) {
     for (const r of c.wait?.reasons || []) console.log(r);
-    for (const b of c.blocks) console.log(`📤 ${c.id} blocks ${b.change} (${b.notes.join(", ")}) until ${c.id} is archived`);
+    for (const b of c.blocks) console.log(`_Blocks:_ ${c.id} blocks ${b.change} (${b.notes.join(", ")}) until ${c.id} is archived`);
   }
   return 0;
 }

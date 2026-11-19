@@ -23,7 +23,7 @@ op: `{"opId","ok":true,…}` or `{"opId","ok":false,"error":"<message>"}`. Ignor
   (<status>) — kept`; else transition.
   Result: `ok`, `description` (as returned, when returned), `skippedFields`.
 - `addRelations` → per `payload.blockedBy[]`: link type **Blocks**, outward = the blocker, inward = this issue. No link
-  tool → `ok:true`, `skippedFields: ["blockedBy"]`, print `📌 link <issue> is blocked by <keys> by hand`.
-- `manualNote` → print `📌 <payload.message>`; `ok: true` without calling Jira.
+  tool → `ok:true`, `skippedFields: ["blockedBy"]`, print `_Yours:_ link <issue> is blocked by <keys> by hand`.
+- `manualNote` → print `_Yours:_ <payload.message>`; `ok: true` without calling Jira.
 - `upsertComment` → add a comment with `body` (no comment update: always a new one). Result: `commentId`.
 - `cancelIssue` → transition to the status `payload.stateId`.

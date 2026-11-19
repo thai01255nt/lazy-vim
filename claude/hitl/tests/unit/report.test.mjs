@@ -39,7 +39,7 @@ test("verdict rules", () => {
 });
 
 test("intent vs body maps lock todos to flowSteps by number", () => {
-  assert.equal(intentVsBody(lock.symbols[CU], index.symbols[CU]), "1 normalize email ✓ · 2 reject duplicate ✓ · 3 hash and save ✗");
+  assert.equal(intentVsBody(lock.symbols[CU], index.symbols[CU]), "1 normalize email ✅ · 2 reject duplicate ✅ · 3 hash and save ❌");
 });
 
 test("report markdown has the exact section layout", () => {
@@ -57,7 +57,7 @@ test("report markdown has the exact section layout", () => {
   assert.match(md, /\| UserService\.createUser \| agent \| green \| 0\.68 \| security, test drift \| HUMAN \|/);
   assert.match(md, /### F-1 \[critical · conf 92\] crit-1 — src\/services\/userService\.ts:52/);
   assert.match(md, /fix owner: human \| decision: pending → `\/hitl:review QT-T1 fix F-1`/);
-  assert.match(md, /UserService\.createUser: 1 normalize email ✓ · 2 reject duplicate ✓ · 3 hash and save ✗/);
+  assert.match(md, /UserService\.createUser: 1 normalize email ✅ · 2 reject duplicate ✅ · 3 hash and save ❌/);
   assert.match(md, /- perf of bulk path: not in plan/);
   assert.match(md, /<details><summary>show<\/summary>\n\n- \[minor · conf 95\] minor-1/);
   assert.match(md, /- \[critical · conf 60\] low-1/);

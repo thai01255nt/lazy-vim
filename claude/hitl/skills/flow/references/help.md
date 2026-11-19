@@ -17,17 +17,17 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
 **Brief files** (0.14): `/hitl:plan` and `/hitl:design` interview you in a file, not in chat:
 `.hitl/changes/<id>/plan-brief.md` / `design-brief.md`. Plan starts it with your description verbatim and round 1
 (change id and key, ~10 core questions with an example each, a few tailored ones). Write your answers on the `>` lines
-(as much as you like), then run `/hitl:plan <id>` (or `/hitl:design <id>`) again: Claude records them, writes `💬`
-under any answer that was really a question, and appends the next round with a `💡 Recommended` per question.
+(as much as you like), then run `/hitl:plan <id>` (or `/hitl:design <id>`) again: Claude records them, writes `_Disc:_`
+under any answer that was really a question, and appends the next round with a `_Rec:_` per question.
 `Y` accepts one recommendation; `Y` on the round's accept-all line accepts all of the round you left empty, except
 questions marked `(needs its own Y)` (a rename, a note into another change, a spec delta from design: only their own
-`Y` counts). `n` + what you want instead is your answer, `n` + "later" postpones it, a bare `n` gets a `💬` asking
+`Y` counts). `n` + what you want instead is your answer, `n` + "later" postpones it, a bare `n` gets a `_Disc:_` asking
 what instead. `?` / `không biết` keeps it open, `deep <ID>` digs deeper, `done` / `xong` stops asking. Until the
 change has its first task you may rename its id or key and change its scope in any answer or Notes. Each round
 (and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
 Amend (`<id> amend`) stays a chat gate.
-**Requirement changes mid-change** (0.9): say it in chat and Claude asks `📌 Note for <change>, refs …? (Y/n)`. The note
+**Requirement changes mid-change** (0.9): say it in chat and Claude asks `_Note_ for <change>, refs …? (Y/n)`. The note
 blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or `/hitl:design … amend N-k`):
 the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
 reopen`. Escape hatches, also yours only: `/hitl:approve <KEY>-T<n> <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
@@ -39,7 +39,7 @@ A as a note (`source:`), never into A's files; after the new change is archived,
 `/hitl:plan A amend N-k`. Planning also lists other active changes that share ids, files, contracts or terms
 (`hitl-index overlap <id>`) and asks you what to do. Who goes first is your call; `/hitl:approve A dismiss N-k <reason>`
 ends a wait. Check any time (e.g. after merging a branch): `/hitl:overlap A [B C …]` (0.13.1).
-At any ⛔ gate, `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
+At any gate (`_Gate:_`), `?` / `wait` / `hả` / `giải thích` / `không hiểu` → Claude re-explains in plain words (glossary terms,
 ids with titles) and asks the same question again.
 **Shared language and refactor** (0.8.x): `spec validate` and the review's `terms` gate warn when a business file or an
 intent uses a glossary `_Avoid_` word (`"user record" → use Account`). After green, the review lists **structure
@@ -52,53 +52,108 @@ with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `P
 `/hitl:migrate` once.
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
-turn — a 📌 note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
+turn — a note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
 `/hitl:tdd` for a reproducible bug or small logic, `/hitl:tasks quick` for a trivial locked task, else `/hitl:plan`.
 Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--tdd`.
 
 ```
-/hitl:setup → /hitl:overview → /hitl:go <description> ─┬─ active change: 📌 note · /hitl:plan <id> amend · /hitl:tasks <id> update
-                                                          ├─ bug or small logic, no record: /hitl:tdd ⛔ (seams) → red→green
-                                                          ├─ trivial, worth a lock: /hitl:tasks quick ⛔ → /hitl:implement T (⚡)
+/hitl:setup → /hitl:overview → /hitl:go <description> ─┬─ active change: note · /hitl:plan <id> amend · /hitl:tasks <id> update
+                                                          ├─ bug or small logic, no record: /hitl:tdd [gate: seams] → red→green
+                                                          ├─ trivial, worth a lock: /hitl:tasks quick [gate] → /hitl:implement T (fast)
                                ┌──────────────────────────┘ anything else
                                ▼
-                               /hitl:plan 📝 (WHAT, brief file) → /hitl:design 📝 (HOW, skippable) → /hitl:tasks ⛔
+                               /hitl:plan (WHAT, brief file) → /hitl:design (HOW, brief file, skippable) → /hitl:tasks [gate]
                                                                                    │
-          high risk ───────────────────────────────────────────────────────────────┤──── low risk (⚡ fast lane)
+          high risk ───────────────────────────────────────────────────────────────┤──── low risk (fast lane)
               ▼                                                                    │            ▼
-   /hitl:skeleton T ⛔ → /hitl:approve T                                           │  /hitl:implement T
-   /hitl:test T ⛔ → /hitl:approve T tests                                         │  (auto skeleton+tests)
-   /hitl:implement T (✍️ manual fns ⛔)                                             │            │
+   /hitl:skeleton T [gate] → /hitl:approve T                                       │  /hitl:implement T
+   /hitl:test T [gate] → /hitl:approve T tests                                     │  (auto skeleton+tests)
+   /hitl:implement T (manual fns: yours [gate])                                    │            │
               ▼                                                                    ▼            ▼
-   /hitl:review T ⛔ → /hitl:approve T done                       /hitl:review T → auto done on PASS
-   all tasks done → /hitl:archive <change-id> ⛔  (deltas → living specs .hitl/specs/, change → .hitl/archive/)
+   /hitl:review T [gate] → /hitl:approve T done                   /hitl:review T → auto done on PASS
+   all tasks done → /hitl:archive <change-id> [gate]  (deltas → living specs .hitl/specs/, change → .hitl/archive/)
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
    Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
-   Changed requirement mid-change → 📌 note → /hitl:plan <id> amend N-k ⛔ (🔁 Impact) → /hitl:approve <id> reopen → /hitl:test T
-   Too big for A → /hitl:go <X> --before A → ⏳ A waits → <X> archived → 📥 /hitl:plan A amend N-k ⛔ → reopen as above
+   Changed requirement mid-change → note → /hitl:plan <id> amend N-k [gate, Impact] → /hitl:approve <id> reopen → /hitl:test T
+   Too big for A → /hitl:go <X> --before A → A waits → <X> archived → A takes in: /hitl:plan A amend N-k [gate] → reopen as above
 ```
 
 | command | purpose | gate |
 |---|---|---|
-| `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
-| `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | ⛔ 📌 note (Y/n) · vague description (≤ 3 questions) · conflicting flags |
-| `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
-| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]` | 📝 each round in the brief file (amend: ⛔) |
-| `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | 📝 each round in the brief file |
-| `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round) | 📝 each round in the brief file (amend: ⛔) |
-| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | ⛔ quiz |
-| `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | ⛔ review in editor |
+| `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | user-only |
+| `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | note (Y/n) · vague description (≤ 3 questions) · conflicting flags |
+| `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | if docs exist |
+| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]` | brief file, each round (amend: chat gate) |
+| `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | brief file, each round |
+| `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round) | brief file, each round (amend: chat gate) |
+| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | quiz |
+| `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
 | `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
-| `/hitl:test T` | real failing tests via isolated test-author | ⛔ high risk |
-| `/hitl:implement T` | agent fns via implementer, manual fns handed to you | ⛔ manual fns |
-| `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | ⛔ end / early stop |
-| `/hitl:review T` | L0 gates + lens reviewers + report | ⛔ if human needed |
-| `/hitl:archive <id>` | merge spec deltas into living specs, move the change to archive | ⛔ diff |
-| `/hitl:sync` | reconcile manual edits, drift + trace report, amend spec | ⛔ user-only |
-| `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | ⛔ first push |
-| `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | ⛔ each round |
-| `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | ⛔ seams |
-| `/hitl:overlap <id> [<id> …]` | check one active change against others (`--with B,C`; none = all active): shared ids, contracts, terms, symbols, files, drift → one judge with a Given/When/Then witness per finding → adjust one side · both sides (📥 notes, the affected change waits) · not an overlap | ⛔ one line per finding |
+| `/hitl:test T` | real failing tests via isolated test-author | high risk |
+| `/hitl:implement T` | agent fns via implementer, manual fns handed to you | manual fns |
+| `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | end / early stop |
+| `/hitl:review T` | L0 gates + lens reviewers + report | if human needed |
+| `/hitl:archive <id>` | merge spec deltas into living specs, move the change to archive | diff |
+| `/hitl:sync` | reconcile manual edits, drift + trace report, amend spec | user-only |
+| `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | first push |
+| `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | each round |
+| `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | seams |
+| `/hitl:overlap <id> [<id> …]` | check one active change against others (`--with B,C`; none = all active): shared ids, contracts, terms, symbols, files, drift → one judge with a Given/When/Then witness per finding → adjust one side · both sides (notes, the affected change waits) · not an overlap | one line per finding |
 | `/hitl:flow` | this status, task id routing and help (new work → `/hitl:go`) | — |
-| `/hitl:migrate` | upgrade a pre-0.13 project to change-key ids (`PWR-T3`, `PWR-R1`, `PWR-D1`): dry run, one key table, rename map, then apply | ⛔ keys + `Apply? (Y/n)` |
+| `/hitl:migrate` | upgrade a pre-0.13 project to change-key ids (`PWR-T3`, `PWR-R1`, `PWR-D1`): dry run, one key table, rename map, then apply | keys + `Apply? (Y/n)` |
+
+## Labels
+
+hitl marks its lines with short italic labels instead of emoji. Only three symbols stay: ✅ done, ok or clear · ❌
+failed or missing · ⚠️ drift, warning or partial; `→` starts a result, a brief mark (`→ recorded: …`) or the next
+step. A label that stands alone drops its colon (`_Gate_`, `_Rec_`). Lines from hitl before 0.15 used emoji; the CLI
+still reads them in existing brief files.
+
+| label | meaning |
+|---|---|
+| `_Rec:_` | the recommended answer or option; `Y` takes it |
+| `_Assumed:_` | a default Claude took without asking; say so if it is wrong |
+| `_Tip:_` | an optional hint or suggestion |
+| `_Info:_` | a fact; nothing to do |
+| `_Next:_` | the next command to run |
+| `_Stop:_` | blocked; the reason and the way out follow |
+| `_Gate:_` | Claude waits for your answer before it goes on |
+| `_Block:_` | a drift or trace item that blocks approval until it is fixed |
+| `_Disc:_` | discussion: Claude's reply in a brief file to a question you wrote instead of an answer |
+| `_Hot_` | hotspot: high impact and high uncertainty, asked first |
+| `_Needs spec:_` | a design answer that needs a spec change (brief question; needs its own `Y`) |
+| `_Needs term:_` | a word that needs a glossary definition |
+| `_Parked:_` | an idea kept for a later step (e.g. for `/hitl:design`) |
+| `_Forced:_` | the plan was closed with known gaps, at your request |
+| `_Note_` | a note `N-k` on an active change: a change to approved behaviour, stated in chat or sent by another change |
+| `_To P:_` | a brief question whose answer writes a note into change P (needs its own `Y`) |
+| `_From P:_` | a note that came from change P |
+| `_Take in:_` | a note from an archived change that this change must apply (amend) first |
+| `_Waits:_` | this change waits until another change is archived |
+| `_Blocks:_` | this change makes another change wait until it is archived |
+| `_Unblocked:_` | a change no longer waits |
+| `_Parent:_` | a change this new change is a prerequisite of (`--before`) |
+| `_Overlap?_` | another active change may overlap this one; check it |
+| `_Delta:_` | preview of a spec or design change (delta) before `Apply?` |
+| `_Impact:_` | what an amend reopens: tests per AC, skeleton symbols |
+| `_Reopen_` | locked work that an applied note reopened |
+| `_Yours:_` | work only you do: a manual function or test, a step in the ticket tracker |
+| `_Fast_` | fast lane: skeleton and tests approved automatically (low risk, or your override) |
+| `_Route:_` | the route `/hitl:go` picked, and why |
+| `_Brief:_` | a brief file waits for your answers |
+| `_Summary:_` | the summary of a finished step |
+| `_Change:_` | one active change in the status |
+| `_Trace:_` | coverage: requirements → scenarios → ACs → tests |
+| `_Tickets:_` | the ticket tracker sync result |
+| `_Queued_` | a ticket tracker update not pushed yet |
+| `_Branch:_` | the git branch to create for a task (ticket tracker) |
+| `_Spec:_` | one capability of the living specs |
+| `_New_` | a new capability or doc block |
+| `_Removed_` | a removed doc block |
+| `_Reuse:_` | an existing helper that fits a step |
+| `_Wrote:_` | a file that was written |
+| `_Dry run:_` | a preview; nothing was written |
+| `_Skip:_` | a skipped item: gate, test, symbol, or a check left for later |
+| `_Todo_` | a test stub that is not active yet (trace table) |
+| `_Stale_` | a test with no result for the current code (trace table) |

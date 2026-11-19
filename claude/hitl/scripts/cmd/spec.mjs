@@ -15,7 +15,7 @@ const USAGE = `usage: hitl-index spec <sub> [args] [--json]
   archive <change-id> [--dry-run] [--force] [--renumber] [--accept-base <ID,…>]`;
 
 const usage = (msg) => Object.assign(new Error(msg ? `${msg}\n${USAGE}` : USAGE), { usage: true });
-const ICON = { error: "❌", warn: "⚠️", info: "ℹ️" };
+const ICON = { error: "❌", warn: "⚠️", info: "_Info:_" };
 
 export async function run(argv, ctx) {
   const sub = argv[0];
@@ -42,8 +42,8 @@ async function cmdValidate(argv, ctx) {
   if (ctx.json) console.log(JSON.stringify(r, null, 2));
   else if (!ctx.quiet || !r.ok) {
     for (const i of r.items) console.log(`${ICON[i.level]} ${i.code} ${i.file ?? ""}${i.line ? `:${i.line}` : ""}${i.ref ? ` [${i.ref}]` : ""} — ${i.message}`);
-    for (const s of r.summary) console.log(`📐 ${s.change} · ${s.capability ?? "(glossary)"}${s.key ? ` (${s.key})` : ""}${s.new ? " new" : ""}: +${s.added.length} ~${s.modified.length} -${s.removed.length}`);
-    for (const o of r.orderNotes || []) console.log(`📌 ${o.change} ${o.note} ${o.created ? "order note added" : "order note grew"} (after ${o.from}): refs ${o.added.join(", ") || "none"}`);
+    for (const s of r.summary) console.log(`_Delta:_ ${s.change} · ${s.capability ?? "(glossary)"}${s.key ? ` (${s.key})` : ""}${s.new ? " new" : ""}: +${s.added.length} ~${s.modified.length} -${s.removed.length}`);
+    for (const o of r.orderNotes || []) console.log(`_Note ${o.note}_ ${o.change} ${o.created ? "order note added" : "order note grew"} (after ${o.from}): refs ${o.added.join(", ") || "none"}`);
     console.log(`${r.ok ? "✅" : "❌"} spec validate: ${r.counts.error} error(s), ${r.counts.warn} warning(s) · ${r.targets.length} target(s)`);
   }
   return r.ok ? 0 : 1;
@@ -68,10 +68,10 @@ async function cmdList(argv, ctx) {
   if (ctx.json) { console.log(JSON.stringify(out, null, 2)); return 0; }
   if (!capabilities.length && !pending.length) { console.log("no living specs yet (.hitl/specs/) and no pending capabilities"); return 0; }
   for (const c of capabilities) {
-    console.log(`📘 ${c.capability} — ${c.requirements.length} req · ${c.rules.length} rules · ${c.flows.length} flows${c.activeChanges.length ? ` · active: ${c.activeChanges.join(", ")}` : ""}`);
+    console.log(`_Spec:_ ${c.capability} — ${c.requirements.length} req · ${c.rules.length} rules · ${c.flows.length} flows${c.activeChanges.length ? ` · active: ${c.activeChanges.join(", ")}` : ""}`);
     for (const r of c.requirements) console.log(`   ${r.id} ${r.title} [${r.priority ?? "?"}${r.quality ? `, ${r.quality}` : ""}] · ${r.scenarios} scenario(s)`);
   }
-  for (const p of pending) console.log(`🆕 ${p.capability} — new in ${p.change}${p.key ? ` (${p.key})` : ""}`);
+  for (const p of pending) console.log(`_New_ ${p.capability} — new in ${p.change}${p.key ? ` (${p.key})` : ""}`);
   return 0;
 }
 
@@ -154,7 +154,7 @@ async function cmdConflicts(argv, ctx) {
   else {
     if (!r.conflicts.length) console.log("✅ no spec conflicts between active changes and living specs");
     else for (const c of r.conflicts) console.log(`⚠️ ${c.code} ${c.ref} (${c.capability}) — ${c.changes.join(", ")}`);
-    for (const w of r.warnings || []) console.log(`ℹ️ ${w.code} ${w.ref} — new in ${w.changes.join(", ")} (warning)`);
+    for (const w of r.warnings || []) console.log(`_Info:_ ${w.code} ${w.ref} — new in ${w.changes.join(", ")} (warning)`);
   }
   return r.conflicts.length ? 1 : 0;
 }
@@ -169,25 +169,25 @@ async function cmdMerge(argv, ctx, archive) {
   const verb = archive ? "archive" : "merge";
   for (const c of r.capabilities) {
     const ren = Object.entries(c.renumbered).map(([o, n]) => `${o}→${n}`);
-    console.log(`📐 ${c.capability}${c.created ? " (new)" : ""}${c.deleted ? " (retired: file deleted)" : ""}: +${c.added.join(" +") || "0"} ~${c.modified.join(" ~") || "0"} -${c.removed.join(" -") || "0"}`
+    console.log(`_Delta:_ ${c.capability}${c.created ? " (new)" : ""}${c.deleted ? " (retired: file deleted)" : ""}: +${c.added.join(" +") || "0"} ~${c.modified.join(" ~") || "0"} -${c.removed.join(" -") || "0"}`
       + `${c.alreadyApplied.length ? ` · already applied: ${c.alreadyApplied.join(", ")}` : ""}${ren.length ? ` · renumbered: ${ren.join(", ")}` : ""}`);
   }
   const g = r.glossary;
-  if (g.added.length + g.modified.length + g.removed.length) console.log(`📖 glossary: +${g.added.length} ~${g.modified.length} -${g.removed.length}`);
+  if (g.added.length + g.modified.length + g.removed.length) console.log(`glossary: +${g.added.length} ~${g.modified.length} -${g.removed.length}`);
   for (const c of r.conflicts) console.log(`❌ ${c.code} ${c.ref} — ${c.message}`);
   for (const e of r.errors || []) console.log(`❌ ${e.code} ${e.file ?? ""}${e.line ? `:${e.line}` : ""} — ${e.message}`);
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
   for (const x of r.preconditions.notes?.wait || []) console.log(`❌ ${x} (--force does not skip it)`);
-  for (const n of r.preconditions.notes?.open || []) if (!n.source) console.log(`❌ 📌 ${n.id} (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
+  for (const n of r.preconditions.notes?.open || []) if (!n.source) console.log(`❌ _Note ${n.id}_ (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
-  else if (r.dryRun) console.log(`🔎 dry run: spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
+  else if (r.dryRun) console.log(`_Dry run:_ spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
   else {
     console.log(`✅ spec ${verb} ${r.change}${r.archive?.moved ? ` → ${r.archive.to}` : ""}`);
     for (const x of r.archive?.unblocked || []) {
-      if (!x.stillBlocked) console.log(`🔓 ${x.change} no longer waits for ${r.change} (${x.notes.join(", ")})`);
-      for (const n of x.amend) console.log(`📥 ${x.change} must take in ${n.id} (${n.title}) from ${r.change} first → 🎯 next: ${n.apply}`);
-      if (x.stillBlocked && !x.amend.length) console.log(`⏳ ${x.change} still waits for another change`);
+      if (!x.stillBlocked) console.log(`_Unblocked:_ ${x.change} no longer waits for ${r.change} (${x.notes.join(", ")})`);
+      for (const n of x.amend) console.log(`_Take in:_ ${x.change} must take in ${n.id} (${n.title}) from ${r.change} first → _Next:_ ${n.apply}`);
+      if (x.stillBlocked && !x.amend.length) console.log(`_Waits:_ ${x.change} still waits for another change`);
     }
   }
   return r.ok ? 0 : 1;

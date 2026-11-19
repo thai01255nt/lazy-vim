@@ -406,7 +406,7 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     for (const id of ["feat-x", "feat-b"]) { fs.mkdirSync(path.join(root, ".hitl/changes", id), { recursive: true }); fs.writeFileSync(path.join(root, ".hitl/changes", id, "proposal.md"), prop(id)); }
     fs.writeFileSync(path.join(root, ".hitl/changes/feat-x/notes.md"), "# Notes — feat-x\n\n## N-1 wait\n- kind: order\n- source: feat-b\n- refs: none\n- status: open\n- from: x · 2026-11-06\n");
     const f = path.join(root, "src/svc.ts");
-    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /QT-T1 belongs to feat-x, which is blocked: ⏳ feat-x waits for feat-b \(N-1\)/);
+    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /QT-T1 belongs to feat-x, which is blocked: _Waits:_ feat-x waits for feat-b \(N-1\)/);
     assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }), "main is not the implementer");
     fs.mkdirSync(path.join(root, ".hitl/archive"), { recursive: true });
     fs.renameSync(path.join(root, ".hitl/changes/feat-b"), path.join(root, ".hitl/archive/2026-11-06-feat-b"));

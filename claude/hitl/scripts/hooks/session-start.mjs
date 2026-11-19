@@ -1,4 +1,4 @@
-// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤5 plain-stdout lines (brief, drift, tickets queue, v0.5 planning notice, commands).
+// SessionStart hook (design §D.6): housekeeping, cheap reindex, ≤5 plain-stdout lines (status summary, drift, tickets queue, v0.5 planning notice, commands).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -19,7 +19,7 @@ function housekeeping(root) {
   }
 }
 
-function briefLine(root) {
+function statusLine(root) {
   try {
     const out = execFileSync(process.execPath, [path.join(SCRIPTS_DIR, "hitl-index.mjs"), "status", "--brief", "--soft", "--root", root],
       { cwd: root, encoding: "utf8", timeout: 4000, stdio: ["ignore", "pipe", "ignore"] });
@@ -62,8 +62,8 @@ async function main(input) {
   } catch { res = null; }
 
   const lines = [];
-  const brief = briefLine(root);
-  if (brief) lines.push(brief);
+  const status = statusLine(root);
+  if (status) lines.push(status);
   let drift = null;
   try { drift = await a.computeDrift(root, {}); } catch { drift = res && res.drift; }
   if (drift) {

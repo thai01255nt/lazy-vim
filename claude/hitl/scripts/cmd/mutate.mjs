@@ -102,7 +102,7 @@ export async function run(argv, ctx) {
   if (!configuredLangs.length) {
     const detected = await detectTools(ctx.root);
     const hints = (langs.length ? langs : ["ts", "py"]).filter((l) => HINT[l]).map((l) => `${detected[l] ? `(${detected[l]} detected) ` : ""}${HINT[l]}`);
-    say({ configured: false, detected, hint: hints }, `💡 Mutation testing not configured. To enable:\n${hints.map((h) => "  " + h).join("\n")}`);
+    say({ configured: false, detected, hint: hints }, `_Tip:_ Mutation testing not configured. To enable:\n${hints.map((h) => "  " + h).join("\n")}`);
     return 0;
   }
   const result = { configured: true, perSymbol: {}, unmapped: 0, errors: [], skippedLangs: langs.filter((l) => !cmds[l]) };
@@ -134,7 +134,7 @@ export async function run(argv, ctx) {
   else {
     for (const [id, c] of Object.entries(result.perSymbol)) console.log(`${c.survivors ? "⚠️" : "✅"} ${index.symbols[id].name}: ${Math.round(c.score * 100)}% (${c.survivors} survivors / ${c.total})`);
     for (const e of result.errors) console.log(`❌ ${e}`);
-    if (result.skippedLangs.length) console.log(`💡 not configured for: ${result.skippedLangs.join(", ")}`);
+    if (result.skippedLangs.length) console.log(`_Info:_ not configured for: ${result.skippedLangs.join(", ")}`);
   }
   return result.errors.length && !Object.keys(result.perSymbol).length ? 1 : 0;
 }

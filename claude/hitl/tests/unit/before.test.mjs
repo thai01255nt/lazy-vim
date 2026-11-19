@@ -53,9 +53,9 @@ test("changeWait + reasons: waits grouped by source, gone, amend", () => {
   assert.deepEqual(w.waits, [{ source: "feat-b", state: "active", notes: ["N-1", "N-2"] }, { source: "feat-c", state: "gone", notes: ["N-3"] }]);
   assert.deepEqual(w.amend.map((n) => n.id), ["N-4"]);
   const r = waitReasons("feat-a", w);
-  assert.match(r[0], /⏳ feat-a waits for feat-b \(N-1, N-2\): every task approval, implement and the archive of feat-a wait until feat-b is archived/);
+  assert.match(r[0], /_Waits:_ feat-a waits for feat-b \(N-1, N-2\): every task approval, implement and the archive of feat-a wait until feat-b is archived/);
   assert.match(r[1], /feat-c is gone .*\/hitl:approve feat-a dismiss/);
-  assert.match(r[2], /📥 N-4 from feat-d \(archived\) is not applied yet: \/hitl:plan feat-a amend N-4/);
+  assert.match(r[2], /_From feat-d:_ N-4 \(archived\) is not applied yet: \/hitl:plan feat-a amend N-4/);
   assert.equal(changeWait([note("N-1", { status: "dismissed" })]).blocked, false);
 });
 
@@ -63,7 +63,7 @@ test("planApproval: a wait refuses every task stage of the change, for every app
   for (const stage of ["skeleton", "tests", "done"]) for (const o of [{}, { force: true }, { by: "auto", task: { ...TASK, risk: "low" } }, { by: "human-override" }]) {
     const r = planApproval(base({ stage, ...o, notes: [note("N-1")] }));
     assert.equal(r.ok, false, `${stage} ${JSON.stringify(o)}`);
-    assert.match(r.reasons[0], /⏳ feat-a waits for feat-b \(N-1\)/);
+    assert.match(r.reasons[0], /_Waits:_ feat-a waits for feat-b \(N-1\)/);
     assert.deepEqual(r.blockedBy.map((b) => [b.note, b.source, b.wait]), [["N-1", "feat-b", "active"]]);
   }
   const ack = planApproval(base({ ack: ["N-1"], notes: [note("N-1")] }));
@@ -71,7 +71,7 @@ test("planApproval: a wait refuses every task stage of the change, for every app
   // B archived: the order note clears; an unapplied spec note forces the amend; applied → free
   assert.equal(planApproval(base({ notes: [note("N-1", { sourceState: "archived" })] })).ok, true);
   const am = planApproval(base({ notes: [note("N-2", { kind: "spec", refs: ["QT-T9"], sourceState: "archived" })] }));
-  assert.equal(am.ok, false); assert.match(am.reasons[0], /📥 N-2 from feat-b \(archived\) is not applied yet: \/hitl:plan feat-a amend N-2/);
+  assert.equal(am.ok, false); assert.match(am.reasons[0], /_From feat-b:_ N-2 \(archived\) is not applied yet: \/hitl:plan feat-a amend N-2/);
   assert.equal(planApproval(base({ notes: [note("N-2", { kind: "spec", sourceState: "archived", status: "applied" })] })).ok, true);
   assert.equal(planApproval(base({ notes: [note("N-1", { status: "dismissed" })] })).ok, true);
 });
@@ -116,7 +116,7 @@ test("note add --source: guards; waits show in note list, status, change and the
   assert.match(add("--source", C, "--json").out, /--source must name another change/);
   assert.match(add("--source", "feat-zzz", "--json").out, /no such change/);
   const ok = add("--source", "feat-b");
-  assert.equal(ok.code, 0, ok.out + ok.err); assert.match(ok.out, /⏳ feat-password-reset now waits for feat-b/);
+  assert.equal(ok.code, 0, ok.out + ok.err); assert.match(ok.out, /_Waits:_ feat-password-reset now waits for feat-b/);
   const l = cli(root, "note", "list", "--change", C, "--json").json().changes[0].notes[0];
   assert.deepEqual([l.source, l.sourceState, l.wait], ["feat-b", "active", "wait"]);
   assert.deepEqual(l.blocks, ["PWR-T1", "PWR-T2"], "every task of the change");
@@ -125,14 +125,14 @@ test("note add --source: guards; waits show in note list, status, change and the
   assert.equal(s.changes.find((c) => c.id === C).wait.for[0].change, "feat-b");
   assert.match(s.next.reason, /feat-password-reset waits for feat-b/);
   assert.equal(s.next.command, "/hitl:plan feat-b");
-  assert.match(cli(root, "status", "--brief").out, /⏳ feat-password-reset waits for feat-b \(N-1\)/);
+  assert.match(cli(root, "status", "--brief").out, /_Waits:_ feat-password-reset waits for feat-b \(N-1\)/);
   const ch = cli(root, "change", "--json").json().changes;
   assert.deepEqual(ch.find((c) => c.id === "feat-b").blocks, [{ change: C, notes: ["N-1"] }]);
   assert.deepEqual(ch.find((c) => c.id === "feat-b").before, [C]);
-  assert.match(cli(root, "change").out, /📤 feat-b blocks feat-password-reset \(N-1\)/);
+  assert.match(cli(root, "change").out, /_Blocks:_ feat-b blocks feat-password-reset \(N-1\)/);
   const a = cli(root, "spec", "archive", C, "--dry-run", "--force", "--json").json();
   assert.equal(a.ok, false); assert.match(a.preconditions.notes.wait[0], /waits for feat-b/);
-  assert.match(cli(root, "spec", "archive", C, "--dry-run", "--force").out, /❌ ⏳ feat-password-reset waits for feat-b .*--force does not skip it/);
+  assert.match(cli(root, "spec", "archive", C, "--dry-run", "--force").out, /❌ _Waits:_ feat-password-reset waits for feat-b .*--force does not skip it/);
   // B deleted → gone: still blocks; the human may dismiss even an applied note
   fs.rmSync(path.join(root, ".hitl/changes/feat-b"), { recursive: true });
   assert.equal(cli(root, "note", "list", "--change", C, "--json").json().changes[0].notes[0].sourceState, "gone");

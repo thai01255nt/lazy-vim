@@ -90,10 +90,20 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.14.1
+
+0.15.0: **emoji được thay bằng nhãn chữ nghiêng** cho dễ đọc, ví dụ `_Rec:_` (gợi ý, trước là 💡 Recommended),
+`_Next:_` (lệnh tiếp theo), `_Stop:_` (bị chặn), `_Disc:_` (Claude trả lời câu hỏi bạn viết trong brief), `_Hot_`
+(điểm nóng), `_Note_` (note `N-k`), `_To P:_` / `_From P:_` (note gửi sang / đến từ change P), `_Waits:_` (change đang
+chờ). Chỉ còn ✅ ❌ ⚠️ và mũi tên `→`. Quên nghĩa một nhãn: `/hitl:flow help` (mục Labels) liệt kê tất cả, mỗi nhãn một
+dòng. File brief cũ (có 💡 Recommended, 💬, 🔥, 📥 For) vẫn đọc được, không cần migrate; file mới chỉ dùng nhãn.
+Cũng trong 0.15.0: trường `brief` của `.hitl/.inbox/route.json` (`/hitl:go`) đổi tên thành `summary` (tên cũ vẫn đọc
+được); từ "brief" giờ chỉ dùng cho file brief.
+
 ### Nâng cấp từ 0.14.0
 
 0.14.1: **mọi file markdown hitl ghi đều ổn định dưới prettier** (kiểu markdownlint; nvim chạy prettier khi lưu): dòng
-trống quanh heading, danh sách, bảng, blockquote; dấu `→ recorded` / `💬` trong brief luôn cách dòng `>` một dòng trống
+trống quanh heading, danh sách, bảng, blockquote; dấu `→ recorded` / `_Disc:_` trong brief luôn cách dòng `>` một dòng trống
 (trước đây prettier biến chúng thành `> → recorded: …`, làm parser tưởng là câu trả lời; parser giờ hiểu cả dạng đó).
 CLI tự ghi đúng kiểu này (living spec, glossary, notes, migrate, report; bảng được căn cột như prettier). Hash của block
 (`.base.json`, note) giờ không đổi khi prettier format lại file; hash cũ vẫn được chấp nhận, không cần migrate.
@@ -101,19 +111,19 @@ CLI tự ghi đúng kiểu này (living spec, glossary, notes, migrate, report; 
 Cũng trong 0.14.1, cách brief được xử lý:
 - **Dòng Accept all không trả lời mọi câu nữa.** `Y` ở dòng `Accept all recommendations of this round: >` nhận gợi ý
   của mọi câu bạn **để trống** trong vòng, trừ ba loại câu tác động ra ngoài brief: `Q0` (đổi id/key của change),
-  `📥 For <P>` (ghi note sang change khác) và `💡 Needs spec` (thêm spec delta + Impact từ design). Heading của chúng có
+  `_To <P>:_` (ghi note sang change khác) và `_Needs spec:_` (thêm spec delta + Impact từ design). Heading của chúng có
   chữ `(needs its own Y)`: phải gõ `Y` ngay dưới câu đó; để trống thì câu được chuyển sang vòng sau dù dòng Accept all
   là `Y`. Câu bạn viết trả lời luôn thắng Accept all. `hitl-index brief --json` có thêm trường `ownY` cho các câu này.
 - **Trả lời `n` / `no` / `không` / `ko` được đọc theo nghĩa cả câu**, không theo bảng từ khoá: `n` kèm sửa đổi hay lựa
   chọn khác = đó là câu trả lời; `n` kèm "để sau" / "chưa cần" = hoãn (plan: `## Deferred` của proposal; design:
-  `## Open questions` của design.md); `n` trơn = Claude hỏi lại `💬` muốn thế nào (kèm lựa chọn), câu giữ nguyên số ở
+  `## Open questions` của design.md); `n` trơn = Claude hỏi lại `_Disc:_` muốn thế nào (kèm lựa chọn), câu giữ nguyên số ở
   vòng sau; `n` trơn dưới câu `(needs its own Y)` = không ghi gì, đánh dấu `→ recorded: declined`.
 - **Đổi id, key và phạm vi của change được suốt lúc brainstorm**, cho tới khi change có task đầu tiên (trước đây chỉ ở
   vòng 1 của plan): trả lời `Q0`, hoặc bất kỳ câu trả lời / Notes nào sau đó. `hitl-index brief rename <id> [--to
   <id-mới>] [--key <KEY>]` giờ đổi tên thư mục, dòng meta, **mọi id mang key cũ** trong file của chính change đó
   (proposal, spec delta, glossary delta, design.md, data-model, contracts, brief, notes.md) và `source:` của note mà
   change khác giữ từ nó; có task rồi thì từ chối (`BRIEF_RENAME_LATE`, exit 1). Key bị trùng → JSON có `suggestion` (key
-  trống kế tiếp); Claude ghi `💬` và hỏi lại ở vòng sau, phần còn lại của vòng vẫn được xử lý. Đổi phạm vi (một câu trả
+  trống kế tiếp); Claude ghi `_Disc:_` và hỏi lại ở vòng sau, phần còn lại của vòng vẫn được xử lý. Đổi phạm vi (một câu trả
   lời hay Notes mở rộng, thu hẹp hoặc đổi hướng change) → Claude dựng lại toàn bộ câu hỏi còn mở: câu không còn liên
   quan được đánh `→ dropped (scope changed)`, câu còn liên quan được viết lại cho phạm vi mới, yêu cầu/quyết định không
   còn đúng được sửa hoặc bỏ, và Why / What changes / Out of scope / Coverage của proposal được cập nhật.
@@ -130,10 +140,10 @@ nằm trong thư mục change và đi theo change khi archive. Không cần migr
   scout chạy xong thì ghi brief: `## Description` = mô tả của bạn nguyên văn, `## Round 1` = `Q0` (giữ id và key? đổi
   được: `hitl-index brief rename`; từ 0.14.1 tới khi change có task đầu tiên), ~10 câu cốt lõi theo 9 nhóm độ phủ
   (mỗi câu một gợi ý `_e.g. …_`, **không**
-  có 💡) và tối đa 5 câu riêng cho change. Chat chỉ in `📝 Brief ready: … — answer in the file, then run /hitl:plan <id>`.
+  có `_Rec:_`) và tối đa 5 câu riêng cho change. Chat chỉ in `Brief ready: … — answer in the file, then run /hitl:plan <id>`.
 - Bạn viết câu trả lời ở dòng `>` dưới mỗi câu (bao nhiêu dòng cũng được; có thể viết thêm vào Description trước lần
   chạy đầu), rồi chạy lại `/hitl:plan <id>` (hoặc gõ "tiếp"/"xong" trong cùng hội thoại). Claude ghi spec, thêm
-  `→ recorded: <id>` dưới mỗi câu, đánh `✅` vòng đã xong và nối vòng sau; từ vòng 2 mỗi câu có `💡 Recommended` và một
+  `→ recorded: <id>` dưới mỗi câu, đánh `✅` vòng đã xong và nối vòng sau; từ vòng 2 mỗi câu có `_Rec:_` và một
   dòng `Accept all recommendations of this round: >`.
 - Cuối mỗi vòng (và trong `## Close`, trước câu duyệt) có khối `### Notes — anything the questions missed, or a change
   to an earlier answer`: viết ở đó điều câu hỏi bỏ sót hoặc sửa một câu trả lời cũ (`Q5: …` / `sửa Q5: …`). Claude
@@ -144,16 +154,16 @@ nằm trong thư mục change và đi theo change khi archive. Không cần migr
 - Cách trả lời (tiếng Anh hoặc tiếng Việt): `Y`/`yes`/`ok`/`được`/`đồng ý`/`ừ` = nhận gợi ý (ở dòng Accept all: nhận
   mọi gợi ý của vòng) · `?`/`don't know`/`không biết`/`chưa biết` = để mở, Claude gợi ý ở vòng sau · để trống = hỏi lại
   · `deep <ID|chủ đề>` = đào sâu · `done`/`xong` = thôi hỏi. Viết một câu hỏi thay cho câu trả lời → Claude trả lời ngay
-  dưới đó (`💬`, kèm lựa chọn, ví dụ và gợi ý mới) và hỏi lại câu đó ở vòng sau (cùng số).
+  dưới đó (`_Disc:_`, kèm lựa chọn, ví dụ và gợi ý mới) và hỏi lại câu đó ở vòng sau (cùng số).
 - Đóng cũng trong file: `## Close` với tóm tắt + `### Approve the spec? (Y/n)`; trả lời `Y` rồi chạy lại để duyệt.
-  Design giống vậy, mọi câu có 💡 dựa trên fact của Explore; câu `💡 Needs spec` mang luôn bản xem trước delta.
+  Design giống vậy, mọi câu có `_Rec:_` dựa trên fact của Explore; câu `_Needs spec:_` mang luôn bản xem trước delta.
 - **`/hitl:design --auto` bị bỏ**: gõ `Y` ở dòng Accept all của mỗi vòng để nhận hết khuyến nghị.
 - Vẫn ở chat: cổng `Continue with existing change? (1/2/new)` khi mô tả khớp change đang có, khối migrate v0.5 và
   amend (`<id> amend [N-k]`).
 - CLI: `hitl-index brief <change-id> [--kind plan|design] [--json]` (vòng, câu hỏi, câu trả lời, `answered`,
   `recorded`, `carried`); `change --json` / `status --json` có `brief: {kind, round, open, unanswered, …}`; bước tiếp
   theo của change đang chờ trả lời là `answer .hitl/changes/<id>/plan-brief.md, then /hitl:plan <id>`, `/hitl:flow` in
-  dòng `📝 <id> — plan brief round <n>: <k> unanswered → …`. Change bắt đầu trước 0.14: lần chạy `/hitl:plan <id>`
+  dòng `_Brief:_ <id> — plan brief round <n>: <k> unanswered → …`. Change bắt đầu trước 0.14: lần chạy `/hitl:plan <id>`
   kế tiếp tạo brief từ trạng thái hiện tại.
 
 ### Nâng cấp từ 0.13.1
@@ -177,9 +187,9 @@ khác). Không cần migrate.
   trong file change kia đụng); `parent: true` cho change đang chờ change này (có note `source:` từ nó).
 - Không có bằng chứng → `✅ <A>: no overlap with …`, không gọi LLM. Có → **một** `hitl:spec-reviewer` (overlap mode)
   chấm cả cụm; mỗi finding phải trích một witness Given/When/Then từ **từng** change nó nêu (`hitl-index overlap A
-  --review` bỏ finding không có witness). Cổng: một dòng mỗi finding `⚠️ … → 1. adjust <một bên> · 2. both sides (📥
+  --review` bỏ finding không có witness). Cổng: một dòng mỗi finding `⚠️ … → 1. adjust <một bên> · 2. both sides (
   note vào change bị ảnh hưởng, change đó chờ) · 3. not an overlap`; trả lời kiểu `1 2, 2 3`.
-- Plan vòng 1 in `🔗 parent <P> — shared: …` cho mỗi change cha (change đang chờ change đang plan), để bước kiểm chủ sở
+- Plan vòng 1 in `_Parent:_ <P> — shared: …` cho mỗi change cha (change đang chờ change đang plan), để bước kiểm chủ sở
   hữu đi theo danh sách cụ thể; design kiểm lại contract/file mới với change cha.
 
 ### Nâng cấp từ 0.12
@@ -195,7 +205,7 @@ khác). Không cần migrate.
   glossary không đổi.
 - `/hitl:migrate`: chạy thử (`hitl-index migrate --ids --dry-run --json`) → một bảng key cho mọi change (cả archive) +
   key legacy cho id sống không rõ nguồn (`L` + key capability cũ, vd. `LACC-R1`), bạn nhận/sửa cả bảng một lần → bản
-  đồ đổi tên đầy đủ + danh sách file → ⛔ `Apply? (Y/n)` → chạy thật. Nó ghi lại change, archive, living spec, task
+  đồ đổi tên đầy đủ + danh sách file → cổng `Apply? (Y/n)` → chạy thật. Nó ghi lại change, archive, living spec, task
   quick, notes, tag trong code (`@task`, `@ac`, `@dec`, `TODO(impl …)`), lock (`hitl.lock/2`, hash của sửa chỉ-tag được
   re-baseline nên không hiện drift), state, map ticket, thư mục review; bản đồ cũ → mới ở `.hitl/index/id-map.json`
   (commit; `hitl-index context <id-cũ>` tra được id cũ). Từ chối khi `.hitl/` hoặc file code có tag còn thay đổi chưa
@@ -223,28 +233,28 @@ khác). Không cần migrate.
   có "witness" Given/When/Then); design kiểm lại contract/file mới.
 - Đã gỡ: header `after:`/`relates:` (còn trong proposal cũ thì bị bỏ qua), `hitl-index coupling`, `hitl-index
   reconcile`, `RC-n`, `RECONCILE_PENDING`, `.prev.json`, `/hitl:plan <id> reconcile <other>`, `/hitl:approve <id> skip`,
-  dòng 🔗/🔄. Bản ghi reconcile cũ trong `notes.md` bị bỏ ở lần ghi kế tiếp. Không cần migrate.
+  dòng link/reconcile. Bản ghi reconcile cũ trong `notes.md` bị bỏ ở lần ghi kế tiếp. Không cần migrate.
 - `change --json` có `before`, `wait` (`for[]`, `amend[]`, `reasons[]`), `blocks[]`; `status --json` có
-  `changes[].wait`, `tasks[T].wait`; `status --brief` có dòng `⏳ … waits for …` / `📥 … must take in …`;
-  `spec archive` in `🔓 … no longer waits` / `📥 …` cho change đã chờ.
+  `changes[].wait`, `tasks[T].wait`; `status --brief` có dòng `_Waits:_ … waits for …` / `_Take in:_ … must take in …`;
+  `spec archive` in `_Unblocked:_ … no longer waits` / `_Take in:_ …` cho change đã chờ.
 
 ### Nâng cấp từ 0.10
 
 0.11 thêm **`/hitl:go <mô tả> [--plan|--quick|--tdd]`**: một cửa vào cho việc mới. Không cần migrate.
 - Không cờ: subagent chỉ đọc `hitl:work-router` xem change đang mở (`change --json`, `status --brief`), spec, glossary,
   docs và code index, ghi phán quyết gọn vào `.hitl/.inbox/route.json` (`hitl.route/1`: `route`, `change`, `reason`,
-  `brief`, `signals[]`, `questions[]`). Lệnh mới `hitl-index route [--final] --json` kiểm tra phán quyết với các change
-  đang mở và trả về **một** hành động: `invoke` (Skill + args), `note` (cổng 📌) hoặc `ask` (≤ 3 câu, một vòng).
-  Claude in `🧭 <lệnh> — <lý do>` rồi chạy skill đó ngay trong lượt, không có cổng "Go?".
+  `brief` — từ 0.15.0 là `summary`, `signals[]`, `questions[]`). Lệnh mới `hitl-index route [--final] --json` kiểm tra phán quyết với các change
+  đang mở và trả về **một** hành động: `invoke` (Skill + args), `note` (cổng note) hoặc `ask` (≤ 3 câu, một vòng).
+  Claude in `_Route:_ <lệnh> — <lý do>` rồi chạy skill đó ngay trong lượt, không có cổng "Go?".
 - Tie → đường nặng hơn. CLI nâng `quick` lên `plan` khi có tag risk (`security`, `concurrency`, `public-api`,
   `domain`, `data`, `core`) hoặc `business-rule`, và `tdd` lên `plan` khi có `security`, `concurrency`, `data`.
-- `/hitl:flow` chỉ còn status, định tuyến task id và help; mô tả việc mới → `🎯 next: /hitl:go …`. Mô tả trần
+- `/hitl:flow` chỉ còn status, định tuyến task id và help; mô tả việc mới → `_Next:_ /hitl:go …`. Mô tả trần
   (không có "plan", "TDD", "tasks quick") được route sang `/hitl:go`; lời gọi rõ ràng vẫn vào thẳng skill.
 - `/hitl:tasks <id> update [<việc>]` vào thẳng chế độ update (không hỏi update/overwrite).
 - Hook PreToolUse chặn thêm lệnh Bash ghi vào file hitl được bảo vệ (`sed -i`, `>`/`>>`, `tee`, `cp`/`mv`/`rm`, …);
   chỉ là lưới an toàn, không phải bảo đảm (xem `shared/conventions.md`).
 - Gợi ý "bắt đầu việc mới" (project trống, mọi task xong, `change` chưa có change, `/hitl:setup`, `/hitl:overview`,
-  `/hitl:archive`, dòng SessionStart) giờ là `🎯 next: /hitl:go <describe the work>`; `/hitl:plan <id>` vẫn dùng để
+  `/hitl:archive`, dòng SessionStart) giờ là `_Next:_ /hitl:go <describe the work>`; `/hitl:plan <id>` vẫn dùng để
   tiếp tục một change cụ thể.
 
 ### Nâng cấp từ 0.9
@@ -255,7 +265,7 @@ khác). Không cần migrate.
 - Lệnh mới `hitl-index coupling <id> [<other>]` (bằng chứng + mức gợi ý) và `hitl-index reconcile <id> --from <other>`
   (`--dry-run`, `--pick`). `spec validate` có thêm mã `COUPLING_*`, `RECONCILE_PENDING` và tự giữ note `order`.
 - `spec archive` ghi thêm `.prev.json` trong thư mục archive; bị chặn bởi `RECONCILE_PENDING` (kể cả `--force`).
-- `change --json` / `status --json` có `links`, `reconcilePending`; `status --brief` có dòng `🔄 reconcile pending: …`.
+- `change --json` / `status --json` có `links`, `reconcilePending`; `status --brief` có dòng `reconcile pending: …`.
 
 ### Nâng cấp từ 0.8
 
@@ -263,7 +273,7 @@ khác). Không cần migrate.
 `notes.md` thì không có gì bị chặn; lock vẫn là `hitl.lock/1` (chỉ thêm trường mới).
 - Lệnh mới `hitl-index note add|list|show|apply`; `approve` có thêm `--ack N-k` và các stage của change `reopen`,
   `dismiss`, `defer` (chỉ bạn gõ, qua `/hitl:approve`).
-- Trạng thái task mới `reopened`; `status --brief` có dòng `📌 notes: …`; `change --json` có `notes`.
+- Trạng thái task mới `reopened`; `status --brief` có dòng `_Note_ …`; `change --json` có `notes`.
 - Note đang mở chặn `/hitl:archive` (kể cả `--force`).
 
 ### Nâng cấp từ 0.7
@@ -318,26 +328,26 @@ một dòng `⚠️ HITL: legacy dir .claude/custom/ — run hitl-index migrate`
 ## 2. Luồng làm việc
 
 ```
- /hitl:setup ─► /hitl:overview ─► /hitl:plan 📝 (WHAT/WHY) ─► /hitl:design 📝 (HOW, bỏ qua được) ─► /hitl:tasks ⛔
+ /hitl:setup ─► /hitl:overview ─► /hitl:plan (WHAT/WHY) ─► /hitl:design (HOW, bỏ qua được) ─► /hitl:tasks [gate]
                                                                                         │
-                     risk: low (fast lane ⚡) ◄──────────────────────────────────────────┤────────► risk: high
-                     /hitl:implement                                                    │  /hitl:skeleton ⛔  (bạn sửa skeleton trong editor)
+                     risk: low (fast lane) ◄────────────────────────────────────────────┤────────► risk: high
+                     /hitl:implement                                                    │  /hitl:skeleton [gate] (bạn sửa skeleton trong editor)
                      (auto skeleton + tests)                                            │  /hitl:approve T    (khoá skeleton)
-                              │                                                         │  /hitl:test T ⛔    (test RED, test-author cô lập)
+                              │                                                         │  /hitl:test T [gate] (test RED, test-author cô lập)
                               │                                                         │  /hitl:approve T tests
-                              ▼                                                         ▼  /hitl:implement T  (agent fn → subagent; manual fn → bạn ⛔)
+                              ▼                                                         ▼  /hitl:implement T  (agent fn → subagent; manual fn → bạn [gate])
                         /hitl:review T ◄─────────────────────────────────────────────────────┘
                               │  L0 gates → L1 lenses → report (.hitl/reviews/T.review.md)
                               ▼
                    /hitl:approve T done  (high)  ·  auto done (low, verdict PASS)
                               ▼
-                   /hitl:archive <change-id> ⛔  (delta → living spec .hitl/specs/, change → .hitl/archive/)
+                   /hitl:archive <change-id> [gate]  (delta → living spec .hitl/specs/, change → .hitl/archive/)
                               ▼  (tuỳ chọn)
-                   /hitl:tidy <change-id> ⛔ → /hitl:approve <change-id> intent → hitl-index strip <change-id>
+                   /hitl:tidy <change-id> [gate] → /hitl:approve <change-id> intent → hitl-index strip <change-id>
 
  Build rồi review   ─► /hitl:implement --feature <change-id> [--lane fast]  (một report gộp ở cuối)
  Sửa code ngoài Claude ─► /hitl:sync  (drift + trace report, re-approve / revert / defer / accept + amend spec)
- Việc mới (chưa biết lệnh nào) ─► /hitl:go <mô tả>  (📌 note / amend / tasks update · /hitl:tdd · /hitl:tasks quick · /hitl:plan)
+ Việc mới (chưa biết lệnh nào) ─► /hitl:go <mô tả>  (note / amend / tasks update · /hitl:tdd · /hitl:tasks quick · /hitl:plan)
  Không biết làm gì tiếp ─► /hitl:flow
  Kênh phụ (tuỳ chọn)   ─► /hitl:tickets push  (mirror task sang Linear / Jira / GitHub; không bao giờ là gate)
 ```
@@ -352,16 +362,16 @@ trong **file brief** `.hitl/changes/<id>/plan-brief.md` (0.14): bạn trả lờ
   Terminology, Success criteria — vòng 1 hỏi mỗi nhóm một câu cốt lõi; từ vòng 2 tiêu đề vòng có dòng
   `Coverage: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; vòng sau ưu
   tiên ❌/⚠️; chỗ chưa rõ ghi `[NEEDS CLARIFICATION: …]`.
-- **Đào sâu:** điểm có impact × độ không chắc cao được đánh 🔥 và hỏi sâu trước; bạn gõ `deep <ID|chủ đề>` để chọn kỹ
+- **Đào sâu:** điểm có impact × độ không chắc cao được đánh `_Hot_` và hỏi sâu trước; bạn gõ `deep <ID|chủ đề>` để chọn kỹ
   thuật (example mapping, 5 whys, edge cases, pre-mortem, bảng quyết định, góc nhìn stakeholder) — kết quả ghi thẳng vào spec.
 - **Điều kiện dừng:** chỉ đóng plan khi mọi nhóm ✅ hoặc — (có lý do) và không requirement `SHALL` nào còn
   `[NEEDS CLARIFICATION]` (`hitl-index spec validate` báo `COVERAGE_GAP`, `REQ_UNCLEAR`); muốn đóng sớm thì "force",
-  được ghi `💡 Forced:` trong proposal.
+  được ghi `_Forced:_` trong proposal.
 - **Artifact chọn theo ngữ cảnh** (`shared/artifacts.md`): glossary, business rule + bảng quyết định, use-case flow,
-  NFR, data-model, contracts… Chắc chắn → tự làm và ghi dòng `💡 Assumed: …`; không chắc → hỏi trong brief (`[A]`).
+  NFR, data-model, contracts… Chắc chắn → tự làm và ghi dòng `_Assumed:_ …`; không chắc → hỏi trong brief (`[A]`).
 
 **Design = HOW (cho dev).** `/hitl:design <change-id>` đọc spec + ARCHITECTURE/PATTERNS/CODEBASE-MAP (+ CONSTITUTION nếu
-có), hỏi các vòng `[D]` trong file brief `design-brief.md` (mọi câu có 💡; gõ `Y` ở dòng "Accept all" để nhận cả vòng, trừ câu `(needs its own Y)`)
+có), hỏi các vòng `[D]` trong file brief `design-brief.md` (mọi câu có `_Rec:_`; gõ `Y` ở dòng "Accept all" để nhận cả vòng, trừ câu `(needs its own Y)`)
 và ghi `design.md` (`<KEY>-D<n>` + alternatives + `serves`, component mức module, error handling, test
 strategy, risks, rollout), tuỳ chọn `data-model.md`, `contracts/`. Không bao giờ chữ ký hàm (đó là việc của tasks /
 skeleton). Design được bỏ qua khi change nhỏ (không dependency
@@ -371,7 +381,7 @@ mới, không đổi dữ liệu lưu, không đổi interface public, ≤ 2 tas
 change (delta). Tên thuật ngữ giữ tiếng Anh (khớp tên code và test), định nghĩa có thể viết tiếng Việt; câu trả lời tiếng
 Việt dùng nguyên thuật ngữ tiếng Anh. Khi bạn dùng một từ mâu thuẫn với glossary, từ nằm trong `_Avoid_`, hoặc một danh từ
 mơ hồ, plan hỏi một câu `[T]` (tối đa 2/vòng) và ghi thuật ngữ ngay khi chốt (`shared/interview.md` §10). Design đặt tên
-component, entity, event và test seam theo thuật ngữ (*Reset link* → `ResetLink`); thiếu thuật ngữ → `💡 Needs term`.
+component, entity, event và test seam theo thuật ngữ (*Reset link* → `ResetLink`); thiếu thuật ngữ → `_Needs term:_`.
 Design cũng đọc các quyết định `<KEY>-D<n>` đã archive để báo khi quyết định mới mâu thuẫn. `hitl-index context <T>` thêm mục
 `## Terms` (≤ 8 thuật ngữ mà tiêu đề, AC hay scenario của task nhắc tới), nên skeleton, test-author và reviewer dùng cùng
 từ. Mọi câu trả lời theo § Plain replies: ngữ cảnh trước, id luôn kèm tiêu đề (`ACC-R4 (Lock after failed sign-ins)`),
@@ -399,34 +409,34 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 
 | Lệnh | Việc làm | Gate? | Ai gọi |
 |---|---|---|---|
-| `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | ⛔ xác nhận lệnh | chỉ bạn |
-| `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (📌 note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` → `/hitl:tasks quick` → `/hitl:plan`; phân vân thì chọn nặng hơn), in `🧭 <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | ⛔ chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
-| `/hitl:overlap <change-id> [<change khác> …]` · `--with B,C` | Kiểm tra chồng lấn của một change với các change đang mở khác (không nêu = tất cả): bằng chứng chắc chắn trước (id, rule, contract, thuật ngữ, symbol, file, drift), không có → ✅ dừng; có → một subagent `spec-reviewer` chấm cả cụm, mỗi finding phải có witness Given/When/Then trích từ từng change; chỉ ghi note khi bạn chọn "both sides". Dùng cả sau khi merge nhánh | ⛔ một dòng mỗi finding | bạn / Claude |
-| `/hitl:flow [task-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `🎯 next`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
-| `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | ⛔ nếu đã có docs | bạn / Claude |
-| `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`) trong file brief `changes/<id>/plan-brief.md`, độ phủ + 🔥 + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change ở câu `Q0` của brief) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt (cổng chat) | 📝 mỗi vòng trong file brief (amend: ⛔) | bạn / Claude |
-| `/hitl:design <change-id> [amend [N-k]]` | HOW: `design.md` (`<KEY>-D<n>`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần; phỏng vấn trong `design-brief.md` (`Y` ở dòng Accept all = nhận cả vòng, trừ câu `(needs its own Y)`) | 📝 mỗi vòng trong file brief (amend: ⛔) | bạn / Claude |
-| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | ⛔ quiz | bạn / Claude |
-| `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | ⛔ diff / conflict | bạn / Claude |
-| `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | ⛔ diff intent → `/hitl:approve <id> intent` | bạn / Claude |
-| `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | ⛔ mỗi vòng | bạn / Claude |
-| `/hitl:tdd <việc cần làm>` | Chế độ test-first nhanh của hitl (chuyển thể từ mattpocock `tdd`) cho việc nhỏ **ngoài** change: chốt seam một vòng, rồi red→green từng test một. Việc thuộc một change/task → chuyển sang `/hitl:flow` | ⛔ seam | bạn / Claude |
-| `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | ⛔ review trong editor | bạn / Claude |
+| `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | xác nhận lệnh | chỉ bạn |
+| `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` → `/hitl:tasks quick` → `/hitl:plan`; phân vân thì chọn nặng hơn), in `_Route:_ <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
+| `/hitl:overlap <change-id> [<change khác> …]` · `--with B,C` | Kiểm tra chồng lấn của một change với các change đang mở khác (không nêu = tất cả): bằng chứng chắc chắn trước (id, rule, contract, thuật ngữ, symbol, file, drift), không có → ✅ dừng; có → một subagent `spec-reviewer` chấm cả cụm, mỗi finding phải có witness Given/When/Then trích từ từng change; chỉ ghi note khi bạn chọn "both sides". Dùng cả sau khi merge nhánh | một dòng mỗi finding | bạn / Claude |
+| `/hitl:flow [task-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `_Next:_`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
+| `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | nếu đã có docs | bạn / Claude |
+| `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`) trong file brief `changes/<id>/plan-brief.md`, độ phủ + `_Hot_` + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change ở câu `Q0` của brief) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt (cổng chat) | file brief, mỗi vòng (amend: cổng trong chat) | bạn / Claude |
+| `/hitl:design <change-id> [amend [N-k]]` | HOW: `design.md` (`<KEY>-D<n>`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần; phỏng vấn trong `design-brief.md` (`Y` ở dòng Accept all = nhận cả vòng, trừ câu `(needs its own Y)`) | file brief, mỗi vòng (amend: cổng trong chat) | bạn / Claude |
+| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | quiz | bạn / Claude |
+| `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | diff / conflict | bạn / Claude |
+| `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | diff intent → `/hitl:approve <id> intent` | bạn / Claude |
+| `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | mỗi vòng | bạn / Claude |
+| `/hitl:tdd <việc cần làm>` | Chế độ test-first nhanh của hitl (chuyển thể từ mattpocock `tdd`) cho việc nhỏ **ngoài** change: chốt seam một vòng, rồi red→green từng test một. Việc thuộc một change/task → chuyển sang `/hitl:flow` | seam | bạn / Claude |
+| `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; `doneAt` chuyển vào `reopened[]`. Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
-| `/hitl:plan <mô tả> --before <change-id>[,…]` · `/hitl:go <mô tả> --before <change-id>` | Change tiên quyết: change kia chờ tới khi change mới archive (note `source:` trong change kia) | 📝 mỗi vòng trong file brief | bạn / Claude |
+| `/hitl:plan <mô tả> --before <change-id>[,…]` · `/hitl:go <mô tả> --before <change-id>` | Change tiên quyết: change kia chờ tới khi change mới archive (note `source:` trong change kia) | file brief, mỗi vòng | bạn / Claude |
 | `/hitl:approve <change-id> dismiss N-k <lý do>` · `defer N-k <change khác>` · `/hitl:approve <T> <stage> --ack N-k` | Đóng note (bỏ qua có lý do / chuyển sang change khác) · cho task T đi tiếp dù note còn mở | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
-| `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | ⛔ (high) | bạn / Claude |
-| `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | ⛔ manual / mỗi hàm (high) | chỉ bạn |
-| `/hitl:implement --feature <change-id> [--lane fast]` | Build rồi review: chạy mọi task của một change theo thứ tự (blocked-by, rồi prio), mỗi task theo lane của nó; dừng **một lần** ở cuối với review gộp `reviews/feature-<name>.md` (xem 5b) | ⛔ cuối / dừng sớm | chỉ bạn |
-| `/hitl:review <T> [fix F-n\|amend F-n\|recheck]` | Review nhiều lớp (L0 có gate `trace`) + fix loop; `amend F-n` = accept + sửa spec | ⛔ nếu cần người quyết | bạn / Claude |
+| `/hitl:test <T> [fill\|run\|mutate]` | test-author (chỉ thấy contract pack) viết test thật, kiểm tra RED đúng lý do; mutation tuỳ chọn | high risk | bạn / Claude |
+| `/hitl:implement <T> [symbol] [--all] [--lane fast]` | Làm từng hàm theo work order (hàm được gọi trước, theo `@calls`; `@prio` chỉ phân xử hoà): agent fn → subagent implementer; manual fn → giao cho bạn kèm context. `--lane fast`: bạn ép fast lane cho task high risk (xem 5a) | manual / mỗi hàm (high) | chỉ bạn |
+| `/hitl:implement --feature <change-id> [--lane fast]` | Build rồi review: chạy mọi task của một change theo thứ tự (blocked-by, rồi prio), mỗi task theo lane của nó; dừng **một lần** ở cuối với review gộp `reviews/feature-<name>.md` (xem 5b) | cuối / dừng sớm | chỉ bạn |
+| `/hitl:review <T> [fix F-n\|amend F-n\|recheck]` | Review nhiều lớp (L0 có gate `trace`) + fix loop; `amend F-n` = accept + sửa spec | nếu cần người quyết | bạn / Claude |
 | `/hitl:review --security-audit [<change-id>\|repo] [--out <dir>]` | Audit bảo mật đầy đủ 6 phase (Cloudflare `security-audit`) cho một feature hoặc cả repo; link `REPORT.md` vào `reviews/feature-<name>.md` (xem 6a) | — | bạn / Claude |
 | `/hitl:security-audit …` | Skill upstream nguyên bản: hỏi đáp/review bảo mật (guidance mode) hoặc audit đầy đủ khi bạn yêu cầu rõ | — | bạn / Claude |
-| `/hitl:sync [--files …] [T]` | Đồng bộ sửa tay: reindex, drift + trace report, re-approve / revert / defer / accept + amend spec, cập nhật CODEBASE-MAP | ⛔ | **chỉ bạn** |
-| `/hitl:tickets init\|push\|pull\|status` | (Tuỳ chọn) mirror task sang Linear, Jira hoặc GitHub Issues: một issue mỗi task, push một chiều, pull chỉ đọc (báo drift), in branch + `Fixes ENG-n` / `Fixes #n` | ⛔ lần push đầu / op cần duyệt | bạn / Claude (skill khác gọi khi bật `autoPush`) |
-| `/hitl:migrate [--force]` | Nâng cấp project 0.12 sang id theo key của change (`PWR-T1`, `PWR-R1`, `PWR-D1`): chạy thử, một bảng key, bản đồ đổi tên, rồi áp dụng; ghi `.hitl/index/id-map.json` | ⛔ bảng key + `Apply? (Y/n)` | bạn / Claude |
+| `/hitl:sync [--files …] [T]` | Đồng bộ sửa tay: reindex, drift + trace report, re-approve / revert / defer / accept + amend spec, cập nhật CODEBASE-MAP | có | **chỉ bạn** |
+| `/hitl:tickets init\|push\|pull\|status` | (Tuỳ chọn) mirror task sang Linear, Jira hoặc GitHub Issues: một issue mỗi task, push một chiều, pull chỉ đọc (báo drift), in branch + `Fixes ENG-n` / `Fixes #n` | lần push đầu / op cần duyệt | bạn / Claude (skill khác gọi khi bật `autoPush`) |
+| `/hitl:migrate [--force]` | Nâng cấp project 0.12 sang id theo key của change (`PWR-T1`, `PWR-R1`, `PWR-D1`): chạy thử, một bảng key, bản đồ đổi tên, rồi áp dụng; ghi `.hitl/index/id-map.json` | bảng key + `Apply? (Y/n)` | bạn / Claude |
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|key|conflicts|merge|archive`, `hitl-index change [<id>]`
 (trạng thái/phase của change; `wait`/`blocks` khi một change chờ change khác; `brief` khi có file brief),
@@ -447,8 +457,8 @@ code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại
 
 "Chỉ bạn" = skill có `disable-model-invocation: true`; Claude không tự gọi được.
 
-**Cổng (⛔ GATE):** skill in tóm tắt + lựa chọn đánh số rồi **dừng lượt**. Trả lời `y` / `ok` / `được` = chọn khuyến nghị.
-Ngoài cổng, skill không hỏi mà tự quyết với giả định ghi rõ (`💡 Assumed: …`).
+**Cổng (GATE):** skill in tóm tắt + lựa chọn đánh số rồi **dừng lượt**. Trả lời `y` / `ok` / `được` = chọn khuyến nghị.
+Ngoài cổng, skill không hỏi mà tự quyết với giả định ghi rõ (`_Assumed:_ …`).
 
 **Duyệt là việc của người:** `hitl-index approve … --by human` chỉ chạy được ngay sau khi bạn gõ `/hitl:approve`
 (hook UserPromptSubmit phát "approve token" dùng một lần, ≤10 phút). `--by auto` chỉ cho task risk low (CLI chặn).
@@ -506,25 +516,25 @@ Vệ sinh intent (một contract hiện hành cho mỗi symbol; chỉ symbol kh�
 Khi một contract đã khoá đổi (drift item có `spec: PWR-D1 · ACC-R1.S2`), một finding review cho thấy thiết kế sai, hoặc
 implementer báo `specConflict`, skill đề xuất cập nhật **spec/design** thay vì để code và spec lệch nhau âm thầm:
 - `/hitl:sync` → lựa chọn `4. accept + amend spec`; `/hitl:review` → trả lời `amend F-n`; `/hitl:implement` → thẻ
-  `📐 Spec change proposal`; `/hitl:plan <id> amend` / `/hitl:design <id> amend` → sửa chủ động.
-- Skill in **📐 Spec delta** (scenario/requirement sửa trong delta của change, D cũ → `superseded by <KEY>-D<k>`, D mới, text
+  `_Delta:_ Spec change proposal`; `/hitl:plan <id> amend` / `/hitl:design <id> amend` → sửa chủ động.
+- Skill in **`_Delta:_` Spec delta** (scenario/requirement sửa trong delta của change, D cũ → `superseded by <KEY>-D<k>`, D mới, text
   AC, dòng Changelog, `@dec`) và hỏi `Apply? (Y/n/edit)` trong cùng gate. Quy tắc: `shared/amend-spec.md`.
 - Change còn active → sửa delta của nó (requirement living chưa đụng tới → thêm vào `## MODIFIED` nguyên block).
   Change đã archive → tạo mini change `fix-<slug>` (chỉ proposal + delta), rồi `/hitl:archive fix-<slug>`.
 - Decision không bao giờ sửa tại chỗ (chỉ supersede); thêm requirement/capability → proposal về `draft`, chạy lại `/hitl:tasks`.
 - Amend không duyệt gì cả: sau đó bạn vẫn gõ `/hitl:approve <T> skeleton <symbols>` như cũ.
-- 0.9: preview có thêm khối **🔁 Impact** (mục 4c); Apply ghi `note apply`.
+- 0.9: preview có thêm khối **`_Impact:_`** (mục 4c); Apply ghi `note apply`.
 
 ### 4c. Yêu cầu đổi giữa chừng: notes và reopen (0.9)
 
 Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, vài task đã khoá test, rồi yêu cầu đổi.
 - **Ghi lại, chưa sửa.** Bạn nói thay đổi trong chat (ở bất kỳ skill nào) → Claude hỏi
-  `📌 Note for <change>, refs <ids (tiêu đề)>? (Y/n)` và ghi vào `.hitl/changes/<id>/notes.md` (chỉ CLI ghi file này).
+  `_Note_ for <change>, refs <ids (tiêu đề)>? (Y/n)` và ghi vào `.hitl/changes/<id>/notes.md` (chỉ CLI ghi file này).
   Câu hỏi thì chỉ bàn, không ghi. Bạn nói rõ "sửa luôn" → đi thẳng vào amend.
 - **Chặn.** Note đang mở chặn `/hitl:approve` skeleton / tests / done của task mà refs chạm tới (scenario/requirement
   của AC, <KEY>-D<n> trong **Why**, dòng `### Symbols`, `@dec` của symbol đã khoá). Note không refs chỉ cảnh báo. Routing bỏ
   qua task bị chặn nếu còn task khác làm được. Note mở cũng chặn archive.
-- **Áp dụng.** `/hitl:plan <id> amend N-k` (hoặc `/hitl:design <id> amend N-k`): preview delta + khối 🔁 Impact theo
+- **Áp dụng.** `/hitl:plan <id> amend N-k` (hoặc `/hitl:design <id> amend N-k`): preview delta + khối `_Impact:_` theo
   từng id: `wording` (không mở gì) · `behaviour` (test đã khoá của AC đó) · `contract` (skeleton của symbol qua
   `@dec`/covers + test của nó) · `scenario` (AC mới + test) · `requirement` (task mới qua `/hitl:tasks update`).
   Hơn ~3 task hoặc có contract → gợi ý tách change mới. Apply ghi docs + một note `recheck` ở trạng thái
@@ -541,21 +551,21 @@ Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, v
 
 Một luật duy nhất: **note trong change A có `source: B` chặn toàn bộ A cho tới khi B archive.** Ai làm trước, có chạy
 song song hay không là quyết định của bạn; Claude không tự xếp thứ tự. Chi tiết: `shared/other-changes.md`.
-- **Việc ngoài phạm vi A** (lúc plan, design, implement, review A): nhỏ (vẫn là WHAT của A) → amend A hoặc note 📌;
+- **Việc ngoài phạm vi A** (lúc plan, design, implement, review A): nhỏ (vẫn là WHAT của A) → amend A hoặc note;
   lớn (cần spec riêng, hành vi mới, hơn 1 task, capability khác) → Claude gợi ý
-  `💡 Out of scope for A: <X> — … → /hitl:go <X> --before A`. Nhiều change cha: `--before A,C`.
-- **Tạo B với `--before A`**: CLI ghi vào A note `kind: order`, `source: B` (`⏳ A waits for B`). Từ lúc đó: không duyệt
+  `_Tip:_ Out of scope for A: <X> — … → /hitl:go <X> --before A`. Nhiều change cha: `--before A,C`.
+- **Tạo B với `--before A`**: CLI ghi vào A note `kind: order`, `source: B` (`_Waits:_ A waits for B`). Từ lúc đó: không duyệt
   task nào của A (skeleton, tests, done — `--ack`, `--force` không qua được), không implement (hook chặn implementer),
   không archive A. Plan, design, tasks, amend của A vẫn chạy.
 - **Lúc plan/design B — kiểm chủ sở hữu**: hành vi của B hoặc sửa requirement đang sống → delta của B. Sửa thứ A đang
   sở hữu (requirement ADDED/MODIFIED của A, decision, AC của A) → không vào delta B; Claude soạn bằng id của A và hỏi
-  `📥 For A: … → note in A? (Y/n/edit)`; Y → note `kind: spec|design`, `source: B` trong A. B không bao giờ sửa file của A.
-- **B archive** → A tự hết chờ (`🔓`). Note spec/design từ B chưa áp dụng thì A phải amend trước (`📥 A must take in N-k
-  from B first → /hitl:plan A amend N-k`): delta + 🔁 Impact → `/hitl:approve A reopen` (chỉ bạn) như mục 4c. Có thể
+  `_To A:_ … → note in A? (Y/n/edit)`; Y → note `kind: spec|design`, `source: B` trong A. B không bao giờ sửa file của A.
+- **B archive** → A tự hết chờ (`_Unblocked:_`). Note spec/design từ B chưa áp dụng thì A phải amend trước (`_Take in:_ A must take in N-k
+  from B first → /hitl:plan A amend N-k`): delta + `_Impact:_` → `/hitl:approve A reopen` (chỉ bạn) như mục 4c. Có thể
   amend sớm khi B chưa archive; A vẫn chờ tới khi B archive.
 - **B bị bỏ/xoá** → A vẫn bị chặn: amend ngược phần đã nhận, rồi `/hitl:approve A dismiss N-k <lý do>` (chỉ bạn; dismiss
   được bất cứ lúc nào để chấm dứt việc chờ).
-- **Change cha** (change đang chờ B, có note `source: B`): plan vòng 1 in `🔗 parent <P> — shared: <bằng chứng>` cho
+- **Change cha** (change đang chờ B, có note `source: B`): plan vòng 1 in `_Parent:_ <P> — shared: <bằng chứng>` cho
   từng change cha; bước kiểm chủ sở hữu đi theo đúng danh sách đó. Design kiểm lại contract/file mới với change cha.
 - **Chồng lấn với change B chưa liên kết** (không có note giữa hai bên, dù B có tạo với `--before` hay không):
   `hitl-index overlap B` liệt kê ứng viên theo khoá chung (id, rule, decision, contract, symbol, file, thuật ngữ,
@@ -599,14 +609,14 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
 /hitl:tickets init        # chọn server, team, project, nhóm label (risk + impl)
 ```
 - **Ghim server MCP** (`linear.server`, tên `<server>` trong `mcp__<server>__<tool>`): `init` thấy nhiều server Linear →
-  ⛔ gate liệt kê server (kèm workspace/team mỗi server thấy); chỉ một → tự lưu. Từ đó mọi lần chạy **chỉ** dùng server
+  Cổng (gate) liệt kê server (kèm workspace/team mỗi server thấy); chỉ một → tự lưu. Từ đó mọi lần chạy **chỉ** dùng server
   đó; server đã ghim không có → `❌` kèm lệnh `claude mcp add …`/`/mcp`, op được xếp hàng (không chặn gate). Config cũ
-  chưa có `linear.server` → dùng server có team đã map, kèm 💡 gợi ý ghim.
+  chưa có `linear.server` → dùng server có team đã map, kèm `_Tip:_` gợi ý ghim.
 - **Kiểm tra danh tính trước mỗi push/pull**: skill lấy urlKey workspace + team (theo id) qua MCP, CLI
   (`hitl-index tickets verify`) so với `linear.map.json` (`workspace.urlKey`, `team.id`/`key`) và `linear.server`/
   `linear.project`. Lệch → từ chối cả lượt (không gửi gì, không xếp hàng), in expected/observed và cách sửa: ghim lại
   server (`hitl-index init --set linear.server=<tên>`) hoặc `/hitl:tickets init --relink` nếu repo thật sự chuyển
-  workspace/team (xoá map task cũ, push sau tạo issue mới). Map cũ chưa có workspace → cho qua một lần và ghi lại (💡).
+  workspace/team (xoá map task cũ, push sau tạo issue mới). Map cũ chưa có workspace → cho qua một lần và ghi lại (`_Info:_`).
 - **Một issue Linear cho mỗi task** (không bao giờ theo AC/symbol); mỗi change → một project (`linear.changeAs`:
   `project` | `parent-issue` | `none`; nội dung = Why + What changes + danh sách requirement của proposal, đọc được bởi
   PO/BA). `/hitl:archive` không đụng tới Linear (không đóng project).
@@ -629,7 +639,7 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
   Không bao giờ tự lùi issue đã completed (cần bạn duyệt). Prio P0–P3 → Urgent/High/Medium/Low.
 - **Fail-open:** MCP thiếu, lỗi auth/mạng/rate limit → không gì bị chặn; op được xếp hàng (`index/linear.queue.json`),
   SessionStart in một dòng `⚠️ HITL: n Linear update(s) queued — /hitl:tickets push`. Linear không bao giờ chặn gate.
-- Branch + PR: `/hitl:implement`/`/hitl:skeleton` in `🎯 branch: git switch -c eng-1-…`; review PASS in `PR: Fixes ENG-1`
+- Branch + PR: `/hitl:implement`/`/hitl:skeleton` in `_Branch:_ git switch -c eng-1-…`; review PASS in `PR: Fixes ENG-1`
   (hoặc `Part of ENG-1`). Khuyến nghị trong Linear → Team → Workflow → GitHub: tắt *On PR merge → Done*, hoặc chấp nhận
   merge sau `/hitl:approve T done` sẽ đánh Done.
 - `autoPush.onTasksApproved|onApprove|onReview` (mặc định false): `/hitl:tasks`, `/hitl:approve`, `/hitl:review` tự gọi
@@ -652,7 +662,7 @@ claude mcp add --transport http linear-server https://mcp.linear.app/mcp   # ho�
 Cùng mô hình (ghim server, kiểm tra danh tính, push một chiều, pull chỉ đọc, fail-open, `autoPush`). Khác biệt:
 - **Jira**: danh tính = site (`<tên>.atlassian.net`) + project; change → **epic** (issue type `jira.epicType`), task →
   `jira.issueType`; trạng thái chuyển bằng transition tới status id đã map theo status category; label là text tự do
-  (không cần tạo); không có tool link → `📌` ghi chú tay. Không có tên branch: CLI dựng `<project>-<n>-<slug>`.
+  (không cần tạo); không có tool link → dòng `_Yours:_` (làm tay). Không có tên branch: CLI dựng `<project>-<n>-<slug>`.
 - **GitHub**: danh tính = owner + repo; change → **milestone** (tạo bằng `gh api`), hoặc parent issue + sub-issues;
   trạng thái chỉ có open/closed (pha hitl thấy qua label `hitl:*`); blocked-by = issue dependency (`gh api`); issue là
   `#n`, PR line `Fixes #n` / `Part of #n`. `gh` chỉ được dùng khi `gh auth status` cùng tài khoản/host với MCP.
@@ -660,7 +670,7 @@ Cùng mô hình (ghim server, kiểm tra danh tính, push một chiều, pull ch
 ## 5. Risk routing
 
 - **Task risk** (lúc `/hitl:tasks`): `high` nếu đụng core module, concurrency/async shared state, security (auth/crypto/money/SQL/shell/path/deserialize),
-  public API, khái niệm domain mới, migration dữ liệu. Ngược lại `low` → fast lane ⚡ (skeleton/test tự duyệt `--by auto`).
+  public API, khái niệm domain mới, migration dữ liệu. Ngược lại `low` → fast lane (`_Fast_`, skeleton/test tự duyệt `--by auto`).
 - **Symbol risk** (lúc review, 0–1): concurrency +0.30, security +0.25, drift +0.30 (cờ cứng), mutation yếu +0.15, fan-in > 5 +0.10,
   impl agent +0.05, finding ≥ important +0.20, thân > 60 dòng +0.05, task high +0.20.
   Route: cờ cứng hoặc > 0.6 → **HUMAN**, 0.3–0.6 → **SKIM**, < 0.3 → **AUTO**. Trọng số là heuristic, chỉnh trong `hitl.config.json` (`risk.weights`).
@@ -682,13 +692,13 @@ Fast lane (tự skeleton → test → implement, không gate) mặc định bị
 
 ### 5b. Build rồi review: `/hitl:implement --feature <change-id> [--lane fast]`
 
-- `hitl-index feature <change-id> --json` sắp task theo blocked-by (topo), rồi prio, rồi id; lane mỗi task: low → ⚡ fast,
+- `hitl-index feature <change-id> --json` sắp task theo blocked-by (topo), rồi prio, rồi id; lane mỗi task: low → `_Fast_`,
   high → gate bình thường (dừng ở skeleton/test/approve của bạn), high + `--lane fast` → ⚠️ override (token gắn với
   **change**: phủ các task của nó, cảnh báo một lần cho cả lượt chạy). Tên tasks/planning file v0.5 vẫn dùng được.
 - Dừng sớm khi: test không xanh sau số lần thử của implementer, drift mức `block`, hàm manual cần bạn, task chờ bạn
   duyệt (lane thường). Tiếp tục bằng **đúng lệnh cũ**: task đã implement (green/review/verified/done) được bỏ qua.
 - Cuối cùng: `/hitl:review <T> --in-feature` cho từng task (không gate riêng), rồi `hitl-index feature <id> --report`
-  ghi `.hitl/reviews/feature-<id>.md` (một màn hình: verdict, risk, override, trace ⛔/⚠️, finding cần quyết
+  ghi `.hitl/reviews/feature-<id>.md` (một màn hình: verdict, risk, override, trace `_Block_`/⚠️, finding cần quyết
   theo task) và hỏi **một** gate cho cả change. Xong hết → `/hitl:archive <id>`.
 
 ## 6. Các lớp test và review
@@ -849,7 +859,7 @@ Project cũ có `"languages": ["ts","py"]` không tự index ngôn ngữ mới; 
 ```js
 // .hitl/adapters/cobol.mjs
 export default {
-  id: "cobol@1",                 // đổi id ⇒ index lại toàn bộ
+  id: "cobol@1",                 // đổi id → index lại toàn bộ
   langs: ["cbl", "cob"],         // đuôi file (không có dấu chấm)
   approx: true,                  // tuỳ chọn: lọc call theo tên symbol đã biết
   available: async (root, config) => true,

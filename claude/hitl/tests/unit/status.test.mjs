@@ -152,7 +152,7 @@ test("computeNext: drift override, frontier by prio/id and blocked-by, empty sta
 test("status --brief: trace and Linear hints go on line 2, never a new line", async () => {
   const { briefSuffix, run } = await import("../../scripts/cmd/status.mjs");
   const trace = { counts: { block: 1, warn: 2, info: 0 }, summary: { acs: { total: 2, proven: 1 } } };
-  assert.equal(briefSuffix(trace, null), " · trace: AC 1/2 proven, ⛔ 1, ⚠️ 2");
+  assert.equal(briefSuffix(trace, null), " · trace: AC 1/2 proven, _Block_ 1, ⚠️ 2");
   assert.equal(briefSuffix({ counts: { block: 0, warn: 0 }, summary: { acs: { total: 0, proven: 0 } } }, null), "");
   assert.equal(briefSuffix(null, { enabled: true, configured: true, outOfSync: 2, queued: 1 }), " · linear: 2 out of sync, 1 queued");
   assert.equal(briefSuffix(null, { enabled: true, configured: false, outOfSync: 2, queued: 1 }), "");

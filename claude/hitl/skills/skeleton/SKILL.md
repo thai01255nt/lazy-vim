@@ -21,10 +21,10 @@ same as `--quick` but approves with `--by human-override`. Never add `--override
 Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or untouched existing code for `modify`).
 
 ## 1. Select the task
-- `hitl-index tasks --json`. No task id given → use the first frontier task from `hitl-index status --json` and say `💡 Assumed: <T>`.
+- `hitl-index tasks --json`. No task id given → use the first frontier task from `hitl-index status --json` and say `_Assumed:_ <T>`.
 - Unknown id → ❌ list valid ids, stop.
-- `--quick` on a high-risk task without `--override` → `🛑 Fast lane is for low-risk tasks only (<T> is high: <reasons>).` Drop `--quick` and continue normally.
-- Blocked by unfinished tasks → ⛔ GATE `⚠️ <T> is blocked by PWR-T11 (status wip), PWR-T9 (todo). Continue anyway? (y/N)` END THE TURN.
+- `--quick` on a high-risk task without `--override` → `_Stop:_ Fast lane is for low-risk tasks only (<T> is high: <reasons>).` Drop `--quick` and continue normally.
+- Blocked by unfinished tasks → GATE `⚠️ <T> is blocked by PWR-T11 (status wip), PWR-T9 (todo). Continue anyway? (y/N)` END THE TURN.
 - Already locked (`hitl-index status <T> --json` shows approved or later) → `⚠️ <T> skeleton is locked. Signature/intent changes will need /hitl:approve <T> again.` and continue.
 - `reopened` with `reopen.stage: skeleton` (the human reopened it after a contract change) → **reopen mode**: change only
   the `reopen.symbols` (signature, intent, TODO steps) to the amended spec/design; keep everything else, keep the tests
@@ -88,9 +88,9 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
    (`AC_NO_TEST`, `SYMBOL_NO_TEST`, …) are info at this stage; mention only real omissions at the gate.
 4. Typecheck if `commands.typecheck` is set: run it; stubs must compile. Fix only skeleton-caused errors.
 
-## 6. ⛔ GATE — human review
+## 6. GATE — human review
 ```
-🦴 Skeleton <T> — <title>  (risk: high (security) | <n> symbols | <m> test stubs)
+Skeleton <T> — <title>  (risk: high (security) | <n> symbols | <m> test stubs)
 
 | prio | symbol                 | file                       | impl   | calls                         | TODO steps | tests          |
 |------|------------------------|----------------------------|--------|-------------------------------|------------|----------------|
@@ -110,12 +110,12 @@ Then: /hitl:approve <T>  •  or tell me what to change.
 Intent diff: for each `modify` row show the approved intent → the new one (drift `INTENT_CHANGED` `approved.intent` /
 `current.intent`; the previous docstring when never locked), so the reviewer sees a rewrite, not an appended sentence.
 Ticket tracker (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` is non-null and `tasks[T].linear.onBranch` is false, add one
-line `🎯 branch: git switch -c <tasks[T].linear.branch>` above `Then:` (run no git command; `linear` null → nothing).
+line `_Branch:_ git switch -c <tasks[T].linear.branch>` above `Then:` (run no git command; `linear` null → nothing).
 END THE TURN. Never self-approve. On change requests: apply them, redo step 5, show the gate again.
 
 **Fast-lane exception** (`--quick`, or invoked from `/hitl:implement` for a low-risk task): skip the gate, print
-`⚡ Skeleton auto-approved (low risk)`, run `hitl-index approve <T> --stage skeleton --by auto --json`, and return
-control to the caller. If the CLI refuses (exit 1), print its reasons with 🛑 and stop at the gate above instead.
-With `--override`: print `⚠️⚡ Skeleton approved by human override (high risk)` and run
+`_Fast_ skeleton auto-approved (low risk)`, run `hitl-index approve <T> --stage skeleton --by auto --json`, and return
+control to the caller. If the CLI refuses (exit 1), print its reasons with _Stop:_ and stop at the gate above instead.
+With `--override`: print `⚠️ _Fast_ skeleton approved by human override (high risk)` and run
 `hitl-index approve <T> --stage skeleton --by human-override --json` (alone, no chaining). Hook denies ("override is
-human-only") → 🛑 `Override token missing. Type /hitl:implement <T> --lane fast again.` and stop at the gate above.
+human-only") → _Stop:_ `Override token missing. Type /hitl:implement <T> --lane fast again.` and stop at the gate above.

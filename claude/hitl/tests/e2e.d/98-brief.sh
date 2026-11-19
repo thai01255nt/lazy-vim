@@ -1,7 +1,7 @@
 # Brief files (0.14) — sourced by tests/e2e.sh (interface I4).
 # The plan interview lives in .hitl/changes/<id>/plan-brief.md: a new change gets round 1 from the template (what
 # /hitl:plan writes), the CLI reports it (`brief --json`, `change --json` brief + "answer … then /hitl:plan", status
-# --brief 📝 line), Q0 renames the change and key (`brief rename`), the user answers in the file, Claude marks round 1
+# --brief _Brief:_ line), Q0 renames the change and key (`brief rename`), the user answers in the file, Claude marks round 1
 # and appends round 2 whose accept-all Y answers every recommendation, Notes blocks (one per round and in Close) are
 # processed once (pending until marked, never counted as unanswered), spec validate ignores the brief, and the Close
 # question approves it.
@@ -10,7 +10,7 @@ BR="$W/brief-app"
 br_fill() { # br_fill <template> <id> <key>: the template as /hitl:plan writes it (comments kept; they are not content)
   sed -e "s/{change-id}/$2/g" -e "s/{KEY}/$3/g" -e "s/{YYYY-MM-DD}/2026-11-19/" \
       -e "/^{the user's description, verbatim\./,/}$/c\\Admins export the orders of a month to CSV for the accountants." \
-      -e "/^{🔗 parent/d" "$1"
+      -e "/^{_Parent:_/d" "$1"
 }
 
 sBR1() {
@@ -27,9 +27,9 @@ sBR1() {
   afile "$W/br1.json" 'd.counts.unanswered === 11 && !d.rounds[0].acceptAllLine && d.rounds[0].notes && !d.rounds[0].notes.answered && d.counts.notes === 0'
   CLI change feat-export-csv --json | aj 'd.changes[0].brief.unanswered === 11 && d.changes[0].next === "answer .hitl/changes/feat-export-csv/plan-brief.md, then /hitl:plan feat-export-csv"'
   CLI status --brief > "$W/br1.txt"
-  contains "$W/br1.txt" "📝 feat-export-csv — plan brief round 1: 11 unanswered → answer .hitl/changes/feat-export-csv/plan-brief.md, then /hitl:plan feat-export-csv"
+  contains "$W/br1.txt" "_Brief:_ feat-export-csv — plan brief round 1: 11 unanswered → answer .hitl/changes/feat-export-csv/plan-brief.md, then /hitl:plan feat-export-csv"
 }
-step BR1 "plan brief round 1 from the template: brief --json (Q0 + 10 core questions, hints, no 💡), change next = answer the file, status --brief 📝 line" sBR1
+step BR1 "plan brief round 1 from the template: brief --json (Q0 + 10 core questions, hints, no _Rec:_), change next = answer the file, status --brief _Brief:_ line" sBR1
 
 sBR2() {
   cd "$BR"
@@ -61,7 +61,7 @@ sBR3() {
     const fs = require("fs"), f = process.argv[1];
     let t = fs.readFileSync(f, "utf8").replace("## Round 1", "## Round 1 ✅").replace("| round: 1 |", "| round: 2 |");
     t = t.replace(/^(> .*(?:\n(?:> |(?![#>→\n])).*)*)$/gm, (m) => /^> (?:change|next):/.test(m) ? m : m.includes("không biết") ? m + "\n\n→ carried to Round 2" : m + "\n\n→ recorded: FCSV-R1");
-    t += "\n## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ❌   (🔥 FCSV-R2)\nAccept all recommendations of this round: >\n\n### Q5 [R] Which rules and limits apply?\n💡 Recommended: at most 12 months per file.\n>\n\n### Q11 [R] 🔥 What happens above 10 000 rows?\n💡 Recommended: split into files of ≤ 10 000 rows.\n>\n\n### Notes — anything the questions missed, or a change to an earlier answer\n> sửa Q3: chỉ admin, không có kế toán\n";
+    t += "\n## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ❌   (_Hot_ FCSV-R2)\nAccept all recommendations of this round: >\n\n### Q5 [R] Which rules and limits apply?\n_Rec:_ at most 12 months per file.\n>\n\n### Q11 [R] _Hot_ What happens above 10 000 rows?\n_Rec:_ split into files of ≤ 10 000 rows.\n>\n\n### Notes — anything the questions missed, or a change to an earlier answer\n> sửa Q3: chỉ admin, không có kế toán\n";
     fs.writeFileSync(f, t);' "$F"
   CLI brief feat-csv-export --json > "$W/br3a.json"
   afile "$W/br3a.json" 'd.round === 2 && d.rounds[0].done && d.questions.filter((q) => q.round === 1).every((q) => q.settled) && d.questions.find((q) => q.round === 1 && q.id === "Q5").carried === 2'
@@ -79,13 +79,13 @@ sBR3() {
   CLI spec validate feat-csv-export --json > "$W/br3b.json" || true
   ! grep -q "plan-brief" "$W/br3b.json" || { echo "validate looked at the brief"; head -c 800 "$W/br3b.json"; return 1; }
 }
-step BR3 "round 1 marked (recorded / carried), round 2 with Coverage + 🔥; accept-all Y answers every 💡; spec validate ignores the brief" sBR3
+step BR3 "round 1 marked (recorded / carried), round 2 with Coverage + _Hot_; accept-all Y answers every _Rec:_; spec validate ignores the brief" sBR3
 
 sBR4() {
   cd "$BR"
   F=.hitl/changes/feat-csv-export/plan-brief.md
   sed -i -e 's/^## Round 2 —/## Round 2 ✅ —/' -e 's/| status: open |/| status: closing |/' "$F"
-  printf '\n## Close\n📋 feat-csv-export — capabilities: orders (+2) · scenarios: 4 · validate: ✅\n\n### Notes — anything the questions missed, or a change to an earlier answer\n>\n\n### Approve the spec? (Y/n) — then /hitl:design\n>\n' >> "$F"
+  printf '\n## Close\n_Summary:_ feat-csv-export — capabilities: orders (+2) · scenarios: 4 · validate: ✅\n\n### Notes — anything the questions missed, or a change to an earlier answer\n>\n\n### Approve the spec? (Y/n) — then /hitl:design\n>\n' >> "$F"
   CLI brief feat-csv-export --json | aj 'd.status === "closing" && d.close.kind === "empty" && d.counts.unanswered === 1 && d.close.items.length === 1 && d.close.notes && !d.close.notes.answered'
   CLI change feat-csv-export --json | aj 'd.changes[0].next === "answer .hitl/changes/feat-csv-export/plan-brief.md, then /hitl:plan feat-csv-export"'
   sed -i 's/^>$/> Y/' "$F"

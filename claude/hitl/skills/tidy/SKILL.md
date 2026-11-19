@@ -21,17 +21,17 @@ re-locks them. This skill never runs that approve and never adds `--force`.
 
 ## 1. Report (read-only)
 `hitl-index intents <id> --json`. Exit 1 → print its `error`, stop. Exit 3 → per conventions.
-- `symbols` empty → `✅ intents tidy: <id>` (+ `🎯 next: hitl-index strip <id> --dry-run`), stop.
+- `symbols` empty → `✅ intents tidy: <id>` (+ `_Next:_ hitl-index strip <id> --dry-run`), stop.
 - Keep only symbols with `locked: true`, `openTasks` empty and `impl` ≠ `manual`. List the others in one line each and
-  leave them alone: open task → `⏭ <name>: <T> is not done (fix it in /hitl:skeleton <T>)`; `impl: manual` →
-  `⏭ <name>: human-owned (@impl manual), edit it yourself`; not locked → `⏭ <name>: not locked`. None left → stop.
+  leave them alone: open task → `_Skip:_ <name>: <T> is not done (fix it in /hitl:skeleton <T>)`; `impl: manual` →
+  `_Skip:_ <name>: human-owned (@impl manual), edit it yourself`; not locked → `_Skip:_ <name>: not locked`. None left → stop.
 - Files = the distinct `file` of the kept symbols. `git status --porcelain -- <files>`: any output →
-  `🛑 Commit or stash the changes in <files> first (tidy needs a clean revert point).` Stop.
+  `_Stop:_ Commit or stash the changes in <files> first (tidy needs a clean revert point).` Stop.
 - Baseline: `hitl-index drift --json`; keep its items for those files.
 
 ## 2. Rewrite (one subagent)
 Spawn one `general-purpose` subagent with: the kept symbols from the report (JSON as is: `file`, `line`, `ids`,
-`restates` with both sentences, `steps`, `growth`), the rule paths above, and this brief:
+`restates` with both sentences, `steps`, `growth`), the rule paths above, and this prompt:
 
 > Rewrite ONLY the intent docstring prose and the numbered step comments of the listed symbols. Rules:
 > 1. One current contract per symbol: what it guarantees now, not a sentence per task. Keep every rule that only this
@@ -58,21 +58,21 @@ locked docstring is allowed and becomes `INTENT_CHANGED` drift, which is the poi
    `ok: false` with any reason other than "no locked symbol … has an intent that differs" → revert.
    That reason alone means only step comments changed: nothing to approve (say so at the gate).
 4. `hitl-index intents <id> --json` again: findings left → list them at the gate (no second rewrite round).
-Revert = `git checkout -- <files>`, then `hitl-index index <files> --json`, print `🛑 tidy reverted: <reason>` and stop.
+Revert = `git checkout -- <files>`, then `hitl-index index <files> --json`, print `_Stop:_ tidy reverted: <reason>` and stop.
 
-## 4. ⛔ GATE — the new contracts
+## 4. GATE — the new contracts
 ```
-🧹 Tidied <id>: <n> intent(s) · <m> step comment(s) · <k> left (see below)
+Tidied <id>: <n> intent(s) · <m> step comment(s) · <k> left (see below)
 ### <Symbol> — <file>
 approved: <drift INTENT_CHANGED approved.intent>
 new:      <drift INTENT_CHANGED current.intent>
 steps: <old → new / deleted, one per line>
-<⏭ skipped symbols, findings left>
+<`_Skip:_` lines (skipped symbols), findings left>
 Review/edit in your editor. Run before hitl-index strip <id>.
 Then: /hitl:approve <id> intent  •  or tell me what to change.
 ```
 Only step comments changed → replace the `Then:` line with `✅ nothing to re-approve (steps are not part of the
-contract). 🎯 next: hitl-index strip <id> --dry-run`.
+contract). _Next:_ hitl-index strip <id> --dry-run`.
 END THE TURN. Never self-approve. On change requests: apply them yourself within the same rules, redo step 3, show the
 gate again.
 

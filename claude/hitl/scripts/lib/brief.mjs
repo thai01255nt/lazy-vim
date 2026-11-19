@@ -20,7 +20,7 @@ const DECLINE = new Set(["n", "no", "không", "ko"]);
 const norm = (s) => String(s ?? "").normalize("NFC").trim().toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").replace(/^[.!]+|[.!]+$/g, "").trim();
 
 /**
- * Kind of an answer: "empty" | "accept" (take the 💡 recommendation) | "unknown" (carry with a recommendation) |
+ * Kind of an answer: "empty" | "accept" (take the `_Rec:_` recommendation) | "unknown" (carry with a recommendation) |
  * "done" (stop asking) | "deep" (`deep` or `deep <ID|topic>`) | "decline" (a bare n/no/không/ko: counted only — the
  * skill reads the meaning, interview.md §6) | "text" (an answer, a question or a doubt: the skill reads it;
  * interview.md §6 decides answer vs discussion).
@@ -42,9 +42,13 @@ export function answerKind(text) {
 // ---------------------------------------------------------------- parser
 const Q_HEAD = /^###\s+Q(\d+)\b\s*(.*)$/;
 const ANSWER = /^ {0,3}>\s?(.*)$/;
-const MARKER = /^\s*(?:→|💬|💡|_e\.g\.|_z\.?b\.|#|accept all\b)/i;
+// 0.15.0: Claude's marks are italic word labels (`_Rec:_`, `_Disc:_`, `_Hot_`, `_To <P>:_`, `_Needs spec:_`); the
+// pre-0.15 icon forms (`💡 Recommended:`, `💬`, `🔥`, `📥 For <P>`, `💡 Needs spec`) are still read in existing briefs.
+const DISC = /^\s*(?:💬|_Disc:_)/;
+const HOT = /🔥|_Hot_/;
+const MARKER = /^\s*(?:→|💬|💡|_Disc:_|_Rec:_|_Assumed:_|_Parent:_|_Overlap\?_|_Parked:_|_Forced:_|_e\.g\.|_z\.?b\.|#|accept all\b)/i;
 const ACCEPT_ALL = /^\s*(?:\*\*)?accept all\b/i;
-const RECOMMEND = /^\s*💡\s*(?:\*\*)?(?:My\s+)?Recommend(?:ed|ation)(?:\*\*)?\s*:?\s*(.*)$/i;
+const RECOMMEND = /^\s*(?:💡\s*(?:\*\*)?(?:My\s+)?Recommend(?:ed|ation)(?:\*\*)?\s*:?|_Rec:_)\s*(.*)$/i;
 /** `### Notes — …`: the free-text block that ends every round and the Close section. */
 const NOTES_HEAD = /^###\s+Notes\b/i;
 
@@ -58,12 +62,13 @@ function metaOf(line) {
 }
 
 /** 0.14.1: question kinds whose answer acts outside the brief, so the accept-all line never answers them (heading
- *  text `(needs its own Y)`): `Q0` renames the change id/key, `📥 For <P>` writes a note into another change,
- *  `💡 Needs spec` applies a spec delta + Impact. Returns the kind, or null. */
+ *  text `(needs its own Y)`): `Q0` renames the change id/key, `_To <P>:_` writes a note into another change,
+ *  `_Needs spec:_` applies a spec delta + Impact (pre-0.15 forms `📥 For <P>`, `💡 Needs spec` too). Returns the kind,
+ *  or null. */
 export function ownYKind(n, title) {
   if (Number(n) === 0) return "rename";
-  if (/📥\s*For\b/i.test(title)) return "note";
-  if (/💡\s*Needs spec\b/i.test(title)) return "spec";
+  if (/📥\s*For\b|_To [^_]+:_/i.test(title)) return "note";
+  if (/💡\s*Needs spec\b|_Needs spec:_/i.test(title)) return "spec";
   if (/\(needs its own Y\)/i.test(title)) return "other";
   return null;
 }
@@ -74,8 +79,8 @@ const newQuestion = (n, rest, round, line) => {
   let tag = null;
   const tm = /^\[([A-Z])\]\s*/.exec(t);
   if (tm) { tag = tm[1]; t = t.slice(tm[0].length); }
-  const hot = /🔥/.test(t);
-  t = t.replace(/🔥\s*/g, "").trim();
+  const hot = HOT.test(t);
+  t = t.replace(/(?:🔥|_Hot_)\s*/g, "").trim();
   const ownY = ownYKind(n, t);
   t = t.replace(OWN_Y, "").trim();
   return { id: `Q${n}`, n: Number(n), round, tag, hot, ownY, title: t, line, body: [], hint: null, recommended: null,
@@ -83,7 +88,7 @@ const newQuestion = (n, rest, round, line) => {
     parked: false, dropped: false, discussed: false, settled: false, pending: false };
 };
 
-/** A Notes block: parsed with the question machinery (answer lines, marks, 💬), kept apart from the questions. */
+/** A Notes block: parsed with the question machinery (answer lines, marks, `_Disc:_`), kept apart from the questions. */
 const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id: "notes", n: null, ownY: null });
 
 /**
@@ -91,7 +96,7 @@ const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id
  *   rounds:[{n, done, acceptAllLine, acceptAll, acceptAllAnswer, coverage, hot, line}], questions:[…], close, openQuestions, counts, items}.
  * A question: {id:"Q8", n, round, tag, hot, ownY, title, hint, recommended, answer, kind, answered, acceptedByRound,
  *   recorded[], carried (round number or null), parked, dropped, discussed, settled, pending}.
- *   ownY: "rename" (Q0) | "note" (📥 For <P>) | "spec" (💡 Needs spec) | "other" (`(needs its own Y)` in the heading) |
+ *   ownY: "rename" (Q0) | "note" (`_To <P>:_`) | "spec" (`_Needs spec:_`) | "other" (`(needs its own Y)` in the heading) |
  *   null — such a question is never answered by the round's accept-all line (acceptedByRound stays false).
  *   dropped: the mark `→ dropped (scope changed)` (the scope changed and the question no longer applies).
  * Notes (every round's `round.notes`, and `close.notes`): {id:"notes", round, text, answered (non-empty), recorded[],
@@ -138,7 +143,7 @@ export function parseBrief(text, file = null) {
         section = "round";
         const rest = rm[2];
         const cov = /Coverage\s*:\s*([^(]*)/i.exec(rest);
-        const hot = /\(🔥\s*([^)]*)\)/.exec(rest);
+        const hot = /\((?:🔥|_Hot_)\s*([^)]*)\)/.exec(rest);
         round = { n: Number(rm[1]), done: /^\s*✅/.test(rest), notes: null, acceptAllLine: false, acceptAll: false, acceptAllAnswer: null,
           coverage: cov ? cov[1].trim().replace(/\s+$/, "") || null : null, hot: hot ? hot[1].split(/[,·]/).map((s) => s.trim()).filter(Boolean) : [], line: ln };
         if (out.rounds.some((r) => r.n === round.n)) out.items.push({ level: "warn", code: "BRIEF_ROUND_DUP", line: ln, message: `Round ${round.n} appears twice` });
@@ -198,14 +203,15 @@ export function parseBrief(text, file = null) {
     if (!q) continue;
     questionLine(line);
   }
-  /** One line inside a question or a Notes block: answer, mark, 💬, 💡, lazy continuation, body, hint. */
+  /** One line inside a question or a Notes block: answer, mark, `_Disc:_`, `_Rec:_`, lazy continuation, body, hint. */
   function questionLine(line) {
     const a = ANSWER.exec(line);
     if (a) {
-      // 0.14.1: a mark or 💬 written right under an answer is a lazy continuation for markdown; a formatter (prettier)
-      // pulls it into the blockquote (`> → recorded: …`, `> 💬 …`, and every 💬 line after it). Claude's, not the answer.
+      // 0.14.1: a mark or `_Disc:_` line written right under an answer is a lazy continuation for markdown; a formatter
+      // (prettier) pulls it into the blockquote (`> → recorded: …`, `> _Disc:_ …`, and every discussion line after it).
+      // Claude's, not the answer.
       const inner = a[1];
-      if (/^\s*(?:→|💬)/.test(inner)) { questionLine(inner); if (mode === "discussion") mode = "qdiscussion"; return; }
+      if (/^\s*→/.test(inner) || DISC.test(inner)) { questionLine(inner); if (mode === "discussion") mode = "qdiscussion"; return; }
       if (mode === "qdiscussion") {
         const rq = RECOMMEND.exec(inner);
         if (rq) q.recommended = rq[1].trim() || q.recommended || "";
@@ -226,7 +232,7 @@ export function parseBrief(text, file = null) {
       else q.recorded.push(t);
       return;
     }
-    if (/^\s*💬/.test(line)) { q.discussed = true; mode = "discussion"; return; }
+    if (DISC.test(line)) { q.discussed = true; mode = "discussion"; return; }
     const rm = RECOMMEND.exec(line);
     if (rm) { q.recommended = rm[1].trim() || q.recommended || ""; return; }
     // tolerated, not documented: text right under an answer line (no blank line) continues it, as in markdown

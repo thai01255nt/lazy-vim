@@ -17,20 +17,20 @@ Arguments: `$ARGUMENTS` = `<A> [<B> <C> …]` or `<A> --with B,C` (the same thin
 active change.
 
 ## 1. Guards
-- No argument → `hitl-index change --json`; ⛔ GATE `Check which change for overlap? (1/2/…)` listing the active
+- No argument → `hitl-index change --json`; GATE `Check which change for overlap? (1/2/…)` listing the active
   changes (id + title), END THE TURN. No active change → `✅ No active changes to compare.` Stop.
-- A task id (`PWR-T3`), a status or what-next question → `🎯 next: /hitl:flow <the same words>` and one line why. Stop.
-- New work described instead of a change id → `🎯 next: /hitl:go <description>`. Stop.
+- A task id (`PWR-T3`), a status or what-next question → `_Next:_ /hitl:flow <the same words>` and one line why. Stop.
+- New work described instead of a change id → `_Next:_ /hitl:go <description>`. Stop.
 
 ## 2. Deterministic pass (no LLM)
 `hitl-index overlap <A> [--with <B,C>] --json`.
-- Exit 3 → per conventions (`/hitl:setup`). Exit 1 (unknown or archived change, A named as its own target) → `🛑 <the
+- Exit 3 → per conventions (`/hitl:setup`). Exit 1 (unknown or archived change, A named as its own target) → `_Stop:_ <the
   CLI message>`; an archived change → add `its spec is living now; compare the active ones`. Stop.
 - Print, one line per candidate (ids with titles):
-  - `parent: true` → `🔗 parent <P> — shared: <evidence refs (titles)>` (`none found yet` when its evidence is empty);
-  - else `🔎 <A> may overlap <P>: <evidence refs (titles)>`;
-  - and, when its `code` section has entries, `   🧩 code: shared symbols … · files … · drift <symbol> (<what changed>)`.
-- No candidate with `evidence` or `code` entries (none at all, or only 🔗 parents with nothing shared) →
+  - `parent: true` → `_Parent:_ <P> — shared: <evidence refs (titles)>` (`none found yet` when its evidence is empty);
+  - else `_Overlap?_ <A> may overlap <P>: <evidence refs (titles)>`;
+  - and, when its `code` section has entries, `   code: shared symbols … · files … · drift <symbol> (<what changed>)`.
+- No candidate with `evidence` or `code` entries (none at all, or only `_Parent:_` parents with nothing shared) →
   `✅ <A>: no overlap with <targets joined by ", ">` (`targets` from the JSON; empty → `✅ <A>: no overlap (no other
   active change)`). Stop: no judge, no gate.
   The judged candidates (§3) are the ones with evidence or code.
@@ -45,37 +45,37 @@ Output: .hitl/.inbox/overlap-review.json   CLI: <hitl-index | node …/hitl-inde
 ```
 Then `hitl-index overlap <A> --with <candidate ids> --review --json` (it checks every finding against the changes' own
 text, drops the ones without a witness quoting each change they name, and removes the verdict file).
-- Exit 1 (no verdict, bad JSON) or the agent failed → `⚠️ The overlap judge gave no usable verdict.` + the 🔎 lines
-  above stand as evidence only; `🎯 next: /hitl:overlap <A> <targets>` to retry. Stop.
-- `findings` empty → `✅ <A>: evidence with <targets> but no conflict with a witness` (+ one `💡 dropped O-n: <reason>`
+- Exit 1 (no verdict, bad JSON) or the agent failed → `⚠️ The overlap judge gave no usable verdict.` + the `_Overlap?_` lines
+  above stand as evidence only; `_Next:_ /hitl:overlap <A> <targets>` to retry. Stop.
+- `findings` empty → `✅ <A>: evidence with <targets> but no conflict with a witness` (+ one `_Info:_ dropped O-n: <reason>`
   line per `dropped` entry; `O-n` is the finding id of the judge's JSON, not a brief's `### O<n>` question). Stop.
 
-## 4. ⛔ GATE (one line per finding)
+## 4. GATE (one line per finding)
 ```
-📋 /hitl:overlap <A> — <n> finding(s) with <targets>
+_Summary:_ /hitl:overlap <A> — <n> finding(s) with <targets>
 <findings[].line, one per finding, exactly as the CLI printed it>
-💡 dropped O-3: witness quote not found in feat-report        (only when `dropped` is non-empty)
+_Info:_ dropped O-3: witness quote not found in feat-report        (only when `dropped` is non-empty)
 Reply per finding as "<finding> <option> [<change>]": "1 2, 2 3" (finding 1 → both sides, finding 2 → not an overlap) ·
 "1 1 <change>" (finding 1: adjust <change> instead of the recommended side) · "1 2 <change>" (finding 1: both sides,
 <change> is the source that goes first; the others get the notes) · ? to explain
 ```
-Each line reads `⚠️ <n>. <changes> — <witness> → 1. adjust <one side> · 2. both sides (📥 source notes into the affected
+Each line reads `⚠️ <n>. <changes> — <witness> → 1. adjust <one side> · 2. both sides (source notes into the affected
 change(s), which then wait until the other is archived) · 3. not an overlap`. Restate a witness in plain words only
 when the user asks (`?`). END THE TURN.
 
 ## 5. On the answer (per finding; a finding not answered is skipped and listed as open)
-- **1. adjust one side** → write nothing; print `🎯 next: <findings[].amend>` (`/hitl:plan <change> amend`, or
+- **1. adjust one side** → write nothing; print `_Next:_ <findings[].amend>` (`/hitl:plan <change> amend`, or
   `/hitl:design <change> amend` when the finding is about a decision or contract) with the witness as the reason. A
   `<n> 1 <change>` reply names the other side: the same command for that change. Never run the amend yourself.
 - **2. both sides** → for each entry of `findings[].notes`, run its `command` (`hitl-index note add --change <affected>
   --source <other> --kind spec|design --refs … --text "…" --from "/hitl:overlap <A>"`; you may reword `--text` into the
-  affected change's words, keep it plain business language) and print the CLI's `📌`/`⏳` lines. With `<n> 2 <change>`
+  affected change's words, keep it plain business language) and print the CLI's `_Note N-k_` / `_Waits:_` lines. With `<n> 2 <change>`
   that change is the source: build the same commands with the other changes as `--change` and their own `refs`. The
   0.12 rules apply as they are: the affected change waits (no task approval, implement or archive) until the source is
   archived, then takes the notes in with `/hitl:plan <id> amend N-k`; a CLI refusal (`--source` archived, unknown ref) →
   print it and go on with the next finding.
 - **3. not an overlap** → write nothing.
-End with one summary line (`📥 notes: … · 🎯 amends: … · ✅ not overlaps: …`) and one `🎯 next:` (the first amend, else
+End with one summary line (`_Summary:_ notes: … · amends: … · not overlaps: …`) and one `_Next:_` (the first amend, else
 `/hitl:flow`).
 
 ## Rules

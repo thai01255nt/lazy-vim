@@ -158,7 +158,7 @@ Optional: Unchanged behaviour, Success criteria, Out of scope, Assumptions, Cove
 Plan stop rule (`/hitl:plan`, `shared/interview.md` §9): `REQ_UNCLEAR` — a SHALL/MUST requirement block still holds
 `[NEEDS CLARIFICATION`; `COVERAGE_GAP` — a `## Coverage` row (`| category | status | note |`) is ⚠️, ❌, unmarked, or
 `—` without a reason. Both warn while draft and are errors once approved, unless `## Open questions` has a
-`💡 Forced: …` line (then REQ_UNCLEAR and NEEDS_CLARIFICATION warn and COVERAGE_GAP is info).
+`_Forced:_ …` line (then REQ_UNCLEAR and NEEDS_CLARIFICATION warn and COVERAGE_GAP is info).
 
 ## Design (`changes/<id>/design.md`)
 Meta `> change: <id> | status: draft|approved`. `## Decisions` table (the log)

@@ -22,15 +22,15 @@ files and the code they drive, never `.hitl/`.
 ## 1. Guard
 - A task id in the request, or `.hitl/` exists and the work belongs to a hitl change (`hitl-index status --brief --soft`
   lists the active changes; Grep the files you will touch for `@task`: a symbol tagged with an unfinished task) →
-  `🛑 This is part of <T or change>: /hitl:flow routes it (/hitl:test, then /hitl:implement).` Stop.
+  `_Stop:_ This is part of <T or change>: /hitl:flow routes it (/hitl:test, then /hitl:implement).` Stop.
 - Never edit locked tests or `@impl manual` bodies (the hooks deny it anyway).
 - High-risk work (`${CLAUDE_PLUGIN_ROOT}/skills/tasks/references/slicing-and-risk.md` §4: security, persisted data,
-  public API, concurrency, a new domain concept) → add `💡 High risk: /hitl:plan gives it a spec and gates.` to the seam
+  public API, concurrency, a new domain concept) → add `_Tip:_ High risk: /hitl:plan gives it a spec and gates.` to the seam
   question (§2).
 
 ## 2. Seams (one round)
-Find the public interface with Grep/Read (only what you need). Then one ⛔ GATE in chat: numbered questions
-`**Q1** <title>` + one context line + `💡 Recommended: …`, then `Reply: e.g. "y" (all recommendations) or "Q2: …"`
+Find the public interface with Grep/Read (only what you need). Then one GATE in chat: numbered questions
+`**Q1** <title>` + one context line + `_Rec:_ …`, then `Reply: e.g. "y" (all recommendations) or "Q2: …"`
 (no brief file, no round header, no grilling load, nothing recorded):
 - **Q1 Seams**: 1–3 seams (test-patterns §5: highest, existing, fewest), each `seam — catches / misses — doubles (§3)`.
 - **Q2 Tests**: the behaviours in order, one line each, the tracer first (main success path through the highest seam).
@@ -49,4 +49,4 @@ A test that needs a seam nobody agreed, or must reach past the interface → sto
 A fresh run of the touched test files and the project test command (`hitl.config.json` `commands.test` when present),
 with the counts in the reply before any claim (`${CLAUDE_PLUGIN_ROOT}/skills/test/references/tdd-rules.md` §5).
 List the tests added (`title → seam`). Refactoring is not part of this loop: do it as a separate pass under the green
-tests, or as a `refactor-` change through `/hitl:plan`. End with `🎯 next:`.
+tests, or as a `refactor-` change through `/hitl:plan`. End with `_Next:_`.

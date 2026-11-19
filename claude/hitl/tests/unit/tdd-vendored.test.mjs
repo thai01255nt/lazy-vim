@@ -37,7 +37,7 @@ test("hitl:tdd SKILL.md is hitl's adaptation: credited, points at the overlay + 
   assert.match(s, /^Adapted from mattpocock\/skills \(MIT\) — see NOTICE\.md\. Source: skills\/engineering\/tdd\/SKILL\.md @ 4ae2317/m);
   for (const p of ["shared/test-patterns.md", "skills/tdd/tests.md", "skills/tdd/mocking.md"]) assert.ok(s.includes(p), `points at ${p}`);
   // 0.14.1: the seam gate is a chat gate with its own shape (interview.md §4 is the brief-file format)
-  assert.match(s, /`\*\*Q1\*\* <title>` \+ one context line \+ `💡 Recommended: …`/);
+  assert.match(s, /`\*\*Q1\*\* <title>` \+ one context line \+ `_Rec:_ …`/);
   assert.ok(!s.includes("shared/interview.md"), "no pointer to the brief-file overlay");
   assert.doesNotMatch(s, /^allowed-tools:.*\bSkill\b/m, "no Skill tool");
   assert.doesNotMatch(s, /(Skill tool|invoke|call)[^\n]*(codebase-design|code-review)/i, "no codebase-design / code-review Skill call");

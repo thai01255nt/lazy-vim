@@ -50,7 +50,7 @@ blocked by expand) → **contract** (delete the old form, blocked by every migra
 | `public-api` | change to an exported symbol used by other modules, HTTP/CLI contract, or package API |
 | `domain` | introduces a new domain concept (new entity/aggregate/state machine) |
 | `data` | data migration or persisted schema change |
-Low-risk tasks may use the ⚡ fast lane (auto skeleton/tests approval). Never lower a risk to get the fast lane.
+Low-risk tasks may use the fast lane (auto skeleton/tests approval). Never lower a risk to get the fast lane.
 `quick` tasks follow the same rules; if a quick task comes out high, say so and recommend `/hitl:plan`.
 
 ## 5. Acceptance criteria

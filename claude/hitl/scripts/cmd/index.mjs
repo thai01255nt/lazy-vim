@@ -12,7 +12,7 @@ export async function run(argv, ctx) {
     console.log(`indexed ${res.changedFiles.length} changed file(s): +${res.added.length} −${res.removed.length} ~${res.modified.length} symbols`);
     const s = res.drift.summary;
     console.log(`drift: ${s.block} block · ${s.warn} warn · ${s.info} info`);
-    for (const i of res.drift.items.filter((x) => x.level !== "info")) console.log(`${i.level === "block" ? "⛔" : "⚠️"} ${i.code} ${i.symbol || i.file} — ${i.message}`);
+    for (const i of res.drift.items.filter((x) => x.level !== "info")) console.log(`${i.level === "block" ? "_Block:_" : "⚠️"} ${i.code} ${i.symbol || i.file} — ${i.message}`);
   }
   return 0;
 }

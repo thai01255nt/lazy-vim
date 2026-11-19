@@ -18,12 +18,12 @@ Arguments: `$ARGUMENTS`
   `hitl-index next-id --quick <slug> --json` → `{next: "QFLT-T1", key: "QFLT"}` (a fresh key per quick file, no gate);
   header `← Change: none | key: <key>`; ACs `<key>-T1.AC<k>`. Never `QT` (legacy).
 - Else the change id = argument, else the one used in this conversation, else `hitl-index change --json` and the active
-  changes in phase `tasks` (or matching the user's words). Several → ⛔ GATE `Use which change? (1/2/…)` END THE TURN.
-- None → `🛑 No change. Run /hitl:plan first.` Stop. A v0.5 planning file name → `🛑 v0.5 planning — migrate first
+  changes in phase `tasks` (or matching the user's words). Several → GATE `Use which change? (1/2/…)` END THE TURN.
+- None → `_Stop:_ No change. Run /hitl:plan first.` Stop. A v0.5 planning file name → `_Stop:_ v0.5 planning — migrate first
   (/hitl:plan offers it, or hitl-index migrate --specs).` Stop.
 - Proposal `status: draft` → `⚠️ Spec is still draft (open questions: <n>).` Design `draft` → `⚠️ Design is still draft.`
-  Design `missing` and not skipped → `⚠️ No design yet (💡 /hitl:design <id>).` Continue; all repeated at the gate.
-- Target = `.hitl/changes/<id>/tasks.md`. It exists → ⛔ GATE `` `tasks.md` exists. (update/overwrite) — 💡 update`` END THE TURN.
+  Design `missing` and not skipped → `⚠️ No design yet (_Tip:_ /hitl:design <id>).` Continue; all repeated at the gate.
+- Target = `.hitl/changes/<id>/tasks.md`. It exists → GATE `` `tasks.md` exists. (update/overwrite) — _Rec:_ update`` END THE TURN.
   `<change-id> update [<what>]` (from `/hitl:go` or a note's apply command) → update without the update/overwrite question (the quiz gate of §6 still runs); `<what>` is the work to add.
   - update: keep existing task ids, statuses and checkboxes; edit or add tasks; a new scenario on a done or
     tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
@@ -57,7 +57,7 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
 - Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high → tell the user and recommend `/hitl:plan` at the gate.
 
 ## 5. Write and validate (loop until clean)
-1. 📝 Write the file: header (`# <Title> Tasks`, `← Change: <id>` — quick: `← Change: none | key: <key>` — `> status: draft`), then tasks sorted by prio.
+1. Write the file: header (`# <Title> Tasks`, `← Change: <id>` — quick: `← Change: none | key: <key>` — `> status: draft`), then tasks sorted by prio.
    Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
    (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
@@ -68,9 +68,9 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.
    Max 3 loops for steps 2–3; then show the remaining errors.
 
-## 6. ⛔ GATE (quiz)
+## 6. GATE (quiz)
 ```
-📋 changes/<id>/tasks.md — <n> tasks (<h> high, <l> low) · spec: <status> · design: <status|skipped>
+_Summary:_ changes/<id>/tasks.md — <n> tasks (<h> high, <l> low) · spec: <status> · design: <status|skipped>
 
 | id   | title                         | prio | risk (reasons)        | impl   | blocked-by |
 |------|-------------------------------|------|-----------------------|--------|------------|
@@ -84,7 +84,7 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
 END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: set the header `> status: approved`
 (this header line only; never task `status:` fields or boxes) and print:
 - `✅ Tasks approved.`
-- `🎯 next:` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (⚡ fast lane).
+- `_Next:_` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (_Fast_ lane).
 - Ticket tracker (optional, fail-open): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onTasksApproved`
   → invoke the Skill `hitl:tickets` with `push <change-id> --auto`. Its output is informational; never change this
   skill's result because of it (error or missing command → skip silently).

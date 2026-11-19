@@ -57,12 +57,12 @@ async function planInputs(root, config, scopeArgs) {
 }
 
 function printPlan(p, L) {
-  if (!p.enabled) return console.log(`ℹ️ ${L} sync is off (/hitl:tickets init)`);
-  if (!p.configured) return console.log(`💡 ${L} not configured — run /hitl:tickets init`);
+  if (!p.enabled) return console.log(`_Info:_ ${L} sync is off (/hitl:tickets init)`);
+  if (!p.configured) return console.log(`_Tip:_ ${L} not configured — run /hitl:tickets init`);
   if (!p.ops.length) console.log(`✅ ${L} in sync (no ops)`);
   else {
     console.log("| # | op | task | issue | gate | reason |\n|---|---|---|---|---|---|");
-    p.ops.forEach((o, i) => console.log(`| ${i + 1} | ${o.op} | ${o.task || o.change || ""} | ${o.issue || "—"} | ${o.needsGate ? "⛔" : ""} | ${o.reason} |`));
+    p.ops.forEach((o, i) => console.log(`| ${i + 1} | ${o.op} | ${o.task || o.change || ""} | ${o.issue || "—"} | ${o.needsGate ? "_Gate_" : ""} | ${o.reason} |`));
   }
   for (const s of p.skipped) console.log(`skipped ${s.task}: ${s.reason}`);
   for (const w of p.warnings) console.log(`⚠️ ${w}`);
@@ -88,7 +88,7 @@ export async function run(argv, ctx) {
   if (sub === "server") {
     const r = pickServer(config, a._, a.init ? "init" : "run");
     if (json) console.log(JSON.stringify(r, null, 2));
-    else console.log(`${r.action === "use" || r.action === "save" ? "✅" : r.action === "missing" || r.action === "none" ? "❌" : "💡"} ${r.message}`);
+    else console.log(`${r.action === "use" || r.action === "save" ? "✅" : r.action === "missing" || r.action === "none" ? "❌" : "_Tip:_"} ${r.message}`);
     return 0;
   }
 
@@ -105,7 +105,7 @@ export async function run(argv, ctx) {
     else if (!res.ok) console.log(`❌ ${identityMessage(res)}`);
     else {
       console.log(`✅ ${L} identity: ${res.status} · ${cfg.P.workspace.what} ${res.observed.workspace || res.expected.workspace || "?"} · ${cfg.P.team} ${res.observed.team?.key || res.expected.team?.key}${res.observed.server ? ` · server ${res.observed.server}` : ""}`);
-      for (const l of res.learned) console.log(`💡 recorded ${l} in ${MAP}`);
+      for (const l of res.learned) console.log(`_Info:_ recorded ${l} in ${MAP}`);
       for (const w of res.warnings) console.log(`⚠️ ${w}`);
     }
     return res.ok ? 0 : 4;
@@ -151,7 +151,7 @@ export async function run(argv, ctx) {
     else {
       console.log(`${out.kind === "init" ? `✅ ${L} map initialized` : `✅ recorded: ${out.applied} applied, ${out.failed} failed`} · queued ${out.queued}${out.replan ? " · replan: run tickets plan again" : ""}`);
       if (out.reset) console.log(`⚠️ relinked to another ${cfg.P.workspace.what}/${cfg.P.team}: ${out.reset} task mapping(s) cleared (next push creates new issues)`);
-      for (const l of out.learned || []) console.log(`💡 recorded ${l} in ${MAP}`);
+      for (const l of out.learned || []) console.log(`_Info:_ recorded ${l} in ${MAP}`);
     }
     return 0;
   }
@@ -173,9 +173,9 @@ export async function run(argv, ctx) {
   await removeInboxFile(root, file);
   if (json) { console.log(JSON.stringify(out, null, 2)); return 0; }
   if (!out.items.length) console.log(`✅ no ${L} drift`);
-  for (const i of out.items) console.log(`${i.level === "warn" ? "⚠️" : "ℹ️"} ${i.code} ${i.task} ${i.issue}${i.field ? ` ${i.field}` : ""} — ${i.message}`);
+  for (const i of out.items) console.log(`${i.level === "warn" ? "⚠️" : "_Info:_"} ${i.code} ${i.task} ${i.issue}${i.field ? ` ${i.field}` : ""} — ${i.message}`);
   for (const [T, r] of Object.entries(out.remote)) console.log(`${T}: ${r.state || "?"} · assignee ${r.assignee || "—"} · cycle ${r.cycle || "—"}`);
   if (a.relink) console.log(`relinked ${out.relink.length} task(s)`);
-  if (out.foreign) console.log(`ℹ️ ${out.foreign} issue(s) of other repos sharing this ${cfg.P.team} ignored`);
+  if (out.foreign) console.log(`_Info:_ ${out.foreign} issue(s) of other repos sharing this ${cfg.P.team} ignored`);
   return 0;
 }

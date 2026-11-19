@@ -39,7 +39,7 @@ export async function run(argv, ctx) {
   else {
     const top = r.markdown.split("\n## Intent vs body")[0];
     console.log(top.trimEnd());
-    console.log(`\n📝 ${r.file}`);
+    console.log(`\n_Wrote:_ ${r.file}`);
   }
   return 0;
 }

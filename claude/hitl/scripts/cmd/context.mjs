@@ -25,7 +25,7 @@ export async function run(argv, ctx) {
     const nid = m && map.ids[m[1]] ? map.ids[m[1]] + (m[2] || "") : null;
     if (nid) {
       if (ctx.json && !/^[A-Z]{2,5}-T\d+$/.test(nid)) { console.log(JSON.stringify({ old: target, id: nid, via: "id-map" })); return 0; }
-      console.error(`↪ ${target} is now ${nid} (${map.migratedAt ? `migrated ${map.migratedAt}, ` : ""}.hitl/index/id-map.json)`);
+      console.error(`→ ${target} is now ${nid} (${map.migratedAt ? `migrated ${map.migratedAt}, ` : ""}.hitl/index/id-map.json)`);
       if (!/^[A-Z]{2,5}-T\d+$/.test(nid)) { console.log(`${target} → ${nid}${/-D\d+$/.test(nid) ? "" : ` (hitl-index spec show ${nid.replace(/\.AC\d+$/, "")})`}`); return 0; }
       target = nid;
     }

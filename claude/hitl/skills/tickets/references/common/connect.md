@@ -13,10 +13,10 @@ Read before the first tracker call of `init`, `push` and `pull` (`status` never 
    |---|---|---|---|
    | `use` | keep it (the user names another one → save that one as below) | use **only** `server` for the whole run | same as push |
    | `save` | `hitl-index init --set <provider>.server=<server>`; say so in one line | — | — |
-   | `pick` | ⛔ GATE per `<PD>/init.md` step 1; END TURN; on reply save the chosen one | — | — |
+   | `pick` | GATE per `<PD>/init.md` step 1; END TURN; on reply save the chosen one | — | — |
    | `missing` | print `❌ <message>`; stop | print `❌ <message>`; fail-open (SKILL.md §4 step 5), reason `pinned <Tracker> server <name> not available` | print `❌ <message>`; stop |
    | `none` | print the `<PD>/init.md` step 1 message; stop | fail-open, reason `<Tracker> MCP not connected` | print `⚠️ <Tracker> MCP not connected`; stop |
-   | `legacy` | — | use the candidate that sees the mapped team (status `teamId`; how: `<PD>/connect.md`); none does → identity mismatch (§2 step 3, with `team.id` observed `null`); print the CLI's `💡` pin hint once (not with `--auto`) | same as push |
+   | `legacy` | — | use the candidate that sees the mapped team (status `teamId`; how: `<PD>/connect.md`); none does → identity mismatch (§2 step 3, with `team.id` observed `null`); print the CLI's `_Tip:_` pin hint once (not with `--auto`) | same as push |
 
    `<message>` is the CLI's (it contains the `claude mcp add …` line and `/mcp`). Never call another server's tools,
    never fall back to another server or API (GraphQL, curl, `gh` where `<PD>` does not allow it).
@@ -38,7 +38,7 @@ Read before the first tracker call of `init`, `push` and `pull` (`status` never 
    Print `❌ <Tracker> identity mismatch`, one line per `mismatches[]` (`<field>: expected <e> · observed <o>`), then
    the `fix` lines. With `--auto`: only `⚠️ <Tracker>: identity mismatch — /hitl:tickets push to see why`. Never fail
    the caller.
-4. `status: learned` → `💡 recorded <learned> in <provider>.map.json`; each `warnings[]` → a `⚠️` line.
+4. `status: learned` → `_Info:_ recorded <learned> in <provider>.map.json`; each `warnings[]` → a `⚠️` line.
 5. An auth / network error during this step is **unreachable**, not a mismatch: push → fail-open (SKILL.md §4 step 5,
    no `identity`); pull → `⚠️ <Tracker> unreachable (<msg>)`; stop.
 

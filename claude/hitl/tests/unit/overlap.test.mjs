@@ -72,7 +72,7 @@ test("hitl-index overlap: no candidates; a second change with the same id; linke
   assert.ok(c[0].pack.blocks.length > 0);
   assert.equal(cli(root, "note", "add", "--change", C, "--source", "fix-sign-in", "--kind", "order", "--text", "wait").code, 0);
   assert.equal(cli(root, "overlap", C, "--json").json().candidates[0].linked, true);
-  assert.match(cli(root, "overlap", C).out, /🔎 feat-password-reset may overlap fix-sign-in \(linked by notes\)/);
+  assert.match(cli(root, "overlap", C).out, /_Overlap\?_ feat-password-reset may overlap fix-sign-in \(linked by notes\)/);
   assert.equal(cli(root, "overlap", "feat-nope").code, 1);
   assert.equal(cli(root, "overlap").code, 2);
 });
@@ -139,12 +139,12 @@ test("checkOverlapReview: a finding needs ≥ 2 changes of the cluster incl. the
   assert.equal(three.amend, "/hitl:design feat-waive amend");
   assert.equal(one.n, 2);
   assert.equal(one.line, "⚠️ 2. feat-fee + feat-waive — Given a premium customer with an amount of 10 When the charge is settled Then feat-fee adds the fee, feat-waive does not " +
-    "(feat-fee: \"THEN the result is 11\" · feat-waive: \"the system SHALL NOT add a fee\") → 1. adjust feat-waive · 2. both sides (📥 note in feat-fee from feat-waive; " +
+    "(feat-fee: \"THEN the result is 11\" · feat-waive: \"the system SHALL NOT add a fee\") → 1. adjust feat-waive · 2. both sides (note in feat-fee from feat-waive; " +
     "feat-fee then waits until feat-waive is archived) · 3. not an overlap");
   assert.equal(one.amend, "/hitl:plan feat-waive amend");
   assert.equal(one.notes.length, 1);
   assert.match(one.notes[0].command, /^hitl-index note add --change feat-fee --source feat-waive --kind spec --refs FEE-R1\.S2 --text "[^"`$]+" --from "\/hitl:overlap feat-fee"$/);
-  assert.match(three.line, /2\. both sides \(📥 note in feat-waive, feat-report from feat-fee; feat-waive, feat-report then wait until feat-fee is archived\)/);
+  assert.match(three.line, /2\. both sides \(note in feat-waive, feat-report from feat-fee; feat-waive, feat-report then wait until feat-fee is archived\)/);
   assert.deepEqual(checkOverlapReview({}, { change: "feat-fee", cluster, texts: TEXTS }), { findings: [], dropped: [] });
   const many = checkOverlapReview({ findings: Array.from({ length: 7 }, (_, i) => F({ id: `O-${i + 1}`, confidence: 80 + i })) }, { change: "feat-fee", cluster, texts: TEXTS });
   assert.equal(many.findings.length, 5); assert.deepEqual(many.dropped.map((d) => d.id), ["O-2", "O-1"]);
@@ -168,7 +168,7 @@ function threeChanges() {
   return root;
 }
 
-test("hitl-index overlap --with: only the named targets; code section; unknown, archived or self targets refused; parents listed with 🔗", () => {
+test("hitl-index overlap --with: only the named targets; code section; unknown, archived or self targets refused; parents listed with _Parent:_", () => {
   const root = threeChanges();
   let r = cli(root, "overlap", "feat-fee", "--json");
   assert.equal(r.code, 0, r.err);
@@ -187,8 +187,8 @@ test("hitl-index overlap --with: only the named targets; code section; unknown, 
   assert.deepEqual([j.targets, j.candidates.map((c) => c.other)], [["feat-report", "feat-waive"], ["feat-waive"]]);
   assert.deepEqual(cli(root, "overlap", "feat-fee", "--with", "feat-waive", "--with", "feat-report", "--json").json().targets, ["feat-report", "feat-waive"]);
   r = cli(root, "overlap", "feat-fee", "--with", "feat-waive");
-  assert.match(r.out, /^🔎 feat-fee may overlap feat-waive: .*src\/settle\.ts file/m);
-  assert.match(r.out, /^   🧩 code: files src\/settle\.ts \(feat-fee BIL-T1 · feat-waive WAV-T1\)$/m);
+  assert.match(r.out, /^_Overlap\?_ feat-fee may overlap feat-waive: .*src\/settle\.ts file/m);
+  assert.match(r.out, /^   code: files src\/settle\.ts \(feat-fee BIL-T1 · feat-waive WAV-T1\)$/m);
   r = cli(root, "overlap", "feat-fee", "--with", "feat-nope");
   assert.equal(r.code, 1); assert.match(r.err, /change feat-nope not found/);
   r = cli(root, "overlap", "feat-fee", "--with", "feat-fee");
@@ -199,7 +199,7 @@ test("hitl-index overlap --with: only the named targets; code section; unknown, 
   j = cli(root, "overlap", "feat-report", "--json").json();
   const p = j.candidates.find((c) => c.other === "feat-fee");
   assert.deepEqual([p.parent, p.waitsFor, p.linked, p.evidence], [true, false, true, []]);
-  assert.match(cli(root, "overlap", "feat-report").out, /^🔗 parent feat-fee — shared: none found yet$/m);
+  assert.match(cli(root, "overlap", "feat-report").out, /^_Parent:_ feat-fee — shared: none found yet$/m);
   assert.ok(!cli(root, "overlap", "feat-fee", "--json").json().candidates.some((c) => c.other === "feat-report"), "a change it waits for, with no evidence, is not a candidate");
   // an archived target is refused
   fs.mkdirSync(path.join(root, ".hitl/archive"), { recursive: true });
@@ -227,15 +227,15 @@ test("hitl-index overlap --review: checks the judge's verdict against the change
   assert.match(j.dropped[1].reason, /feat-report, which this check did not include/);
   assert.ok(fs.existsSync(file), "--keep keeps the verdict");
   r = cli(root, "overlap", "feat-fee", "--with", "feat-waive", "--review");
-  assert.match(r.out, /^⚠️ 1\. feat-fee \+ feat-waive — Given .* → 1\. adjust feat-waive · 2\. both sides \(📥 note in feat-fee from feat-waive; .*\) · 3\. not an overlap$/m);
-  assert.match(r.out, /^💡 dropped O-2: witness quote not found in feat-fee$/m);
+  assert.match(r.out, /^⚠️ 1\. feat-fee \+ feat-waive — Given .* → 1\. adjust feat-waive · 2\. both sides \(note in feat-fee from feat-waive; .*\) · 3\. not an overlap$/m);
+  assert.match(r.out, /^_Info:_ dropped O-2: witness quote not found in feat-fee$/m);
   assert.ok(!fs.existsSync(file), "the verdict is removed after reading");
   // the note command of "both sides" runs as printed
   put({ change: "feat-fee", findings: [F({ refs: { "feat-fee": ["BIL-R1.S1"], "feat-waive": ["WAV-R1"] } })] });
   const cmd = cli(root, "overlap", "feat-fee", "--with", "feat-waive", "--review", "--json").json().findings[0].notes[0];
   const add = cli(root, "note", "add", "--change", cmd.change, "--source", cmd.source, "--kind", cmd.kind, "--refs", cmd.refs.join(","), "--text", cmd.text, "--from", "/hitl:overlap feat-fee");
   assert.equal(add.code, 0, add.err + add.out);
-  assert.match(add.out, /⏳ feat-fee now waits for feat-waive/);
+  assert.match(add.out, /_Waits:_ feat-fee now waits for feat-waive/);
   put({ change: "feat-waive", findings: [] });
   r = cli(root, "overlap", "feat-fee", "--review", "--json");
   assert.equal(r.code, 1); assert.match(r.json().errors[0], /about feat-waive, not feat-fee/);
@@ -266,10 +266,10 @@ test("evals (dry): overlap-gate passes on a good transcript; overlap-none fails 
   for (const c of [gate, none]) for (const [k, v] of Object.entries(grade(c, [text("x")]))) assert.notEqual(v.why, "unknown check", `${c.id}: ${k}`);
   const good = grade(gate, [
     tool("Bash", { command: "hitl-index overlap feat-fee --with feat-waive,feat-report --json" }),
-    text("🔎 feat-fee may overlap feat-waive: settle symbol · src/settle.ts file"),
+    text("_Overlap?_ feat-fee may overlap feat-waive: settle symbol · src/settle.ts file"),
     tool("Agent", { subagent_type: "hitl:spec-reviewer", prompt: "Mode: overlap. Change: feat-fee. Targets: feat-waive, feat-report.\nOverlap: hitl-index overlap feat-fee --with feat-waive,feat-report --json" }),
     tool("Bash", { command: "hitl-index overlap feat-fee --with feat-waive,feat-report --review --json" }),
-    text("📋 /hitl:overlap feat-fee — 1 finding(s)\n⚠️ 1. feat-fee + feat-waive — Given … → 1. adjust feat-waive · 2. both sides (📥 note in feat-fee from feat-waive; …) · 3. not an overlap\nReply per finding: \"1 2\"")]);
+    text("_Summary:_ /hitl:overlap feat-fee — 1 finding(s)\n⚠️ 1. feat-fee + feat-waive — Given … → 1. adjust feat-waive · 2. both sides (note in feat-fee from feat-waive; …) · 3. not an overlap\nReply per finding: \"1 2\"")]);
   for (const k of gate.checks) assert.ok(good[k].ok, `${k}: ${good[k].why}`);
   const twoJudges = grade(gate, [tool("Agent", { subagent_type: "hitl:spec-reviewer", prompt: "Mode: overlap. feat-waive" }), tool("Agent", { subagent_type: "hitl:spec-reviewer", prompt: "Mode: overlap. feat-report" }),
     tool("Write", { file_path: "/x/.hitl/changes/feat-fee/notes.md", content: "x" })]);

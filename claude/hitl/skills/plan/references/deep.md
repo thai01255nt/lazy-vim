@@ -5,7 +5,7 @@ Own text; technique ideas cited in `elicitation.md` (NOTICE.md). Read when an an
 The user answers `deep ACC-R7` (or `deep refunds`, or a bare `deep` under a question: that question's topic) in the
 plan brief. The next round holds the menu as one question:
 ```
-### Q14 [R] deep ACC-R7 Deactivate a user — which technique? (number, or Y for 💡)
+### Q14 [R] deep ACC-R7 Deactivate a user — which technique? (number, or Y for _Rec:_)
 
 1. Example mapping — rules → concrete examples → questions → #### Scenario blocks
 2. Five whys — dig to the real need behind it → ## Why / requirement wording
@@ -14,7 +14,7 @@ plan brief. The next round holds the menu as one question:
 5. Business rule → decision table — conditions × outcome → <KEY>-BR<n> + table, Rules: link
 6. Stakeholder lenses — BA · PO · ops/support · security · end user → missing requirements per lens
 
-💡 Recommended: 1 (the rule has no examples yet)
+_Rec:_ 1 (the rule has no examples yet)
 
 >
 ```

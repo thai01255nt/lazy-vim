@@ -48,7 +48,7 @@
 ## Coverage
 
 <!-- written by /hitl:plan (shared/interview.md §3); status ✅ clear · ⚠️ partial · ❌ missing · — n/a (note says why).
-     spec validate: COVERAGE_GAP for ⚠️/❌/unmarked/— without a note (error once approved unless "💡 Forced:" in Open questions) -->
+     spec validate: COVERAGE_GAP for ⚠️/❌/unmarked/— without a note (error once approved unless "_Forced:_" in Open questions) -->
 
 | category             | status | note                 |
 | -------------------- | ------ | -------------------- |
@@ -77,4 +77,4 @@
 
 ## Open questions
 
-- [ ] Q1 {question} — 💡 recommended: {answer}
+- [ ] Q1 {question} — _Rec:_ {answer}

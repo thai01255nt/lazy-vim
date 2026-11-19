@@ -41,9 +41,9 @@ export async function run(argv, ctx) {
   }
   if (json) { console.log(JSON.stringify({ ...b, change: b.change || entry.id, summary: briefSummary(b) }, null, 2)); return 0; }
   const s = briefSummary(b);
-  console.log(`📝 ${entry.id} — ${b.kind} brief round ${b.round} (${b.status}): ${b.counts.pending} pending, ${s.unanswered} unanswered · ${b.file}`);
+  console.log(`_Brief:_ ${entry.id} — ${b.kind} brief round ${b.round} (${b.status}): ${b.counts.pending} pending, ${s.unanswered} unanswered · ${b.file}`);
   for (const q of b.questions.filter((x) => x.pending))
-    console.log(`  ${q.id}${q.tag ? ` [${q.tag}]` : ""}${q.hot ? " 🔥" : ""} ${q.title}${q.ownY ? " (needs its own Y)" : ""} — ${q.answered ? (q.acceptedByRound ? "accepted (round)" : q.kind) : "unanswered"}`);
+    console.log(`  ${q.id}${q.tag ? ` [${q.tag}]` : ""}${q.hot ? " _Hot_" : ""} ${q.title}${q.ownY ? " (needs its own Y)" : ""} — ${q.answered ? (q.acceptedByRound ? "accepted (round)" : q.kind) : "unanswered"}`);
   for (const n of [...b.rounds.map((r) => r.notes), b.close?.notes].filter((x) => x?.pending))
     console.log(`  Notes${n.round ? ` (Round ${n.round})` : " (Close)"} — to process: ${n.text.split("\n")[0].slice(0, 80)}`);
   if (b.close) console.log(`  close: ${b.close.question || "?"} — ${b.close.kind}`);

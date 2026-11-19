@@ -19,7 +19,7 @@
 <!-- AUTO-GENERATED:BEGIN user-flows -->
 
 - [Use case 1]: [actor → step → step → outcome]
-- [Use case 2]: [brief flow]
+- [Use case 2]: [short flow]
 <!-- AUTO-GENERATED:END user-flows -->
 
 # Glossary

@@ -128,17 +128,17 @@ EOF
   expect_exit 1 CLI note add --change feat-fee --source feat-fee --kind order --text "self"
   CLI note add --change feat-fee --source feat-report --kind order --text "Monthly settlement report: feat-fee waits until it is archived." \
     --from "/hitl:plan feat-report --before feat-fee" > "$W/b1a.txt"
-  contains "$W/b1a.txt" "⏳ feat-fee now waits for feat-report"
+  contains "$W/b1a.txt" "_Waits:_ feat-fee now waits for feat-report"
   contains .hitl/changes/feat-fee/notes.md "- source: feat-report"
   # all of A waits: every stage and approver, --force and --ack included
   CLI approve BIL-T2 --stage skeleton --by human --force --json > "$W/b1b.json" && { echo "BIL-T2 approval must be refused"; return 1; } || true
-  afile "$W/b1b.json" 'd.ok === false && /⏳ feat-fee waits for feat-report \(N-1\)/.test(d.reasons[0]) && d.blockedBy[0].source === "feat-report"'
+  afile "$W/b1b.json" 'd.ok === false && /_Waits:_ feat-fee waits for feat-report \(N-1\)/.test(d.reasons[0]) && d.blockedBy[0].source === "feat-report"'
   CLI approve BIL-T2 --stage skeleton --by human --ack N-1 --json > "$W/b1c.json" && { echo "--ack must not release a wait"; return 1; } || true
   afile "$W/b1c.json" 'd.reasons.some((r) => /cannot be acked/.test(r))'
   CLI status --json > "$W/b1d.json"
   afile "$W/b1d.json" 'd.tasks["BIL-T2"].wait.for[0].change === "feat-report" && d.next.command === "/hitl:archive feat-report"'
   CLI status --brief > "$W/b1e.txt"
-  contains "$W/b1e.txt" "⏳ feat-fee waits for feat-report (N-1)"
+  contains "$W/b1e.txt" "_Waits:_ feat-fee waits for feat-report (N-1)"
   CLI change --json > "$W/b1f.json"
   afile "$W/b1f.json" 'd.changes.find((c) => c.id === "feat-report").blocks[0].change === "feat-fee" && d.changes.find((c) => c.id === "feat-fee").wait.for.length === 1'
   CLI spec archive feat-fee --dry-run --force --json > "$W/b1g.json" && { echo "archive of A must be refused"; return 1; } || true
@@ -162,7 +162,7 @@ sB2() {
   CLI status --json > "$W/b2e.json"
   afile "$W/b2e.json" 'd.next.command === "/hitl:plan feat-fee amend N-2"'
   CLI approve BIL-T2 --stage skeleton --by human --json > "$W/b2f.json" && { echo "BIL-T2 must wait for the amend"; return 1; } || true
-  afile "$W/b2f.json" 'd.reasons.some((r) => /📥 N-2 from feat-report \(archived\) is not applied yet/.test(r))'
+  afile "$W/b2f.json" 'd.reasons.some((r) => /_From feat-report:_ N-2 \(archived\) is not applied yet/.test(r))'
 }
 step BF2 "before: B's plan writes a source note into A (A's files untouched); B archived → wait lifts, N-2 forces A's amend" sB2
 
@@ -187,7 +187,7 @@ sB3() {
   CLI status BIL-T1 --json > "$W/b3e.json"
   afile "$W/b3e.json" 'taskStatus(d, "BIL-T1") === "done" && !d.tasks["BIL-T1"].wait'
   CLI approve BIL-T2 --stage skeleton --by human --dry-run --json > "$W/b3f.json" || true
-  afile "$W/b3f.json" '!d.reasons.some((r) => /waits for|📥/.test(r))'
+  afile "$W/b3f.json" '!d.reasons.some((r) => /waits for|_From /.test(r))'
 }
 step BF3 "before: A amends N-2 → recheck → the human reopens → rewritten test red → re-locked → done; BIL-T2 no longer waits" sB3
 
@@ -238,7 +238,7 @@ sB5() {
   CLI overlap feat-fee --with feat-waive --json > "$W/b5c.json"
   afile "$W/b5c.json" '((x) => x.ref === "settle" && x.changed.includes("body") && x.tasks.join() === "BIL-T1" && x.b.join() === "WAV-T1")(d.candidates[0].code.drift[0])'
   CLI overlap feat-fee --with feat-waive > "$W/b5d.txt"
-  contains "$W/b5d.txt" "🧩 code: symbols settle (feat-fee BIL-T1 · feat-waive WAV-T1)"
+  contains "$W/b5d.txt" "code: symbols settle (feat-fee BIL-T1 · feat-waive WAV-T1)"
   # the judge's verdict → gate lines; "both sides" writes a source note through the CLI
   mkdir -p .hitl/.inbox
   printf '%s' '{"schema":"hitl.overlap-review/1","change":"feat-fee","targets":["feat-waive"],"findings":[{"id":"O-1","changes":["feat-fee","feat-waive"],"type":"contradiction","given":"a premium amount of 10","when":"it is settled","then":"feat-fee adds the fee, feat-waive does not","quotes":{"feat-fee":"THEN the result is 12","feat-waive":"SHALL NOT add the fee"},"refs":{"feat-fee":["BIL-R1.S1"],"feat-waive":["WAV-R1"]},"source":"feat-waive","affected":["feat-fee"],"adjust":"feat-waive","kind":"spec","confidence":90},{"id":"O-2","changes":["feat-fee","feat-waive"],"given":"x","when":"y","then":"z","quotes":{"feat-fee":"made up text here"},"confidence":95}]}' > .hitl/.inbox/overlap-review.json
@@ -246,6 +246,6 @@ sB5() {
   afile "$W/b5e.json" 'd.findings.length === 1 && d.findings[0].id === "O-1" && d.dropped[0].id === "O-2" && /^⚠️ 1\. feat-fee \+ feat-waive — .* 3\. not an overlap$/.test(d.findings[0].line) && d.findings[0].notes[0].change === "feat-fee"'
   [ ! -f .hitl/.inbox/overlap-review.json ] || { echo "verdict not removed"; return 1; }
   CLI note add --change feat-fee --source feat-waive --kind spec --refs BIL-R1.S1 --text "Premium settlements pay no fee." --from "/hitl:overlap feat-fee" > "$W/b5f.txt"
-  contains "$W/b5f.txt" "⏳ feat-fee now waits for feat-waive"
+  contains "$W/b5f.txt" "_Waits:_ feat-fee now waits for feat-waive"
 }
 step BF5 "overlap (0.13.1): --with B,C filters targets; code section (shared symbol/file, drift on A's locked symbol); --review keeps witnessed findings; both sides → source note" sB5

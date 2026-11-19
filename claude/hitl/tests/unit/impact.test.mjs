@@ -114,7 +114,7 @@ test("note apply: guard, dry run, applied + recheck (also for wording on locked 
   // the recheck blocks PWR-T1 only
   const s = cli(root, "status", "--json").json();
   assert.deepEqual(s.tasks["PWR-T1"].notes.map((n) => n.id), ["N-2"]); assert.deepEqual(s.tasks["PWR-T2"].notes, []);
-  assert.match(cli(root, "status", "--brief").out, /📌 notes: feat-password-reset 1 reopen pending → \/hitl:approve feat-password-reset reopen N-2/);
+  assert.match(cli(root, "status", "--brief").out, /_Note_ feat-password-reset 1 reopen pending → \/hitl:approve feat-password-reset reopen N-2/);
   // wording on locked work still writes a recheck (nothing to unlock); without a note id (amend from review)
   r = cli(root, "note", "apply", ...C, "--impact", "PWR-R1.S1=wording", "--from", "/hitl:review PWR-T1 amend F-2", "--json");
   assert.equal(r.code, 0, r.out); assert.equal(r.json().recheck, "N-3");

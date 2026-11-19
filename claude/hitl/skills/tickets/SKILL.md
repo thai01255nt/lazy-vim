@@ -37,18 +37,18 @@ Hand-off files go to `.hitl/.inbox/` (Write tool). Never write `.hitl/<provider>
 ## 2. `status` (local, no network)
 `hitl-index tickets status --json`. Print `<Tracker>: on|off · <workspace>/<team> · server <s> · project <p> · mapped n
 · out of sync n · queued n` (omit unknown parts), the table `task | title | status | issue | synced | link` (synced: ✅
-or the `reason`), then per mapped task `🎯 branch: git switch -c <branch>` and `PR: <prLine>`. `enabled: false` →
-`ℹ️ <Tracker> sync is off (/hitl:tickets init)`. `queued > 0` → `⚠️ <n> <Tracker> update(s) queued → /hitl:tickets
-push`. `enabled && !server` → `💡 pin the <Tracker> MCP server: /hitl:tickets init`.
+or the `reason`), then per mapped task `_Branch:_ git switch -c <branch>` and `PR: <prLine>`. `enabled: false` →
+`_Info:_ <Tracker> sync is off (/hitl:tickets init)`. `queued > 0` → `⚠️ <n> <Tracker> update(s) queued → /hitl:tickets
+push`. `enabled && !server` → `_Tip:_ pin the <Tracker> MCP server: /hitl:tickets init`.
 
 ## 4. `push [scope] [--auto]`
-1. `hitl-index tickets plan [scope] --json`, then stop on: `enabled: false` → `ℹ️ <Tracker> sync is off (/hitl:tickets
-   init)` · `configured: false` → `💡 run /hitl:tickets init` · `ops: []` → `✅ <Tracker> in sync` (these three print
+1. `hitl-index tickets plan [scope] --json`, then stop on: `enabled: false` → `_Info:_ <Tracker> sync is off (/hitl:tickets
+   init)` · `configured: false` → `_Tip:_ run /hitl:tickets init` · `ops: []` → `✅ <Tracker> in sync` (these three print
    nothing with `--auto`) · exit ≠ 0 → `⚠️ <Tracker>: <CLI message>`.
 2. Server pick and identity check (`<CONN>` §1–§2, also with `--auto`). Server missing / none → step 5 (fail-open);
    mismatch → stop (nothing executed, nothing recorded).
-3. Gate: any op with `needsGate` and not `--auto` → ⛔ GATE: table `# | op | task | issue | state | prio | labels |
-   reason` (gated rows ⛔) + `skipped`/`warnings` lines, options `1. 💡 push all  2. push without gated ops  3. cancel`.
+3. Gate: any op with `needsGate` and not `--auto` → GATE: table `# | op | task | issue | state | prio | labels |
+   reason` (gated rows `_Gate_`) + `skipped`/`warnings` lines, options `1. _Rec:_ push all  2. push without gated ops  3. cancel`.
    END TURN. Option 3 → stop (nothing recorded); option 2 → non-gated ops only. `--auto` → non-gated ops only, plus one
    line `⚠️ needs you: /hitl:tickets push` for the gated ones.
 4. Execute the chosen ops **in plan order** as `<PD>/push-ops.md` says. The user stops you mid-push → stop at once,
@@ -62,8 +62,8 @@ push`. `enabled && !server` → `💡 pin the <Tracker> MCP server: /hitl:ticket
 6. `replan: true` → repeat from step 1 (max 3 passes per invocation; gated ops still need the gate). A new pass reuses
    this run's server and identity object (no new verify).
 7. Report per created/updated task `PWR-T1 → <issue> (<state name>) <url>` (state name as the tool returned it, else the
-   plan's `stateType`, else omit); then from `hitl-index tickets status --json` `🎯 branch: git switch -c <branch>` for
-   mapped tasks in `todo|skeleton|approved` and the `PR: <prLine>` lines. `--auto`: at most 3 lines (`🔗 <Tracker>: <n>
+   plan's `stateType`, else omit); then from `hitl-index tickets status --json` `_Branch:_ git switch -c <branch>` for
+   mapped tasks in `todo|skeleton|approved` and the `PR: <prLine>` lines. `--auto`: at most 3 lines (`_Tickets:_ <Tracker>: <n>
    updated · <m> queued`, the gated hint, the PR line).
 
 ## 5. `pull [--relink]` (read-only)
@@ -78,7 +78,7 @@ Follow `<PD>/pull.md`; never edit tasks md, proposals or specs, never push. Sugg
 | `<P>_MISSING` | `issue deleted or moved? fix by hand` |
 | `<P>_AMBIGUOUS` | `two issues claim this task (legacy markers from two repos?) — fix by hand` |
 
-`foreign > 0` → `ℹ️ <n> issue(s) of other repos ignored` (their marker has another `repo=`).
+`foreign > 0` → `_Info:_ <n> issue(s) of other repos ignored` (their marker has another `repo=`).
 
 ## 5b. Archive
 `/hitl:archive` never calls this skill nor closes a container; the next push only updates each issue's `file=` marker.

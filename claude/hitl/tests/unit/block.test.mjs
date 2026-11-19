@@ -26,12 +26,12 @@ test("each hit type refuses skeleton, tests and done; --force, --by auto and hum
     const n = note("N-1", refs, refs[0] === "UserService.createUser" ? { meta: { symbols: { "UserService.createUser": CU } } } : {});
     const r = planApproval(base({ stage, index: idx, lock: lockedCU, notes: [n] }));
     assert.equal(r.ok, false, `${refs} ${stage}`);
-    assert.match(r.reasons[0], new RegExp(`📌 N-1 \\(note N-1\\) touches QT-T1 via ${refs[0].replace(/\./g, "\\.")}`));
+    assert.match(r.reasons[0], new RegExp(`_Note_ N-1 \\(note N-1\\) touches QT-T1 via ${refs[0].replace(/\./g, "\\.")}`));
     assert.deepEqual(r.blockedBy.map((b) => [b.note, b.apply]), [["N-1", "/hitl:plan feat-users amend N-1"]]);
   }
   for (const o of [{ force: true }, { by: "auto", task: { ...TASK, risk: "low" } }, { by: "human-override" }]) {
     const r = planApproval(base({ ...o, notes: [note("N-1", ["QT-T1"])] }));
-    assert.equal(r.ok, false, JSON.stringify(o)); assert.match(r.reasons.join(";"), /📌 N-1/);
+    assert.equal(r.ok, false, JSON.stringify(o)); assert.match(r.reasons.join(";"), /_Note_ N-1/);
   }
   const miss = planApproval(base({ notes: [note("N-1", ["QT-T2", "ACC-R2.S1", "USR-D2"])] }));
   assert.equal(miss.ok, true, miss.reasons.join("; "));
@@ -50,14 +50,14 @@ test("statuses: applied/dismissed/deferred never block; reopen pending blocks an
 test("--ack: releases only the named note for this task, human only, unknown/unrelated ids refused; an existing ack keeps covering the task", () => {
   const notes = [note("N-1", ["QT-T1"]), note("N-2", ["ACC-R1"])];
   const one = planApproval(base({ ack: ["N-1"], notes }));
-  assert.equal(one.ok, false); assert.match(one.reasons.join(";"), /N-2/); assert.doesNotMatch(one.reasons.join(";"), /📌 N-1/);
+  assert.equal(one.ok, false); assert.match(one.reasons.join(";"), /N-2/); assert.doesNotMatch(one.reasons.join(";"), /_Note_ N-1/);
   const both = planApproval(base({ ack: ["N-1", "N-2"], notes }));
   assert.equal(both.ok, true, both.reasons.join("; ")); assert.deepEqual(both.noteAcks, ["N-1", "N-2"]);
   assert.match(planApproval(base({ ack: ["N-9"], notes: [] })).reasons[0], /--ack N-9: no such note in feat-users/);
   assert.match(planApproval(base({ ack: ["N-1"], notes: [note("N-1", ["QT-T7"])] })).reasons[0], /--ack N-1: .* does not block QT-T1/);
   assert.match(planApproval(base({ ack: ["N-1"], by: "auto", notes })).reasons[0], /--ack is human-only/);
   const later = planApproval(base({ stage: "tests", notes: [note("N-1", ["QT-T1"], { acks: [{ task: "QT-T1", at: "2026-11-05" }] })] }));
-  assert.doesNotMatch(later.reasons.join(";"), /📌/, "acked for QT-T1: all stages of QT-T1");
+  assert.doesNotMatch(later.reasons.join(";"), /_Note_/, "acked for QT-T1: all stages of QT-T1");
   assert.match(later.warnings.join(";"), /is open but acked for QT-T1/);
   const other = planApproval(base({ notes: [note("N-1", ["QT-T1"], { acks: [{ task: "QT-T2" }] })] }));
   assert.equal(other.ok, false, "an ack for another task does not count");

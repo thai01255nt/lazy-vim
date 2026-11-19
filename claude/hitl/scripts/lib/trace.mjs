@@ -448,14 +448,14 @@ export function specLinksFor(inputs, symbolId) {
   return block(withDoc[0], decisions, collect(covering.flatMap((t) => (t.tags?.ac || []).flatMap(reqOf))));
 }
 
-const ICON = { block: "⛔", warn: "⚠️", info: "ℹ️" };
+const ICON = { block: "_Block:_", warn: "⚠️", info: "_Info:_" };
 const clip = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1) + "…" : String(s));
 function marker(t) {
-  if (t.mode !== "active") return "📝";
-  if (!t.fresh || !t.outcome) return "⏳";
+  if (t.mode !== "active") return "_Todo_";
+  if (!t.fresh || !t.outcome) return "_Stale_";
   if (t.outcome === "pass") return "✅";
   if (t.outcome === "fail" || t.outcome === "error") return "❌";
-  return "📝";
+  return "_Todo_";
 }
 const testsCell = (a) => (a.tests.length ? a.tests.map((t) => `"${clip(t.title, 40)}" ${marker(t)}`).join(" · ") : "—").replace(/\|/g, "\\|");
 const symsCell = (a) => (a.symbols.length ? a.symbols.map((s) => `${s.name} (${s.status || "?"})`).join(" · ") : "—");

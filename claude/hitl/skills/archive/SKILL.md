@@ -11,16 +11,16 @@ Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/sh
 ("Merge and archive"). Only the CLI writes `.hitl/specs/**` and `.hitl/archive/**`; you never edit them.
 
 Arguments: `$ARGUMENTS` — `<change-id>` (empty → the active changes with `phase: archive-ready` from
-`hitl-index change --json`: one → `💡 Assumed: <id>`; several → ⛔ GATE `Archive which change? (1/2/…)` END THE TURN;
-none → `🛑 No change is ready to archive.` + each active change with its phase). `--force` is passed to the CLI only when
+`hitl-index change --json`: one → `_Assumed:_ <id>`; several → GATE `Archive which change? (1/2/…)` END THE TURN;
+none → `_Stop:_ No change is ready to archive.` + each active change with its phase). `--force` is passed to the CLI only when
 the user typed it **or** picked it at the gate below.
 
 ## 1. Preview (no writes)
 `hitl-index spec archive <id> --dry-run --json` (add `--force` only per the rule above). Exit 3 → per conventions.
 
-## 2. ⛔ GATE — the diff
+## 2. GATE — the diff
 ```
-📦 Archive feat-password-reset → .hitl/archive/2026-11-02-feat-password-reset
+Archive feat-password-reset → .hitl/archive/2026-11-02-feat-password-reset
 | capability | file | new? | added | modified | removed | already applied |
 |------------|------|------|-------|----------|---------|-----------------|
 | accounts | .hitl/specs/accounts/spec.md | no | PWR-R1 PWR-R2 PWR-BR1 PWR-UC1 | SGN-R1 | SGN-R2 | — |
@@ -35,16 +35,16 @@ Apply? (Y/n)
 - `DONE_BODY_DRIFT` warnings (preflight: a symbol of the change whose code moved since its task's done record) → one line
   `⚠️ drift since done: <symbols> — after archiving, /hitl:sync offers claim (into an open task) or accept` (never blocks).
 
-**When `ok: false`**, replace `Apply? (Y/n)` with numbered options; recommend one with 💡:
+**When `ok: false`**, replace `Apply? (Y/n)` with numbered options; recommend one with `_Rec:_`:
 | cause | options |
 |---|---|
-| `preconditions.tasks.notDone` | 1. 💡 finish them first (`🎯 /hitl:flow`) · 2. archive anyway (`--force`; the tasks stay in the archived tasks.md as not done) |
-| `preconditions.validate` failed / `errors[]` | list them; 1. 💡 fix the spec (`/hitl:plan <id>`) — no force option |
-| `DELTA_ID_TAKEN` (another branch archived the same new id) | 1. 💡 renumber inside this change (`--renumber`; rewrites deltas, design `serves`, task AC refs in the change folder only; code is never touched) · 2. stop |
-| `BASE_CHANGED` (a living requirement changed after this change copied it) | show the living text vs the delta text; 1. 💡 update the delta to include the living change (I edit `specs/<cap>/spec.md` of this change, re-run validate and the preview) · 2. keep the delta as is (`--accept-base <IDs>`) · 3. stop |
-| `CROSS_CHANGE_CONFLICT` / `DELTA_TARGET_MISSING` / `CAP_*` / `ARCHIVE_EXISTS` | explain in one line each; 1. 💡 stop and fix (`/hitl:plan <id> amend`) |
-| `preconditions.notes.wait` (a note from another change: that change is not archived yet, is gone, or its note is not taken in) | print each line as is (`⏳ … waits for <other>` / `📥 N-k from <other> …`); `--force` never skips it; 1. 💡 finish and archive `<other>` first, or take the note in (`/hitl:plan <id> amend N-k`) · 2. the human types `/hitl:approve <id> dismiss N-k <reason>` (the user decides the order, never you) |
-| `preconditions.notes.open` without `source` (an open note or a recheck waiting for reopen) | one line each `📌 N-k (<title>) — <apply>`; `--force` never skips it; 1. 💡 apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
+| `preconditions.tasks.notDone` | 1. _Rec:_ finish them first (`_Next:_ /hitl:flow`) · 2. archive anyway (`--force`; the tasks stay in the archived tasks.md as not done) |
+| `preconditions.validate` failed / `errors[]` | list them; 1. _Rec:_ fix the spec (`/hitl:plan <id>`) — no force option |
+| `DELTA_ID_TAKEN` (another branch archived the same new id) | 1. _Rec:_ renumber inside this change (`--renumber`; rewrites deltas, design `serves`, task AC refs in the change folder only; code is never touched) · 2. stop |
+| `BASE_CHANGED` (a living requirement changed after this change copied it) | show the living text vs the delta text; 1. _Rec:_ update the delta to include the living change (I edit `specs/<cap>/spec.md` of this change, re-run validate and the preview) · 2. keep the delta as is (`--accept-base <IDs>`) · 3. stop |
+| `CROSS_CHANGE_CONFLICT` / `DELTA_TARGET_MISSING` / `CAP_*` / `ARCHIVE_EXISTS` | explain in one line each; 1. _Rec:_ stop and fix (`/hitl:plan <id> amend`) |
+| `preconditions.notes.wait` (a note from another change: that change is not archived yet, is gone, or its note is not taken in) | print each line as is (`_Waits:_ … waits for <other>` / `_From <other>:_ N-k …`); `--force` never skips it; 1. _Rec:_ finish and archive `<other>` first, or take the note in (`/hitl:plan <id> amend N-k`) · 2. the human types `/hitl:approve <id> dismiss N-k <reason>` (the user decides the order, never you) |
+| `preconditions.notes.open` without `source` (an open note or a recheck waiting for reopen) | one line each `_Note N-k_ (<title>) — <apply>`; `--force` never skips it; 1. _Rec:_ apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
 END THE TURN.
 
 ## 3. Apply
@@ -56,21 +56,21 @@ On Y (or the chosen option):
 - Success: print
   ```
   ✅ Archived feat-password-reset → .hitl/archive/2026-11-02-feat-password-reset
-  📝 specs/accounts/spec.md (+4 ~1 -1) · GLOSSARY.md (+1) · written: <n> files
+  _Wrote:_ specs/accounts/spec.md (+4 ~1 -1) · GLOSSARY.md (+1) · written: <n> files
   ```
   The archive also re-points the lock's tasks of the change to the archived tasks file (`archive.lockTasks`; bookkeeping,
   not an approval): from now on they are frozen history and stay done.
   Then `hitl-index trace --capability <cap> --json` per capability and one line
-  `🔗 <cap>: R <covered>/<total> covered · scenarios <withAc>/<total> with AC` (no percentages).
+  `_Trace:_ <cap>: R <covered>/<total> covered · scenarios <withAc>/<total> with AC` (no percentages).
 - Ticket tracker: archive never pushes and never closes the change's container (project, epic or milestone). Mapped tasks get their new `file=` marker on the next
   `/hitl:tickets push` (say so in one line only when `hitl-index tickets status --json` shows `enabled`).
-- One line: `💡 /hitl:tidy <id>, then hitl-index strip <id>` (optional, yours to run: tidy rewrites the intents to one
+- One line: `_Tip:_ /hitl:tidy <id>, then hitl-index strip <id>` (optional, yours to run: tidy rewrites the intents to one
   current contract per symbol and stops for `/hitl:approve <id> intent`; strip removes @task/@impl/@status/@prio/@dec/@risk
   from the change's done functions, lock, drift and statuses unchanged). Never run strip yourself.
-- `archive.unblocked[]` (active changes that waited for this one, 0.12) → one line each: `🔓 <change> no longer waits`
-  when `stillBlocked` is false; each `amend[]` item → `📥 <change> must take in <N-k> first → 🎯 <apply>` (that change
+- `archive.unblocked[]` (active changes that waited for this one, 0.12) → one line each: `_Unblocked:_ <change> no longer waits`
+  when `stillBlocked` is false; each `amend[]` item → `_Take in:_ <change> must take in <N-k> first → _Next:_ <apply>` (that change
   amends itself; this archived one is never edited).
-- 🎯 next: `hitl-index status --json` `.next` (another change, or `/hitl:go <describe the work>`).
+- _Next:_ `hitl-index status --json` `.next` (another change, or `/hitl:go <describe the work>`).
 
 ## Rules
 - Never edit `.hitl/specs/**`, `.hitl/archive/**` or `.base.json` yourself; never move folders by hand.

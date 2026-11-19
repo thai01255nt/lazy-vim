@@ -29,22 +29,22 @@ with `--by human-override`. Never add it yourself.
 ## Preconditions
 
 `hitl-index status <T> --json` and `hitl-index tasks --json`:
-- not initialized → 🛑 `Run /hitl:setup first.`
-- task status `todo` → 🛑 `Run /hitl:skeleton <T> first`; `skeleton` (not approved) → 🛑 `Run /hitl:approve <T> first` (low risk, either status: `/hitl:implement <T>` runs the fast lane).
-- `fill` when tests are already locked → ask: ⛔ GATE `Tests for <T> are locked. 1. add tests for new ACs only 2. run them (run) 3. cancel`.
+- not initialized → _Stop:_ `Run /hitl:setup first.`
+- task status `todo` → _Stop:_ `Run /hitl:skeleton <T> first`; `skeleton` (not approved) → _Stop:_ `Run /hitl:approve <T> first` (low risk, either status: `/hitl:implement <T>` runs the fast lane).
+- `fill` when tests are already locked → ask: GATE `Tests for <T> are locked. 1. add tests for new ACs only 2. run them (run) 3. cancel`.
 - status `reopened` (`reopen.stage: tests`) → **reopen fill**, no question: the contract pack's `## Reopened (N-k)`
   lists the ACs and the tests to rewrite. In step 2 add to the prompt: `Reopened: rewrite only these tests to the current
   AC text (they assert the old behaviour): <ac → test titles>; write one for a reopened AC without a test; delete a test
   whose scenario was removed. Leave every other test unchanged.` RED check (step 3) for them: a rewritten test must
   `fail` against the current code (pass → bounce: it does not show the new behaviour); an unchanged one may pass.
   Lock as in step 5 (the CLI refuses a rewritten test that passes, and any other locked test that changed).
-  `reopen.stage: skeleton` → 🛑 `Run /hitl:skeleton <T> first (its skeleton is reopened).`
+  `reopen.stage: skeleton` → _Stop:_ `Run /hitl:skeleton <T> first (its skeleton is reopened).`
 
 ## Mode `fill`
 
 1. **Contract pack**: `hitl-index context <T> --contract --out .hitl/index/contracts/<T>.md`.
    Read it. Extract the test file paths (the `tests:` lines) and the test-plan rows.
-   Rows with `author: human` are not delegated: list them as `✍️ yours: <KEY>-T<n>.AC<k> (<kind>)`.
+   Rows with `author: human` are not delegated: list them as `_Yours:_ <KEY>-T<n>.AC<k> (<kind>)`.
 2. **Spawn `hitl:test-author`** (Agent tool, `subagent_type: hitl:test-author`). Prompt, nothing else:
    ```
    Task: <T>. Contract pack: .hitl/index/contracts/<T>.md (read it first).
@@ -71,18 +71,18 @@ with `--by human-override`. Never add it yourself.
    (a tell: `<testId → tell (test-patterns §2) → fix>`). After 2 bounces, stop bouncing and report them as `needsHuman`;
    a tell left after the budget is a ⚠️ line at the lock, never a block.
 5. **Lock**:
-   - Risk **high** (no `--override`): ⛔ GATE — print the table, then the line below, end turn.
+   - Risk **high** (no `--override`): GATE — print the table, then the line below, end turn.
      ```
      | ac | test | kind | result |
      |----|------|------|--------|
      | PWR-T12.AC1 | rejects duplicate email in any case | example | ❌ fail (expected throw) |
      ```
      `Review tests in <files>, then /hitl:approve <T> tests  •  or tell me what to change.`
-   - Risk **low** (and the RED check is clean): `hitl-index approve <T> --stage tests --by auto`, print `⚡ tests auto-locked`.
-     If the RED check is not clean, do not auto-lock: 🛑 show the failures.
+   - Risk **low** (and the RED check is clean): `hitl-index approve <T> --stage tests --by auto`, print `_Fast_ tests auto-locked`.
+     If the RED check is not clean, do not auto-lock: _Stop:_ show the failures.
    - `--override` (and the RED check is clean): `hitl-index approve <T> --stage tests --by human-override` (alone, no
-     chaining), print `⚠️⚡ tests locked by human override`. Same rule: a dirty RED check never locks.
-   - 🎯 next: `/hitl:implement <T>` (after the approval for high risk).
+     chaining), print `⚠️ _Fast_ tests locked by human override`. Same rule: a dirty RED check never locks.
+   - _Next:_ `/hitl:implement <T>` (after the approval for high risk).
 
 ## Mode `run`
 
@@ -96,7 +96,7 @@ Stale results (body changed since the run) are not evidence; say so.
 ## Mode `mutate`
 
 1. `hitl-index mutate --task <T> --json`.
-   `{configured:false}` → 💡 print how to configure it and stop:
+   `{configured:false}` → `_Tip:_` print how to configure it and stop:
    - TS/JS: Stryker (`npm i -D @stryker-mutator/core`), then
      `hitl-index init --set commands.mutation.ts="npx stryker run --mutate {mutate} --reporters json,clear-text"`
      (`{mutate}` = changed function ranges; the `json` reporter writes the `reports/mutation/mutation.json` the CLI reads).
@@ -108,12 +108,12 @@ Stale results (body changed since the run) are not evidence; say so.
    `Add a test that kills each survivor. Expected values come from the contract/ACs; if the mutant is equivalent
    (no observable behaviour change), say so in notes instead of writing a test.`
 4. `hitl-index test --task <T> --json`: the new killer tests must **pass** on the real body (they target mutants, not stubs).
-   A killer test that fails on the real body is either a real bug (report it, `🎯 /hitl:review <T>`) or a wrong test (bounce once).
+   A killer test that fails on the real body is either a real bug (report it, `_Next:_ /hitl:review <T>`) or a wrong test (bounce once).
 5. Re-run `hitl-index mutate --task <T> --json` and print before → after.
-6. Re-lock: risk high → ⛔ GATE `New tests added: <list>. Review, then /hitl:approve <T> tests`.
+6. Re-lock: risk high → GATE `New tests added: <list>. Review, then /hitl:approve <T> tests`.
    Risk low → `hitl-index approve <T> --stage tests --by auto` (re-locks accept green tests, but each needs a fresh run;
    never add `--force`). If the CLI refuses, print its reason and stop.
 
 ## Output
 
-Always end with a one-line status and `🎯 next:`. No completion claim without the fresh `hitl-index test` run in this turn.
+Always end with a one-line status and `_Next:_`. No completion claim without the fresh `hitl-index test` run in this turn.

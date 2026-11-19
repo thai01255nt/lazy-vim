@@ -33,8 +33,8 @@ test("status --json/--brief and change --json show notes; archive refuses open n
   assert.deepEqual(s.changes[0].notes, { open: 1, reopenPending: 0, applied: 0, dismissed: 0, deferred: 0, total: 1, incoming: 0 });
   assert.equal(s.next.command, "/hitl:plan feat-password-reset amend N-1", "PWR-T2 is the only frontier task and it is blocked");
   const brief = cli(root, "status", "--brief").out;
-  assert.match(brief, /📌 notes: feat-password-reset 1 open → \/hitl:plan feat-password-reset amend N-1/);
-  assert.match(cli(root, "status").out, /\| todo 📌 N-1 \|/);
+  assert.match(brief, /_Note_ feat-password-reset 1 open → \/hitl:plan feat-password-reset amend N-1/);
+  assert.match(cli(root, "status").out, /\| todo _Note N-1_ \|/);
   const c = cli(root, "change", "feat-password-reset", "--json").json().changes[0];
   assert.equal(c.notes.open, 1);
   const a = cli(root, "spec", "archive", "feat-password-reset", "--dry-run", "--force", "--json");
@@ -42,10 +42,10 @@ test("status --json/--brief and change --json show notes; archive refuses open n
   const d = a.json();
   assert.equal(d.ok, false);
   assert.deepEqual(d.preconditions.notes.open.map((n) => [n.id, n.status]), [["N-1", "open"]]);
-  assert.match(cli(root, "spec", "archive", "feat-password-reset", "--dry-run", "--force").out, /📌 N-1 .*--force does not skip notes/);
+  assert.match(cli(root, "spec", "archive", "feat-password-reset", "--dry-run", "--force").out, /_Note N-1_ .*--force does not skip notes/);
   // no notes file: nothing changes
   const clean = specProject();
   assert.equal(cli(clean, "status", "--json").json().changes[0].notes, null);
-  assert.doesNotMatch(cli(clean, "status", "--brief").out, /📌/);
+  assert.doesNotMatch(cli(clean, "status", "--brief").out, /_Note_/);
   assert.ok(!fs.existsSync(path.join(clean, ".hitl/changes/feat-password-reset/notes.md")));
 });

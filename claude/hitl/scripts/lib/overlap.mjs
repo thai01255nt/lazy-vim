@@ -202,7 +202,7 @@ export const evidenceLine = (ev) => ev.map((e) => `${e.ref}${e.title ? ` (${e.ti
 
 // ---- /hitl:overlap deep judge (0.13.1): the spec-reviewer's overlap mode writes REVIEW_FILE; `hitl-index overlap A
 // --review` checks it here (a finding needs a Given/When/Then witness quoting every change it names, found in that
-// change's own files) and turns each kept finding into one ⛔ gate line. Pure; the command does the IO.
+// change's own files) and turns each kept finding into one gate line. Pure; the command does the IO.
 export const REVIEW_FILE = ".hitl/.inbox/overlap-review.json";
 export const REVIEW_SCHEMA = "hitl.overlap-review/1";
 export const REVIEW_MAX = 5;
@@ -227,7 +227,7 @@ const shellText = (s) => String(s).replace(/["`$\\]/g, "'").replace(/\s+/g, " ")
  * `cluster` = the change and the targets checked; `texts` = Map id -> normText of the change's files. A finding is kept
  * only when it names ≥ 2 changes of the cluster including `change`, has Given, When and Then, quotes every change it
  * names (found in that change's text) and has confidence ≥ 80. Max 5, highest confidence first. Each kept finding gets
- * its direction (`source` goes first; `affected` get the 📥 notes and wait), `adjust` (the side to amend), `kind`, the
+ * its direction (`source` goes first; `affected` get the notes and wait), `adjust` (the side to amend), `kind`, the
  * gate `line`, the `amend` command and the exact `note add` commands of "both sides".
  */
 export function checkOverlapReview(review, { change, cluster, texts }) {
@@ -271,7 +271,7 @@ export function overlapGate(f, n, change) {
   const quoted = f.changes.map((c) => `${c}: "${f.quotes[c]}"`).join(" · ");
   const wait = f.affected.length > 1 ? "wait" : "waits";
   const line = `⚠️ ${n}. ${f.changes.join(" + ")} — Given ${f.given} When ${f.when} Then ${f.then} (${quoted}) → 1. adjust ${f.adjust} · ` +
-    `2. both sides (📥 note in ${f.affected.join(", ")} from ${f.source}; ${f.affected.join(", ")} then ${wait} until ${f.source} is archived) · 3. not an overlap`;
+    `2. both sides (note in ${f.affected.join(", ")} from ${f.source}; ${f.affected.join(", ")} then ${wait} until ${f.source} is archived) · 3. not an overlap`;
   const amend = `/hitl:${f.kind === "design" ? "design" : "plan"} ${f.adjust} amend`;
   const notes = f.affected.map((c) => {
     const text = shellText(`Overlap with ${f.source} (found by /hitl:overlap ${change}): given ${f.given}, when ${f.when}, then ${f.then}. ` +

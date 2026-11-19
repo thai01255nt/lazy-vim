@@ -50,7 +50,7 @@ export function intentVsBody(lockEntry, sym) {
   if (!todos.length) return "no TODO flow recorded";
   const have = new Set((sym?.flowSteps || []).map(stepNum).filter((n) => n !== null));
   const still = new Set((sym?.todos || []).map(stepNum).filter((n) => n !== null));
-  return todos.map((t, i) => { const n = stepNum(t) ?? i + 1; return `${n} ${words(t)} ${have.has(n) ? "✓" : still.has(n) ? "✗ (TODO left)" : "✗"}`; }).join(" · ");
+  return todos.map((t, i) => { const n = stepNum(t) ?? i + 1; return `${n} ${words(t)} ${have.has(n) ? "✅" : still.has(n) ? "❌ (TODO left)" : "❌"}`; }).join(" · ");
 }
 
 function gateRow(g, l0) {
@@ -106,7 +106,7 @@ export function buildReport(o) {
     }
     if (acs.length > 10) L.push(`… +${acs.length - 10} more`);
     if (!acs.length) L.push("- no acceptance criteria");
-    for (const i of (tr.items || []).filter((x) => x.level !== "info").slice(0, 5)) L.push(`${i.level === "block" ? "⛔" : "⚠️"} ${i.code} ${i.ref} — ${i.message}`);
+    for (const i of (tr.items || []).filter((x) => x.level !== "info").slice(0, 5)) L.push(`${i.level === "block" ? "_Block:_" : "⚠️"} ${i.code} ${i.ref} — ${i.message}`);
   }
 
   L.push("", "## Functions (sorted by risk)", "| symbol | impl | status | risk | reasons | route |", "|---|---|---|---|---|---|");

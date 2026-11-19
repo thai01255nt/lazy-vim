@@ -17,7 +17,7 @@ risk reason `security…` such as `risk: high (security)`, or a human override, 
 the task crosses a trust boundary the index cannot see: authN/authZ, parsing untrusted input, crypto, secrets, file /
 IPC / network I/O, LLM prompts or tool calls, deserialization, multi-tenant data. Judge the second case from the task
 title, ACs, risk reasons and the change's `design.md` `## Risks` (a `security:` line names the boundaries) and say
-`💡 Assumed: security lens (trust boundary: <x>)`.
+`_Assumed:_ security lens (trust boundary: <x>)`.
 
 ## 2. Lens method (guidance mode, per task)
 

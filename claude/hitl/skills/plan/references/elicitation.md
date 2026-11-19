@@ -10,7 +10,7 @@ old component tree.
 
 ## Contents
 1. Breadth — coverage
-2. Auto-depth — hotspots 🔥
+2. Auto-depth — hotspots (`_Hot_`)
 3. User-driven depth — `deep <ID|topic>` (menu in `deep.md`)
 4. Stop rule
 
@@ -37,13 +37,13 @@ description before round 1 and is updated after every run.
 The next round's frontier takes ❌ first, then ⚠️ (highest impact first). Anything still unresolved is written as
 `[NEEDS CLARIFICATION: …]` in the delta or proposal at the place it belongs, plus an `## Open questions` line.
 
-## 2. Auto-depth — hotspots 🔥
+## 2. Auto-depth — hotspots (`_Hot_`)
 Score every requirement and open point by **impact × uncertainty** (H/M/L each):
 - impact H: money, security/privacy, data loss, legal, many users, irreversible; M: a main flow; L: cosmetic/rare.
 - uncertainty H: the user hesitated, answers conflict, a rule has no number, the scout found surprising current
   behaviour; M: one assumption taken; L: stated plainly.
-H×H, H×M and M×H are **hotspots**: mark them `🔥` in the question heading (`### Q12 [R] 🔥 …`) and in the round
-heading (`(🔥 ACC-R7, refunds)`). Grilling descends into a hotspot's child decisions first (the frontier rule: its
+H×H, H×M and M×H are **hotspots**: mark them `_Hot_` in the question heading (`### Q12 [R] _Hot_ …`) and in the round
+heading (`(_Hot_ ACC-R7, refunds)`). Grilling descends into a hotspot's child decisions first (the frontier rule: its
 sub-questions become askable as soon as its parent is answered), before widening to other ❌ categories. A hotspot
 cools when its scenarios cover the failure path and its rule has numbers.
 
@@ -62,17 +62,17 @@ Close section lists the gaps and asks the gap question instead:
 ```
 ## Close
 
-⛔ Not ready for /hitl:design — gaps:
+❌ Not ready for /hitl:design — gaps:
 
 - Edge cases & errors ❌ · Success criteria ⚠️
 - ACC-R7 SHALL with [NEEDS CLARIFICATION: end open sessions?]
 
 ### Close with gaps? (round · deep <ID> · force)
 
-💡 Recommended: round — one more round on the gaps
+_Rec:_ round — one more round on the gaps
 
 >
 ```
-`force` writes `- 💡 Forced: closed with gaps <list> (<date>)` under the proposal's `## Open questions`; validate then
+`force` writes `- _Forced:_ closed with gaps <list> (<date>)` under the proposal's `## Open questions`; validate then
 downgrades the gaps (REQ_UNCLEAR and NEEDS_CLARIFICATION warn, COVERAGE_GAP info) and approval proceeds. `done` from
 the user is not a force: it ends the rounds and goes to this question.

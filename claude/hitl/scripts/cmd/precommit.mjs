@@ -46,7 +46,7 @@ export async function run(argv, ctx) {
   if (json) console.log(JSON.stringify({ ok: !block.length, block: block.length, warn: warn.length, items: [...block, ...warn] }, null, 2));
   else {
     console.log(`hitl precommit: ${block.length} block, ${warn.length} warn`);
-    for (const i of block) console.log(`⛔ ${i.code} ${name(i.symbol)} (${i.file || "?"}) — ${i.message || ""}`);
+    for (const i of block) console.log(`_Block:_ ${i.code} ${name(i.symbol)} (${i.file || "?"}) — ${i.message || ""}`);
     for (const i of warn.slice(0, 10)) console.log(`⚠️ ${i.code} ${name(i.symbol)} — ${i.message || ""}`);
     if (block.length) console.log("Commit blocked. Fix the items above or run /hitl:sync in Claude Code (git commit --no-verify bypasses).");
   }

@@ -1,7 +1,7 @@
 # Accept + amend spec (shared procedure, v3)
 
 Used by `/hitl:sync` (option 4), `/hitl:review` (`amend F-n`), `/hitl:implement` (spec change proposal, option 1),
-`/hitl:plan <change-id> amend [N-k]` and `/hitl:design` (`amend [N-k]`, `💡 Needs spec`). Purpose: when approved behaviour or an
+`/hitl:plan <change-id> amend [N-k]` and `/hitl:design` (`amend [N-k]`, `_Needs spec:_`). Purpose: when approved behaviour or an
 approved design must change, record *what* and *why* in the change (spec delta, superseded decision, Changelog)
 instead of letting code and spec silently diverge. No new phase: it runs inside the caller's gate. What it does to
 locked work (done tasks, locked tests, a locked skeleton) is listed in the Impact block and unlocked only by the
@@ -14,17 +14,17 @@ Ideas adapted (no code): OpenSpec delta specs (ADDED/MODIFIED/REMOVED) and Nygar
   `l0.trace.spec[<symbol>]` (`reviews/<T>/l0.json`), or `approve --json` `specLinks`. Shape for change tasks:
   `{ change, archived, capability, design, decisions: [{id, text, status, via}], requirements: [{id, scenario, title, text, via}] }`.
   Legacy v0.5 tasks carry `{ planning, decisions, requirements: [{id, text, via}] }`: say
-  `💡 v0.5 planning — migrate first (hitl-index migrate --specs)` and fall back to plain accept.
+  `_Tip:_ v0.5 planning — migrate first (hitl-index migrate --specs)` and fall back to plain accept.
 - The change (`spec.change`; `hitl-index change <id> --json`), its effective view
   (`hitl-index spec show --change <id> --json`) and the task's tasks file.
 - What changed: the drift diff, the finding text, the implementer's `specConflict.proposal`, the user's request, or a
   note from the inbox (`<id> amend N-k` → `hitl-index note show --change <id> N-k --json`: its text and refs).
-- No `spec` block and no change (quick task) → nothing to amend; say `💡 No linked spec — plain accept.` and continue
+- No `spec` block and no change (quick task) → nothing to amend; say `_Info:_ No linked spec — plain accept.` and continue
   with the caller's plain accept path.
 
 ## 2. Draft the delta and show it in the same gate turn (never write first)
 ```
-📐 Spec delta — change feat-password-reset (active)
+_Delta:_ Spec delta — change feat-password-reset (active)
   ~ ACC-R3.S2  THEN "same confirmation" → THEN "same confirmation within 1 s"     (specs/accounts/spec.md, MODIFIED)
   + ACC-R7 "When …, the system SHALL …" + ACC-R7.S1                               (specs/accounts/spec.md, ADDED)
   ~ PWR-D1 accepted → superseded by PWR-D5 ; + PWR-D5 | … | serves ACC-R3 | accepted       (design.md)
@@ -36,7 +36,7 @@ Apply? (Y/n/edit)
 Then the **Impact block** (0.9) — what the edit does to locked work. Pick one class per changed id, then run
 `hitl-index note apply --change <id> [N-k] --impact "<id>=<class>,…" --dry-run --json` and print its result:
 ```
-🔁 Impact (human confirms the classes):
+_Impact:_ (human confirms the classes)
   ACC-R3.S2  behaviour   → reopens 2 tests in PWR-T12 (PWR-T12.AC2)
   PWR-D1        contract    → reopens skeleton ResetService.request in PWR-T14 + 1 test
   ACC-R7     requirement → nothing reopens; then /hitl:tasks <id> update
@@ -52,15 +52,15 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
 | requirement | a new requirement | nothing; a new task via `/hitl:tasks <id> update` |
 - When unsure between wording and behaviour, pick behaviour. Name the AC and test titles so the human can judge.
 - `suggestFollowUp` (more than 3 locked tasks, or any contract class) → add
-  `💡 This touches <n> tasks / a contract: a follow-up change may be cleaner (/hitl:plan <new>; the human defers the
+  `_Tip:_ This touches <n> tasks / a contract: a follow-up change may be cleaner (/hitl:plan <new>; the human defers the
   note with /hitl:approve <id> defer N-k <new>).` as a numbered option in the gate.
 - The human may change a class with `edit` (e.g. `edit ACC-R3.S2=wording`); re-run the dry run and show it again.
 
 - `+` added, `~` changed, `-` removed. Keep it minimal: only the ids the change really touches. If no requirement,
   scenario or decision changed (an implementation detail), say so and fall back to plain accept.
-- ⛔ GATE: END THE TURN after `Apply? (Y/n/edit)`. `edit` → apply the user's corrections, show the delta again.
-- `/hitl:design`'s `💡 Needs spec` (0.14): the delta preview (and the Impact block, if anything is locked) is the body of
-  a question `### Q<n> 💡 Needs spec: <behaviour> (needs its own Y)` in the design brief instead of a chat gate
+- GATE: END THE TURN after `Apply? (Y/n/edit)`. `edit` → apply the user's corrections, show the delta again.
+- `/hitl:design`'s `_Needs spec:_` (0.14): the delta preview (and the Impact block, if anything is locked) is the body of
+  a question `### Q<n> _Needs spec:_ <behaviour> (needs its own Y)` in the design brief instead of a chat gate
   (`shared/interview.md` §8); a `Y` under it applies it (the round's accept-all line never does, interview.md §4), text
   edits it and the next run shows it again, a bare `n` writes nothing (`→ recorded: declined`).
 
@@ -74,7 +74,7 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
     REMOVED block keeps its original id). Ids never change and are never reused.
 - **Archived change, or a quick task** → living specs are never edited directly. Create a mini change `fix-<slug>`
   (proposal + delta only; `## Artifacts` rows `design | skipped | spec-only amendment` and `tasks | skipped |
-  spec-only amendment`), run `hitl-index spec validate fix-<slug> --json`, print `🎯 next: /hitl:archive fix-<slug>`.
+  spec-only amendment`), run `hitl-index spec validate fix-<slug> --json`, print `_Next:_ /hitl:archive fix-<slug>`.
 - **Decisions are never edited in place** once the design is approved: the old row's status → `superseded by <KEY>-D<k>`, a
   new row is appended with `serves` and `alternatives`. A rejected alternative may be recorded with status `rejected`.
   New decision ids: `hitl-index spec next-id <change-id> --kind D` (max+1 within the change, `<KEY>-D<n>`).
@@ -82,12 +82,12 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
   `- <YYYY-MM-DD> <what> — <why> (source: <skill>, <symbol|F-n>)`. Spec changes are recorded by the delta itself
   (`Changed:` / `Reason:`) and by `## Change History` at archive.
 - Status: proposal and design stay `approved`; set `updated:` to today. Exception: the amendment adds a requirement or a
-  capability → proposal `status: draft` and `🎯 next: /hitl:tasks <id> (update)`.
+  capability → proposal `status: draft` and `_Next:_ /hitl:tasks <id> (update)`.
 - Business files stay business-readable (no code names: `BIZ_CODE_TOKEN`).
 - AC edits in the tasks md: only the text after the id and its ref group `(ACC-R3.S2)`. Never boxes, never task `status:`.
 
 ## 4. Apply (after Y)
-1. 📝 Edit the delta, design.md (Decisions, Changelog, `updated:`), the proposal (`updated:`, Capabilities row ids), the
+1. Edit the delta, design.md (Decisions, Changelog, `updated:`), the proposal (`updated:`, Capabilities row ids), the
    tasks md AC text, and `@dec` tag lines on the affected code symbols. `@dec` is not hashed → no re-approval.
 2. Never write `.hitl/specs/**`, `.hitl/archive/**`, `.base.json`, `notes.md` (only `hitl-index note`), the lock, `index/**`, `state.json`, review md,
    `<provider>.map.json` (linear|jira|github), `status:` fields or boxes.
@@ -103,9 +103,9 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
 
 ## 5. Then
 Print the command the human must type — the amendment never approves anything itself:
-- a recheck note was written → `📌 N-k waits for you → 🎯 next: /hitl:approve <id> reopen N-k` (it reopens what the
+- a recheck note was written → `_Note N-k_ waits for you → _Next:_ /hitl:approve <id> reopen N-k` (it reopens what the
   Impact block listed, or closes as "nothing to unlock" for wording only). Only the human runs it.
-- changed contract → `🎯 next: /hitl:approve <T> skeleton <symbols>`
-- spec change proposal from implement → `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`
+- changed contract → `_Next:_ /hitl:approve <T> skeleton <symbols>`
+- spec change proposal from implement → `_Next:_ edit the skeleton, then /hitl:approve <T> skeleton <symbols>`
 - review finding → continue the review's decision flow (the finding is already `accept` with note `amend spec`).
-- a new scenario without an AC → `🎯 next: /hitl:tasks <id> (update)`.
+- a new scenario without an AC → `_Next:_ /hitl:tasks <id> (update)`.

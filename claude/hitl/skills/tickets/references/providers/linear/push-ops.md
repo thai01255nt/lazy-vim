@@ -22,7 +22,7 @@ carry `change` (the change id; legacy queue items may say `planning`, same meani
   (c) the other `payload.fields` (`title`, `description`, `priority`, `projectId`, `parentId`).
   Result: `ok`, `description` (as returned, when returned), `skippedFields`.
 - `addRelations` → upsert issue `id` with `blockedBy: [payload.blockedBy[].id]` (append-only; never try to remove).
-- `manualNote` → print `📌 <payload.message>`; `ok: true` without calling Linear.
+- `manualNote` → print `_Yours:_ <payload.message>`; `ok: true` without calling Linear.
 - `upsertComment` → `payload.commentId` set and an update tool exists → update that comment's `body`; else create a
   comment on issue `id` with `body`. Result: `commentId`.
 - `cancelIssue` → upsert issue `id` with `stateId = payload.stateId`.

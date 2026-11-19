@@ -322,9 +322,9 @@ export function changeWait(notes) {
 export function waitReasons(changeId, w) {
   const out = [];
   for (const x of w.waits) out.push(x.state === "gone"
-    ? `⏳ ${changeId} waits for ${x.source} (${x.notes.join(", ")}), but ${x.source} is gone (no active or archived change): if ${changeId} took in its notes, amend them back; then /hitl:approve ${changeId} dismiss <N-k> <reason>`
-    : `⏳ ${changeId} waits for ${x.source} (${x.notes.join(", ")}): every task approval, implement and the archive of ${changeId} wait until ${x.source} is archived (plan, design and tasks stay open)`);
-  for (const n of w.amend) out.push(`📥 ${n.id} from ${n.source} (archived) is not applied yet: ${n.kind === "design" ? `/hitl:design ${changeId} amend ${n.id}` : `/hitl:plan ${changeId} amend ${n.id}`} (or /hitl:approve ${changeId} dismiss ${n.id} <reason>)`);
+    ? `_Waits:_ ${changeId} waits for ${x.source} (${x.notes.join(", ")}), but ${x.source} is gone (no active or archived change): if ${changeId} took in its notes, amend them back; then /hitl:approve ${changeId} dismiss <N-k> <reason>`
+    : `_Waits:_ ${changeId} waits for ${x.source} (${x.notes.join(", ")}): every task approval, implement and the archive of ${changeId} wait until ${x.source} is archived (plan, design and tasks stay open)`);
+  for (const n of w.amend) out.push(`_From ${n.source}:_ ${n.id} (archived) is not applied yet: ${n.kind === "design" ? `/hitl:design ${changeId} amend ${n.id}` : `/hitl:plan ${changeId} amend ${n.id}`} (or /hitl:approve ${changeId} dismiss ${n.id} <reason>)`);
   return out;
 }
 

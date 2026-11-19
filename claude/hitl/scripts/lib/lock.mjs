@@ -883,10 +883,10 @@ function checkNotes(notes, ack, { index, lock, task, api, stage }) {
     const how = x.note.status === "reopen pending"
       ? `the human confirms it with /hitl:approve ${chg} reopen ${x.note.id}, or /hitl:approve ${chg} dismiss ${x.note.id} <reason>`
       : `apply it (${applyCommand(chg, x.note)}), or /hitl:approve ${task.id} ${stage} --ack ${x.note.id}, or /hitl:approve ${chg} dismiss|defer ${x.note.id}`;
-    reasons.push(`📌 ${noteName(x.note)} touches ${task.id} via ${x.via.join(", ")}: ${how}`);
+    reasons.push(`_Note_ ${noteName(x.note)} touches ${task.id} via ${x.via.join(", ")}: ${how}`);
   }
-  for (const x of nb.acked) warnings.push(`📌 ${noteName(x.note)} is open but acked for ${task.id}`);
-  for (const x of nb.warn) warnings.push(`📌 ${noteName(x.note)} is open and has no refs: check it does not change ${task.id}`);
+  for (const x of nb.acked) warnings.push(`_Note_ ${noteName(x.note)} is open but acked for ${task.id}`);
+  for (const x of nb.warn) warnings.push(`_Note_ ${noteName(x.note)} is open and has no refs: check it does not change ${task.id}`);
   return { reasons, warnings, acks, blockedBy };
 }
 

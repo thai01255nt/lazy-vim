@@ -50,16 +50,16 @@ Parse the arguments (whitespace or comma separated). The first token decides the
 Run `CMD --json` once, as a plain single command (no `;`, `&&`, pipes, `2>&1` or `echo $?`: the hook refuses chained
 approve commands). No separate `--dry-run` preview is needed: the real call returns the same `changes`, and the
 CLI checks preconditions before writing and writes nothing when they fail. (`--dry-run` does not consume the token.)
-- Exit 1 (preconditions failed) → print `🛑 Cannot approve <T> <stage>:` + each reason + the CLI's suggested command
+- Exit 1 (preconditions failed) → print `_Stop:_ Cannot approve <T> <stage>:` + each reason + the CLI's suggested command
   (e.g. `/hitl:skeleton PWR-T12`, `/hitl:test PWR-T12`, `/hitl:review PWR-T12`). Stop. Change form: the CLI refuses unless every
   owning task is done and only intents moved (signature, TODO steps and the done or accepted body unchanged); print the
   reasons. Accept: the CLI refuses unless the change is archived, no open task owns, tags or lists the symbol, the
   signature is unchanged and the covering tests ran fresh and passed (else `hitl-index test`); print the reasons.
 - Exit 3 → not initialized, per conventions. Stop.
 - Denied by the hook with "Approval is human-only" → the token is missing (expired after 10 min, or already used).
-  Print `🛑 Approval token missing or used. Type /hitl:approve <args> again.` Stop. Never retry or work around it.
+  Print `_Stop:_ Approval token missing or used. Type /hitl:approve <args> again.` Stop. Never retry or work around it.
 - Never add `--force` unless the user typed `--force` in the arguments.
-- Refused with `📌 N-k (…) touches <T> via …` → print each reason and the three ways out from it: apply the note
+- Refused with `_Note N-k_ (…) touches <T> via …` → print each reason and the three ways out from it: apply the note
   (`/hitl:plan <id> amend N-k`), `/hitl:approve <T> <stage> --ack N-k`, or `/hitl:approve <id> dismiss|defer N-k …`. Stop.
 - A preview without locking is available to the user as `hitl-index approve <T> --dry-run` in their own shell.
 
@@ -69,15 +69,15 @@ On success: `hitl-index status <T> --sync-tags`.
 ## 4. Report
 ```
 ✅ Approved <T> — stage: <stage> (by human)
-🔒 Locked: <n> symbols (<new> new, <changed> re-approved) · <m> tests (<stage: stub|locked>)
+Locked: <n> symbols (<new> new, <changed> re-approved) · <m> tests (<stage: stub|locked>)
 <re-approved items: Symbol — sig ⚠️→✅ / intent ⚠️→✅>
-🗑️ Removed from lock: <ids>
-✏️ Renamed in lock: <old → new>
-📐 <symbol> linked PWR-D1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
+Removed from lock: <ids>
+Renamed in lock: <old → new>
+Linked <symbol>: PWR-D1, ACC-R1.S1 — if the decision changed, amend the spec (/hitl:sync offers it)
 ```
-The `🗑️` line: only when the JSON `changes.symbols.removed` / `changes.tests.removed` is non-empty (locked items of the task deleted or renamed in code).
-The `✏️` line: one entry per JSON `changes.symbols.renamed` item (`from → to`); empty → no line.
-The `📐` line: one per entry of the JSON `specLinks` (skeleton re-approvals only); no `specLinks` → no line.
+The `Removed from lock` line: only when the JSON `changes.symbols.removed` / `changes.tests.removed` is non-empty (locked items of the task deleted or renamed in code).
+The `Renamed in lock` line: one entry per JSON `changes.symbols.renamed` item (`from → to`); empty → no line.
+The `Linked` line: one per entry of the JSON `specLinks` (skeleton re-approvals only); no `specLinks` → no line.
 Change form:
 ```
 ✅ Re-approved intents of <change-id> (by human): <n> symbol(s)
@@ -91,22 +91,22 @@ Accept form:
 Reopen form (JSON `reopened`, `nothing`, `empty`):
 ```
 ✅ N-4 reopened (confirmed by human):
-🔁 PWR-T12 tests: 2 test(s) (PWR-T12.AC2) — rewrite them to the new AC
-🔁 PWR-T14 skeleton: 1 symbol (ResetService.request) + 1 test
+_Reopen_ PWR-T12 tests: 2 test(s) (PWR-T12.AC2) — rewrite them to the new AC
+_Reopen_ PWR-T14 skeleton: 1 symbol (ResetService.request) + 1 test
 ```
 `empty: true` → exactly `✅ N-4 closed: wording only, nothing to unlock (confirmed by human)` (it confirms no impact; it
-reopens nothing). 🎯 next: the JSON `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`).
+reopens nothing). _Next:_ the JSON `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`).
 Dismiss / defer: `✅ N-3 (<title>) dismissed: <reason>` · `✅ N-3 (<title>) deferred → <target> N-k (open there)`, plus a
-`⚠️` line for refs dropped because the target change does not have them. 🎯 next: `hitl-index status --json` `.next`.
+`⚠️` line for refs dropped because the target change does not have them. _Next:_ `hitl-index status --json` `.next`.
 Dismissing a note from another change (`source: <other>`, 0.12) also ends the wait it caused; the human may do it at
 any time (the order is the user's call).
-Refused with a `⏳ … waits for <other>` or `📥 N-k from <other>` reason (a task approval of a change that waits for
+Refused with a `_Waits:_ … waits for <other>` or `_From <other>:_ N-k` reason (a task approval of a change that waits for
 another change, 0.12): print it as is. `--ack` and `--force` do not release it; the ways out are in the reason
 (archive `<other>` first, take the note in, or the human dismisses it). Stop.
-Task approvals print `📌 acked for <T>: N-k` (JSON `acked`) and one `⚠️` line per JSON `warnings` item.
-🎯 next (change form): `hitl-index strip <change-id> --dry-run` (the user runs it; then `hitl-index strip <change-id>`).
-🎯 next (accept): `hitl-index status --json` `.next`.
-🎯 next:
+Task approvals print `_Note_ acked for <T>: N-k` (JSON `acked`) and one `⚠️` line per JSON `warnings` item.
+`_Next:_` (change form): `hitl-index strip <change-id> --dry-run` (the user runs it; then `hitl-index strip <change-id>`).
+`_Next:_` (accept): `hitl-index status --json` `.next`.
+_Next:_
 - skeleton → `/hitl:test <T>`
 - tests → `/hitl:implement <T>`
 - done → the next frontier task from `hitl-index status --json` (`.next`), e.g. `/hitl:skeleton PWR-T13`

@@ -55,7 +55,7 @@ export async function run(argv, ctx) {
   if (ctx.json) console.log(JSON.stringify(md ? { ...trace, md } : trace, null, 2));
   else if (!ctx.quiet) {
     if (!a.md) process.stdout.write(renderTraceMd(trace));
-    else console.log(`📝 ${md}`);
+    else console.log(`_Wrote:_ ${md}`);
   }
   if (failOn === "block" && trace.counts.block) return 1;
   if (failOn === "warn" && (trace.counts.block || trace.counts.warn)) return 1;

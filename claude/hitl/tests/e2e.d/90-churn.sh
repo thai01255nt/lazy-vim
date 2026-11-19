@@ -124,7 +124,7 @@ sC2() {
   CLI status --json > "$W/c2c.json"
   afile "$W/c2c.json" 'd.tasks["BIL-T2"].notes[0].id === "N-2" && d.changes[0].notes.open === 2'
   CLI status --brief > "$W/c2d.txt"
-  contains "$W/c2d.txt" "📌 notes: feat-fee 2 open"
+  contains "$W/c2d.txt" "_Note_ feat-fee 2 open"
   expect_exit 1 CLI note apply --change feat-fee N-1 --impact BIL-R1.S2=behaviour
 }
 step CH2 "churn: note add (unknown ref refused), BIL-T2 approval blocked by N-2, counts in status; apply refused before the amend" sC2

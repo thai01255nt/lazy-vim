@@ -12,14 +12,14 @@ evidence before any claim). Resume = the same command: already-implemented tasks
 `lane` (`fast` low risk · `override` high risk + `--lane fast` · `normal` high risk), `action`, `status`, `drift`,
 plus `current`, `phase`, `stop`, `cycle`, `overrideTasks`.
 Then `hitl-index change <change-id> --json`: `wait` non-null (0.12: the change holds a note from another change that is
-not archived yet, or not taken in) → print its `reasons[]` and `🎯 next:` its `next`, stop (no task of the change runs).
+not archived yet, or not taken in) → print its `reasons[]` and `_Next:_` its `next`, stop (no task of the change runs).
 
 Print once:
 ```
-🎯 Feature feat-auth — 4 tasks (.hitl/changes/feat-auth/tasks.md)
+Feature feat-auth — 4 tasks (.hitl/changes/feat-auth/tasks.md)
 | # | task | risk | lane | status | action |
 |---|------|------|------|--------|--------|
-| 1 | PWR-T11 Hash passwords | low | ⚡ fast | done | skip |
+| 1 | PWR-T11 Hash passwords | low | _Fast_ | done | skip |
 | 2 | PWR-T12 Register user | high (security) | ⚠️ override | todo | implement |
 ```
 `overrideTasks` not empty → print the ⚠️ HUMAN OVERRIDE block of SKILL.md **once** for the whole run, listing each
@@ -31,21 +31,21 @@ this change's tasks; it covers `--by human-override` for any of them during this
 
 Before each task, re-run `hitl-index feature <change-id> [--lane fast] --json` and take `current`:
 - `phase: "review"` → step 3.
-- `stop` set → 🛑 print it and `🎯 resume: /hitl:implement --feature <change-id>[ --lane fast]` (after the human step). End.
+- `stop` set → _Stop:_ print it and `_Next:_ resume with /hitl:implement --feature <change-id>[ --lane fast]` (after the human step). End.
   (`stop` covers block-level drift, a human approval a normal-lane task waits for, and a task blocked outside the feature.)
 - `current.action`:
   - `implement` → run SKILL.md steps 1–5 for `current.id` as if the user typed `/hitl:implement <T> --all`
     (lane `override` → with `--lane fast`, `BY = human-override`; lane `fast` → `BY = auto`). No per-symbol gates for
     agent symbols in any lane except `normal` high risk, which keeps its "Function done. Continue?" gate.
-  - `skeleton` → invoke the `hitl:skeleton` skill for the task: it stops at its ⛔ gate. End the turn there.
+  - `skeleton` → invoke the `hitl:skeleton` skill for the task: it stops at its gate. End the turn there.
   - `test` → invoke the `hitl:test` skill (`<T> fill`): high risk stops at its lock gate. End the turn there.
 - After an `implement` task: fresh `hitl-index test --task <T> --json` and `hitl-index drift --task <T> --json`.
   Print `✅ PWR-T12 green (n tests) — next: PWR-T13` and continue with the next task **in the same turn**.
 
-Stop early (🛑 + resume line, end the turn) when:
+Stop early (_Stop:_ + resume line, end the turn) when:
 - a task stays red/stuck after the implementer's retry budget (SKILL.md step 3 `stuck`, max 3 iterations + the one
   hinted retry the user may give) — print the failing evidence as SKILL.md does;
-- `drift --task` shows a `block` item (or the plan's `stop` names block drift) → `🎯 /hitl:sync`;
+- `drift --task` shows a `block` item (or the plan's `stop` names block drift) → `_Next:_ /hitl:sync`;
 - a manual symbol needs the human (SKILL.md manual hand-off gate). The user's "done" reply continues the same task, and
   then the loop goes on in that turn;
 - a `contractIssue` / `specConflict` card (SKILL.md step 3).
@@ -55,8 +55,8 @@ Stop early (🛑 + resume line, end the turn) when:
 1. For every task in run order whose status is `green` or `review` (or `verified`/`done` without a review on record):
    invoke the `hitl:review` skill with `<T> --in-feature` (full review, no per-task gate). Run them one after another.
 2. `hitl-index feature <change-id> --report --json` → writes `.hitl/reviews/feature-<name>.md`
-   (per-task verdict, risk, override, trace ⛔/⚠️, pending findings). Print the report body (one screen) and its path.
-3. ⛔ GATE — one question for the whole feature:
+   (per-task verdict, risk, override, trace `_Block_`/⚠️, pending findings). Print the report body (one screen) and its path.
+3. GATE — one question for the whole feature:
    ```
    Decide: PWR-T12 F-1 (accept/reject/defer/amend), PWR-T13 F-2 … — or "fix PWR-T12 F-1".
    ⚠️ Override tasks need your review of every function: PWR-T12 (.hitl/reviews/PWR-T12.review.md)
@@ -65,7 +65,7 @@ Stop early (🛑 + resume line, end the turn) when:
    No pending findings and no override task → ✅ `Feature <name>: all tasks PASS` and the next step
    (`hitl-index status --json` `.next`; usually `/hitl:archive <change-id>` once every task is done). End the turn.
    `--report --json` `securityLensTasks` not empty (and the report has no `full audit:` line) → add one line, suggest
-   only, never run it: `💡 Security lens ran on PWR-T12, PWR-T13 — full audit: /hitl:review --security-audit <change-id>`.
+   only, never run it: `_Tip:_ Security lens ran on PWR-T12, PWR-T13 — full audit: /hitl:review --security-audit <change-id>`.
 
 Replies like `fix PWR-T12 F-1` or `accept PWR-T12 F-1` → run the matching `/hitl:review <T> …` decision/fix path, then
 re-run step 3.2 and print the new summary.

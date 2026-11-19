@@ -40,7 +40,7 @@ export async function run(argv, ctx) {
   if (ack.length && by !== "human") { console.error(`--ack is human-only: --by human (not --by ${by})`); return 2; }
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   const g = await gather(ctx.root, ctx.config, { drift: false });
-  if (lockLegacyIds(g.lock).length) { console.error(`🛑 ${LEGACY_LOCK_MESSAGE}`); return 1; }
+  if (lockLegacyIds(g.lock).length) { console.error(`_Stop:_ ${LEGACY_LOCK_MESSAGE}`); return 1; }
   const task = g.tasks.find((t) => t.id === T);
   const noteDir = task?.change && !task.archived ? (await findChange(ctx.root, task.change))?.dir ?? null : null;
   const notes = noteDir ? await readNotes(ctx.root, noteDir) : [];
@@ -58,7 +58,7 @@ export async function run(argv, ctx) {
       : plan.stage === "skeleton" ? `fix the skeleton/tags then rerun; check with: hitl-index drift --task ${T}`
       : plan.stage === "tests" ? `hitl-index test --task ${T}` : `/hitl:review ${T}`;
     if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));
-    else { console.log(`🛑 approve ${T} --stage ${plan.stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`💡 ${suggest}`); }
+    else { console.log(`_Stop:_ approve ${T} --stage ${plan.stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`_Tip:_ ${suggest}`); }
     return 1;
   }
   if (v["dry-run"]) {
@@ -70,7 +70,7 @@ export async function run(argv, ctx) {
       for (const id of c.symbols.new) console.log(`    + ${nm(id)}`);
       for (const x of c.symbols.changed) console.log(`    ~ ${nm(x.id)} (${x.what.join(",")})`);
       for (const id of c.symbols.removed) console.log(`    - ${id} (removed from lock)`);
-      for (const x of c.symbols.renamed) console.log(`    ✏️ ${x.from} → ${x.to} (renamed in lock)`);
+      for (const x of c.symbols.renamed) console.log(`    renamed in lock: ${x.from} → ${x.to}`);
       console.log(`  tests: new ${c.tests.new.length}, changed ${c.tests.changed.length}, unchanged ${c.tests.unchanged.length}, removed ${c.tests.removed.length}`);
       for (const id of c.tests.removed) console.log(`    - ${id} (removed from lock)`);
       for (const [ac, ts] of Object.entries(c.acCoverage)) console.log(`    ${ac}: ${ts.length} test(s)`);
@@ -109,17 +109,17 @@ export async function run(argv, ctx) {
   else {
     const k = counts(plan.lock);
     console.log(`✅ ${T} ${plan.stage} approved by ${by}: ${k.symbols} symbol(s), ${k.tests} test(s) (${k.testsLocked} locked)`);
-    if (plan.noteAcks?.length) console.log(`📌 acked for ${T}: ${plan.noteAcks.join(", ")} (the note stays open; it still blocks other tasks and archive)`);
+    if (plan.noteAcks?.length) console.log(`_Note_ acked for ${T}: ${plan.noteAcks.join(", ")} (the note stays open; it still blocks other tasks and archive)`);
     warn();
     const removed = [...plan.changes.symbols.removed, ...plan.changes.tests.removed];
-    if (removed.length) console.log(`🗑️ removed from lock: ${removed.join(", ")}`);
-    if (plan.changes.symbols.renamed.length) console.log(`✏️ renamed in lock: ${plan.changes.symbols.renamed.map((x) => `${x.from} → ${x.to}`).join(", ")}`);
+    if (removed.length) console.log(`Removed from lock: ${removed.join(", ")}`);
+    if (plan.changes.symbols.renamed.length) console.log(`Renamed in lock: ${plan.changes.symbols.renamed.map((x) => `${x.from} → ${x.to}`).join(", ")}`);
     if (by === "human-override") console.log(`⚠️ ${T} is marked human-override: its review routes every function to the human (L2)`);
     if (hasLinks) {
       const ids = [...new Set(specLinks.flatMap((l) => [...l.decisions.map((d) => d.id), ...l.requirements.map((r) => r.id)]))];
-      console.log(`📐 linked ${ids.join(", ")} — if the decision changed, amend the plan (/hitl:sync offers it)`);
+      console.log(`Linked ${ids.join(", ")} — if the decision changed, amend the plan (/hitl:sync offers it)`);
     }
-    console.log(`🎯 next: ${next}`);
+    console.log(`_Next:_ ${next}`);
   }
   return 0;
 }
@@ -148,7 +148,7 @@ async function runChange(v, positionals, ctx, json) {
   if (!ctx.root) { console.error("not initialized: run /hitl:setup"); return 3; }
   if (NOTE_STAGES.includes(stage)) return noteDecision(stage, C, v, ctx, json);
   const g = await gather(ctx.root, ctx.config, { drift: false });
-  if (lockLegacyIds(g.lock).length) { console.error(`🛑 ${LEGACY_LOCK_MESSAGE}`); return 1; }
+  if (lockLegacyIds(g.lock).length) { console.error(`_Stop:_ ${LEGACY_LOCK_MESSAGE}`); return 1; }
   const entry = stage === "reopen" ? await findChange(ctx.root, C) : null;
   if (stage === "reopen" && !entry) { console.error(`change ${C} not found`); return 1; }
   const notes = entry && !entry.archived ? await readNotes(ctx.root, entry.dir) : [];
@@ -163,7 +163,7 @@ async function runChange(v, positionals, ctx, json) {
       : stage === "reopen" ? `hitl-index note list --change ${C} --status all`
       : `hitl-index drift --json (INTENT_CHANGED only); hitl-index intents ${C}`;
     if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));
-    else { console.log(`🛑 approve --change ${C} --stage ${stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`💡 ${suggest}`); }
+    else { console.log(`_Stop:_ approve --change ${C} --stage ${stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`_Tip:_ ${suggest}`); }
     return 1;
   }
   if (stage === "reopen") return reopenOut(plan, out, { C, v, ctx, json, entry, nm, warn });
@@ -215,18 +215,18 @@ async function reopenOut(plan, out, { C, v, ctx, json, entry, nm, warn }) {
   if (plan.empty) console.log(`✅ ${ids} closed: wording only, nothing to unlock (confirmed by human)`);
   else {
     console.log(`✅ ${ids} reopened (confirmed by human):`);
-    for (const r of plan.reopened) console.log(`  🔁 ${summary(r)}`);
+    for (const r of plan.reopened) console.log(`  _Reopen_ ${summary(r)}`);
     if (plan.nothing.length) console.log(`  ${plan.nothing.join(", ")}: nothing to unlock`);
   }
   warn();
-  if (next) console.log(`🎯 next: ${next}`);
+  if (next) console.log(`_Next:_ ${next}`);
   return 0;
 }
 
 /** dismiss / defer a note (human-only; notes.md only). defer copies it into the target change as a new open note. */
 async function noteDecision(stage, C, v, ctx, json) {
   const entry = await findChange(ctx.root, C);
-  const fail = (msg) => { if (json) console.log(JSON.stringify({ ok: false, change: C, stage, reasons: [msg] }, null, 2)); else console.log(`🛑 approve --change ${C} --stage ${stage} refused: ${msg}`); return 1; };
+  const fail = (msg) => { if (json) console.log(JSON.stringify({ ok: false, change: C, stage, reasons: [msg] }, null, 2)); else console.log(`_Stop:_ approve --change ${C} --stage ${stage} refused: ${msg}`); return 1; };
   if (!entry) return fail(`change ${C} not found`);
   if (entry.archived) return fail(`${C} is archived: its notes are frozen`);
   const notes = await readNotes(ctx.root, entry.dir);

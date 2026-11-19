@@ -1,14 +1,14 @@
 <!-- hitl brief file. Answer on the `>` line under each question (more lines: each starts with `>`), save,
-     then run the command in the `next:` line. Y = take the 💡 recommendation · Y on the "Accept all" line (from
-     round 2) = take the 💡 of every question of the round you left empty, except questions marked
+     then run the command in the `next:` line. Y = take the recommendation (_Rec:_) · Y on the "Accept all" line (from
+     round 2) = take the _Rec:_ of every question of the round you left empty, except questions marked
      "(needs its own Y)": they act outside this brief and take only a Y under themselves · ? or "don't know" =
      Claude recommends and asks again · n + what you want instead = that is your answer · n + "later" = postponed ·
      n alone = Claude asks what it should be instead · a question or a doubt instead of an answer = Claude answers
-     it here (💬) and asks again · deep <ID|topic> = dig deeper · done = stop asking. Vietnamese works too:
+     it here (_Disc:_) and asks again · deep <ID|topic> = dig deeper · done = stop asking. Vietnamese works too:
      được / đồng ý / ừ · không biết / chưa biết · không / để sau · xong.
      Notes (the last block of each round): anything the questions missed, or a change to an earlier answer
      ("Q5: …" / "sửa Q5: …"). Description is read once, at the first run; after that new information goes into the
-     Notes of the open round. Lines that start with → or 💬 are Claude's; leave them as they are. -->
+     Notes of the open round. Lines that start with → or _Disc:_ are Claude's; leave them as they are. -->
 
 # Plan brief — {change-id}
 
@@ -22,13 +22,13 @@ information in the Notes of the open round.}
 
 ## Round 1
 
-{🔗 parent / 🔎 may overlap / 💡 Assumed lines, if any — one per line, before the questions}
+{_Parent:_ / _Overlap?_ / _Assumed:_ lines, if any — one per line, before the questions}
 
 ### Q0 Change id and key: `{change-id}` / `{KEY}` — keep? (needs its own Y)
 
 Every id of this change starts with the key ({KEY}-R1, {KEY}-T1). A new id or key is possible until the change has
 its first task (later answers and Notes may rename it too); after that both are fixed.
-💡 Recommended: keep `{change-id}` / `{KEY}`.
+_Rec:_ keep `{change-id}` / `{KEY}`.
 
 >
 

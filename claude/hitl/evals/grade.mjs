@@ -70,7 +70,8 @@ const briefChat = (S, file) => {
 
 function questions(text) {
   const qs = text.match(/\*\*Q\d+\*\*/g) ?? [];
-  const recs = text.match(/💡\s*(\*\*)?(Recommended|Đề xuất|Khuyến nghị|My Recommendation)/gi) ?? [];
+  // 0.15.0 label `_Rec:_`; the pre-0.15 icon form `💡 Recommended` still counts
+  const recs = text.match(/_Rec:_|💡\s*(\*\*)?(Recommended|Đề xuất|Khuyến nghị|My Recommendation)/gi) ?? [];
   return { q: new Set(qs).size, rec: recs.length };
 }
 
@@ -150,7 +151,7 @@ const CHECKS = {
     const r1 = b.questions.filter((q) => q.round === 1); const q0 = r1.find((q) => q.id === "Q0"); const rest = r1.filter((q) => q.id !== "Q0");
     const recs = rest.filter((q) => q.recommended != null).length; const hints = rest.filter((q) => q.hint).length;
     return ok(q0 && q0.recommended && rest.length >= 9 && rest.length <= 16 && recs === 0 && hints >= 8 && !b.rounds[0].acceptAllLine && b.rounds[0].notes,
-      `Q0=${!!q0} questions=${rest.length} with 💡=${recs} hints=${hints} acceptAll=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes}`);
+      `Q0=${!!q0} questions=${rest.length} with _Rec:_=${recs} hints=${hints} acceptAll=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes}`);
   },
   plan_brief_chat: (S, P) => briefChat(S, "plan-brief.md"),
   // ---- plan (0.14: a later run reads the answered round 1, records it, appends round 2)
@@ -162,14 +163,14 @@ const CHECKS = {
   plan_brief_round2: (S, P) => {
     const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
     const r2 = b.questions.filter((q) => q.round === 2); const r = b.rounds.find((x) => x.n === 2);
-    return ok(r && r.acceptAllLine && r2.length >= 1 && r2.length <= 7 && r2.every((q) => q.recommended), `round 2: ${r ? "" : "missing; "}accept-all=${r?.acceptAllLine} questions=${r2.length} without 💡=${r2.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
+    return ok(r && r.acceptAllLine && r2.length >= 1 && r2.length <= 7 && r2.every((q) => q.recommended), `round 2: ${r ? "" : "missing; "}accept-all=${r?.acceptAllLine} questions=${r2.length} without _Rec:_=${r2.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
   },
   plan_brief_carried: (S, P) => {
-    // Q6 asks a question (→ 💬 + carried), Q5 is "không biết", Q7 is empty: all three come back in round 2 with their numbers
+    // Q6 asks a question (→ _Disc:_ + carried), Q5 is "không biết", Q7 is empty: all three come back in round 2 with their numbers
     const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
     const q = (round, id) => b.questions.find((x) => x.round === round && x.id === id);
     const back = ["Q5", "Q6", "Q7"].filter((id) => q(2, id));
-    return ok(q(1, "Q6")?.discussed && q(1, "Q6")?.carried === 2 && back.length === 3, `Q6 💬=${q(1, "Q6")?.discussed} carried=${q(1, "Q6")?.carried}; back: ${back.join(",")}`);
+    return ok(q(1, "Q6")?.discussed && q(1, "Q6")?.carried === 2 && back.length === 3, `Q6 _Disc:_=${q(1, "Q6")?.discussed} carried=${q(1, "Q6")?.carried}; back: ${back.join(",")}`);
   },
   // the round-1 Notes ("sửa Q3: …", a correction) is processed once (one mark) and round 2 ends with a Notes block
   plan_brief_notes: (S, P) => {
@@ -177,7 +178,7 @@ const CHECKS = {
     const n1 = b.rounds[0]?.notes; const r2 = b.rounds.find((r) => r.n === 2);
     return ok(n1?.marked && !n1.pending && (!r2 || r2.notes), `round 1 Notes marked=${n1?.marked}; round 2 Notes block=${!!r2?.notes}`);
   },
-  plan_brief_hotspot: (S, P) => { const b = briefOf(P, newChanges(P)[0], "plan"); return ok(b && (b.questions.some((q) => q.round > 1 && q.hot) || b.rounds.some((r) => r.hot.length)), "no 🔥 in round 2"); },
+  plan_brief_hotspot: (S, P) => { const b = briefOf(P, newChanges(P)[0], "plan"); return ok(b && (b.questions.some((q) => q.round > 1 && q.hot) || b.rounds.some((r) => r.hot.length)), "no _Hot_ in round 2"); },
   plan_brief_coverage: (S, P) => { const b = briefOf(P, newChanges(P)[0], "plan"); return ok(b && b.rounds.some((r) => r.n > 1 && /✅|⚠️|❌/.test(r.coverage || "")), "no Coverage line on round 2"); },
   // ---- plan (round 1 of a new change; pre-0.14 chat checks, kept for old variants)
   plan_change_created: (S, P) => { const ch = newChanges(P); return ok(ch.length === 1 && fs.existsSync(path.join(P, ".hitl/changes", ch[0], "proposal.md")), `new changes: ${ch.join(",") || "none"}`); },
@@ -201,9 +202,9 @@ const CHECKS = {
   },
   plan_coverage_line: (S) => ok(/(Độ phủ|Coverage)\s*:.*(✅|⚠️|❌)/.test(S.text), "no coverage line"),
   plan_coverage_table: (S, P) => { const ch = newChanges(P)[0]; const t = ch && read(path.join(P, ".hitl/changes", ch, "proposal.md")); return ok(t && /## Coverage/.test(t), "no ## Coverage in proposal"); },
-  plan_hotspot: (S) => ok(/🔥/.test(S.text), "no 🔥"),
+  plan_hotspot: (S) => ok(/_Hot_|🔥/.test(S.text), "no _Hot_"),
   plan_questions: (S) => { const { q, rec } = questions(S.text); return ok(q >= 2 && q <= 7 && rec >= q, `Q=${q} rec=${rec}`); },
-  plan_round_header: (S) => ok(/🌳\s*(Round|Vòng)\s*1/.test(S.text), "no round-1 header"),
+  plan_round_header: (S) => ok(/(?:^|🌳\s*)(Round|Vòng)\s*1/m.test(S.text), "no round-1 header"),
   plan_reply_line: (S) => ok(/Reply:|Trả lời:/.test(S.text), "no Reply: line"),
   // shared language: the prompt says "user record", the living glossary has Account (_Avoid_: user record, profile)
   plan_term_challenge: (S, P) => {
@@ -217,14 +218,14 @@ const CHECKS = {
   scout_spawned: (S) => ok(S.tools.some((t) => t.name === "Agent" && /spec-scout/.test(JSON.stringify(t.input))), "no spec-scout"),
   no_main_source_reads: (S) => ok(!S.tools.some((t) => t.main && t.name === "Read" && /\/src\/|\/tests\//.test(t.input.file_path || "")), "main thread read source"),
   // ---- amend (gate only, nothing written)
-  amend_gate: (S) => ok(/📐/.test(S.text) && /Apply\?|Áp dụng\?/.test(S.text), "no 📐 delta preview + Apply? gate"),
+  amend_gate: (S) => ok(/_Delta:_|📐/.test(S.text) && /Apply\?|Áp dụng\?/.test(S.text), "no _Delta:_ preview + Apply? gate"),
   amend_no_write: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs"]); return ok(d === "", `files changed before the gate: ${d}`); },
   amend_mentions_rule: (S, P) => { const id = specIdOf(P, "Reset link validity"); return ok(id && S.text.includes(id), `${id ?? "the reset-link rule"} not named`); },
   // ---- churn (0.9): capture → note gate, impact block, blocked approval, reopen
-  note_capture_gate: (S) => ok(/📌/.test(S.text) && /\(Y\/n\)/.test(S.text) && /feat-fee/.test(S.text), "no `📌 Note for feat-fee …? (Y/n)` gate"),
+  note_capture_gate: (S) => ok(/_Note[ _]|📌/.test(S.text) && /\(Y\/n\)/.test(S.text) && /feat-fee/.test(S.text), "no `_Note_ for feat-fee …? (Y/n)` gate"),
   note_capture_refs: (S) => ok(/FEE-R1\.S2|FEE-R1\b/.test(S.text), "the note question names no FEE-R1 ref"),
   churn_no_writes: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `changed before the gate: ${d}`); },
-  impact_block: (S) => ok(/🔁/.test(S.text) && /FEE-T1\b/.test(S.text) && /test/i.test(S.text) && /behaviour|behavior/i.test(S.text), "no 🔁 Impact block naming FEE-T1's tests and the behaviour class"),
+  impact_block: (S) => ok(/_Impact:_|🔁/.test(S.text) && /FEE-T1\b/.test(S.text) && /test/i.test(S.text) && /behaviour|behavior/i.test(S.text), "no _Impact:_ block naming FEE-T1's tests and the behaviour class"),
   approve_blocked_by_note: (S) => ok(/N-1/.test(S.text) && /ack|dismiss|amend/i.test(S.text), "refusal does not name N-1 and a way out"),
   lock_unchanged: (S, P) => ok(gitDirty(P, [".hitl/index/skeleton.lock.json", ".hitl/changes"]) === "", "lock or notes changed"),
   reopen_applied: (S, P) => {
@@ -238,12 +239,12 @@ const CHECKS = {
   go_before_plan: (S) => ok(skillCalls(S).some((x) => /plan/.test(x)) && S.tools.some((t) => t.name === "Skill" && /plan/.test(String(t.input.skill || "")) && /--before\s+feat-fee\b/.test(String(t.input.args || ""))), "no Skill hitl:plan with --before feat-fee"),
   before_parent_untouched: (S, P) => { const d = gitDirty(P, [".hitl/changes/feat-fee/proposal.md", ".hitl/changes/feat-fee/specs", ".hitl/changes/feat-fee/tasks.md", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `the parent change or code changed: ${d}`); },
   approve_blocked_by_wait: (S) => ok(/feat-report/.test(S.text) && /wait|archiv|chờ/i.test(S.text), "refusal does not say feat-fee waits for feat-report"),
-  // ---- design (0.14: round 1 is written into design-brief.md, every question with a 💡)
+  // ---- design (0.14: round 1 is written into design-brief.md, every question with a _Rec:_ line)
   design_brief_r1: (S, P) => {
     const b = briefOf(P, "feat-password-reset", "design"); if (!b) return ok(false, "no design-brief.md");
     const r1 = b.questions.filter((q) => q.round === 1);
     return ok(b.rounds[0]?.acceptAllLine && b.rounds[0]?.notes && r1.length >= 8 && r1.every((q) => q.recommended) && r1.every((q) => ["D", "A"].includes(q.tag)),
-      `accept-all=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes} questions=${r1.length} without 💡=${r1.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
+      `accept-all=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes} questions=${r1.length} without _Rec:_=${r1.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
   },
   design_brief_chat: (S) => briefChat(S, "design-brief.md"),
   design_context_facts: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; const sec = t.split(/^## /m).find((x) => x.startsWith("Context")) ?? ""; const n = (sec.match(/\(source:/g) ?? []).length; return ok(n >= 3, `## Context has ${n} sourced facts`); },
@@ -367,15 +368,15 @@ const CHECKS = {
   flow_help_table: (S) => ok(/\/hitl:archive/.test(S.text) && /\/hitl:skeleton/.test(S.text) && /fast/i.test(S.text) && /\|/.test(S.text), "help block incomplete"),
   flow_next_plan: (S) => ok(/\/hitl:plan/.test(S.text), "next is not /hitl:plan"),
   flow_next_go: (S) => ok(/\/hitl:go/.test(S.text), "next is not /hitl:go"),
-  // ---- go (0.11): one router subagent (auto) or none (flag), a 🧭 line, then the chosen Skill in the same turn
+  // ---- go (0.11): one router subagent (auto) or none (flag), a _Route:_ line, then the chosen Skill in the same turn
   go_router_spawned: (S) => { const n = routerCalls(S).length; return ok(n >= 1 && n <= 2, `work-router spawned ${n}×`); },
   go_no_router: (S) => ok(!routerCalls(S).length, "spawned work-router in manual mode"),
   go_route_cli: (S) => ok(bashCalls(S).some((c) => /hitl-index(?:\.mjs)?\s+(?:--json\s+)?route\b/.test(c)), "no hitl-index route"),
-  go_route_line: (S) => ok(mainEvents(S).some((e) => e.kind === "text" && /🧭/.test(e.text)), "no 🧭 route line"),
+  go_route_line: (S) => ok(mainEvents(S).some((e) => e.kind === "text" && /_Route:_|🧭/.test(e.text)), "no _Route:_ line"),
   go_invoked: (S, P, c) => {
     const ev = mainEvents(S); const i = ev.findIndex((e) => e.kind === "tool" && e.name === "Skill" && skillName(e) === c.expectSkill);
-    const before = ev.slice(0, i).some((e) => e.kind === "text" && /🧭/.test(e.text));
-    return ok(i >= 0 && before, i < 0 ? `no Skill ${c.expectSkill} (got ${skillCalls(S).join(",") || "none"})` : "Skill called before the 🧭 line");
+    const before = ev.slice(0, i).some((e) => e.kind === "text" && /_Route:_|🧭/.test(e.text));
+    return ok(i >= 0 && before, i < 0 ? `no Skill ${c.expectSkill} (got ${skillCalls(S).join(",") || "none"})` : "Skill called before the _Route:_ line");
   },
   go_no_confirm_gate: (S) => {
     const ev = mainEvents(S); const i = ev.findIndex((e) => e.kind === "tool" && e.name === "Skill");

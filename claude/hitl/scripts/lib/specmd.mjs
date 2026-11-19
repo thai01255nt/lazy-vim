@@ -466,7 +466,7 @@ export function parseProposal(text, file) {
   if (def) for (const L of def.lines) if (!L.fenced && /^- \S/.test(L.text)) doc.deferred.push(L.text.slice(2).trim());
   doc.coverage = parseCoverage(secs.get("Coverage"));
   const oq = secs.get("Open questions");
-  doc.forced = oq ? oq.lines.filter((L) => !L.fenced && /💡 Forced:/.test(L.text)).map((L) => L.text.replace(/^[-*]\s*(\[[ x]\]\s*)?/, "").trim()) : [];
+  doc.forced = oq ? oq.lines.filter((L) => !L.fenced && /💡 Forced:|_Forced:_/.test(L.text)).map((L) => L.text.replace(/^[-*]\s*(\[[ x]\]\s*)?/, "").trim()) : [];
   return doc;
 }
 

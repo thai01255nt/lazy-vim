@@ -84,7 +84,7 @@ function runClaude(job) {
 async function runJob(job) {
   const gradeFile = path.join(job.dir, "grade.json");
   if (fs.existsSync(gradeFile)) return JSON.parse(fs.readFileSync(gradeFile, "utf8"));
-  if (spent() >= opt.maxCost) { console.log(`⛔ cost cap ${opt.maxCost} reached; skipping ${job.v.name}/${job.c.id}/${job.r}`); return null; }
+  if (spent() >= opt.maxCost) { console.log(`_Stop:_ cost cap ${opt.maxCost} reached; skipping ${job.v.name}/${job.c.id}/${job.r}`); return null; }
   const code = await runClaude(job);
   const g = gradeRun({ suite, c: job.c, dir: job.dir, proj: path.join(job.dir, "proj"), pluginDir: job.v.dir, exit: code });
   g.variant = job.v.name; g.case = job.c.id; g.run = job.r;

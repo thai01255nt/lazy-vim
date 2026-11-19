@@ -19,7 +19,7 @@ export async function run(argv, ctx) {
   else if (!ctx.quiet) {
     if (!d.items.length) console.log("✅ no drift");
     for (const i of d.items) {
-      console.log(`${{ block: "⛔", warn: "⚠️", info: "ℹ️" }[i.level]} ${i.code} ${i.symbol || i.file}${i.task ? ` (${i.task})` : ""} — ${i.message}`);
+      console.log(`${{ block: "_Block:_", warn: "⚠️", info: "_Info:_" }[i.level]} ${i.code} ${i.symbol || i.file}${i.task ? ` (${i.task})` : ""} — ${i.message}`);
       if (i.spec) console.log(`   spec: ${specLine(i.spec)}`);
     }
     console.log(`summary: ${d.summary.block} block · ${d.summary.warn} warn · ${d.summary.info} info`);

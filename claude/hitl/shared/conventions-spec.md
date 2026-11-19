@@ -4,7 +4,7 @@ Read with `conventions.md` (core).
 
 ## Confirm a name
 - New change: `Create change \`feat-x\`? (Y/n) or enter a different id:`
-- Existing file conflict: `\`tasks.md\` exists. (update/overwrite)` — 💡 update.
+- Existing file conflict: `\`tasks.md\` exists. (update/overwrite)` — `_Rec:_ update`.
 
 ## Naming and layout
 - Change id: `[type]-[slug]`, type ∈ feat|fix|refactor|perf|docs|test|chore; slug = short kebab case; ≤ 48 chars.

@@ -22,7 +22,7 @@ export async function run(argv, ctx) {
     console.log("| symbol | status | pass | fail | skip | stale |\n|---|---|---|---|---|---|");
     for (const [id, c] of Object.entries(r.perSymbol)) console.log(`| ${name(id)} | ${c.status} | ${c.pass} | ${c.fail} | ${c.skip} | ${c.stale} |`);
     console.log("");
-    for (const x of r.runs) console.log(`${x.outcome === "pass" ? "✅" : x.outcome === "skip" ? "⏭️" : "❌"} ${x.outcome.padEnd(5)} ${name(x.testId)}${x.outcome !== "pass" && x.message ? " — " + x.message : ""}`);
+    for (const x of r.runs) console.log(`${x.outcome === "pass" ? "✅" : x.outcome === "skip" ? "_Skip:_" : "❌"} ${x.outcome.padEnd(5)} ${name(x.testId)}${x.outcome !== "pass" && x.message ? " — " + x.message : ""}`);
     if (r.unmatched.length) console.log(`⚠️ ${r.unmatched.length} JUnit case(s) not matched to indexed tests: ${r.unmatched.slice(0, 5).map((u) => u.name).join("; ")}`);
     for (const e of r.errors) console.log(`❌ ${e}`);
     if (!r.runs.length && !r.errors.length) console.log("no tests selected");

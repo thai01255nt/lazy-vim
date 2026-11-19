@@ -13,8 +13,8 @@ Reply in the user's language. Code, tags and identifiers stay English.
 
 Arguments: `$ARGUMENTS` → `<task-id> [symbol] [--all] [--lane fast]` or `--feature <change-id> [--lane fast]`
 (a v0.5 tasks/planning file name still works).
-No task id → take the first frontier task from `hitl-index status --json` (`.next`), say `💡 Assumed: <KEY>-T<n>`, continue
-(`--lane fast` without a task id or `--feature` → 🛑 `--lane fast needs an explicit task: /hitl:implement <T> --lane fast`).
+No task id → take the first frontier task from `hitl-index status --json` (`.next`), say `_Assumed:_ <KEY>-T<n>`, continue
+(`--lane fast` without a task id or `--feature` → _Stop:_ `--lane fast needs an explicit task: /hitl:implement <T> --lane fast`).
 `--feature <change-id>` → follow `references/feature-run.md` instead of the steps below (it calls them per task).
 
 ## Iron rules
@@ -23,7 +23,7 @@ No task id → take the first frontier task from `hitl-index status --json` (`.n
 - **You never edit an `@impl manual` function body.** The human does (a hook denies it anyway).
 - **You never edit tests, `@`-tags, locked signatures or docstrings.** If the contract or the plan looks wrong, stop and print
   the spec change proposal card (step 3). Only exception: after the user picks option 1 there and answers Y to the
-  📐 Spec delta, edit per `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (the change's spec delta / design.md, AC text,
+  `_Delta:_` preview, edit per `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (the change's spec delta / design.md, AC text,
   `@dec` lines — nothing else).
 - **No completion claim without a fresh `hitl-index test` run in this turn** (verification-before-completion).
   "Implementer said green" is a claim, not evidence. Re-run.
@@ -42,42 +42,42 @@ the PreToolUse hook lets `hitl-index approve <T> --stage skeleton|tests --by hum
    Manual functions still come to you. The review will route every function to you (L2).
    ```
 2. Run `references/fast-lane.md` with `BY = human-override` (it says where). No other gates for agent symbols.
-3. Low-risk task + `--lane fast` → no override needed: say `💡 low risk: normal fast lane` and use `BY = auto`.
+3. Low-risk task + `--lane fast` → no override needed: say `_Info:_ low risk: normal fast lane` and use `BY = auto`.
 4. Hook denies with "override is human-only" (token expired after 3 h, or another slash command ended the run) →
-   🛑 `Override token missing. Type /hitl:implement <T> --lane fast again.` Stop. Never fall back to `--by human`.
+   _Stop:_ `Override token missing. Type /hitl:implement <T> --lane fast again.` Stop. Never fall back to `--by human`.
 
 ## Step 1 — Load state and route
 
 Run `hitl-index status <T> --json` and `hitl-index tasks --json` (task risk, symbols, `impl`, blocked-by).
-If not initialized (exit 3): 🛑 `Run /hitl:setup first.` and stop.
+If not initialized (exit 3): _Stop:_ `Run /hitl:setup first.` and stop.
 `tasks[T].wait` set (0.12: T's change holds a note from another change that is not archived yet, or not taken in) →
-🛑 `<change> waits for <wait.for[].change> (<notes>)` or `📥 take in <wait.amend> first`, then `🎯 next:` the status
+_Stop:_ `<change> waits for <wait.for[].change> (<notes>)` or `_Take in:_ <wait.amend> first`, then `_Next:_` the status
 JSON `.next`. Stop: no implement, no approval (the hook denies the implementer's edits anyway; the order is the user's
 call — `/hitl:approve <change> dismiss N-k <reason>` ends a wait).
-Work outside the task that is too big for this change → `💡 Out of scope for <change>: … → /hitl:go <X> --before
+Work outside the task that is too big for this change → `_Tip:_ Out of scope for <change>: … → /hitl:go <X> --before
 <change>` (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1); never build it here.
 
 Route on task status (`tasks[T].status`) and risk:
 
 | status | risk low | risk high |
 |---|---|---|
-| `todo` (no skeleton) | ⚡ fast lane → `references/fast-lane.md` | 🛑 `Run /hitl:skeleton <T> first` |
-| `skeleton` (not approved) | ⚡ `hitl-index approve <T> --stage skeleton --by auto`, then as `approved` | 🛑 `Run /hitl:approve <T> first` |
-| `approved` (tests not locked) | ⚡ fast lane from the test step | 🛑 `Run /hitl:test <T>, then /hitl:approve <T> tests` |
-| `red` / `wip` | go to step 2 | go to step 2 if tests are locked, else 🛑 as `approved` |
-| `green` | ✅ already green → `🎯 next: /hitl:review <T>` | same |
+| `todo` (no skeleton) | _Fast_ lane → `references/fast-lane.md` | _Stop:_ `Run /hitl:skeleton <T> first` |
+| `skeleton` (not approved) | _Fast_ `hitl-index approve <T> --stage skeleton --by auto`, then as `approved` | _Stop:_ `Run /hitl:approve <T> first` |
+| `approved` (tests not locked) | _Fast_ lane from the test step | _Stop:_ `Run /hitl:test <T>, then /hitl:approve <T> tests` |
+| `red` / `wip` | go to step 2 | go to step 2 if tests are locked, else _Stop:_ as `approved` |
+| `green` | ✅ already green → `_Next:_ /hitl:review <T>` | same |
 | `review` / `verified` / `done` | print status and `next` from the CLI; stop | same |
 
 High risk **with** `--lane fast` (Lane override above): use the low-risk column with `BY = human-override`.
 
-Blocked by unfinished tasks → ⚠️ list them, ⛔ GATE `Continue anyway? (y/N)`, end turn.
-`tasks[T].notes` non-empty (an open note or a recheck touches T) → ⛔ GATE `📌 <T> is touched by N-k (<title>): its
+Blocked by unfinished tasks → ⚠️ list them, GATE `Continue anyway? (y/N)`, end turn.
+`tasks[T].notes` non-empty (an open note or a recheck touches T) → GATE `_Note_ <T> is touched by N-k (<title>): its
 approvals are refused until the note is applied (<apply>), or you ack, dismiss or defer it. Implement anyway? (y/N)`,
-end turn. `reopened` → print `🔁 <T> reopened by <note>` and its `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`); stop.
+end turn. `reopened` → print `_Reopen_ <T> reopened by <note>` and its `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`); stop.
 When unsure, trust `tasks[T].next` from the CLI over your own reading.
 
 Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` is non-null and `tasks[T].linear.onBranch` is false → print
-`🎯 branch: git switch -c <tasks[T].linear.branch>` once. Run no git command yourself; `linear` null or missing → print nothing.
+`_Branch:_ git switch -c <tasks[T].linear.branch>` once. Run no git command yourself; `linear` null or missing → print nothing.
 
 ## Step 2 — Work list
 
@@ -90,11 +90,11 @@ If `symbol` was given, the list is just that symbol (short ref is fine if unambi
 
 Print it in the v2 style, then start the first item without asking (the `/hitl:implement` call is the go-ahead):
 ```
-🎯 PWR-T12 — 3 functions (risk high: security, public-api)
+PWR-T12 — 3 functions (risk high: security, public-api)
 1. [ ] UserService.createUser  — agent  — red   — src/services/userService.ts
 2. [ ] UserRepo.findByEmail    — manual — red   — src/repo/userRepo.ts
 3. [x] PasswordHasher.hash     — agent  — green
-💡 Starting with 1. UserService.createUser
+_Assumed:_ starting with 1. UserService.createUser
 ```
 
 Pacing:
@@ -104,8 +104,8 @@ Pacing:
 ## Step 3 — Per symbol
 
 ### `@impl manual` → human writes it
-Follow `references/manual-handoff.md`. It ends at the ⛔ GATE
-`✍️ Your turn: implement <ref> in <file>. Reply "done" (I'll run its tests) or "agent" to hand it to me (you flip @impl yourself).`
+Follow `references/manual-handoff.md`. It ends at the GATE
+`_Yours:_ implement <ref> in <file>. Reply "done" (I'll run its tests) or "agent" to hand it to me (you flip @impl yourself).`
 On "done": `hitl-index index <file> --json`, then `hitl-index test --symbol <ref> --json`. Report red/green with the failing
 messages (if any), then continue with the next symbol.
 
@@ -122,24 +122,24 @@ messages (if any), then continue with the next symbol.
    ```
    Never paste this session's history. Never run two implementers on the same file at once.
 3. It returns `{symbol, result: "green"|"unreachable"|"stuck", via?, iterations, testsPassed, contractIssue?, specConflict?, notes}`.
-   - `contractIssue` or `specConflict` → 🛑 stop the loop and print the **spec change proposal card** (spec links from
+   - `contractIssue` or `specConflict` → _Stop:_ stop the loop and print the **spec change proposal card** (spec links from
      `hitl-index context <ref> --json` / `hitl-index trace <T> --json`; omit the `conflicts with` line when none):
      ```
-     📐 Spec change proposal — PWR-T12 UserService.createUser
+     _Delta:_ Spec change proposal — PWR-T12 UserService.createUser
      conflicts with: PWR-D1 "<text>" (changes/feat-auth/design.md) · ACC-R3.S1 "<text>"
      problem: <…>   proposal: <…>
-     1. 💡 amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve PWR-T12)
+     1. _Rec:_ amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve PWR-T12)
      2. you implement it (flip @impl manual)   3. stop
      ```
-     ⛔ GATE, end turn. Option 1 → `shared/amend-spec.md` (📐 Spec delta + 🔁 Impact, `Apply? (Y/n/edit)`, then the
-     approve command). The user only mentions a requirement change here → the 📌 note rule (`conventions.md`) instead.
+     GATE, end turn. Option 1 → `shared/amend-spec.md` (`_Delta:_` preview + `_Impact:_` block, `Apply? (Y/n/edit)`, then the
+     approve command). The user only mentions a requirement change here → the note rule (`conventions.md`) instead.
      Never let the agent deviate from the contract, and never re-run it with a "work around it" hint.
    - `unreachable` (its tests enter through a task caller that is still a stub — `via`) → not a failure: print
-     `⏭ <ref> written, verified later through <via>` and go on (high risk: still the step-4 gate). The caller's turn
+     `_Skip:_ <ref> written, verified later through <via>` and go on (high risk: still the step-4 gate). The caller's turn
      verifies it; step 5 still needs every symbol green. `via` is not later in the work order → treat as `stuck`.
-   - `stuck` → 🛑 print the last failing output, iterations used, and the implementer's hypothesis.
-     💡 Suggest systematic debugging: reproduce with the single failing test, read the full error, check the TODO step it maps to.
-     Offer: `1. I retry with your hint  2. you implement it (flip @impl manual)  3. revisit the skeleton`. ⛔ GATE, end turn.
+   - `stuck` → _Stop:_ print the last failing output, iterations used, and the implementer's hypothesis.
+     _Tip:_ systematic debugging: reproduce with the single failing test, read the full error, check the TODO step it maps to.
+     Offer: `1. I retry with your hint  2. you implement it (flip @impl manual)  3. revisit the skeleton`. GATE, end turn.
    - `green` → go to step 4 (do not trust it yet).
 
 ## Step 4 — Verify (fresh evidence) and report
@@ -152,19 +152,19 @@ After each symbol (low risk: after the batch, plus once per symbol in the summar
 4. Print:
    ```
    ✅ UserService.createUser green (3/3 tests, fresh)        or   ❌ UserService.createUser red (1/3) — <first failure message>
-   📝 steps: 1 normalize ✓ · 2 reject duplicate ✓ · 3 hash+save ✓   (from the `// n.` step comments)
-   ♻️ REUSE: PasswordHasher.hash (src/security/hasher.ts)              (only if the implementer reported reuse)
+   Steps: 1 normalize ✅ · 2 reject duplicate ✅ · 3 hash+save ✅   (from the `// n.` step comments)
+   _Reuse:_ PasswordHasher.hash (src/security/hasher.ts)              (only if the implementer reported reuse)
    ```
    Show the new body (or its diff) compactly so the human can glance at it — the v2 "show code" step.
-5. High risk: ⛔ GATE `Function done. Continue? (Y/n/<symbol>)`. End turn.
-   - Y → next symbol in the list. `<symbol>` → that one. n → stop with the 🎯 line.
+5. High risk: GATE `Function done. Continue? (Y/n/<symbol>)`. End turn.
+   - Y → next symbol in the list. `<symbol>` → that one. n → stop with the `_Next:_` line.
 
 Red after a `green` claim → treat as `stuck` (print both claims and evidence; never paper over it).
 
 ## Step 5 — Finish
 
 When every task symbol is green in a fresh run **in this turn**: `✅ PWR-T12: all functions green (n tests)` and
-`🎯 next: /hitl:review <T>`.
+`_Next:_ /hitl:review <T>`.
 Otherwise list what is left (`manual pending`, `red`, `stuck`) and the next command. Never say "done" without the run.
 
 ## Never

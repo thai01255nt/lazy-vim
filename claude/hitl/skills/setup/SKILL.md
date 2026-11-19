@@ -16,19 +16,19 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
 
 1. `git rev-parse --show-toplevel` (ignore failure). Work from the repo root if there is one, else the cwd. Say which in one line.
 2. Legacy check (≤ 0.3 projects): if `.claude/custom/hitl.config.json` exists and `.hitl/` does not (init also exits 1
-   with `legacy: true`), run 🔍 `hitl-index migrate --dry-run`, print its plan, then ⛔ GATE:
-   `1. 💡 Migrate .claude/custom/ → .hitl/ (Y)  2. Keep the old dir (hitl stays inactive)  3. Start an empty .hitl/ (init --fresh)`.
-   END THE TURN. On 1: 📝 `hitl-index migrate`, print its output (incl. the `git add -A` hint and files left in place),
+   with `legacy: true`), run `hitl-index migrate --dry-run`, print its plan, then GATE:
+   `1. _Rec:_ Migrate .claude/custom/ → .hitl/ (Y)  2. Keep the old dir (hitl stays inactive)  3. Start an empty .hitl/ (init --fresh)`.
+   END THE TURN. On 1: `hitl-index migrate`, print its output (incl. the `git add -A` hint and files left in place),
    then continue with step 3. On 3: `hitl-index init --fresh --json`. Never move the dir by hand.
 2b. v0.5 planning check: if `.hitl/planning/*.md` exists, follow `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/migrate.md`
-   steps 1–3 (dry run, conflicts, the table with its 💡 business-area names, the `--map` apply), with these setup
+   steps 1–3 (dry run, conflicts, the table with its recommended (`_Rec:_`) business-area names, the `--map` apply), with these setup
    differences: its table and `warnings` become option 4 of the gate in step 5 (no gate of its own), and its `M`
    replies are typed with `4` instead: `4` (migrate with these names), `4 1 accounts ACC` (rename row 1), `4 skip`.
    Skip its rename gate: crude migrated titles are polished later by `/hitl:plan` (mention it in one line).
-3. 📝 `hitl-index init --json`. It is idempotent: creates missing dirs, config and `.gitignore`, never overwrites md files.
+3. `hitl-index init --json`. It is idempotent: creates missing dirs, config and `.gitignore`, never overwrites md files.
    Output: `{created:[…], config:{…}, detected:{ts:{runner,confidence}, py:{runner,confidence}}}`.
    - Exit ≠ 0 → print ❌ with stderr and stop.
-4. 🔍 `hitl-index index --all --json`. Summarize: files, symbols, parse warnings (max 5 + count; the informational
+4. `hitl-index index --all --json`. Summarize: files, symbols, parse warnings (max 5 + count; the informational
    `GENERIC_APPROX` / `ADAPTER_LANG` codes are only counted, never listed).
    - Languages: the output has `languages: {<lang>: {files, enabled, adapter, note}}` (every built-in language found
      in the repo). Print one line per language from `note`, e.g.
@@ -38,14 +38,14 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
      Shell, SQL, Elixir, Nim). ctags/generic results are approximate (regex + brace/`end`/indent matching, name-based calls).
    - `enabled: false` → the config lists languages explicitly; offer `hitl-index init --set 'languages=["*"]'`
      (or add the language ids). `"!<lang>"` excludes one; `adapters.<lang>` = `generic` | `ctags` | `none` overrides.
-   - `ts-lite` in use → `💡 Install typescript in the project for the exact TS adapter (ts-lite is an approximation).`
-   - any language on `generic@1` → once: `💡 Install universal-ctags (built with +json) for better symbol discovery.`
-5. ⛔ GATE. Print:
+   - `ts-lite` in use → `_Tip:_ Install typescript in the project for the exact TS adapter (ts-lite is an approximation).`
+   - any language on `generic@1` → once: `_Tip:_ Install universal-ctags (built with +json) for better symbol discovery.`
+5. GATE. Print:
 
 ```
 ✅ HITL initialized: .hitl/  (created: <n> items | already existed)
-📊 Index: <files> files · <symbols> symbols · warnings: <n>
-🗂️ Languages:
+Index: <files> files · <symbols> symbols · warnings: <n>
+Languages:
    ts (12 files) → ts-lite@1 (approx; install typescript for the exact adapter)
    kotlin (173 files) → generic@1 (approx; install universal-ctags for better symbol discovery)
 
@@ -56,7 +56,7 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
 | lint      | —    | npm run lint                       | ✅         |
 | typecheck | —    | (not configured)                   | —          |
 
-1. 💡 Keep commands (Y)
+1. _Rec:_ Keep commands (Y)
 2. Edit — type e.g. `test.ts = npx jest --ci …` or `typecheck = npx tsc --noEmit -p .`
 3. Install git pre-commit drift check? (y/N)
 <4. Migrate v0.5 planning … (only when step 2b found files)>
@@ -74,16 +74,16 @@ Reply e.g. "Y", "2 test.py = …", "1 3", "1 4".
 7. Pre-commit opt-in (only if the user said yes to 3):
    - `.husky/` exists → `hitl-index install-git-hook --husky`, else `hitl-index install-git-hook`.
    - Print ✅ with the hook path and: `It runs hitl-index precommit (blocks only on DELETED_REFERENCED / forged status). Uninstall: hitl-index install-git-hook --uninstall`.
-8. 🎯 Next:
+8. _Next:_
    - Any of `.hitl/docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
    - Else → `/hitl:go <describe the work>`
-   - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
+   - Always add one line: `_Info:_ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
      index/skeleton.lock.json, <provider>.map.json (linear|jira|github), reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored
      (.hitl/.gitignore): the rest of index/ and reviews/<T>/, .inbox/, .scout.json, .spec-review.json.` (`init --json` `gitignore.added` non-empty → also
-     `📝 updated .hitl/.gitignore (+<n> lines)`.)
+     `_Wrote:_ .hitl/.gitignore (+<n> lines)`.)
    - Run `git ls-files -ci --exclude-standard .hitl` (ignore failure / not a repo). Lists files →
-     `💡 Already tracked generated files: <n>. Untrack with: git rm -r --cached <paths>`. Never run it yourself.
-   - Last line: `💡 Ticket tracker (optional): Linear, Jira or GitHub Issues — install its MCP (Linear: claude mcp add
+     `_Tip:_ Already tracked generated files: <n>. Untrack with: git rm -r --cached <paths>`. Never run it yourself.
+   - Last line: `_Tip:_ Ticket tracker (optional): Linear, Jira or GitHub Issues — install its MCP (Linear: claude mcp add
      --transport http linear-server https://mcp.linear.app/mcp · Jira: … atlassian https://mcp.atlassian.com/v1/mcp ·
      GitHub: … github https://api.githubcopilot.com/mcp/; one server per workspace/site/account), then
      /hitl:tickets init [linear|jira|github] once per repo (pins the provider, server, team/project/repo and container).`

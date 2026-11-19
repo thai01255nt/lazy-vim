@@ -2,7 +2,7 @@
 
 Vendored **unmodified** into hitl as `hitl:grilling` (model-invocable, so it also triggers on "grill me" phrases outside
 hitl). Every file listed below is byte-identical to upstream. The hitl overlay (round header, `[R][S][A][D]` tags,
-≤ 7 questions, 💡 instead of ➡️, reply grammar, recording rules) lives outside this directory:
+≤ 7 questions, `_Rec:_` instead of ➡️, reply grammar, recording rules) lives outside this directory:
 `shared/interview.md`. `/hitl:plan` and `/hitl:design` load this skill first, then apply the overlay.
 
 | | |

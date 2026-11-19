@@ -10,7 +10,7 @@ allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(nod
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-spec.md`.
 Templates: `${CLAUDE_PLUGIN_ROOT}/shared/templates/{proposal,spec-delta,glossary,plan-brief}.md`.
 Interview: the `hitl:grilling` skill + `${CLAUDE_PLUGIN_ROOT}/shared/interview.md` (the brief file: format, answer
-grammar, recording) + `${CLAUDE_SKILL_DIR}/references/elicitation.md` (coverage, hotspots 🔥, stop rule). Artifacts:
+grammar, recording) + `${CLAUDE_SKILL_DIR}/references/elicitation.md` (coverage, hotspots `_Hot_`, stop rule). Artifacts:
 `${CLAUDE_PLUGIN_ROOT}/shared/artifacts.md`. Step 3.2 says when to read them.
 **Read only when needed** (not up front):
 - `${CLAUDE_PLUGIN_ROOT}/shared/formats/<file>` — before writing the first instance of that artifact in this change:
@@ -28,7 +28,7 @@ grammar, recording) + `${CLAUDE_SKILL_DIR}/references/elicitation.md` (coverage,
 Arguments: `$ARGUMENTS` — a description (optionally with `--before <change-id>[,…]`, repeatable), a change id, a
 change id followed by new information (`/hitl:go` sends that for a draft change), `<change-id> amend [N-k]`, or empty.
 `<change-id> amend [N-k]` → section 7 only. `--before` → the new change is a prerequisite of those changes
-(other-changes.md §2). Empty and no work described in this conversation → ⛔ GATE
+(other-changes.md §2). Empty and no work described in this conversation → GATE
 `Please describe what you want to build or fix (or a change id):` END THE TURN.
 
 **The interview happens in a brief file** (`.hitl/changes/<id>/plan-brief.md`, interview.md §4), never in chat: the
@@ -46,23 +46,23 @@ keywords (`SHALL`, `GIVEN/WHEN/THEN`, `Requirement:`, `Scenario:`) and the brief
 
 ## 1. Resolve the change (no questions when unambiguous)
 Not initialized → per conventions (`/hitl:setup`), stop.
-1. 🔍 Glob `.hitl/changes/*/proposal.md`; match the arguments on change id, `#` title and capability names.
+1. Glob `.hitl/changes/*/proposal.md`; match the arguments on change id, `#` title and capability names.
    - The argument is an existing change id → resume it (§4). Text after the id is new information for §4. A proposal
-     with `status: approved` and no `amend` argument → ⛔ GATE (chat):
+     with `status: approved` and no `amend` argument → GATE (chat):
      `Spec is approved. 1. small edit: /hitl:plan <id> amend · 2. reopen the spec: proposal back to draft, a new round in the plan brief`
      END THE TURN. Reply `1` → section 7 (amend mode). Reply `2` → proposal `status: draft`, `updated:` today; the
      plan brief gets a new `## Round <n>` after its last section (header `status: open`, the text after the id, if
      any, in its Notes) and §4 runs on it.
    - The argument starts with a valid **new** change id (`feat-…`, `fix-…`, …; ≤ 48 chars, kebab case) → create that
      id.
-   - Partial matches → ⛔ GATE (chat, short): `Continue with existing change? 1. <id> (<title>) · 2. … · new` END THE
+   - Partial matches → GATE (chat, short): `Continue with existing change? 1. <id> (<title>) · 2. … · new` END THE
      TURN. A number → resume that change with the description as new information (§4); `new` → create.
    - Otherwise derive `<type>-<slug>` (type from the request: feat/fix/refactor/perf/docs/test/chore; slug ≤ 4 words)
      and use it: no name question (the brief's `Q0` lets the user rename it).
    - A new change also needs its **change key** (2–5 capitals, unique forever, the prefix of every id of the change:
      `PWR-R1`, `PWR-T1`, `PWR-D1`): `hitl-index spec key <id>` prints a free suggestion (algorithm:
      `shared/spec-format.md` "Names and ids"); use it (`Q0` lets the user change it). A resumed change whose proposal
-     has no `| key:` (or `IDS_LEGACY` from the CLI) → 🛑 `pre-0.13 ids: run /hitl:migrate first`, stop.
+     has no `| key:` (or `IDS_LEGACY` from the CLI) → _Stop:_ `pre-0.13 ids: run /hitl:migrate first`, stop.
 2. **Legacy v0.5 planning** (`.hitl/planning/*.md` exists): read `references/migrate.md` and follow it (dry run,
    conflicts, its chat gate with the migration block). None → skip.
 3. Create the change: `.hitl/changes/<id>/proposal.md` from the template (`| key: <KEY>`, `status: draft`, today,
@@ -75,12 +75,12 @@ Not initialized → per conventions (`/hitl:setup`), stop.
 - A resumed change: its proposal, deltas, glossary delta (`glossary.md`), `## Open questions` and the brief
   (`hitl-index brief <id> --kind plan --json` + the file). Its open notes from another change
   (`hitl-index note list --change <id> --json`, notes with `source`) become questions of the next round:
-  `### Q<n> 📥 From <source>: <note text> · refs <ids (titles)>` with `💡 Recommended:` the delta edit (other-changes.md
+  `### Q<n> _From <source>:_ <note text> · refs <ids (titles)>` with `_Rec:_` the delta edit (other-changes.md
   §5); a `Y` (its own or the accept-all line's: it edits only this change's delta) records the edit; `note apply` at §6
   approval marks the note applied. The living glossary + the delta are the
   project's words (interview.md §10, Plain replies in conventions.md).
 - Do **not** load ARCHITECTURE, PATTERNS-CONVENTIONS or CODEBASE-MAP, and do not read source code yourself: the scout
-  does. Missing BUSINESS-CONTEXT → `❌ BUSINESS-CONTEXT missing (💡 /hitl:overview)` and continue.
+  does. Missing BUSINESS-CONTEXT → `❌ BUSINESS-CONTEXT missing (_Tip:_ /hitl:overview)` and continue.
 
 ## 3. New change: scout, then the brief (round 1)
 1. **Scout** (subagent; keeps code out of this conversation). Spawn one `hitl:spec-scout` (Agent tool,
@@ -97,11 +97,11 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    - facts → proposal `## Assumptions` in business words (never the `source` path);
    - `unknowns` → tailored questions;
    - run `hitl-index overlap <id> --json`:
-     - each candidate with `parent: true` → one round-1 info line `🔗 parent <P> — shared: <evidence refs (titles)>`
+     - each candidate with `parent: true` → one round-1 info line `_Parent:_ <P> — shared: <evidence refs (titles)>`
        (`shared: none found yet` when it has no evidence) — other-changes.md §3;
-     - each candidate with `shared: true` and `linked: false` → one info line `🔎 may overlap <P>: <refs (titles)>`,
+     - each candidate with `shared: true` and `linked: false` → one info line `_Overlap?_ <P>: <refs (titles)>`,
        plus an `[R]` question when the evidence names behaviour (same-id, ac-ref, rule-ref, term) — other-changes.md §4;
-     - in every later round, before recording a behaviour, run the owner check of other-changes.md §3 (the 🔗 list
+     - in every later round, before recording a behaviour, run the owner check of other-changes.md §3 (the `_Parent:_` list
        first);
    - `vocabulary` rows with `maps: null` or a clash with a glossary term → `[T]` questions (interview.md §10).
    Scout failed or unavailable → one ⚠️ chat line; ask the current-behaviour questions from `spec list` alone (the user
@@ -113,14 +113,14 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    new conversation). The other files of the header list are read only at the moment it names.
 3. **Proposal draft** (only what the user said): `## Why` and `## What changes` from the description, the
    `## Coverage` table with a first status per category (elicitation.md §1), `## Artifacts` rows you are sure of
-   (`💡 Assumed`, artifacts.md). No requirement yet: requirements are written at the first processing run (§4), from
+   (`_Assumed:_`, artifacts.md). No requirement yet: requirements are written at the first processing run (§4), from
    the description and the answers together. Behaviour the user did not ask for is never written.
 4. **Write `plan-brief.md`** from `${CLAUDE_PLUGIN_ROOT}/shared/templates/plan-brief.md`:
    - `## Description` = the user's description **verbatim** (without `--before …`). It is the initial description
      only: the user may extend it until the first processing run; after that new information goes into the Notes
      of the open round (interview.md §4).
-   - `## Round 1`: the info lines (🔗, 🔎, 💡 Assumed), then `Q0` (keep the change id and key? `(needs its own Y)`,
-     with `💡 Recommended: keep …`), then the core questions `Q1`–`Q10` of the template (together they cover the nine
+   - `## Round 1`: the info lines (`_Parent:_`, `_Overlap?_`, `_Assumed:_`), then `Q0` (keep the change id and key? `(needs its own Y)`,
+     with `_Rec:_ keep …`), then the core questions `Q1`–`Q10` of the template (together they cover the nine
      coverage categories except Terminology, which comes through tailored `[T]` questions: goal and why · main flow
      from trigger to result · who may and who must not · business data and its lifecycle · rules with numbers · errors
      and edge cases · other systems or parties · quality needs with numbers · out of scope · how you know it worked),
@@ -133,14 +133,14 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    - The round ends with the template's Notes block (`### Notes — anything the questions missed, or a change to an
      earlier answer` + an empty `>` line).
 5. Chat (one or two lines):
-   `📝 Brief ready: .hitl/changes/<id>/plan-brief.md — answer in the file, then run /hitl:plan <id>` END THE TURN.
+   `Brief ready: .hitl/changes/<id>/plan-brief.md — answer in the file, then run /hitl:plan <id>` END THE TURN.
 
 ## 4. Later runs: read the answers, record, next round
 `/hitl:plan <id>` (also via `/hitl:go` or `/hitl:flow`), or "continue", "next", "xong" in the same conversation.
 1. Load (§2) and the technique (§3.2, once per conversation). No `plan-brief.md` (a change started before 0.14) →
    write it now from the current state: `## Description` = the proposal's Why and What changes (one line
    `(from the proposal)` first), `## Round 1` = the current open frontier (open questions, coverage gaps, hotspots) in
-   the round format of later rounds (recommendations, accept-all line); chat `📝 Brief ready: …` and END THE TURN.
+   the round format of later rounds (recommendations, accept-all line); chat `Brief ready: …` and END THE TURN.
 2. Text after the id (new information) → write it into the Notes of the open round (a new `>` line; the Close
    section's Notes when the header says `status: closing`), never into `## Description`. If the header says
    `status: closing`, go to §6 now; otherwise continue with step 3.
@@ -151,10 +151,10 @@ Not initialized → per conventions (`/hitl:setup`), stop.
    change has its first task): `Q0` answered `Y` → `→ recorded: kept`; empty → carried like every `(needs its own Y)`
    question (the accept-all line does not answer it); a bare `n` → `→ recorded: declined` (the name stays); a new id
    and/or key → interview.md §6 Rename (`hitl-index spec key --check <KEY> --change <id>`, then
-   `hitl-index brief rename <id> [--to <new-id>] [--key <KEY>] --json`). A failed rename → `💬` with the CLI message and the next free key, the question carried; the rest of this run goes on
+   `hitl-index brief rename <id> [--to <new-id>] [--key <KEY>] --json`). A failed rename → `_Disc:_` with the CLI message and the next free key, the question carried; the rest of this run goes on
    under the current name. After a rename use the new id and key everywhere.
 5. Process every pending question, then every pending Notes block (`rounds[].notes.pending`), per interview.md §6
-   (answer grammar, decline answers, discussions `💬`, Notes, rename, scope change) —
+   (answer grammar, decline answers, discussions `_Disc:_`, Notes, rename, scope change) —
    a question or discussion records nothing. Plan-specific: a design idea is parked (interview.md §8, `→ parked for design`); a correction of an
    earlier answer (`Q5: …`, `sửa Q5: …`) edits the requirement recorded from it in place (the spec is still a draft),
    `→ recorded: <ids> (changed)`; a postponed answer (`n` + "later", "để sau") → proposal `## Deferred`; a scope
@@ -182,16 +182,16 @@ Not initialized → per conventions (`/hitl:setup`), stop.
      A new domain noun (also a lifecycle state) → a `[T]` question, recorded per interview.md §7 `[T]`.
    - Postponed → proposal `## Deferred` (never in a delta). Excluded → `## Out of scope`.
    - Update the `## Coverage` table and the hotspot scores after every run.
-7. Recompute the frontier: ❌ then ⚠️ coverage categories, hotspots 🔥 drilled into first (elicitation.md §1–2), the
+7. Recompute the frontier: ❌ then ⚠️ coverage categories, hotspots (`_Hot_`) drilled into first (elicitation.md §1–2), the
    carried questions (same numbers), `[S]` capability mapping (existing capability → MODIFIED; new business area → new
-   capability, recommended from `spec list`), `[A]` (max 2), `[T]` (max 2), `📥 For <P>` owner-check questions
+   capability, recommended from `spec list`), `[A]` (max 2), `[T]` (max 2), `_To <P>:_` owner-check questions
    (other-changes.md §3; heading ends `(needs its own Y)`), and the `deep` menu question (deep.md) when asked for. A ✅ or — category asks nothing.
    Frontier empty, or the user answered `done` → §5.
-8. Else **append `## Round <n+1>`** (interview.md §4): heading with the coverage line and 🔥, the accept-all line,
-   ≤ 7 questions, every one with `💡 Recommended:` (Discussion Mode when there are real business alternatives), and the
+8. Else **append `## Round <n+1>`** (interview.md §4): heading with the coverage line and `_Hot_`, the accept-all line,
+   ≤ 7 questions, every one with `_Rec:_` (Discussion Mode when there are real business alternatives), and the
    Notes block last.
    Update the header (`round`, `updated`). Chat ≤ 3 lines: `✅ recorded: <counts>` and
-   `🌳 Round <n+1>: <k> questions in .hitl/changes/<id>/plan-brief.md (🔥 <m>)`. END THE TURN.
+   `Round <n+1>: <k> questions in .hitl/changes/<id>/plan-brief.md (_Hot_ <m>)`. END THE TURN.
 
 ## 5. Close (in the brief)
 When the frontier is empty or the user answered `done` (unanswered questions → proposal `## Open questions` with
@@ -214,8 +214,8 @@ keeping the name needs no action):
    ```
    ## Close
 
-   📋 feat-password-reset — capabilities: accounts (+2 ~1 -1) · scenarios: 7 · rules: 1 · terms: +1 ~0 · avoided words reworded: 2
-   artifacts: design ✅ · decision table 💡 assumed · use-case flow ⏭️ skipped · open: 0
+   _Summary:_ feat-password-reset — capabilities: accounts (+2 ~1 -1) · scenarios: 7 · rules: 1 · terms: +1 ~0 · avoided words reworded: 2
+   artifacts: design ✅ · decision table _Assumed_ · use-case flow skipped · open: 0
    validate: ✅ (warn 1: BIZ_CODE_TOKEN ACC-R4) · spec review: 2 wording fixes applied
 
    ### Notes — anything the questions missed, or a change to an earlier answer
@@ -228,7 +228,7 @@ keeping the name needs no action):
    ```
    Design skipped → `— then /hitl:tasks`. **Stop rule** (elicitation.md §4): any `COVERAGE_GAP` or `REQ_UNCLEAR` →
    the gap list instead of the summary's last line, and the question `### Close with gaps? (round · deep <ID> · force)`.
-   Chat: `📋 .hitl/changes/<id>/plan-brief.md: ready to approve — answer the Close section, then /hitl:plan <id>`.
+   Chat: `.hitl/changes/<id>/plan-brief.md: ready to approve — answer the Close section, then /hitl:plan <id>`.
    END THE TURN.
 
 ## 6. Approve (next run, header `status: closing`)
@@ -241,9 +241,9 @@ own steps in that order:
   Errors → no approval: `→ continued in Round <n>` under the question, header `status: open`, one question per error
   in the new round. No error → proposal `status: approved`, `updated:` today; brief `→ approved <date>` under the
   question, header `status: done`. A note from another change you took in → `hitl-index note apply --change <id> N-k
-  --impact "<ids>=<class>" --json` (no locked work yet: no recheck). Print `✅ Spec approved. 🎯 next: /hitl:design
+  --impact "<ids>=<class>" --json` (no locked work yet: no recheck). Print `✅ Spec approved. _Next:_ /hitl:design
   <id>` (or `/hitl:tasks <id>` when design is skipped).
-- `force` (gap question) → `- 💡 Forced: closed with gaps <list> (<date>)` under the proposal's `## Open questions`,
+- `force` (gap question) → `- _Forced:_ closed with gaps <list> (<date>)` under the proposal's `## Open questions`,
   then as `Y`.
 - `n` + text, `round`, `deep <ID>` → `→ continued in Round <n>` under the question, header `status: open`, process the
   text as answers (§4.5–4.6) and append the next round (§4.8). A bare `n` and an empty answer: interview.md §9.
@@ -254,18 +254,18 @@ A small change to an approved or archived spec, through `${CLAUDE_PLUGIN_ROOT}/s
 change is that note from the inbox (`hitl-index note show --change <id> N-k --json`); no `N-k` and open spec notes exist
 (`hitl-index note list --change <id> --json`) → list them in one line and ask which, in the gate. A note from another change
 (`source: <other>`) is amended the same way; after `note apply` the change still waits until `<other>` is archived
-(other-changes.md §5) — say so in the `🎯 next` line.
+(other-changes.md §5) — say so in the `_Next:_` line.
 1. Load the change, `hitl-index spec show --change <id> --json` and `hitl-index trace <id> --json`. Proposal still
-   draft → `💡 Spec is draft; editing normally.` and use the brief (§4).
-2. One ⛔ GATE: the user's change as questions (which ids to modify, remove or add), each with `💡 Recommended`,
-   then the 📐 Spec delta preview and the 🔁 Impact block (amend-spec.md §2) and `Apply? (Y/n/edit)`. END THE TURN.
+   draft → `_Info:_ Spec is draft; editing normally.` and use the brief (§4).
+2. One GATE: the user's change as questions (which ids to modify, remove or add), each with `_Rec:_`,
+   then the `_Delta:_` preview and the `_Impact:_` block (amend-spec.md §2) and `Apply? (Y/n/edit)`. END THE TURN.
 3. On Y apply per amend-spec.md (active change → its delta; archived → a mini change `fix-<slug>`). New behaviour or a
-   new capability → proposal `status: draft` and `🎯 next: /hitl:tasks <id> (update)`; else `✅ Amended (<n> changes).`
+   new capability → proposal `status: draft` and `_Next:_ /hitl:tasks <id> (update)`; else `✅ Amended (<n> changes).`
    and the next step from amend-spec.md §5 (`note apply` records the impact; a recheck → `/hitl:approve <id> reopen`).
 
 ## Rules
 - Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, `plan-brief.md` (Claude's
-  parts: rounds, marks, `💬`, Close — never the user's `>` lines or Description text), and design.md
+  parts: rounds, marks, `_Disc:_`, Close — never the user's `>` lines or Description text), and design.md
   `## Parked from planning` (parking only). Never `.hitl/specs/**` or `.hitl/archive/**` (only `hitl-index spec
   merge|archive` writes them), never code, never a v0.5 `.hitl/planning/` file.
 - Another change's files are never edited: its share of an overlap goes in as a note there (`hitl-index note add

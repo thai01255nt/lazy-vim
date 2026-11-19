@@ -37,7 +37,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
 1. **Preconditions**: `hitl-index status <T> --json`. Task status below `green` (any symbol red/wip/skeleton) →
    ⚠️ say so and continue anyway (the report will say FAIL); suggest `/hitl:implement <T>` at the end.
 2. **L0**: `hitl-index l0 <T> --json` (writes `R/l0.json`). Note failing gates (L0 "gates" are automated checks —
-   tests, drift, trace, terms — not ⛔ stops).
+   tests, drift, trace, terms — not gate stops).
    If tests fail or drift has a `block` item → L1 runs **only the contract lens**.
    The `trace` gate (`hitl.trace/2`: requirement → scenario → AC → test → symbol) is `fail` only on block items —
    broken references: `CHANGE_MISSING`, `REQ_UNKNOWN`, `SCN_UNKNOWN`, `RULE_UNKNOWN`, `REQ_INACTIVE` (the task's own
@@ -53,7 +53,7 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    - `security` if any symbol has a security signal (securityPaths, features ∩ {sql, shell, crypto, eval, deserialize, fs-path}),
      the task's risk reasons in the tasks md start with `security` (e.g. `risk: high (security)`; `risk --json` already lists it),
      or the task crosses a trust boundary the index cannot see (security.md §1: auth, untrusted input parsing, crypto,
-     secrets, file/IPC/network, LLM/tool use, deserialization, multi-tenant data) → `💡 Assumed: security lens (…)`.
+     secrets, file/IPC/network, LLM/tool use, deserialization, multi-tenant data) → `_Assumed:_ security lens (…)`.
    - model: task risk high → `opus` for contract and concurrency; everything else `sonnet`.
    - `override: true` → all four lenses regardless of signals (`risk --json` lists all four), `opus` for contract.
 4. **Review context**: `hitl-index context <T> --out .hitl/reviews/<T>/review-context.md`
@@ -78,14 +78,14 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    `## Structure (suggestions)` list when present (never gated).
    Mention the collapsed count (minor / below threshold) without listing them.
 8. **Gate or finish**:
-   - `human required > 0` → run the tickets block (step 9) first, then ⛔ GATE: one line per finding,
+   - `human required > 0` → run the tickets block (step 9) first, then GATE: one line per finding,
      `F-1 (<the problem in plain words, glossary terms>) → accept/reject/defer/amend`, then `— or "fix F-1". HUMAN-routed
      functions: open <file> beside the report.`
      End turn. (`amend` is offered for findings with a `spec:` line and category intent, scope or todo-flow.)
    - else, verdict PASS: risk low → `hitl-index approve <T> --stage done --by auto`, print ✅ and the next frontier task
-     (`hitl-index status --json` `.next`). Risk high → ✅ and `🎯 next: /hitl:approve <T> done`.
-   - verdict FAIL (tests/drift/trace block) with nothing for the human to decide → 🛑 print the failing gates and
-     `🎯 next: /hitl:implement <T>` (red tests), `/hitl:sync` (drift or trace references).
+     (`hitl-index status --json` `.next`). Risk high → ✅ and `_Next:_ /hitl:approve <T> done`.
+   - verdict FAIL (tests/drift/trace block) with nothing for the human to decide → _Stop:_ print the failing gates and
+     `_Next:_ /hitl:implement <T>` (red tests), `/hitl:sync` (drift or trace references).
 9. **Ticket tracker (optional, fail-open; Linear, Jira or GitHub)** — once per full review or recheck, as the last step (before the gate question when
    there is one): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onReview` → invoke the Skill
    `hitl:tickets` with `push <T> --auto` (upserts the verdict comment and state). If the task is mapped and the verdict is
@@ -101,15 +101,15 @@ user said "fix").
 
 `amend F-n` = accept + amend the spec:
 1. `hitl-index review-decide <T> F-n accept --note "amend spec"`.
-2. Follow `shared/amend-spec.md` (delta + 🔁 Impact; `note apply --from "/hitl:review <T> amend F-n"`) with
+2. Follow `shared/amend-spec.md` (delta + `_Impact:_` block; `note apply --from "/hitl:review <T> amend F-n"`) with
    `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing → the task's
-   change and the finding text): 📐 Spec delta, ⛔ GATE `Apply? (Y/n/edit)`, END THE TURN.
+   change and the finding text): `_Delta:_` preview, GATE `Apply? (Y/n/edit)`, END THE TURN.
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
-   `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
+   `_Next:_ edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
 Also offer `amend F-n` when the human accepts a contract finding that implies a different design.
 A finding whose fix is too big for this change (needs its own spec; new behaviour the change's proposal does not name; more than 1 task;
 another capability) →
-`defer F-n` plus `💡 Out of scope for <change>: … → /hitl:go <X> --before <change>`
+`defer F-n` plus `_Tip:_ Out of scope for <change>: … → /hitl:go <X> --before <change>`
 (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1; the user decides, never you).
 
 ## `fix F-n[,F-m]`
@@ -121,11 +121,11 @@ Follow `references/fix-loop.md`. Summary:
    - `@impl agent` symbol + reproducible behaviour → **test first**: `hitl:test-author` writes a failing test for the finding
      (contract pack + finding text) → fresh run shows it red → `hitl:implementer` makes it green (slice via
      `hitl-index context <ref> --out .hitl/index/contracts/<T>.impl.md`) → fresh `hitl-index test --task <T> --json`.
-   - `@impl manual` symbol → print the finding as a ✍️ TODO card for the human (file:line, evidence, suggested fix). Never edit it.
+   - `@impl manual` symbol → print the finding as a `_Yours:_` TODO card for the human (file:line, evidence, suggested fix). Never edit it.
    - category `structure` (refactor suggestion, never a blocker) → refactor pass under green, untouched tests (fix-loop §6).
    - contract / intent / scope findings (category intent, todo-flow, scope) → human: they may need a skeleton change +
      `/hitl:approve <T>`. Print what would change and offer `amend F-n`; do not edit locked signatures or docstrings.
-4. Max `review.maxFixRounds` (default 2) rounds per finding; then 🛑 escalate with the evidence.
+4. Max `review.maxFixRounds` (default 2) rounds per finding; then _Stop:_ escalate with the evidence.
 5. After fixes: run **recheck** (below).
 
 ## `recheck` (incremental)

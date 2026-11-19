@@ -81,7 +81,7 @@ async function add(a, ctx, json) {
   }
   if (v.errors.length) {
     if (json) console.log(JSON.stringify({ ok: false, change: c.entry.id, errors: v.errors }, null, 2));
-    else { console.log(`🛑 note not added to ${c.entry.id}:`); for (const e of v.errors) console.log(`  - ${e}`); }
+    else { console.log(`_Stop:_ note not added to ${c.entry.id}:`); for (const e of v.errors) console.log(`  - ${e}`); }
     return 1;
   }
   const base = refHashes(refs, c.refCtx);
@@ -95,11 +95,11 @@ async function add(a, ctx, json) {
   const blocks = noteBlocks([note], c.tasks, c.g)[note.id];
   if (json) console.log(JSON.stringify({ ok: true, change: c.entry.id, note: pub(note), blocks, file: `${c.entry.dir}/notes.md` }, null, 2));
   else {
-    console.log(`📌 ${note.id} added to ${c.entry.id}${source ? ` from ${source}` : ""}: ${note.title}`);
+    console.log(`_Note ${note.id}_ added to ${c.entry.id}${source ? ` from ${source}` : ""}: ${note.title}`);
     if (refs.length || !source) console.log(refs.length ? `  refs: ${refs.map((r) => (v.titles[r] ? `${r} (${v.titles[r]})` : r)).join(", ")}` : "  refs: none (warns at approvals, blocks archive)");
-    if (source) console.log(`⏳ ${c.entry.id} now waits for ${source}: every task approval, implement and the archive of ${c.entry.id} wait until ${source} is archived (plan, design and tasks stay open)`);
+    if (source) console.log(`_Waits:_ ${c.entry.id} now waits for ${source}: every task approval, implement and the archive of ${c.entry.id} wait until ${source} is archived (plan, design and tasks stay open)`);
     else if (blocks.length) console.log(`  blocks approvals of: ${blocks.join(", ")}`);
-    if (!(source && a.kind === "order")) console.log(`🎯 apply it later: ${applyCommand(c.entry.id, note)}`);
+    if (!(source && a.kind === "order")) console.log(`_Next:_ apply it later: ${applyCommand(c.entry.id, note)}`);
   }
   return 0;
 }
@@ -132,7 +132,7 @@ async function list(a, ctx, json) {
   if (!out.some((c) => c.notes.length)) { console.log(`no ${want === "all" ? "" : want + " "}notes`); return 0; }
   for (const c of out) {
     if (!c.notes.length) continue;
-    console.log(`📌 ${c.change} — ${c.counts.open} open, ${c.counts.reopenPending} reopen pending (${c.counts.total} total)`);
+    console.log(`_Note_ ${c.change} — ${c.counts.open} open, ${c.counts.reopenPending} reopen pending (${c.counts.total} total)`);
     for (const n of c.notes) console.log(`  ${n.id} [${n.kind}, ${n.status}] ${n.title}${n.refs.length ? ` · refs ${n.refs.join(", ")}` : ""}${n.blocks.length ? ` · blocks ${n.blocks.join(", ")}` : ""}`);
   }
   return 0;
@@ -147,7 +147,7 @@ async function show(a, ctx, json) {
   const n = notes.find((x) => x.id === id);
   if (!n) throw fail(`${id} not found in ${entry.dir}/notes.md`);
   if (json) { console.log(JSON.stringify({ change: entry.id, note: pub(n) }, null, 2)); return 0; }
-  console.log(`📌 ${entry.id} ${n.id} — ${n.title}`);
+  console.log(`_Note ${n.id}_ ${entry.id} — ${n.title}`);
   console.log(`  kind: ${n.kind}${n.source ? ` · source: ${n.source} (${n.sourceState})` : ""} · status: ${n.status}${n.deferredTo ? ` → ${n.deferredTo.change}` : ""} · from: ${n.from}${n.at ? ` (${n.at})` : ""}`);
   console.log(`  refs: ${n.refs.length ? n.refs.map((r) => (n.refTitles[r] ? `${r} (${n.refTitles[r]})` : r)).join(", ") : "none"}`);
   for (const k of n.acks) console.log(`  acked: ${k.task}${k.at ? ` (${k.at})` : ""}`);
@@ -181,7 +181,7 @@ async function apply(a, ctx, json) {
   }
   if (errors.length) {
     if (json) console.log(JSON.stringify({ ok: false, change: c.entry.id, errors }, null, 2));
-    else { console.log(`🛑 note apply refused (${c.entry.id}):`); for (const e of errors) console.log(`  - ${e}`); }
+    else { console.log(`_Stop:_ note apply refused (${c.entry.id}):`); for (const e of errors) console.log(`  - ${e}`); }
     return 1;
   }
   const statusOf = (T) => c.g.statuses.tasks?.[T]?.status ?? null;
@@ -207,12 +207,12 @@ async function apply(a, ctx, json) {
     });
   }
   if (json) { console.log(JSON.stringify(out, null, 2)); return 0; }
-  console.log(`🔁 Impact (${c.entry.id}${id ? ` ${id}` : ""}): ${out.line}`);
-  if (imp.suggestFollowUp) console.log("💡 This touches more than 3 tasks or a contract: a follow-up change may be cleaner.");
+  console.log(`_Impact:_ (${c.entry.id}${id ? ` ${id}` : ""}): ${out.line}`);
+  if (imp.suggestFollowUp) console.log("_Tip:_ This touches more than 3 tasks or a contract: a follow-up change may be cleaner.");
   if (out.dryRun) { console.log("(dry run: nothing written)"); return 0; }
   if (id) console.log(`✅ ${id} applied`);
-  if (out.recheck) console.log(`📌 ${out.recheck} recheck written (reopen pending) → 🎯 the human types /hitl:approve ${c.entry.id} reopen ${out.recheck}`);
+  if (out.recheck) console.log(`_Note ${out.recheck}_ recheck written (reopen pending) → _Next:_ the human types /hitl:approve ${c.entry.id} reopen ${out.recheck}`);
   else console.log("✅ nothing locked is touched: no recheck needed");
-  if (imp.tasksUpdate) console.log(`🎯 next: /hitl:tasks ${c.entry.id} update (new scenario or requirement)`);
+  if (imp.tasksUpdate) console.log(`_Next:_ /hitl:tasks ${c.entry.id} update (new scenario or requirement)`);
   return 0;
 }

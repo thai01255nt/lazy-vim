@@ -3,15 +3,15 @@
 1. Server (`references/common/connect.md` §1, with `--init`):
    - `none` → print `❌ Linear MCP not found. Install it: claude mcp add --transport http linear-server
      https://mcp.linear.app/mcp (or the "linear" plugin), run /mcp to authenticate, then /hitl:tickets init`. Stop.
-   - `pick` → ⛔ GATE: table `# | server | workspace | teams` (call list teams on each candidate if cheap; workspace
-     urlKey from a returned URL, `?` when unknown; a server that fails auth → `not authenticated (/mcp)`), 💡 none
+   - `pick` → GATE: table `# | server | workspace | teams` (call list teams on each candidate if cheap; workspace
+     urlKey from a returned URL, `?` when unknown; a server that fails auth → `not authenticated (/mcp)`), _Rec:_ none
      preselected unless only one is authenticated. END TURN. On reply: `hitl-index init --set linear.server=<server>`.
      A missing workspace: `claude mcp add --transport http linear-<name> https://mcp.linear.app/mcp`, `/mcp`, init again.
    From here on call only that server's tools.
-2. Call list teams and list projects (of the team, when the tool filters by team). ⛔ GATE: table of teams (key, name)
-   and the choices with defaults: team (💡 the only/first one) · issues go to: `one project per change` 💡 /
+2. Call list teams and list projects (of the team, when the tool filters by team). GATE: table of teams (key, name)
+   and the choices with defaults: team (_Rec:_ the only/first one) · issues go to: `one project per change` _Rec_ /
    `existing project <pick: table of list_projects name + url>` / `parent-issue per change` / `none` · label
-   groups risk + impl 💡 (phase labels `hitl:<status>` off 💡). With an existing project, `parent-issue` can be combined
+   groups risk + impl _Rec_ (phase labels `hitl:<status>` off _Rec_). With an existing project, `parent-issue` can be combined
    (parent issues inside that project). Also list the labels that will be created if missing:
    `risk:high`, `impl:agent`, `impl:manual`, `impl:mixed` (+ `hitl:skeleton|approved|red|wip|green|review|verified`
    when phase is on). END TURN. A project given as a name or URL → resolve it with list/get projects to its id.
@@ -37,7 +37,7 @@
    (fix `linear.server`) or the repo really moves → the user runs `/hitl:tickets init --relink` (clears the old task
    mappings; the next push creates new issues). Never add `relink` without the flag.
 7. Print `✅ Linear linked: <workspace>/<KEY> via <server> · project <name|per change> · states … · labels …`,
-   `ℹ️ linear.map.json + hitl.config.json are per repo: commit them; every repo runs /hitl:tickets init once (repos may
+   `_Info:_ linear.map.json + hitl.config.json are per repo: commit them; every repo runs /hitl:tickets init once (repos may
    share a team/project)`, and the recommended team setting:
-   `💡 Linear → Team → Workflow → GitHub: keep "On PR merge → Done" off, or accept that a merge after /hitl:approve done marks Done.`
-   🎯 next: `/hitl:tickets push`.
+   `_Tip:_ Linear → Team → Workflow → GitHub: keep "On PR merge → Done" off, or accept that a merge after /hitl:approve done marks Done.`
+   _Next:_ `/hitl:tickets push`.
