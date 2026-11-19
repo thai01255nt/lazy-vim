@@ -68,6 +68,45 @@ export function stripCapabilityKey(text) {
   return String(text).replace(/^(> capability: \S+.*?) \| key: [A-Z][A-Z0-9]*(.*)$/m, "$1$2");
 }
 
+/** Rewrite every id with the key prefix `oldKey` to `newKey` (requirements, scenarios, rules, flows, tasks, ACs,
+ *  decisions: `FEC-R3.S1` → `FCSV-R3.S1`), through rewriteIds so `FEC-R3` never touches `XFEC-R3` or `FEC-R30`. */
+export function rekeyIds(text, oldKey, newKey) {
+  const t = String(text);
+  if (!oldKey || !newKey || oldKey === newKey) return t;
+  const map = {};
+  for (const m of t.matchAll(new RegExp(`(?<![A-Za-z0-9])${oldKey}-((?:R\\d+(?:\\.S\\d+)?|BR\\d+|UC\\d+|T\\d+(?:\\.AC\\d+)?|D\\d+))(?![0-9])`, "g")))
+    map[m[0]] = `${newKey}-${m[1]}`;
+  return rewriteIds(t, map);
+}
+
+/**
+ * renameChangeText(text, {from, to, oldKey, newKey, json}) -> one file of a change after `brief rename` (0.14.1):
+ * ids with the old key take the new key everywhere in the file; the change id changes only where Claude or the CLI
+ * wrote it as a name, in the file head above the first `## ` heading — meta lines (`> change: …`, `> … | change: …`,
+ * `> next: …`), `#` titles ending in `— <id>`, `← Change: <id>` — and, in a JSON scratch file, a string value equal
+ * to the id. The `| key:` of a meta line follows the new key. The user's own text (`>`
+ * answers, Description, Notes) keeps the old change id; its ids follow the key.
+ */
+export function renameChangeText(text, { from, to, oldKey = null, newKey = null, json = false }) {
+  let t = rekeyIds(text, oldKey, newKey);
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (oldKey && newKey && oldKey !== newKey)
+    t = t.replace(new RegExp(`^(>[^\\n]*\\|\\s*key:\\s*)${esc(oldKey)}\\b`, "gm"), `$1${newKey}`);
+  if (!from || !to || from === to) return t;
+  const id = esc(from);
+  if (json) return t.replace(new RegExp(`"${id}"`, "g"), JSON.stringify(to));
+  let head = true; // meta lines and titles sit above the first `## ` section
+  return t.split("\n").map((l) => {
+    if (/^##\s/.test(l)) head = false;
+    if (!head) return l;
+    if (/^>\s*next:/.test(l)) return l.replace(new RegExp(`(?<![\\w-])${id}(?![\\w-])`, "g"), to);
+    if (/^>/.test(l)) return l.replace(new RegExp(`((?:^>|\\|)\\s*change:\\s*)${id}(?![\\w-])`, "g"), `$1${to}`);
+    if (/^#\s/.test(l)) return l.replace(new RegExp(`(—\\s*)${id}\\s*$`), `$1${to}`);
+    if (/^←\s*Change:/.test(l)) return l.replace(new RegExp(`(Change:\\s*)${id}(?![\\w-])`), `$1${to}`);
+    return l;
+  }).join("\n");
+}
+
 const git = (root, args) => spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 26 });
 /** Uncommitted paths (relative) among `rels` (and .hitl/), or null when not in a git work tree. */
 export function dirtyFiles(root, rels) {
@@ -336,7 +375,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
   // ---- spec/decision hashes stored by the active changes (.base.json, notes' `base`) follow the renamed ids, so a
   // pure id rename never reads as BASE_CHANGED or as a changed note ref
   {
-    const { parseLivingSpec, parseDelta, parseDesign, blockHash } = await import("./specmd.mjs");
+    const { parseLivingSpec, parseDelta, parseDesign, blockHash, hashMatches } = await import("./specmd.mjs");
     const { effectiveView, findInView, BASE_SCHEMA } = await import("./changes.mjs");
     const { refHash, shortHash } = await import("./notes.mjs");
     const { stableJson } = await import("./fsutil.mjs");
@@ -354,7 +393,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
         const nb = {};
         for (const id of base) {
           const nid = newId(id), lo = livingBlock(living, id), ln = livingBlock(livingNew, nid);
-          nb[nid] = lo && ln && blockHash(lo.livingText) === ch.base[id] ? blockHash(ln.livingText) : ch.base[id];
+          nb[nid] = lo && ln && hashMatches(ch.base[id], lo.livingText) ? blockHash(ln.livingText) : ch.base[id];
         }
         const f = `${entry.dir}/.base.json`;
         const text = stableJson({ schema: BASE_SCHEMA, blocks: nb });
@@ -372,15 +411,15 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
         design: ch.design ? parseDesign(newText(ch.design.file, ch.texts.get(ch.design.file) || ""), ch.design.file) : null };
       const vOld = effectiveView(living, ch), vNew = effectiveView(livingNew, chNew);
       const hNew = (ref) => refHash(ref, { view: vNew, findInView, design: chNew.design });
-      const hOld = (ref) => {
+      const hOld = (ref, legacy = false) => {
         const d = (chNew.design?.decisions || []).find((x) => x.id === ref);
         if (d) return shortHash([d.decision, d.status, d.supersededBy ? oldId(d.supersededBy) : ""].join("|"));
-        return refHash(oldId(ref), { view: vOld, findInView, design: null });
+        return refHash(oldId(ref), { view: vOld, findInView, design: null }, { legacy });
       };
       const nt = nCur.replace(/^<!-- hitl (\{.*\}) -->$/gm, (m, j) => {
         let meta; try { meta = JSON.parse(j); } catch { return m; }
         if (!meta.base) return m;
-        for (const [ref, h] of Object.entries(meta.base)) { const o = hOld(ref); const n = hNew(ref); if (o && n && o === h) meta.base[ref] = n; }
+        for (const [ref, h] of Object.entries(meta.base)) { const n = hNew(ref); if (n && (hOld(ref) === h || hOld(ref, true) === h)) meta.base[ref] = n; }
         return `<!-- hitl ${JSON.stringify(meta)} -->`;
       });
       if (nt !== nCur) { const i = writes.findIndex((w) => w.file === nf); if (i >= 0) writes.splice(i, 1); writes.push({ file: nf, text: nt }); out.files.hitl.push(nf); }

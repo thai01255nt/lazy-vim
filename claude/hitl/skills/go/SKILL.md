@@ -20,7 +20,7 @@ Arguments: `$ARGUMENTS` = `<description> [--plan|--quick|--tdd] [--before <chang
 (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md`). It always takes the plan route: no router, print
 `🧭 /hitl:plan — prerequisite of <ids>` and invoke the Skill `hitl:plan` with `<description> --before <ids joined by ,>`.
 With `--quick` or `--tdd` → ⛔ GATE `--before needs its own change: 1. 💡 plan it (--plan) · 2. drop --before`
-END THE TURN.
+END THE TURN. Reply 2 → the chosen `--quick` / `--tdd` runs as in §2, without `--before`.
 
 ## 1. Guards
 - Brief status says "not initialized" → `❌ HITL not initialized here. 🎯 next: /hitl:setup`. Stop.
@@ -31,7 +31,7 @@ END THE TURN.
   and stop.
 
 ## 2. Manual mode (a flag)
-One flag (`--before` counts as `--plan`, see above) → no router. Print `🧭 <command> — <the flag> chosen` and invoke the Skill in this turn:
+One route flag (`--plan`, `--quick`, `--tdd`; `--before` implies `--plan` and, together with `--plan`, still counts as one) → no router. Print `🧭 <command> — <the flag> chosen` and invoke the Skill in this turn:
 
 | flag | Skill | args |
 |---|---|---|
@@ -56,7 +56,7 @@ Two or more flags → ⛔ GATE `Pick one: 1. --plan · 2. --quick · 3. --tdd` (
 3. Act on `.action`. Print `.line` first (the reason is already in the user's language) and every `.hints[]` restated
    in the user's language. No `Go?` question: the route is decided.
    - `invoke` → invoke the Skill `.skill` with args `.args` in this same turn.
-   - `note` → the 📌 gate of conventions "Changes stated in chat": one line on what you understood, then `.gate`.
+   - `note` → the 📌 gate of conventions "Edits to approved behaviour stated in chat": one line on what you understood, then `.gate`.
      END THE TURN. Y → `hitl-index note add --change <.change.id> --kind <.noteKind> --refs <ids of .refs>
      --text "<.brief>" --from "user, during /hitl:go"`, print its `📌 N-k` line and `🎯 next:` its apply command.
      n → `🎯 next: /hitl:go <description> --plan` (a separate change).

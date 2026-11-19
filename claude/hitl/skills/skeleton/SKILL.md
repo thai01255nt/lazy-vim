@@ -33,7 +33,7 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 ## 2. Load (no questions)
 - The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`<KEY>-D<n>` in the change's
   `design.md`; `hitl-index context <T> --json` shows them with the AC scenarios).
-- `docs/PATTERNS-CONVENTIONS.md`; `hitl.config.json` (`commands.test`, `commands.typecheck`, `testGlobs`).
+- `.hitl/docs/PATTERNS-CONVENTIONS.md`; `.hitl/hitl.config.json` (`commands.test`, `commands.typecheck`, `testGlobs`).
 - `hitl-index context <T> --json` → existing targets, callers, neighbours, public types.
 - The skeleton pattern file(s) for the languages involved and `tag-grammar.md`.
 
@@ -109,8 +109,8 @@ Then: /hitl:approve <T>  •  or tell me what to change.
 ```
 Intent diff: for each `modify` row show the approved intent → the new one (drift `INTENT_CHANGED` `approved.intent` /
 `current.intent`; the previous docstring when never locked), so the reviewer sees a rewrite, not an appended sentence.
-Ticket tracker (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` exists and `onBranch` is false, add one
-line `🎯 branch: git switch -c <branch>` above `Then:` (run no git command; `linear` null → nothing).
+Ticket tracker (optional, fail-open): if `hitl-index status --json` `tasks[T].linear` is non-null and `tasks[T].linear.onBranch` is false, add one
+line `🎯 branch: git switch -c <tasks[T].linear.branch>` above `Then:` (run no git command; `linear` null → nothing).
 END THE TURN. Never self-approve. On change requests: apply them, redo step 5, show the gate again.
 
 **Fast-lane exception** (`--quick`, or invoked from `/hitl:implement` for a low-risk task): skip the gate, print

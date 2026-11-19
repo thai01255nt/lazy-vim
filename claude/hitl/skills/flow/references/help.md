@@ -6,8 +6,8 @@
 agree on *what* (plan) and *how* (design) before any code. After that you choose how often to look:
 - **Default, step by step**: every high-risk task stops at skeleton → tests → implement → review. You approve
   contracts before code exists.
-- **Fast lane** (`/hitl:implement <KEY>-T<n> --lane fast`): one task runs skeleton → tests → code without gates; you review
-  the result.
+- **Fast lane**: a low-risk task runs skeleton → tests → code without gates (`/hitl:implement <KEY>-T<n>`); on a
+  high-risk task only when you type `--lane fast` (human override). You review the result.
 - **Build then review** (`/hitl:implement --feature <change-id> --lane fast`, optionally after a design where you
   answered `Y` on each round's accept-all line):
   the whole change is built without gates, then one feature report lists everything to review and refine
@@ -19,9 +19,12 @@ The spec gate (`/hitl:plan`) is never skipped. It is what the end-review checks 
 (change id and key, ~10 core questions with an example each, a few tailored ones). Write your answers on the `>` lines
 (as much as you like), then run `/hitl:plan <id>` (or `/hitl:design <id>`) again: Claude records them, writes `💬`
 under any answer that was really a question, and appends the next round with a `💡 Recommended` per question.
-`Y` accepts one recommendation, `Y` on the round's accept-all line accepts them all, `?` / `không biết` keeps it open,
-`deep <ID>` digs deeper, `done` / `xong` stops asking. Each round (and `## Close`) ends with a **Notes** block: write
-there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
+`Y` accepts one recommendation; `Y` on the round's accept-all line accepts all of the round you left empty, except
+questions marked `(needs its own Y)` (a rename, a note into another change, a spec delta from design: only their own
+`Y` counts). `n` + what you want instead is your answer, `n` + "later" postpones it, a bare `n` gets a `💬` asking
+what instead. `?` / `không biết` keeps it open, `deep <ID>` digs deeper, `done` / `xong` stops asking. Until the
+change has its first task you may rename its id or key and change its scope in any answer or Notes. Each round
+(and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
 Amend (`<id> amend`) stays a chat gate.
 **Requirement changes mid-change** (0.9): say it in chat and Claude asks `📌 Note for <change>, refs …? (Y/n)`. The note
@@ -78,7 +81,7 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | command | purpose | gate |
 |---|---|---|
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | ⛔ user-only |
-| `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | ⛔ only if vague (≤ 3 questions) |
+| `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | ⛔ 📌 note (Y/n) · vague description (≤ 3 questions) · conflicting flags |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | ⛔ if docs exist |
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]` | 📝 each round in the brief file (amend: ⛔) |
 | `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | 📝 each round in the brief file |

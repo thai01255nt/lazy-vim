@@ -11,10 +11,14 @@
 - Ambiguous in the wider field → end the definition with "In this project, <term> always means …".
 - Understanding changed → MODIFIED with the full new text; never leave a stale term.
 -->
+
 # Glossary delta
+
 > change: {change-id}
 
 ## ADDED Terms
+
 ### Term: {Term}
+
 {one or two sentences: what it means in this business}
 _Avoid_: {synonyms not to use}

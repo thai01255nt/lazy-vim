@@ -3,8 +3,9 @@
 Uses the vendored `hitl:grilling` technique (mattpocock/skills, MIT — see NOTICE.md): frontier rounds, numbered
 questions with a recommended answer, "yes" accepts the recommendation, facts are the agent's job, decisions are the
 user's, done when the frontier is empty and the user confirms. This file only says how hitl **formats and records**
-those rounds. Where this file and the grilling skill differ, this file wins (format, caps, recording, and **where** a
-round happens: in a brief file, never in chat). Own text, except § Shared language:
+those rounds. Where this file and the grilling skill differ, this file wins (format, caps, recording, **where** a
+round happens — in a brief file, never in chat — and **when** facts are gathered: plan waits for the spec-scout and
+design for Explore before writing round 1). Own text, except § Shared language:
 <!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (<KEY>-D<n> rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
 
 Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags `[D]`, `[A]`).
@@ -12,7 +13,7 @@ Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags 
 ## Contents
 1. Loading
 2. What a round may ask (per skill)
-3. Coverage taxonomy (plan)
+3. Breadth and depth (plan)
 4. The brief file and the round format
 5. Discussion vs Suggestion mode
 6. Answer grammar and processing
@@ -24,7 +25,7 @@ Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags 
 ## 1. Loading
 The first interview step of `/hitl:plan` and `/hitl:design` invokes the Skill tool with `hitl:grilling` (the user never
 calls it). If the Skill tool is unavailable or the call fails, Read `${CLAUDE_PLUGIN_ROOT}/skills/grilling/SKILL.md`
-instead and say nothing about it. Then apply this overlay. Load it once per conversation.
+instead and say nothing about it. Then apply this overlay. Load the grilling skill and this file once per conversation.
 
 ## 2. What a round may ask
 There is **no design tree of components and no levels**. The frontier is a set of open topics:
@@ -57,32 +58,61 @@ from `${CLAUDE_PLUGIN_ROOT}/shared/templates/{plan,design}-brief.md`. They move 
 edits them too; Claude never deletes or rewrites the user's text (`## Description`, `>` lines, Notes).
 ```
 # Plan brief — feat-export-csv
+
 > change: feat-export-csv | key: FEC | kind: plan | status: open | round: 2 | updated: 2026-11-19
 > next: answer the `>` lines, then run /hitl:plan feat-export-csv
 
 ## Description
+
 <the user's description, verbatim; the user may extend it before the first run, never after>
 
 ## Round 1 ✅
-### Q1 [R] Who uses this, and who must not?
-_e.g. "accountants and admins; warehouse staff not"_
-> Accountants and admins; warehouse staff no.
+
+### Q3 [R] Who may do this, and who must not?
+
+_e.g. "accountants and admins; warehouse staff must not see prices"_
+
+> Accountants and admins.
+> Warehouse staff must not.
+
 → recorded: FEC-R1, FEC-R1.S1
 
+### Q2 [R] What is out of scope?
+
+_e.g. "no Excel files"_
+
+> Why not Excel?
+
+💬 Excel files need an extra library; CSV opens in Excel too. Option 1: CSV only. Option 2: CSV and Excel.
+💡 Recommended: CSV only.
+
+→ carried to Round 2
+
 ### Notes — anything the questions missed, or a change to an earlier answer
-> Q1: also the auditors, read-only.
+
+> Q3: also the auditors, read-only.
+
 → recorded: FEC-R1 (changed)
 
-## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ✅ · Edge ❌ · NFR — · …   (🔥 FEC-R2)
+## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ✅ · Edge ❌ · NFR — · … (🔥 FEC-R2)
+
 Accept all recommendations of this round: >
+
 ### Q8 [R] 🔥 What happens above 10 000 rows?
+
 <one context sentence; options if any>
 💡 Recommended: split into several files of ≤ 10 000 rows.
+
 >
 
 ### Notes — anything the questions missed, or a change to an earlier answer
+
 >
 ```
+- **Markdown style** (markdownlint, stable under prettier, which many editors run on save): a blank line around
+  every heading, the meta lines, paragraphs, lists, tables and `>` answer blocks. **A Claude mark (`→ …`) or a `💬`
+  line never sits directly under a `>` line**: put a blank line first, else markdown reads it as part of the answer
+  (a lazy continuation) and a formatter rewrites it to `> → …`. The parser tolerates that form, but never write it.
 - **Header**: the title line `# Plan brief — <id>` / `# Design brief — <id>`, then one meta line
   `> change | key | kind | status | round | updated` (status `open` while rounds run, `closing` once `## Close` is
   written, `done` after approval) and the `> next:` line. Update `round`, `status` and `updated` on every run.
@@ -92,7 +122,16 @@ Accept all recommendations of this round: >
 - Info lines (`🔗 parent …`, `🔎 may overlap …`, `💡 Assumed: …`, `💡 Parked for /hitl:design: …`, `💡 Forced: …`) go
   right under the round heading, before the questions, one per line.
 - **Accept-all line** `Accept all recommendations of this round: >` under the heading of every round whose questions
-  carry recommendations (not plan round 1). `Y` there accepts every `💡` of the round; a written answer still wins.
+  carry recommendations (not plan round 1). `Y` there accepts the `💡 Recommended` of every question of that round
+  whose answer is empty, except a **`(needs its own Y)` question**. A written answer always wins over accept-all.
+- **`(needs its own Y)` questions** act outside the brief, so only a `Y` (or another answer) under the question itself
+  answers them; their heading ends with the visible text `(needs its own Y)`:
+  - `### Q0 …` — renames the change id and/or key (§6 Rename);
+  - `### Q<n> 📥 For <P>: …` — writes a note into another change P (`shared/other-changes.md` §3);
+  - `### Q<n> 💡 Needs spec: …` — applies a spec delta and its Impact classes (§8).
+  The parser recognises them from the heading (`ownY` in `hitl-index brief --json`) and never counts the accept-all
+  `Y` as their answer: an empty answer under one is carried to the next round (same number) even when the round's
+  accept-all line says `Y`.
 - **Question** `### Q<n> [TAG] [🔥] <title>`: then one context sentence (an id in it carries its title the first time,
   Plain replies in `conventions.md`), options if any, then `💡 Recommended: …` (or the Discussion Mode block, §5) or,
   in plan round 1 only, a one-line `_e.g. "…"_` hint; then an empty `>` line for the answer. Word each question so
@@ -122,19 +161,20 @@ Accept all recommendations of this round: >
   💡 My Recommendation: Option 2 — reasoning: <tie to a requirement id or a fact with its source>
   ```
 - **Suggestion Mode** — a clear best practice exists: `💡 Recommended: <answer> (<why, ≤ 10 words>)`.
-- Anti-hallucination rules from `conventions.md` apply (proven tech, official docs, "unknown" when unsure).
+- The anti-hallucination rules of `conventions.md` apply (proven tech, official docs, "unknown" when unsure).
 
 ## 6. Answer grammar and processing
 `hitl-index brief <id> [--kind plan|design] --json` parses the file: every question with its `answer`, `kind`,
-`answered` (also true when the round's accept-all line says Y and the question has a recommendation), `recorded`,
-`carried`. Use it; never guess from memory. Answers are the `>` lines under a question (several lines allowed; a line
-without `>` right after an answer line continues it). Keywords, English and Vietnamese, case-insensitive:
+`answered` (also true when the round's accept-all line says Y, the question has a recommendation and is not a
+`(needs its own Y)` question — `ownY` null), `recorded`, `carried`, `dropped`. Use it; never guess from memory. Answers are the `>` lines under a question (several lines allowed, every
+one starting with `>`); a blank line ends the answer. Keywords, English and Vietnamese, case-insensitive:
 | answer | kind | effect |
 |---|---|---|
-| `Y` · `yes` · `ok` · `được` · `đồng ý` · `ừ` · `có` | accept | take the `💡` recommendation (on the accept-all line: every recommendation of the round) |
+| `Y` · `yes` · `ok` · `được` · `đồng ý` · `ừ` · `có` | accept | take the `💡` recommendation (on the accept-all line: the recommendation of every question of the round left empty, except `(needs its own Y)` questions, §4) |
 | `?` · `don't know` · `không biết` · `chưa biết` | unknown | carried to the next round with a recommendation (plan round 1: a new one) |
-| empty `>` | empty | carried to the next round unchanged (the accept-all Y counts as an answer when the question has a 💡) |
-| `deep` · `deep <ID\|topic>` (plan) | deep | the next round holds the technique menu of `skills/plan/references/deep.md` as one question |
+| empty `>` | empty | carried to the next round unchanged (the accept-all Y counts as its answer when the question has a 💡 and is not a `(needs its own Y)` question) |
+| `n` · `no` · `không` · `ko`, alone or followed by text | decline (the parser's count, for a bare one) | no fixed effect: read the meaning of the whole answer — "Decline answers" below |
+| `deep` · `deep <ID\|topic>` (plan) | deep | the next round holds the technique menu of `skills/plan/references/deep.md` as one question. In a design brief `deep` is not a keyword: treat it as text (a discussion). |
 | `done` · `xong` | done | stop asking: every open question goes to `## Open questions` with its recommendation, then close (§9) |
 | `add <artifact>` · `drop <artifact>` | text | change the artifact decision (`asked → included\|skipped`), record it |
 | anything else | text | an answer, new information, or a question/doubt — decide with the rule below |
@@ -143,16 +183,52 @@ without `>` right after an answer line continues it). Keywords, English and Viet
 - **A question is never an answer.** A reply that asks ("?", why, what if, "tại sao", "khác gì", "nghĩa là gì",
   "nếu … thì sao"), doubts ("not sure", "chưa chắc", "để nghĩ") or argues an option → a **discussion**:
   1. Record nothing for that question; it stays open.
-  2. Under the user's answer write `💬 <answer>`: answer the question directly first (a fact → look it up, never
-     guess), then the options with pros/cons, one concrete example, what each choice changes, and end with the updated
-     `💡 Recommended: …`. Never start a line of it with `>`.
+  2. Under the user's answer, after a blank line, write `💬 <answer>`: answer the question directly first (a fact →
+     look it up, never guess), then the options with pros/cons, one concrete example, what each choice changes, and
+     end with the updated `💡 Recommended: …`. Never start a line of it with `>`; a blank line between it and the mark.
   3. Carry the question into the next round with the **same number** (the updated recommendation); mark the old place
      `→ carried to Round <n>`.
 - Not sure whether a reply is an answer or a question → treat it as a question (`💬 You mean <answer>, right?`) and
   carry it. Never record a guess.
-- Marks Claude appends under a question (one line each, never inside the user's `>` lines): `→ recorded: <ids>` ·
-  `→ carried to Round <n>` · `→ parked for design` · `→ recorded: no change (<why>)` for an answer that settles nothing
-  new. Every question of a processed round gets exactly one; then the round heading gets ` ✅`.
+- **Decline answers** (`n`, `no`, `không`, `ko`). The parser classifies a bare one as `decline` for its counts; the
+  effect comes from the meaning of the whole answer, never from the word alone:
+  - `n` + an edit or an alternative ("n, 5 per hour", "không, chỉ admin") → that edit or alternative is the answer:
+    record it (§7).
+  - `n` + "later", "not now", "để sau", "chưa cần" → postpone: plan → a line in the proposal's `## Deferred` (never in
+    a delta); design → a `- [ ] Q<n> <topic> (deferred: <the user's words>)` line under design.md `## Open questions`.
+    Mark `→ recorded: deferred`.
+  - A bare `n` with nothing else → a discussion: `💬 What should it be instead?` with the options (the recommendation
+    and the alternatives you know); the question is carried with the **same number**; nothing is recorded.
+  - A bare `n` under a `(needs its own Y)` question (§4) → nothing is written (no rename, no note, no delta); mark
+    `→ recorded: declined`.
+  - Under the last question of the Close section: §9.
+- **Rename** (change id and/or key). Until the change has its first task (no task in `tasks.md`), the user may rename
+  the change id and/or key in `Q0` or in any later answer or Notes, in a plan or a design brief. A new key →
+  `hitl-index spec key --check <KEY> --change <id>`; then `hitl-index brief rename <id> [--to <new-id>] [--key <KEY>]
+  --json`. It moves the folder and rewrites the meta lines, every id with the old key in the change's own files
+  (proposal, spec deltas, glossary delta, design.md, data-model, contracts, briefs, notes.md) and the `source:` of
+  notes other changes hold from it. From then on use the new id and key. Exit 1 (`CHANGE_KEY_TAKEN`, `CHANGE_EXISTS`,
+  `ID_BAD_FORMAT`, or `BRIEF_RENAME_LATE` once a task exists) → `💬` under the answer with the CLI message and the
+  next free key (the JSON's `suggestion`, else `hitl-index spec key <id>`), and carry the question (a rename asked in
+  Notes → a new `### Q<n> Change id and key: … (needs its own Y)` question in the next round). Nothing else waits for
+  it: process the rest of the round under the current name.
+- **Scope change**: an answer or Notes that widens, narrows or redirects the change (a new goal, a part removed, a
+  different user group). Then rebuild the whole frontier from all answers so far, not only the next questions:
+  1. every open question that no longer applies → `→ dropped (scope changed)`;
+  2. every open question that still applies → rewritten for the new scope in the next round (same number);
+  3. recorded requirements, scenarios, terms and decisions that no longer hold → edited or removed in place (normal
+     editing before approval; a REMOVED block only for living behaviour, i.e. a requirement already in
+     `.hitl/specs/`);
+  4. plan: the proposal's `## Why`, `## What changes`, `## Out of scope` and `## Coverage` updated to the new scope;
+     design: `## Context`, `## Components` and the affected D rows.
+  A change id or key that no longer fits the new scope → a rename question (Rename above).
+- Marks Claude appends (one line each, after a blank line, never inside or directly under the user's `>` lines).
+  Under a round question: `→ recorded: <ids>` · `→ recorded: no change (<why>)` for an answer that settles nothing new
+  · `→ recorded: kept` (`Q0`) · `→ recorded: deferred` · `→ recorded: declined` · `→ carried to Round <n>` ·
+  `→ parked for design` · `→ dropped (scope changed)` · `→ open question` (moved to the proposal's / design's
+  `## Open questions` at close). Under a Close question: `→ approved <date>` · `→ continued in Round <n>` ·
+  `→ superseded` (the Close section was written again). Every question of a processed round gets exactly one; then
+  the round heading gets ` ✅`.
 - **Notes** (the parser's `round.notes` / `close.notes`: `text`, `marked`, `pending`) are free text, read with the
   "anything else" rule. Only an unmarked, non-empty Notes block is processed (`pending: true`, in any round), so
   nothing is recorded twice; it gets exactly one mark line, like a question. An empty Notes block gets no mark.
@@ -197,23 +273,30 @@ Plan writes only the change's business files; design writes only its dev files (
   it to `design.md ## Parked from planning` (create design.md from `${CLAUDE_PLUGIN_ROOT}/shared/templates/design.md`
   with `status: draft` if missing), mark the question `→ parked for design` and add the info line
   `💡 Parked for /hitl:design: <idea>` to the next round. Keep only its business effect, if any, as an `[R]` question.
-- A **new behaviour** during `/hitl:design` → a question `💡 Needs spec: <behaviour>` in the next round whose body is
-  the 📐 delta preview of `shared/amend-spec.md` §2; `Y` applies it. A missing term → `💡 Needs term: <term> —
-  <definition>` the same way.
+- A **new behaviour** during `/hitl:design` → a question `### Q<n> 💡 Needs spec: <behaviour> (needs its own Y)` in
+  the next round whose body is the 📐 delta preview of `shared/amend-spec.md` §2; its own `Y` applies it (the
+  accept-all line does not, §4). A missing term → `### Q<n> 💡 Needs term: <term> — <definition>` the same way; it
+  writes only the change's `glossary.md`, so the accept-all line may take it.
 
 ## 9. Done and close
 The frontier is empty (every category ✅ or —, no hotspot left open, every artifact and `[T]` decided) or the user
 answered `done`. Then the skill's close step runs (validate, review) and appends `## Close` to the brief instead of a
 new round: the summary block of the skill, then one `### <question>` per decision with an empty `>` line — first
-`### O<n> ⚠️ Overlap with <P> — … (1/2/3)` per overlap finding (other-changes.md §4), then the Notes block (§4), last `### Approve the spec?
-(Y/n)` (design: `### Approve the design? (Y/n)`). Plan applies the **stop rule** (elicitation.md §4): with
+`### O<n> ⚠️ Overlap with <P> — … (1/2/3)` per overlap finding (other-changes.md §4), then the Notes block (§4), last
+`### Approve the spec? (Y/n)` (design: `### Approve the design? (Y/n)`). Plan applies the **stop rule** (elicitation.md §4): with
 `COVERAGE_GAP` / `REQ_UNCLEAR` from `spec validate` the last question is `### Close with gaps? (round · deep <ID> ·
 force)` instead, with the gap list above it; `force` is recorded as `💡 Forced:`. Header `status: closing`; chat:
 `📋 <path>: ready to approve — answer the Close section, then /hitl:plan <id>` (one line). END THE TURN.
-On the next run: `Y` → approve (the skill's step), header `status: done`, `→ approved <date>` under the question.
-`n` + text, `round`, `deep <ID>` → `→ continued in Round <n>` under it, header `status: open`, and a new round after
-`## Close`. Pending Close Notes are processed first (§6); a Notes text that changes the spec → recorded, the Close
-section is written again after the change (no approval on a summary the user has not seen). Never move to the next phase before the user's `Y` in the file.
+On the next run, in this order (each skill adds only its own steps to it):
+1. Pending Close Notes (§6). A Notes text that changes the spec or design → record it, mark `→ superseded` on the old
+   Close question and write a new `## Close` after the old one (no approval on a summary the user has not seen); END
+   THE TURN. Notes that change nothing → `→ recorded: no change (<why>)`, then go on.
+2. Each `### O<n>` overlap answer (other-changes.md §4).
+3. The last question: `Y` → approve (the skill's step), header `status: done`, `→ approved <date>` under it. `n` +
+   text, `round`, `deep <ID>` → `→ continued in Round <n>` under it, header `status: open`, a new round after
+   `## Close`. A bare `n` → `💬 What should change?` under it, header stays `closing`, END THE TURN. Empty →
+   `📋 … waits for your answer`, END THE TURN.
+Never move to the next phase before the user's `Y` in the file.
 
 ## 10. Shared language (plan; design uses it through `💡 Needs term`)
 The glossary = living `.hitl/specs/GLOSSARY.md` + the change's `glossary.md`. Ask a `[T]` question when:

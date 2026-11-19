@@ -16,13 +16,14 @@ not one file per ADR.
    options or a high cost if wrong:
    ```
    ### <KEY>-D<n> <short title: problem and solution>
+
    - **Context and problem**: <the forces, one or two sentences; cite ## Context facts or requirement ids>
-   - **Decision drivers**: <driver>, <driver>                    (optional)
+   - **Decision drivers**: <driver>, <driver> (optional)
    - **Considered options**: (1) <option> (2) <option> (3) <option>
    - **Decision outcome**: chosen (<n>), because <justification tied to the drivers>
    - **Consequences**: Good: <…>. Bad: <…>.
-   - **Confirmation**: <how compliance is checked: test, review, fitness function>   (optional)
-   - **More information**: <links>                               (optional)
+   - **Confirmation**: <how compliance is checked: test, review, fitness function> (optional)
+   - **More information**: <links> (optional)
    ```
    A pros/cons table may follow `Considered options` (tables below the first `### <KEY>-D<n>` are never read as D rows).
 
@@ -35,6 +36,7 @@ An approved decision is never edited in place: add a new row `<KEY>-D<k>`, set t
 | PWR-D1 | Store a hash of the reset token, never the token | leak-safe | plain token; signed token | account takeover | ACC-R5, ACC-BR1 | accepted |
 
 ### PWR-D1 Store only a hash of reset tokens
+
 - **Context and problem**: a leaked database must not let anyone reset passwords (ACC-R5, security).
 - **Considered options**: (1) hash (SHA-256) of a random token (2) plain random token (3) signed, stateless token
 - **Decision outcome**: chosen (1), because it is leak-safe and still single-use (ACC-BR1).

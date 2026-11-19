@@ -38,7 +38,7 @@ Budget: ≤ 12 reads or commands. Stop as soon as one route clearly fits.
 ## Routes (priority order: the first that fits wins)
 1. `note` — matches an active change **and changes its requirement or design** (a number, rule, scenario or decision
    it already states). `change` = its id; `refs` = the spec ids, `<KEY>-D<n>`, task/AC ids it touches, each with its title
-   (`"ACC-R3.S2 (Reset link expires)"`); `kind` = `spec` | `design` | `order`.
+   (`"ACC-R3.S2 (Reset link expires)"`); `kind` = `spec` | `design` (an `order` note comes only from `--before`, never from a description).
 2. `amend` — matches an active change and is **new behaviour inside its scope** that its spec does not state yet.
    `update` — inside its scope, the spec already covers it, only the task list lacks it (a missed slice, a chore).
 3. `tdd` — a reproducible bug, or small logic that needs no record: a failing input you can state, a fix in 1–2

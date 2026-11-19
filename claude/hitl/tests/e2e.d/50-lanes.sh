@@ -71,7 +71,8 @@ sV4() {
   CLI feature "$FEAT" --report --json > "$W/v4.json"
   afile "$W/v4.json" 'd.feature === "feat-user-register" && d.report === ".hitl/reviews/feature-feat-user-register.md" && d.verdict === "not reviewed" && d.humanRequired >= 1'
   contains .hitl/reviews/feature-feat-user-register.md "# Feature feat-user-register: 2 tasks"
-  contains .hitl/reviews/feature-feat-user-register.md "| QT-T1 | Register user with unique email | high (security) | ⚠️ yes |"
+  grep -qE '^\| QT-T1 +\| Register user with unique email +\| high \(security\) +\| ⚠️ yes +\|' .hitl/reviews/feature-feat-user-register.md \
+    || { echo "no QT-T1 row (0.14.1: tables padded)"; cat .hitl/reviews/feature-feat-user-register.md; return 1; }
   contains .hitl/reviews/feature-feat-user-register.md "human-override (fast lane forced; risk: security)"
   local in
   in=$(P="$PWD" js '{session_id:"v4",cwd:process.env.P,hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:process.env.P+"/.hitl/reviews/feature-feat-user-register.md",content:"x"}}')

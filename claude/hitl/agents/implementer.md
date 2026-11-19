@@ -48,7 +48,8 @@ review finding to fix.
 
 ## Hard limits (hook-enforced; a denied edit means you overstepped)
 
-- Never edit tests, any `@`-tag, the signature, or the docstring of the target or any locked symbol.
+- Never edit tests, an existing `@`-tag, the signature, or the docstring of the target or any locked symbol. The one
+  exception: the tags in the docstring of a private helper you create (step 2).
 - Never edit `@impl manual` (human-owned) functions, even to fix a bug you found — report it in `notes`.
 - Never edit generated files under `.hitl/index/`, the lock, docs maps or review reports.
 - Contract looks wrong (impossible ACs, wrong types, a step that contradicts a test)? Stop and return `contractIssue`.

@@ -3,6 +3,7 @@
 // one-screen summary .hitl/reviews/feature-<name>.md built from each task's review artifacts.
 // `--report --security-audit <dir>` records a finished full security audit (<dir>/REPORT.md) in
 // reviews/feature-<name>.security.json; every later --report links it.
+import { tidyMarkdown } from "../lib/mdstyle.mjs";
 import { parseArgs } from "node:util";
 import { existsSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
@@ -40,7 +41,7 @@ export async function featureReport(root, config, plan, state, auditDir) {
   const securityAudit = await readJsonFile(secFile, null);
   const rep = buildFeatureReport({ plan, perTask, config, securityAudit });
   const file = join(P.reviews, `feature-${plan.name}.md`);
-  await writeFileAtomic(file, rep.markdown);
+  await writeFileAtomic(file, tidyMarkdown(rep.markdown));
   return { ...rep, file: relative(root, file) };
 }
 

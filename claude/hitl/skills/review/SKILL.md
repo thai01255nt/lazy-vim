@@ -13,7 +13,8 @@ Fix loop: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/fix-loop.md` (read bef
 Amend spec: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (read before `amend`).
 Security lens + full audit: `${CLAUDE_PLUGIN_ROOT}/skills/review/references/security.md` (read before a security lens or `--security-audit`).
 
-Arguments: `$ARGUMENTS` → `<task-id>` (full review) · `<task-id> fix F-n[,F-m]` · `<task-id> recheck` ·
+Arguments: `$ARGUMENTS` → `<task-id>` (full review) · `<task-id> fix F-n[,F-m]` · `<task-id> amend F-n` · `<task-id> recheck` ·
+`<task-id> --in-feature` ·
 `--security-audit [<change-id>|repo] [--out <dir>] [--profile quick|standard|deep]` (section "Full security audit").
 `--in-feature` (from `/hitl:implement --feature`): run the full review but skip step 8's gate question and the
 "next frontier" line; the feature run asks once for all tasks. Low-risk PASS still auto-approves `done`.
@@ -35,7 +36,8 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
 
 1. **Preconditions**: `hitl-index status <T> --json`. Task status below `green` (any symbol red/wip/skeleton) →
    ⚠️ say so and continue anyway (the report will say FAIL); suggest `/hitl:implement <T>` at the end.
-2. **L0**: `hitl-index l0 <T> --json` (writes `R/l0.json`). Note failing gates.
+2. **L0**: `hitl-index l0 <T> --json` (writes `R/l0.json`). Note failing gates (L0 "gates" are automated checks —
+   tests, drift, trace, terms — not ⛔ stops).
    If tests fail or drift has a `block` item → L1 runs **only the contract lens**.
    The `trace` gate (`hitl.trace/2`: requirement → scenario → AC → test → symbol) is `fail` only on block items —
    broken references: `CHANGE_MISSING`, `REQ_UNKNOWN`, `SCN_UNKNOWN`, `RULE_UNKNOWN`, `REQ_INACTIVE` (the task's own
@@ -105,7 +107,8 @@ user said "fix").
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
    `🎯 next: edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
 Also offer `amend F-n` when the human accepts a contract finding that implies a different design.
-A finding whose fix is too big for this change (its own spec, new behaviour, more than 1 task, another capability) →
+A finding whose fix is too big for this change (needs its own spec; new behaviour the change's proposal does not name; more than 1 task;
+another capability) →
 `defer F-n` plus `💡 Out of scope for <change>: … → /hitl:go <X> --before <change>`
 (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1; the user decides, never you).
 

@@ -36,7 +36,7 @@ Before each task, re-run `hitl-index feature <change-id> [--lane fast] --json` a
 - `current.action`:
   - `implement` → run SKILL.md steps 1–5 for `current.id` as if the user typed `/hitl:implement <T> --all`
     (lane `override` → with `--lane fast`, `BY = human-override`; lane `fast` → `BY = auto`). No per-symbol gates for
-    agent symbols in any lane except `normal` high risk, which keeps its "Method done. Continue?" gate.
+    agent symbols in any lane except `normal` high risk, which keeps its "Function done. Continue?" gate.
   - `skeleton` → invoke the `hitl:skeleton` skill for the task: it stops at its ⛔ gate. End the turn there.
   - `test` → invoke the `hitl:test` skill (`<T> fill`): high risk stops at its lock gate. End the turn there.
 - After an `implement` task: fresh `hitl-index test --task <T> --json` and `hitl-index drift --task <T> --json`.

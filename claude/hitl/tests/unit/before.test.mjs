@@ -21,7 +21,7 @@ const base = (o) => ({ taskId: "QT-T1", index: fixtureIndex(), lock: emptyLock()
 test("source: round trip; incomingState per status and source state; counts; applyCommand", () => {
   const n = note("N-1", { sourceState: undefined, text: "B first." });
   const text = renderNotes("feat-a", [n, { ...note("N-2", { kind: "spec", refs: ["LACC-R1"] }), source: null, sourceState: undefined }]);
-  assert.match(text, /## N-1 note N-1\n- kind: order\n- source: feat-b\n- refs: none/);
+  assert.match(text, /## N-1 note N-1\n\n- kind: order\n- source: feat-b\n- refs: none/);
   assert.doesNotMatch(text.split("## N-2")[1], /source:/);
   const p = parseNotes(text);
   assert.equal(p.notes[0].source, "feat-b"); assert.equal(p.notes[1].source, null);

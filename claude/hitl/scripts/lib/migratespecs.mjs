@@ -1,6 +1,7 @@
 // v0.5 → v3 spec migration (design v3 §8): `.hitl/planning/<name>.md` (+ `.hitl/tasks/<name>.md`) → change folder
 // `.hitl/changes/<name>/` with proposal.md, specs/<cap>/spec.md (delta), design.md, tasks.md and .legacy/planning.md.
 // planChange is pure; planMigrateSpecs reads; applyMigrateSpecs writes (never runs git).
+import { tidyMarkdown } from "./mdstyle.mjs";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { paths } from "./project.mjs";
@@ -322,7 +323,7 @@ export async function applyMigrateSpecs(root, config, planned, { date = todayOf(
   const P = paths(root);
   const written = []; const archived = [];
   for (const it of planned.items) {
-    for (const [rel, text] of Object.entries(it.res.files)) { await writeTextAtomic(join(root, rel), text); written.push(rel); }
+    for (const [rel, text] of Object.entries(it.res.files)) { await writeTextAtomic(join(root, rel), rel.endsWith(".md") ? tidyMarkdown(text) : text); written.push(rel); }
     if (it.tasksFile) await fs.rm(join(root, it.tasksFile), { force: true });
     await fs.rm(join(P.planning, `${it.name}.md`), { force: true });
   }

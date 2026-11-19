@@ -24,7 +24,7 @@ Arguments: `$ARGUMENTS`
 - Proposal `status: draft` → `⚠️ Spec is still draft (open questions: <n>).` Design `draft` → `⚠️ Design is still draft.`
   Design `missing` and not skipped → `⚠️ No design yet (💡 /hitl:design <id>).` Continue; all repeated at the gate.
 - Target = `.hitl/changes/<id>/tasks.md`. It exists → ⛔ GATE `` `tasks.md` exists. (update/overwrite) — 💡 update`` END THE TURN.
-  `<change-id> update [<what>]` (from `/hitl:go` or a note's apply command) → update, no gate; `<what>` is the work to add.
+  `<change-id> update [<what>]` (from `/hitl:go` or a note's apply command) → update without the update/overwrite question (the quiz gate of §6 still runs); `<what>` is the work to add.
   - update: keep existing task ids, statuses and checkboxes; edit or add tasks; a new scenario on a done or
     tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
     tests reopen through `/hitl:approve <id> reopen`); remove tasks only if the
@@ -35,7 +35,7 @@ Arguments: `$ARGUMENTS`
   origin `added|modified|living`), the proposal (`## Out of scope`, `## Unchanged behaviour`), `design.md`
   (Decisions, Components, Test strategy, Risks, Contracts), `data-model.md` and `contracts/` when present.
 - `.hitl/specs/GLOSSARY.md` and the change's `glossary.md` (if present): the words for titles and ACs.
-- `docs/PATTERNS-CONVENTIONS.md`, `docs/CODEBASE-MAP.md` (if present), `.hitl/hitl.config.json`
+- `.hitl/docs/PATTERNS-CONVENTIONS.md`, `.hitl/docs/CODEBASE-MAP.md` (if present), `.hitl/hitl.config.json`
   (`risk.corePaths`, `risk.securityPaths`).
 - `hitl-index tasks --json` (existing tasks and ids). `hitl-index next-id <change-id>` → first new id
   `<KEY>-T<n>` (the change key; quick mode: the id and key from §1); number further tasks sequentially.

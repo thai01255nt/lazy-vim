@@ -25,12 +25,13 @@ files and the code they drive, never `.hitl/`.
   `🛑 This is part of <T or change>: /hitl:flow routes it (/hitl:test, then /hitl:implement).` Stop.
 - Never edit locked tests or `@impl manual` bodies (the hooks deny it anyway).
 - High-risk work (`${CLAUDE_PLUGIN_ROOT}/skills/tasks/references/slicing-and-risk.md` §4: security, persisted data,
-  public API, concurrency, a new domain concept) → add `💡 High risk: /hitl:plan gives it a spec and gates.` to the round.
+  public API, concurrency, a new domain concept) → add `💡 High risk: /hitl:plan gives it a spec and gates.` to the seam
+  question (§2).
 
 ## 2. Seams (one round)
-Find the public interface with Grep/Read (only what you need). Then one ⛔ GATE in chat — the question shape of
-`shared/interview.md` §4 without its brief file (numbered `**Q1** …` questions, each with `💡 Recommended:`, a
-`Reply:` line; no round header, no grilling load, nothing recorded):
+Find the public interface with Grep/Read (only what you need). Then one ⛔ GATE in chat: numbered questions
+`**Q1** <title>` + one context line + `💡 Recommended: …`, then `Reply: e.g. "y" (all recommendations) or "Q2: …"`
+(no brief file, no round header, no grilling load, nothing recorded):
 - **Q1 Seams**: 1–3 seams (test-patterns §5: highest, existing, fewest), each `seam — catches / misses — doubles (§3)`.
 - **Q2 Tests**: the behaviours in order, one line each, the tracer first (main success path through the highest seam).
 - Q3 only if the interface must change to be testable (test-patterns §4).

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseLivingSpec, parseDelta, parseGlossary, parseProposal, parseDesign, blockHash, bizLint, findClarifications, artifactDecision, usedIds } from "../../scripts/lib/specmd.mjs";
+import { parseLivingSpec, parseDelta, parseGlossary, parseProposal, parseDesign, blockHash, legacyBlockHash, hashMatches, bizLint, findClarifications, artifactDecision, usedIds } from "../../scripts/lib/specmd.mjs";
 import { parseId, compareIds, allocate, rewriteIds, isChangeId, SPECREF_RE, today } from "../../scripts/lib/specids.mjs";
 
 const TPL = join(dirname(fileURLToPath(import.meta.url)), "../../shared/templates");
@@ -193,10 +193,15 @@ test("design: decisions table with alternatives, bad status, bad serves, contrac
   assert.deepEqual(d.contracts, [{ file: "contracts/api.yaml", boundary: "public HTTP", line: 10 }]);
 });
 
-test("blockHash ignores trailing whitespace and blank-line runs", () => {
+test("blockHash (0.14.1) is formatter-stable: blank lines, padding, table cells, bullets, emphasis; the ≤ 0.14.0 hash still matches", () => {
   assert.equal(blockHash("a  \n\n\n\nb\n\n"), blockHash("a\n\nb"));
-  assert.notEqual(blockHash("a\nb"), blockHash("a\n\nb"));
+  assert.equal(blockHash("a\nb"), blockHash("a\n\nb"), "a blank line added after a heading changes nothing");
+  assert.equal(blockHash("### R\nx *y*\n| a | b |\n|---|---|\n| 1 | 2 |\n* z\n- THEN q\nChanged: c"),
+    blockHash("### R\n\nx _y_\n\n| a   | b   |\n| --- | --- |\n| 1   | 2   |\n\n- z\n- THEN q\n  Changed: c"));
+  assert.notEqual(blockHash("a b"), blockHash("a c"));
   assert.match(blockHash("x"), /^sha256:[0-9a-f]{64}$/);
+  assert.equal(legacyBlockHash("a  \n\n\nb"), legacyBlockHash("a\n\nb"));
+  assert.ok(hashMatches(legacyBlockHash("a\n\nb"), "a\n\nb") && hashMatches(blockHash("a\nb"), "a\n\nb") && !hashMatches(blockHash("a"), "b"));
 });
 
 test("bizLint flags code tokens, skips fences/meta/rule tables and glossary terms", () => {

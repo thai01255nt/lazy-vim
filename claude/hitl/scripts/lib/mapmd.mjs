@@ -1,4 +1,5 @@
 // CODEBASE-MAP.md AUTO block + index/index.md, generated deterministically from the index (§B.3, §E.1 map-md).
+import { tidyMarkdown } from "./mdstyle.mjs";
 import { paths } from "./project.mjs";
 import { readText, writeTextAtomic } from "./fsutil.mjs";
 
@@ -50,13 +51,13 @@ export function renderIndexMd(index) {
 /** Writes docs/CODEBASE-MAP.md (only the AUTO block; MANUAL text preserved) and index/index.md. */
 export async function writeMapMd(root, index) {
   const P = paths(root);
-  const block = `${BEGIN}\n${renderMap(index)}\n${END}`;
+  const block = `${BEGIN}\n\n${tidyMarkdown(renderMap(index)).trim()}\n\n${END}`;
   const cur = await readText(P.codebaseMap, null);
   let next;
   if (cur === null) next = `# Codebase Map\n\nGenerated from the AST index by \`hitl-index map-md\`. Text outside the AUTO block is preserved.\n\n${block}\n`;
   else if (cur.includes(BEGIN) && cur.includes(END)) next = cur.slice(0, cur.indexOf(BEGIN)) + block + cur.slice(cur.indexOf(END) + END.length);
   else next = cur.replace(/\s*$/, "\n\n") + block + "\n";
   if (next !== cur) await writeTextAtomic(P.codebaseMap, next);
-  await writeTextAtomic(P.indexMd, renderIndexMd(index));
+  await writeTextAtomic(P.indexMd, renderIndexMd(index)); // index/ is generated and ignored by git: left compact
   return { codebaseMap: P.codebaseMap, indexMd: P.indexMd };
 }

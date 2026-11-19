@@ -48,15 +48,16 @@ text, drops the ones without a witness quoting each change they name, and remove
 - Exit 1 (no verdict, bad JSON) or the agent failed → `⚠️ The overlap judge gave no usable verdict.` + the 🔎 lines
   above stand as evidence only; `🎯 next: /hitl:overlap <A> <targets>` to retry. Stop.
 - `findings` empty → `✅ <A>: evidence with <targets> but no conflict with a witness` (+ one `💡 dropped O-n: <reason>`
-  line per `dropped` entry). Stop.
+  line per `dropped` entry; `O-n` is the finding id of the judge's JSON, not a brief's `### O<n>` question). Stop.
 
 ## 4. ⛔ GATE (one line per finding)
 ```
 📋 /hitl:overlap <A> — <n> finding(s) with <targets>
 <findings[].line, one per finding, exactly as the CLI printed it>
 💡 dropped O-3: witness quote not found in feat-report        (only when `dropped` is non-empty)
-Reply per finding: "1 2, 2 3" (finding 1 → both sides, finding 2 → not an overlap) · "1 1 <change>" adjust that change
-instead · "1 2 <change>" that change goes first (the others get the notes) · ? to explain
+Reply per finding as "<finding> <option> [<change>]": "1 2, 2 3" (finding 1 → both sides, finding 2 → not an overlap) ·
+"1 1 <change>" (finding 1: adjust <change> instead of the recommended side) · "1 2 <change>" (finding 1: both sides,
+<change> is the source that goes first; the others get the notes) · ? to explain
 ```
 Each line reads `⚠️ <n>. <changes> — <witness> → 1. adjust <one side> · 2. both sides (📥 source notes into the affected
 change(s), which then wait until the other is archived) · 3. not an overlap`. Restate a witness in plain words only
@@ -65,10 +66,10 @@ when the user asks (`?`). END THE TURN.
 ## 5. On the answer (per finding; a finding not answered is skipped and listed as open)
 - **1. adjust one side** → write nothing; print `🎯 next: <findings[].amend>` (`/hitl:plan <change> amend`, or
   `/hitl:design <change> amend` when the finding is about a decision or contract) with the witness as the reason. A
-  `1 <change>` reply names the other side: the same command for that change. Never run the amend yourself.
+  `<n> 1 <change>` reply names the other side: the same command for that change. Never run the amend yourself.
 - **2. both sides** → for each entry of `findings[].notes`, run its `command` (`hitl-index note add --change <affected>
   --source <other> --kind spec|design --refs … --text "…" --from "/hitl:overlap <A>"`; you may reword `--text` into the
-  affected change's words, keep it plain business language) and print the CLI's `📌`/`⏳` lines. With `2 <change>`
+  affected change's words, keep it plain business language) and print the CLI's `📌`/`⏳` lines. With `<n> 2 <change>`
   that change is the source: build the same commands with the other changes as `--change` and their own `refs`. The
   0.12 rules apply as they are: the affected change waits (no task approval, implement or archive) until the source is
   archived, then takes the notes in with `/hitl:plan <id> amend N-k`; a CLI refusal (`--source` archived, unknown ref) →

@@ -102,7 +102,7 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       continue;
     }
     if ((m = line.match(/^### (.+)$/))) { section = m[1].trim().toLowerCase(); continue; }
-    if (!section && task.why === null && (m = line.match(RX.why))) {
+    if (!section && task.why === null && (m = line.trimStart().match(RX.why))) { // 0.14.1: a formatter indents it under the meta list
       task.why = m[1].trim();
       task.decisions = [...new Set(task.why.match(/\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g) || [])];
       continue;

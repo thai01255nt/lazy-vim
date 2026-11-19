@@ -13,7 +13,7 @@ Test kinds and edge checklist: `${CLAUDE_PLUGIN_ROOT}/skills/test/references/tes
 Test patterns (passed to the test-author; §2 tells for the glance in step 3): `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md`,
 `${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md`, `${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md`.
 
-Arguments: `$ARGUMENTS` → `<task-id> [fill|run|mutate] [symbol]`.
+Arguments: `$ARGUMENTS` → `<task-id> [fill|run|mutate] [symbol] [--override]`.
 Mode default: `fill` if the task still has `todo`/`skip` test stubs written at skeleton time, else `run`.
 `--override` comes only from `/hitl:implement <T> --lane fast` (user's override of a high-risk task): lock like low risk,
 with `--by human-override`. Never add it yourself.
@@ -30,7 +30,7 @@ with `--by human-override`. Never add it yourself.
 
 `hitl-index status <T> --json` and `hitl-index tasks --json`:
 - not initialized → 🛑 `Run /hitl:setup first.`
-- task status `todo`/`skeleton` (skeleton not approved) → 🛑 `Run /hitl:approve <T> first` (low risk: `/hitl:implement <T>` runs the fast lane).
+- task status `todo` → 🛑 `Run /hitl:skeleton <T> first`; `skeleton` (not approved) → 🛑 `Run /hitl:approve <T> first` (low risk, either status: `/hitl:implement <T>` runs the fast lane).
 - `fill` when tests are already locked → ask: ⛔ GATE `Tests for <T> are locked. 1. add tests for new ACs only 2. run them (run) 3. cancel`.
 - status `reopened` (`reopen.stage: tests`) → **reopen fill**, no question: the contract pack's `## Reopened (N-k)`
   lists the ACs and the tests to rewrite. In step 2 add to the prompt: `Reopened: rewrite only these tests to the current

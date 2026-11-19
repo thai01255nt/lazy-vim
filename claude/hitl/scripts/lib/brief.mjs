@@ -21,8 +21,9 @@ const norm = (s) => String(s ?? "").normalize("NFC").trim().toLowerCase().replac
 
 /**
  * Kind of an answer: "empty" | "accept" (take the 💡 recommendation) | "unknown" (carry with a recommendation) |
- * "done" (stop asking) | "deep" (`deep` or `deep <ID|topic>`) | "decline" (n/no) | "text" (an answer, a question or a
- * doubt: the skill reads it; interview.md §6 decides answer vs discussion).
+ * "done" (stop asking) | "deep" (`deep` or `deep <ID|topic>`) | "decline" (a bare n/no/không/ko: counted only — the
+ * skill reads the meaning, interview.md §6) | "text" (an answer, a question or a doubt: the skill reads it;
+ * interview.md §6 decides answer vs discussion).
  */
 export function answerKind(text) {
   const raw = String(text ?? "").normalize("NFC").trim();
@@ -43,6 +44,7 @@ const Q_HEAD = /^###\s+Q(\d+)\b\s*(.*)$/;
 const ANSWER = /^ {0,3}>\s?(.*)$/;
 const MARKER = /^\s*(?:→|💬|💡|_e\.g\.|_z\.?b\.|#|accept all\b)/i;
 const ACCEPT_ALL = /^\s*(?:\*\*)?accept all\b/i;
+const RECOMMEND = /^\s*💡\s*(?:\*\*)?(?:My\s+)?Recommend(?:ed|ation)(?:\*\*)?\s*:?\s*(.*)$/i;
 /** `### Notes — …`: the free-text block that ends every round and the Close section. */
 const NOTES_HEAD = /^###\s+Notes\b/i;
 
@@ -55,6 +57,18 @@ function metaOf(line) {
   return out;
 }
 
+/** 0.14.1: question kinds whose answer acts outside the brief, so the accept-all line never answers them (heading
+ *  text `(needs its own Y)`): `Q0` renames the change id/key, `📥 For <P>` writes a note into another change,
+ *  `💡 Needs spec` applies a spec delta + Impact. Returns the kind, or null. */
+export function ownYKind(n, title) {
+  if (Number(n) === 0) return "rename";
+  if (/📥\s*For\b/i.test(title)) return "note";
+  if (/💡\s*Needs spec\b/i.test(title)) return "spec";
+  if (/\(needs its own Y\)/i.test(title)) return "other";
+  return null;
+}
+const OWN_Y = /\s*\(needs its own Y\)/i;
+
 const newQuestion = (n, rest, round, line) => {
   let t = rest.trim();
   let tag = null;
@@ -62,19 +76,24 @@ const newQuestion = (n, rest, round, line) => {
   if (tm) { tag = tm[1]; t = t.slice(tm[0].length); }
   const hot = /🔥/.test(t);
   t = t.replace(/🔥\s*/g, "").trim();
-  return { id: `Q${n}`, n: Number(n), round, tag, hot, title: t, line, body: [], hint: null, recommended: null,
+  const ownY = ownYKind(n, t);
+  t = t.replace(OWN_Y, "").trim();
+  return { id: `Q${n}`, n: Number(n), round, tag, hot, ownY, title: t, line, body: [], hint: null, recommended: null,
     answerLines: [], answer: "", kind: "empty", answered: false, acceptedByRound: false, recorded: [], carried: null,
-    parked: false, discussed: false, settled: false, pending: false };
+    parked: false, dropped: false, discussed: false, settled: false, pending: false };
 };
 
 /** A Notes block: parsed with the question machinery (answer lines, marks, 💬), kept apart from the questions. */
-const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id: "notes" });
+const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id: "notes", n: null, ownY: null });
 
 /**
  * parseBrief(text, file?) -> {schema, file, kind, change, key, status, round, updated, title, description,
  *   rounds:[{n, done, acceptAllLine, acceptAll, acceptAllAnswer, coverage, hot, line}], questions:[…], close, openQuestions, counts, items}.
- * A question: {id:"Q8", n, round, tag, hot, title, hint, recommended, answer, kind, answered, acceptedByRound, recorded[],
- *   carried (round number or null), parked, discussed, settled, pending}.
+ * A question: {id:"Q8", n, round, tag, hot, ownY, title, hint, recommended, answer, kind, answered, acceptedByRound,
+ *   recorded[], carried (round number or null), parked, dropped, discussed, settled, pending}.
+ *   ownY: "rename" (Q0) | "note" (📥 For <P>) | "spec" (💡 Needs spec) | "other" (`(needs its own Y)` in the heading) |
+ *   null — such a question is never answered by the round's accept-all line (acceptedByRound stays false).
+ *   dropped: the mark `→ dropped (scope changed)` (the scope changed and the question no longer applies).
  * Notes (every round's `round.notes`, and `close.notes`): {id:"notes", round, text, answered (non-empty), recorded[],
  *   carried, parked, discussed, marked (a → line follows), pending (non-empty and not marked: the next run processes it)}.
  */
@@ -139,6 +158,7 @@ export function parseBrief(text, file = null) {
       if (q) { if (/^###\s/.test(line)) endQuestion(); else { questionLine(line); continue; } }
       if (/^###\s+/.test(line)) { closeQ = { title: line.replace(/^###\s+/, "").trim(), answerLines: [], resolved: null, line: ln }; c.items.push(closeQ); continue; }
       const a = ANSWER.exec(line);
+      if (a && closeQ && /^\s*→/.test(a[1])) { closeQ.resolved = a[1].replace(/^\s*→\s*/, "").trim(); continue; } // formatter-mangled mark
       if (a && closeQ) { closeQ.answerLines.push(a[1]); continue; }
       const r = /^\s*→\s*(.*)$/.exec(line);
       if (r && closeQ) { closeQ.resolved = r[1].trim(); continue; }
@@ -181,7 +201,19 @@ export function parseBrief(text, file = null) {
   /** One line inside a question or a Notes block: answer, mark, 💬, 💡, lazy continuation, body, hint. */
   function questionLine(line) {
     const a = ANSWER.exec(line);
-    if (a) { q.answerLines.push(a[1]); mode = "answer"; return; }
+    if (a) {
+      // 0.14.1: a mark or 💬 written right under an answer is a lazy continuation for markdown; a formatter (prettier)
+      // pulls it into the blockquote (`> → recorded: …`, `> 💬 …`, and every 💬 line after it). Claude's, not the answer.
+      const inner = a[1];
+      if (/^\s*(?:→|💬)/.test(inner)) { questionLine(inner); if (mode === "discussion") mode = "qdiscussion"; return; }
+      if (mode === "qdiscussion") {
+        const rq = RECOMMEND.exec(inner);
+        if (rq) q.recommended = rq[1].trim() || q.recommended || "";
+        return;
+      }
+      q.answerLines.push(inner); mode = "answer"; return;
+    }
+    if (!line.trim()) { if (mode === "answer" || mode === "qdiscussion") mode = "after"; return; } // a blank line ends the answer
     const arrow = /^\s*→\s*(.*)$/.exec(line);
     if (arrow) {
       const t = arrow[1].trim(); mode = "after";
@@ -190,13 +222,15 @@ export function parseBrief(text, file = null) {
       if (rec) q.recorded.push(...rec[1].split(/,\s*/).map((s) => s.trim()).filter(Boolean));
       else if (car) q.carried = Number(car[1]);
       else if (/^parked\b/i.test(t)) q.parked = true;
+      else if (/^dropped\b/i.test(t)) q.dropped = true;
       else q.recorded.push(t);
       return;
     }
     if (/^\s*💬/.test(line)) { q.discussed = true; mode = "discussion"; return; }
-    const rm = /^\s*💡\s*(?:\*\*)?(?:My\s+)?Recommend(?:ed|ation)(?:\*\*)?\s*:?\s*(.*)$/i.exec(line);
+    const rm = RECOMMEND.exec(line);
     if (rm) { q.recommended = rm[1].trim() || q.recommended || ""; return; }
-    if (mode === "answer" && line.trim() && !MARKER.test(line)) { q.answerLines.push(line.trim()); return; } // lazy continuation
+    // tolerated, not documented: text right under an answer line (no blank line) continues it, as in markdown
+    if (mode === "answer" && !MARKER.test(line)) { q.answerLines.push(line.trim()); return; }
     if (mode === "body") {
       const h = /^\s*_(e\.g\.[^]*?)_\s*$/.exec(line);
       if (h) q.hint = h[1].trim(); else if (line.trim()) q.body.push(line.trim());
@@ -215,9 +249,9 @@ export function parseBrief(text, file = null) {
     x.body = x.body.join("\n");
     x.kind = answerKind(x.answer);
     const r = roundOf.get(x.round);
-    x.acceptedByRound = x.kind === "empty" && !!r?.acceptAll && !!x.recommended;
+    x.acceptedByRound = x.kind === "empty" && !!r?.acceptAll && !!x.recommended && !x.ownY;
     x.answered = x.kind !== "empty" || x.acceptedByRound;
-    x.settled = x.recorded.length > 0 || x.carried !== null || x.parked;
+    x.settled = x.recorded.length > 0 || x.carried !== null || x.parked || x.dropped;
     x.pending = !x.settled && !r?.done;
   }
   if (out.close) {
@@ -235,7 +269,7 @@ export function parseBrief(text, file = null) {
   const finishNotes = (x) => {
     if (!x) return null;
     const text = x.answerLines.map((l) => l.replace(/\s+$/, "")).join("\n").trim();
-    const marked = x.recorded.length > 0 || x.carried !== null || x.parked;
+    const marked = x.recorded.length > 0 || x.carried !== null || x.parked || x.dropped;
     return { id: "notes", round: x.round, line: x.line, text, kind: answerKind(text), answered: !!text, recorded: x.recorded,
       carried: x.carried, parked: x.parked, discussed: x.discussed, marked, pending: !!text && !marked };
   };

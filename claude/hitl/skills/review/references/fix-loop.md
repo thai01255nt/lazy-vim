@@ -16,7 +16,8 @@
 ```
 
 No performative agreement ("You're absolutely right!", "Great catch!", thanks). State the fix or the pushback.
-If any finding in a batch is unclear, ask about it **before** fixing any of them (items may be related).
+If any finding in a batch is unclear → ⛔ GATE with the unclear findings **before** fixing any of them (items may be
+related).
 
 ## 2. Push back when
 
@@ -69,6 +70,8 @@ A suggestion, never required: `defer F-n` is fine. On `fix F-n`:
    `Refactor F-n: <title>. Same behaviour; do not edit any test; all tests stay green.` One finding per call.
    Locked signatures and docstrings stay; a rename of a locked symbol goes to the human (§3).
    A private-helper test (tests lens) → test-author moves it to the seam; the human re-locks it (`/hitl:approve <T> tests`).
-3. Fresh run: all green and no `TEST_CHANGED` in L0 drift → `✅ F-n refactored, task tests n/n`. Otherwise undo the change.
+3. Fresh run: all green and no `TEST_CHANGED` in L0 drift → `✅ F-n refactored, task tests n/n`. Otherwise: spawn
+   `hitl:implementer` once more with `Undo your refactor of F-n: restore every changed line exactly; all tests stay
+   green.`, re-run; still not clean → 🛑 show `git diff -- <files>` and stop for the human.
 4. Beyond the task (other tasks' code, a shared module, a wide rename) → do not edit; `defer F-n` and propose
    `/hitl:plan refactor-<slug>` (no behaviour change).

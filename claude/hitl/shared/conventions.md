@@ -1,8 +1,8 @@
 # HITL conventions (core, shared by every hitl skill)
 
-Parts read only by the skills that need them: `conventions-spec.md` (names, ids, `.hitl/` layout, audience,
-anti-hallucination — plan, design, tasks, archive, sync, overview) and `conventions-code.md` (anti-hallucination,
-quality checklist — skeleton, test, implement, review).
+Parts read only by the skills that need them: `conventions-spec.md` (names, ids, `.hitl/` layout, audience — plan,
+design, tasks, archive, sync, overview) and `conventions-code.md` (quality checklist — skeleton, test, implement,
+review).
 
 ## Language
 - Reply in the user's language (Vietnamese if the user writes Vietnamese). Mixed VN/EN is fine.
@@ -24,8 +24,8 @@ A step marked `⛔ GATE` is a real stop:
 - Missing required input at a gate (file, task id) → show the error and stop; do not guess.
 - A gate question must be answerable without scrolling: restate the options in plain words.
 - Not a chat gate: the interview rounds of `/hitl:plan` and `/hitl:design`. They live in a brief file the user answers
-  in the editor (`shared/interview.md` §4, its own answer grammar: there `?` means "don't know"); the run ends after
-  writing the round, with ≤ 3 chat lines.
+  in the editor (format: `shared/interview.md` §4; answer grammar: §6, where `?` means "don't know", not "explain
+  again"). A run that writes a round ends with ≤ 3 chat lines.
 
 ## Plain replies (shared language)
 - Use the project's words: the `### Term:` names in `.hitl/specs/GLOSSARY.md` and the change's `glossary.md`, never their
@@ -38,16 +38,17 @@ A step marked `⛔ GATE` is a real stop:
 - Terms stay English (they match code and test names); a Vietnamese reply is Vietnamese prose that uses the English term,
   e.g. "*Reset link* (đường dẫn đặt lại mật khẩu) hết hạn sau 30 phút".
 - Context first: one sentence on where we are and why, then the detail or the question.
-- An id is never alone in prose: on first mention add its title, `ACC-R4 (Lock after failed sign-ins)`,
+- An id is never alone in prose: on first mention add its title, `ACC-R4 (Lock after failed sign-ins)` (`ACC` is a
+  change key here, not a capability: see Ids),
   `PWR-D2 (hash the reset token)`, `F-1 (duplicate email accepted)`. Tables with a title column are fine.
 - Short sentences, one idea each, active voice, no new abbreviations (English: ASD-STE100 Simplified Technical English).
 - Restate subagent text (scout facts, review findings) this way before it reaches the user; never paste it.
 - `?`, `wait`, `hả`, `giải thích`, `không hiểu` at any gate → re-pitch your last message this way (more context, not fewer
   words), then repeat the same gate question. It is not an answer to the gate.
 
-## Changes stated in chat (📌 notes)
-When the user *states* a change to approved behaviour or design during any hitl skill (a requirement, scenario, number,
-rule or decision of an active change), do not amend it now:
+## Edits to approved behaviour stated in chat (📌 notes)
+When the user *states* an edit to approved behaviour or design of an active change during any hitl skill (a
+requirement, scenario, number, rule or decision), do not amend it now:
 - ⛔ GATE: `📌 Note for <change>, refs <ids (titles)>? (Y/n)` — one line on what you understood, then the question.
   END THE TURN. Refs: the spec ids, `<KEY>-D<n>`, task/AC ids or symbols it touches (`hitl-index spec show`, `trace`).
 - Y → `hitl-index note add --change <id> --kind spec|design|order --refs <ids> --text "<the change, plain words>"
@@ -57,9 +58,17 @@ rule or decision of an active change), do not amend it now:
   `/hitl:design <id> amend N-k`), or the human acks, dismisses or defers it (`/hitl:approve …`).
 - Not a note: a question (discuss it; nothing is recorded), a draft proposal or design being written in plan/design
   (edit it as usual), or an explicit "amend/apply it now" (go straight to `amend-spec.md`).
-- Too big for the change (its own spec, new behaviour, more than 1 task, another capability) → not a note: print
-  `💡 Out of scope for <change>: <X> — big enough for its own change → /hitl:go <X> --before <change>`
-  (`other-changes.md` §1).
+- While a plan or design brief of the change is open (header `status: open` or `closing`), a statement in chat is not
+  a 📌 note: write it as a new `>` line into the Notes of the open round (as for text after the change id,
+  `interview.md` §6) and process it in this run.
+- Too big for the change (needs its own spec; new behaviour the change's proposal does not name; more than 1 task;
+  another capability — definition: `other-changes.md` §1) → not a note: print
+  `💡 Out of scope for <change>: <X> — big enough for its own change → /hitl:go <X> --before <change>`.
+
+## Anti-hallucination
+- Prefer proven tech (3+ years in production). Verify before suggesting; research if unsure.
+- If still unverifiable, write "unknown". Never fabricate APIs, files, versions, metrics or quality scores.
+- Link official docs when recommending a library or pattern.
 
 ## No over-questioning
 - Outside gates, never ask. Decide with the stated default and say it in one line: `💡 Assumed: …`.
@@ -70,10 +79,18 @@ rule or decision of an active change), do not amend it now:
 🔍 searching · 📝 writing · ✅ done/ok · ❌ failed/missing · ⚠️ drift/warning · 🛑 blocked ·
 ⚡ fast-lane/auto step · 💡 recommendation/assumption · 🎯 next step · ⛔ gate
 
+## Markdown files hitl writes
+Markdownlint style, so a formatter on save (prettier) changes nothing that matters: a blank line around every heading,
+meta line block, paragraph, list, table, blockquote and fenced block; `-` bullets, `_x_` emphasis; a key line
+(`Changed:`, `Reason:`, `Extensions:`, `**Why**:`) never directly under a list item; a Claude mark (`→ …`, `💬`) never
+directly under a `>` line. The CLI writes this style itself (living specs, glossary, notes, migrations, reports).
+
 ## Ids (details: `conventions-spec.md`)
 Change id `[type]-[slug]` with a change key `<KEY>` (2–5 capitals, proposal meta `| key: PWR`, unique forever). Every id
 starts with the key of the change that created it: spec ids `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-UC1`; decisions
-`PWR-D1`; tasks `PWR-T3`, ACs `PWR-T3.AC2`; a quick file has its own key (`QFLT-T1`). Notes `N-k` and findings `F-n` stay local.
+`PWR-D1`; tasks `PWR-T3`, ACs `PWR-T3.AC2`; a quick file has its own key (`QFLT-T1`). 📌 notes `N-k` (not the Notes
+block of a brief round) and findings `F-n` stay local. Examples in the hitl files use the change keys `PWR`, `ACC`,
+`FEE`, `SGN`; `ACC` there is a change key, not a capability.
 Ids come from `hitl-index` (`spec next-id <change-id>`, `next-id <change-id>`) and are never renumbered or reused.
 Pre-0.13 ids (`T-n`, `D-n`) and legacy shared quick ids (`QT-T7`) → `IDS_LEGACY`: run `/hitl:migrate`.
 
@@ -83,9 +100,13 @@ Pre-0.13 ids (`T-n`, `D-n`) and legacy shared quick ids (`QT-T7`) → `IDS_LEGAC
 - Edit generated files: `index/**` (incl. `index/<provider>.*.json`), `docs/CODEBASE-MAP.md`, `reviews/*.review.md`,
   `reviews/feature-*.md`, `reviews/feature-*.security.json`,
   `skeleton.lock.json`, `state.json`, `<provider>.map.json` — linear|jira|github (only `hitl-index tickets record|diff --relink` writes it).
-- Edit an `@status` tag or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status --sync-tags` does).
+- Change an existing `@status` value, or the tasks md `status:` / `[ ]`/`[x]` boxes (only `hitl-index status
+  --sync-tags` does). The one exception: `@status skeleton` on a symbol a step tags into its task — /hitl:skeleton §3
+  (new stubs, and symbols an earlier task already tagged), /hitl:sync "orphan → task id", and the private helpers the
+  implementer creates.
 - Change a locked signature or docstring without telling the user it needs `/hitl:approve <T>`.
-- Run `hitl-index approve … --by human` unless the user typed `/hitl:approve` in this turn.
+- Run `hitl-index approve …` without `--dry-run` as a human approval (`--by human`, or no `--by`) unless the user
+  typed `/hitl:approve` in this turn. A `--dry-run` preview is allowed: it writes nothing and uses no token.
 - Edit `.hitl/changes/*/notes.md` (only `hitl-index note add|apply` and `/hitl:approve` write it), or add
   `--ack`, or run the `reopen`, `dismiss` or `defer` approve forms unless the user typed them.
 - Write any of the files above from Bash either (`sed -i`, `>`/`>>`, `tee`, `cp`/`mv`/`rm`, `perl -i`, inline
@@ -93,7 +114,8 @@ Pre-0.13 ids (`T-n`, `D-n`) and legacy shared quick ids (`QT-T7`) → `IDS_LEGAC
   variable path, `cd` then a relative name, a script on disk) are not caught and are still forbidden. Reading them
   (`cat`, `grep`, `jq`, `git diff`) is fine; changes go through `hitl-index`.
 - Edit another change's files to carry this change's impact: it reaches the other change only as a note there
-  (`hitl-index note add --change <other> --source <this>`, after the user's `--before` or Y; `other-changes.md`).
+  (`hitl-index note add --change <other> --source <this>`, after the user's `--before` or Y — in a brief, its own `Y`
+  under the `📥 For <P>` question, never the round's accept-all line; `other-changes.md` §3).
 - Decide which change goes first, or write a note with `--source` the user did not ask for: the order is the user's
   call. The only automatic rule: a note from B blocks all of A until B is archived (`other-changes.md` §5).
 - Run `hitl-index approve … --by human-override` unless the user typed `/hitl:implement <T> --lane fast` (or

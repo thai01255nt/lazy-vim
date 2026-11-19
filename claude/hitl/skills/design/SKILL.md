@@ -1,6 +1,6 @@
 ---
 name: design
-description: Technical design (HOW) of an approved hitl change: grill-style developer interview in a brief file answered in the editor → design.md (decisions, components, data model, contracts, test strategy, risks); "Y" on a round's accept-all line takes every recommendation. Use after /hitl:plan or for "design", "thiết kế", "architecture", "how should we build", "kiến trúc". Not for requirements (/hitl:plan) or function signatures.
+description: Technical design (HOW) of an approved hitl change: grill-style developer interview in a brief file answered in the editor → design.md (decisions, components, data model, contracts, test strategy, risks); "Y" on a round's accept-all line takes every recommendation except questions marked "(needs its own Y)". Use after /hitl:plan or for "design", "thiết kế", "architecture", "how should we build", "kiến trúc". Not for requirements (/hitl:plan) or function signatures.
 argument-hint: "<change-id> | <change-id> amend [N-k]"
 allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -30,8 +30,9 @@ empty (then the change from this conversation, else the active change with `phas
 
 **The interview happens in a brief file** (`.hitl/changes/<id>/design-brief.md`, interview.md §4), never in chat: the
 developer answers in the editor, then runs `/hitl:design <id>` again (or says "continue", "next", "xong" here). Every
-question carries a `💡 Recommended`; `Y` on a round's accept-all line takes them all (the build-then-review shortcut).
-Amend (§7) stays a chat gate.
+question carries a `💡 Recommended`; `Y` on a round's accept-all line takes them all (the build-then-review shortcut),
+except the `(needs its own Y)` questions (`💡 Needs spec`, `📥 For <P>`, a rename; interview.md §4). Amend (§7) and the
+approved-design gate (§1) stay chat gates.
 
 **Granularity limit (normative).** Modules/services/components, external interfaces (contracts), entities and fields,
 component-level sequence, error strategy, test strategy and seams, risks, rollout. **Never** function signatures,
@@ -49,8 +50,12 @@ per-file symbol lists or code bodies: those belong to `/hitl:tasks` (`### Symbol
   + the file) when it exists.
 - New design: write `design.md` from the template (`status: draft`, today); drop the template rows; remove the
   `## Constitution check` section when there is no CONSTITUTION.md.
-- `design-brief.md` exists → §4 (a later run); its header says `status: done` and design.md is approved →
-  `💡 Design is approved (change it: /hitl:design <id> amend)`, stop. Else §2–§3 (round 1).
+- design.md `status: approved` and no `amend` argument → ⛔ GATE (chat):
+  `Design is approved. 1. small edit: /hitl:design <id> amend · 2. reopen the design: design back to draft, a new round in the design brief`
+  END THE TURN. Reply `1` → §7 (amend). Reply `2` → design.md `status: draft`, `updated:` today; the design brief gets
+  a new `## Round <n>` after its last section (header `status: open`, the text after the id, if any, in its Notes) and
+  §4 runs on it.
+- Otherwise: `design-brief.md` exists → §4 (a later run); no `design-brief.md` → §2–§3 (round 1).
 
 ## 2. Facts (subagent; keeps code reading out of this conversation)
 Dispatch **one Explore subagent** (thoroughness: medium) with the code questions the design depends on: existing
@@ -89,38 +94,42 @@ again before writing the next round.
 
 ## 4. Later runs: read the answers, record, next round `[D]`
 1. Text after the id → into the Notes of the open round (or of the Close section), never into `## Description`.
-   Header `status: closing` → §6. `hitl-index brief <id> --kind design --json`; no answer at all (`counts.answered` 0:
+   If the header says `status: closing`, go to §6; else continue. `hitl-index brief <id> --kind design --json`; no answer at all (`counts.answered` 0:
    no answer, no accept-all Y, no pending Notes) → interview.md §6 (`no answers yet`), END THE TURN. A round with only
    its Notes filled is processed. `## Description` is read at the first processing run only.
-2. Process every pending question per interview.md §6 (accept, accept-all, text, discussion `💬`, `?`, empty, `done`,
-   `add|drop <artifact>`) — a question or discussion records nothing (interview.md §6). Then every pending Notes block
-   (interview.md §6 Notes): a decision or fact → recorded (D row, Context fact …), `→ recorded: <ids> (new|changed)`; a
-   correction of an earlier answer (`Q5: …`, `sửa Q5: …`) → edit that D row in place before approval (after approval:
-   supersede through amend, §7), `(changed)`; vague, a question (`💬`) or a doubt → a question in the next round,
-   `→ carried to Round <n+1>`. An empty Notes block gets no mark.
-3. Record the settled answers (interview.md §7), then `→ recorded: <ids>` under each question and ` ✅` on the round:
+2. Process every pending question, then every pending Notes block, per interview.md §6 (answer grammar — `deep` is
+   text here —, accept-all and `(needs its own Y)` questions, decline answers, discussions `💬`, Notes, rename, scope
+   change) — a question or discussion records nothing. Design-specific: a decision or fact → a D row or a `## Context`
+   fact, `→ recorded: <ids> (new|changed)`; a correction of an earlier answer (`Q5: …`, `sửa Q5: …`) → edit that D
+   row in place before approval (after approval: supersede through amend, §7), `(changed)`; a postponed answer (`n` +
+   "later", "để sau") → a `(deferred: …)` line under design.md `## Open questions`; a scope change → interview.md §6
+   Scope change (a change of WHAT also needs a `💡 Needs spec` question, below).
+3. Record the settled answers (interview.md §7), then `→ recorded: <ids>` under each question (after a blank line,
+   interview.md §4) and ` ✅` on the round:
    D rows (id `<KEY>-D<n>` = the change key, from `hitl-index spec next-id <change-id> --kind D`; `serves` =
    requirement/rule ids from the spec view; `alternatives` filled; status `accepted` once the developer agreed — an
    accepted recommendation, by `Y` or accept-all, is agreement) plus a MADR record `### <KEY>-D<n> <title>` (Context
    and problem, Considered options, Decision outcome, Consequences good/bad, optional Decision drivers/Confirmation) for
-   every decision with ≥ 2 real options or a high cost if wrong, `## Architecture (C4)` (Context/Container mermaid, only
+   every decision with ≥ 2 real options or a `cost if wrong` of data loss, security, money or public API (artifacts.md
+   "decision records"), `## Architecture (C4)` (Context/Container mermaid, only
    per artifacts.md), `## Components` (`- <component> — <responsibility> — new|changed — (<KEY>-D<n>)`), `## Data model` or
    `data-model.md`, `contracts/<file>` from the matching skeleton (HTTP `*.openapi.yaml`, events `*.asyncapi.yaml`, payloads
-`*.schema.json`, CLI `cli-*.md`; only what the change adds or changes) + its `## Contracts` line
-(`- contracts/<file> — <boundary>`), `## State machines` (technical lifecycles: `stateDiagram-v2` + transition table), `## Flow / sequence`
-  (mermaid `sequenceDiagram` at component level, optional), `## Error handling`, `## Test strategy` (one line per
-  ADDED/MODIFIED requirement: `seam — catches / misses — doubles`, highest seams: endpoint, CLI, module boundary;
-  `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §3, §5; test kinds; data), `## Risks`
-  (`concurrency|security|public-api|data|perf` with why; for security one line naming the trust boundaries:
-  `security: anonymous client → reset endpoint → account store`), `## Migration / rollout`. Parked ideas that were
-  decided leave `## Parked from planning`.
+   `*.schema.json`, CLI `cli-*.md`; only what the change adds or changes) + its `## Contracts` line
+   (`- contracts/<file> — <boundary>`), `## State machines` (technical lifecycles: `stateDiagram-v2` + transition table), `## Flow / sequence`
+   (mermaid `sequenceDiagram` at component level, optional), `## Error handling`, `## Test strategy` (one line per
+   ADDED/MODIFIED requirement: `seam — catches / misses — doubles`, highest seams: endpoint, CLI, module boundary;
+   `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §3, §5; test kinds; data), `## Risks`
+   (`concurrency|security|public-api|data|perf` with why; for security one line naming the trust boundaries:
+   `security: anonymous client → reset endpoint → account store`), `## Migration / rollout`. Parked ideas that were
+   decided leave `## Parked from planning`.
 - Names: new components, entities, events, contract fields and test seams take the glossary term in code form
   (*Reset link* → `ResetLink`). A business noun the glossary lacks → a `💡 Needs term: <term> — <definition>` question
   in the next round; `Y` writes it to the change's `glossary.md` (rules: `shared/templates/glossary.md`).
   Technical-only names (token hash, queue) stay out of the glossary.
-- A decision that needs **new behaviour** → a `💡 Needs spec: <behaviour>` question in the next round whose body is
-  the 📐 delta preview of `shared/amend-spec.md` §2; `Y` applies it (the change's delta gets the requirement; proposal
-  back to draft only for a new capability or a new `must` requirement).
+- A decision that needs **new behaviour** → a `### Q<n> 💡 Needs spec: <behaviour> (needs its own Y)` question in the
+  next round whose body is the 📐 delta preview of `shared/amend-spec.md` §2; its own `Y` applies it, never the
+  accept-all line (the change's delta gets the requirement; proposal back to draft only for a new capability or a new
+  `must` requirement); a bare `n` → nothing written, `→ recorded: declined`.
 4. Recompute the frontier: decisions that unblock others first (boundaries and components → data and contracts →
    errors → test strategy → risks → rollout), carried questions (same numbers), `💡 Needs spec` / `💡 Needs term`.
    Discussion Mode when several approaches are valid; Suggestion Mode for clear best practice. Frontier empty, or the
@@ -138,7 +147,8 @@ again before writing the next round.
    (say which in one line). The trace reports `REQ_NO_DEC` later; fix it now (a missing decision → one more round).
 2b. Overlap recheck: `hitl-index overlap <id> --json`. A candidate with `parent: true` and new `contract` or `file`
    evidence → its line `🔗 parent <P> — shared: <the new contract/file refs>` in the summary below and the owner check of
-   other-changes.md §3 on exactly those refs (a decision that changes what P owns → a `📥 For <P>` question). Every other
+   other-changes.md §3 on exactly those refs (a decision that changes what P owns → a `📥 For <P>` question, heading
+   ending `(needs its own Y)`). Every other
    candidate with `linked: false`: judge only its new `contract` and `file` evidence (both changes name the same
    contract or source file) with the witness rule of other-changes.md §4, and put each real overlap in the Close
    section as its `### O<n> ⚠️ Overlap with … (1/2/3)` question. A decision that changes another change's contract →
@@ -146,26 +156,29 @@ again before writing the next round.
 3. Append `## Close` to the brief (interview.md §9), header `status: closing`:
    ```
    ## Close
+
    🏗️ Design feat-password-reset — D: 5 (accepted 5) · components: 3 (2 new) · contracts: 1 · data-model ✅
    risks: security (anonymous client → reset endpoint → account store) · test seams: reset endpoint, mail port
    must requirements without a serving D: none · open: 0 · validate: ✅ · spec: approved
 
    ### Notes — anything the questions missed, or a change to an earlier answer
+
    >
 
    ### Approve the design? (Y/n) — then /hitl:tasks
+
    >
    ```
    Chat: `📋 .hitl/changes/<id>/design-brief.md: ready to approve — answer the Close section, then /hitl:design <id>`.
    END THE TURN.
 
 ## 6. Approve (next run, header `status: closing`)
-Read `.close.items` and `.close.notes` of `hitl-index brief <id> --kind design --json`: pending Close Notes first (as in
-§4.2; a change to the design → record it and write the Close section again, the old question gets `→ superseded`),
-then overlap answers (other-changes.md §4). `Y` →
-design `status: approved`, `updated:` today; brief `→ approved <date>` and header `status: done`; print
-`✅ Design approved.` and `🎯 next: /hitl:tasks <id>`. `n` + text → `→ continued in Round <n>`, header `status: open`,
-process the text (§4.2–4.3) and append the next round. Empty → `📋 … waits for your answer`, END THE TURN.
+Read `.close.items` and `.close.notes` of `hitl-index brief <id> --kind design --json` and process them in the order
+of interview.md §9 (pending Close Notes → each `### O<n>` overlap answer, other-changes.md §4 → the last question).
+Design's own steps: `Y` → design `status: approved`, `updated:` today; brief `→ approved <date>` and header
+`status: done`; print `✅ Design approved.` and `🎯 next: /hitl:tasks <id>`. `n` + text → `→ continued in Round <n>`,
+header `status: open`, process the text (§4.2–4.3) and append the next round. A bare `n` → `💬 What should change?`
+under it, header stays `closing`, END THE TURN. Empty → `📋 … waits for your answer`, END THE TURN.
 
 ## 7. Amend (`<change-id> amend [N-k]`)
 Unchanged by the brief file: one chat gate.
@@ -182,4 +195,3 @@ archived (other-changes.md §5).
   rows for (a) artifacts. Spec deltas only through the `💡 Needs spec` path; `glossary.md` only through `💡 Needs term`.
   Never code, never `.hitl/specs/**`.
 - No function signatures, no per-file symbol lists, no line numbers. Name existing modules as they are in the code.
-- Anti-hallucination: proven tech, official docs linked for a new library, "unknown" when unsure.

@@ -12,6 +12,7 @@ ids) in steps. Numbered step comments inside classes/enums are deleted after imp
 keep them).
 
 ## Method / function stub (exact shape)
+
 ```ts
 /**
  * Registers a user; rejects duplicate emails (case-insensitive).
@@ -30,14 +31,17 @@ async createUser(email: string, password: string): Promise<User> {
   throw new Error("TODO(impl): UserService.createUser");
 }
 ```
-`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
+
+`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose _cost if wrong_ matters.
 Not hashed; adding it never needs re-approval.
 Top-level function: same, `export function name(...)` / `export const name = (...) => { … }`.
 
 ## Modify an existing symbol (keep working code)
+
 Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
 symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
 `statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`<KEY>-T<n>`, `<KEY>-D<n>`, spec or change ids): use `@dec`.
+
 ```ts
 /**
  * Finds a user by email, case-insensitive.          ← updated intent
@@ -49,9 +53,11 @@ findByEmail(email: string): User | undefined {
   return this.users.find((u) => u.email === email);   // existing code stays
 }
 ```
+
 Add the sentinel only when the whole body will be rewritten. Omit `@calls` when there are none.
 
 ## New class holding stubs
+
 ```ts
 /**
  * Application service for user registration.
@@ -65,9 +71,11 @@ export class UserService {
   // …method stubs…
 }
 ```
+
 Prefer explicit fields + constructor assignment when the project runs with type stripping (no parameter properties, no enums).
 
 ## Types needed by signatures (full types, no sentinel)
+
 ```ts
 /** Input for registration. */
 export interface RegisterInput {
@@ -78,9 +86,11 @@ export interface RegisterInput {
 ```
 
 ## Test stubs (one per test-plan row; no assertions yet)
+
 vitest / jest / node:test all support `it.todo`. Import from the project's framework (`vitest`, `node:test`; jest = globals).
+
 ```ts
-import { describe, it } from "node:test";   // or "vitest"
+import { describe, it } from "node:test"; // or "vitest"
 
 describe("UserService.createUser", () => {
   /** @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton */
@@ -90,12 +100,16 @@ describe("UserService.createUser", () => {
   it.todo("PWR-T12.AC2 returns saved user without passwordHash");
 });
 ```
+
 `@concurrency` ≠ none on a covered symbol → add one more stub with `@kind concurrency`:
+
 ```ts
-  /** @covers Cache.getOrLoad @ac PWR-T7.AC3 @kind concurrency @origin skeleton */
-  it.todo("PWR-T7.AC3 concurrent getOrLoad calls load once");
+/** @covers Cache.getOrLoad @ac PWR-T7.AC3 @kind concurrency @origin skeleton */
+it.todo("PWR-T7.AC3 concurrent getOrLoad calls load once");
 ```
+
 Title always starts with the AC id. Describe name = the seam from the Test plan row (usually the covered symbol ref).
 
 ## After implementation (for reference)
+
 `// TODO(impl): 1. x` becomes `// 1. x` and the sentinel is removed. Step comments stay so reviewers map the flow.

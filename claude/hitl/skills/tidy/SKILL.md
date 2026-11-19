@@ -21,7 +21,7 @@ re-locks them. This skill never runs that approve and never adds `--force`.
 
 ## 1. Report (read-only)
 `hitl-index intents <id> --json`. Exit 1 → print its `error`, stop. Exit 3 → per conventions.
-- `symbols` empty → `✅ intents tidy: <id>` (+ `💡 next: hitl-index strip <id> --dry-run`), stop.
+- `symbols` empty → `✅ intents tidy: <id>` (+ `🎯 next: hitl-index strip <id> --dry-run`), stop.
 - Keep only symbols with `locked: true`, `openTasks` empty and `impl` ≠ `manual`. List the others in one line each and
   leave them alone: open task → `⏭ <name>: <T> is not done (fix it in /hitl:skeleton <T>)`; `impl: manual` →
   `⏭ <name>: human-owned (@impl manual), edit it yourself`; not locked → `⏭ <name>: not locked`. None left → stop.
@@ -72,7 +72,7 @@ Review/edit in your editor. Run before hitl-index strip <id>.
 Then: /hitl:approve <id> intent  •  or tell me what to change.
 ```
 Only step comments changed → replace the `Then:` line with `✅ nothing to re-approve (steps are not part of the
-contract). 💡 next: hitl-index strip <id> --dry-run`.
+contract). 🎯 next: hitl-index strip <id> --dry-run`.
 END THE TURN. Never self-approve. On change requests: apply them yourself within the same rules, redo step 3, show the
 gate again.
 

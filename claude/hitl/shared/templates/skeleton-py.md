@@ -12,6 +12,7 @@ ids) in steps. Numbered step comments inside classes/enums are deleted after imp
 keep them).
 
 ## Function / method stub (exact shape)
+
 ```py
 def apply_discount(order: Order, pct: Decimal) -> Order:
     """Apply pct% discount once; total never negative.
@@ -27,15 +28,18 @@ def apply_discount(order: Order, pct: Decimal) -> Order:
     # TODO(impl): 2. skip an already discounted order
     raise NotImplementedError("TODO(impl): apply_discount")
 ```
-`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose *cost if wrong* matters.
+
+`@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the task's **Why**) whose _cost if wrong_ matters.
 Not hashed; adding it never needs re-approval.
 Method: same inside the class; ref is `Class.method` (e.g. `"TODO(impl): Order.apply"`).
 Async: `async def …`, `@concurrency async`.
 
 ## Modify an existing symbol (keep working code)
+
 Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
 symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
 `statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`<KEY>-T<n>`, `<KEY>-D<n>`, spec or change ids): use `@dec`.
+
 ```py
 def find_by_email(self, email: str) -> User | None:
     """Find a user by email, case-insensitive.
@@ -46,9 +50,11 @@ def find_by_email(self, email: str) -> User | None:
     # TODO(impl): 1. match email case-insensitively
     return next((u for u in self.users if u.email == email), None)  # existing code stays
 ```
+
 Add the sentinel only when the whole body will be rewritten.
 
 ## New class
+
 ```py
 class OrderService:
     """Applies pricing rules to orders.
@@ -61,6 +67,7 @@ class OrderService:
 ```
 
 ## Types needed by signatures (full types, no sentinel)
+
 ```py
 @dataclass(frozen=True)
 class DiscountInput:
@@ -71,7 +78,9 @@ class DiscountInput:
 ```
 
 ## Test stubs (one per test-plan row; no assertions yet)
+
 unittest (default when pytest is absent):
+
 ```py
 import unittest
 
@@ -80,7 +89,9 @@ class TestOrders(unittest.TestCase):
     def test_T2_AC1_rejects_bad_pct(self):
         """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton"""
 ```
+
 pytest:
+
 ```py
 import pytest
 
@@ -88,8 +99,10 @@ import pytest
 def test_T2_AC1_rejects_bad_pct():
     """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton"""
 ```
+
 Name: `test_T<n>_AC<k>_<short_snake_desc>`; unittest class = the Test plan row's seam (usually the covered symbol).
 `@concurrency` ≠ none → add a `@kind concurrency` stub.
 
 ## After implementation (for reference)
+
 `# TODO(impl): 1. x` becomes `# 1. x` and the sentinel is removed. Step comments stay.

@@ -129,9 +129,9 @@ test("test patterns (0.8): one source of truth, inner loop, tdd routing", () => 
 
 test("churn (0.9): capture rule next to Plain replies, Impact block, approve forms, docs rows", () => {
   const conv = read("shared/conventions.md");
-  const order = ["## Plain replies", "## Changes stated in chat (📌 notes)", "## No over-questioning"].map((h) => conv.indexOf(h));
+  const order = ["## Plain replies", "## Edits to approved behaviour stated in chat (📌 notes)", "## No over-questioning"].map((h) => conv.indexOf(h));
   assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], "capture section sits right after Plain replies");
-  const cap = conv.split("## Changes stated in chat (📌 notes)")[1].split(/^## /m)[0];
+  const cap = conv.split("## Edits to approved behaviour stated in chat (📌 notes)")[1].split(/^## /m)[0];
   assert.match(cap, /📌 Note for <change>, refs <ids \(titles\)>\? \(Y\/n\)/);
   assert.match(cap, /hitl-index note add --change/);
   assert.match(cap, /a question \(discuss it; nothing is recorded\)/);
@@ -201,7 +201,7 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.match(start, /Never a second question round/);
   assert.match(start, /invoke the Skill `hitl:flow`/);
   assert.match(start, /\/hitl:setup/);
-  assert.match(start, /Changes stated in chat/);
+  assert.match(start, /Edits to approved behaviour stated in chat/);
   const ag = frontmatter(read("agents/work-router.md"));
   assert.equal(ag.name, "work-router");
   assert.doesNotMatch(ag.tools, /\bEdit\b/);
@@ -359,5 +359,14 @@ test("0.14: plan and design interview in a brief file; no chat rounds, no design
   assert.match(iv, /`sửa Q5: …`/);
   for (const f of ["skills/plan/SKILL.md", "skills/design/SKILL.md"]) assert.doesNotMatch(read(f), /count as answers for the round|append it to `## Description`/, `${f}: new information goes into Notes`);
   assert.match(read("HUONG-DAN.md"), /khối \*\*Notes\*\*/);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.14.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.14\.[0-9]+$|^0\.(1[5-9]|[2-9]\d)\.\d+$/, "version ≥ 0.14.0");
+});
+
+test("0.14.1: markdown files hitl writes are prettier-stable (markdownlint style)", () => {
+  assert.match(read("shared/conventions.md"), /^## Markdown files hitl writes/m);
+  assert.match(read("shared/conventions.md"), /a Claude mark \(`→ …`, `💬`\) never\s+directly under a `>` line/);
+  assert.match(read("shared/interview.md"), /\*\*A Claude mark \(`→ …`\) or a `💬`\s+line never sits directly under a `>` line\*\*/);
+  assert.doesNotMatch(read("shared/interview.md"), /a line\s+without `>` right after an answer line continues it/);
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.14\.0/m);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.14.1");
 });

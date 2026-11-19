@@ -8,7 +8,7 @@ import { HITL_PREFIX } from "./paths.mjs";
 import { describeOwner } from "./keys.mjs";
 import { ARCHIVE_DIR_RE, CAP_RE, NO_BEHAVIOUR_TYPES, allocate, archiveDirName, changeType, formatId, isChangeId, parseId, rewriteIds, sortIds } from "./specids.mjs";
 const RX_CLAR = /\[NEEDS CLARIFICATION:/;
-import { artifactDecision, bizLint, blockHash, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
+import { artifactDecision, bizLint, blockHash, canonicalBlock, hashMatches, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
 import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, vagueTermsFrom } from "./speclint.mjs";
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
 import { BLOCKING, applyCommand, blocksArchive, changeWait, noteCounts, readActiveNotes, readNotes, waitReasons } from "./notes.mjs";
@@ -386,7 +386,7 @@ export function validateChange({ change: ch, living, others = [], config = {}, k
     // base hashes of MODIFIED/REMOVED targets, recorded the first time they appear
     for (const b of d.blocks) if (b.op !== "ADDED") {
       const lb = cur?.doc.blocks.find((x) => x.id === b.id);
-      if (lb && !ch.base[b.id] && !(b.op === "MODIFIED" && lb.livingText === b.livingText)) baseMissing[b.id] = blockHash(lb.livingText);
+      if (lb && !ch.base[b.id] && !(b.op === "MODIFIED" && canonicalBlock(lb.livingText) === canonicalBlock(b.livingText))) baseMissing[b.id] = blockHash(lb.livingText);
     }
     // rules referenced by requirements must exist in the effective view
     for (const b of d.blocks) if (b.op !== "REMOVED") for (const ref of b.rules || []) if (!view.ids.has(ref)) push("error", "RULE_UNKNOWN", d.file, b.id, b.line, `${b.id} applies unknown rule ${ref}`);
@@ -527,7 +527,7 @@ export async function findConflicts(root) {
     if (!cur) continue;
     for (const b of d.blocks) if (b.op !== "ADDED" && c.base[b.id]) {
       const lb = cur.doc.blocks.find((x) => x.id === b.id);
-      if (lb && blockHash(lb.livingText) !== c.base[b.id] && lb.livingText !== b.livingText) conflicts.push({ code: "BASE_CHANGED", ref: b.id, capability: d.capability, changes: [c.id] });
+      if (lb && !hashMatches(c.base[b.id], lb.livingText) && canonicalBlock(lb.livingText) !== canonicalBlock(b.livingText)) conflicts.push({ code: "BASE_CHANGED", ref: b.id, capability: d.capability, changes: [c.id] });
     }
   }
   // two active changes with the same key (e.g. created on two branches): both would mint the same ids

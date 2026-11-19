@@ -14,7 +14,7 @@ v0.5 `.hitl/planning/*.md` files are legacy and read-only; they are migrated to 
      | 1 | feat-user-register.md | feat-user-register | user-register | UR | changes |
      ⚠️ <warnings, max 5 + count>
      ```
-     Capability = a business area (kebab case, e.g. `accounts`), key = 2–6 capitals (`ACC`), never changed later.
+     Capability = a business area (kebab case, e.g. `accounts`), key = 2–5 capitals (`ACC`), never changed later.
      Recommend a better name than the derived slug when the planning title suggests one (`💡 1 → accounts / ACC`).
      Reply line: `M. 💡 migrate with these names (Y) · rename: "M 1 accounts ACC" · "M skip"`.
    - Resuming a legacy file by name without migrating → `🛑 v0.5 planning files are read-only — migrate first.`

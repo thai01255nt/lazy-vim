@@ -60,8 +60,9 @@ Then the **Impact block** (0.9) — what the edit does to locked work. Pick one 
   scenario or decision changed (an implementation detail), say so and fall back to plain accept.
 - ⛔ GATE: END THE TURN after `Apply? (Y/n/edit)`. `edit` → apply the user's corrections, show the delta again.
 - `/hitl:design`'s `💡 Needs spec` (0.14): the delta preview (and the Impact block, if anything is locked) is the body of
-  a question in the design brief instead of a chat gate (`shared/interview.md` §8); `Y` under it applies it, text
-  edits it, the next run shows it again.
+  a question `### Q<n> 💡 Needs spec: <behaviour> (needs its own Y)` in the design brief instead of a chat gate
+  (`shared/interview.md` §8); a `Y` under it applies it (the round's accept-all line never does, interview.md §4), text
+  edits it and the next run shows it again, a bare `n` writes nothing (`→ recorded: declined`).
 
 ## 3. Rules
 - **Active change** → edit its delta `specs/<cap>/spec.md`:

@@ -9,6 +9,8 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readText, writeTextAtomic, withIndexLock } from "./fsutil.mjs";
 import { AC_ID_RE, DEC_ID_RE, TASK_ID_RE, parseId } from "./specids.mjs";
+import { canonicalBlock } from "./specmd.mjs";
+import { tidyMarkdown } from "./mdstyle.mjs";
 
 export const NOTE_KINDS = ["spec", "design", "order", "recheck"];
 /** Kinds a person (or Claude after the user's Y) may add; `recheck` is written only by `note apply`. */
@@ -119,7 +121,7 @@ export function renderNotes(changeId, notes) {
     const meta = Object.fromEntries(Object.entries(n.meta || {}).filter(([, v]) => v && (typeof v !== "object" || Object.keys(v).length)));
     if (Object.keys(meta).length) L.push("", `<!-- hitl ${JSON.stringify(meta)} -->`);
   }
-  return L.join("\n") + "\n";
+  return tidyMarkdown(L.join("\n")).replace(/\n+$/, "") + "\n";
 }
 
 export function nextNoteId(notes) { return `N-${Math.max(0, ...notes.map((n) => noteNum(n.id))) + 1}`; }
@@ -168,7 +170,7 @@ export function validateRefs(refs, ctx) {
 }
 
 /** Hash of the doc block behind a spec or decision ref (null for other refs or unknown ids). */
-export function refHash(ref, { view, findInView, design }) {
+export function refHash(ref, { view, findInView, design }, { legacy = false } = {}) {
   const k = refKind(ref);
   if (k === "decision") {
     const d = (design?.decisions || []).find((x) => x.id === ref);
@@ -178,7 +180,8 @@ export function refHash(ref, { view, findInView, design }) {
   const hit = findInView(view, ref);
   if (!hit) return null;
   if (hit.scenario) return shortHash(hit.scenario.title + "\n" + JSON.stringify(hit.scenario.steps || []));
-  return shortHash(hit.block.text || "");
+  // 0.14.1: the canonical (formatter-stable) text; `legacy` gives the ≤ 0.14.0 hash of the raw text
+  return shortHash(legacy ? hit.block.text || "" : canonicalBlock(hit.block.text || ""));
 }
 
 /** Base hashes of a note's spec/decision refs. */
@@ -198,7 +201,7 @@ export function changedSinceNoted(note, ctx) {
   const base = note.meta?.base || {};
   const refs = note.refs.filter((r) => ["spec", "decision"].includes(refKind(r)) && base[r]);
   if (!refs.length) return { checked: false, changed: [] };
-  return { checked: true, changed: refs.filter((r) => refHash(r, ctx) !== base[r]) };
+  return { checked: true, changed: refs.filter((r) => refHash(r, ctx) !== base[r] && refHash(r, ctx, { legacy: true }) !== base[r]) };
 }
 
 // ---------------------------------------------------------------- blocking

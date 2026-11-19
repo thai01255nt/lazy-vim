@@ -20,12 +20,11 @@ Arguments: `$ARGUMENTS` (`--reconfigure` = re-show and edit the detected command
    `1. 💡 Migrate .claude/custom/ → .hitl/ (Y)  2. Keep the old dir (hitl stays inactive)  3. Start an empty .hitl/ (init --fresh)`.
    END THE TURN. On 1: 📝 `hitl-index migrate`, print its output (incl. the `git add -A` hint and files left in place),
    then continue with step 3. On 3: `hitl-index init --fresh --json`. Never move the dir by hand.
-2b. v0.5 planning check: if `.hitl/planning/*.md` exists, run 🔍 `hitl-index migrate --specs --dry-run --json` and add its
-   `plan[]` table (`planning → change | capability | key | target`) + `warnings` to the gate of step 5 as option 4
-   `Migrate v0.5 planning to changes (Y/rename "4 1 accounts ACC"/skip)` — 💡 recommend business-area names
-   (`accounts`/`ACC`) over the derived slug. On yes: `hitl-index migrate --specs --map '<json>' --json`
-   (`{"<name>":{"capability","key"}}` per row); exit 1 → print its conflicts. Crude migrated titles are polished later
-   by the rename round of `/hitl:plan` (mention it in one line).
+2b. v0.5 planning check: if `.hitl/planning/*.md` exists, follow `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/migrate.md`
+   steps 1–3 (dry run, conflicts, the table with its 💡 business-area names, the `--map` apply), with these setup
+   differences: its table and `warnings` become option 4 of the gate in step 5 (no gate of its own), and its `M`
+   replies are typed with `4` instead: `4` (migrate with these names), `4 1 accounts ACC` (rename row 1), `4 skip`.
+   Skip its rename gate: crude migrated titles are polished later by `/hitl:plan` (mention it in one line).
 3. 📝 `hitl-index init --json`. It is idempotent: creates missing dirs, config and `.gitignore`, never overwrites md files.
    Output: `{created:[…], config:{…}, detected:{ts:{runner,confidence}, py:{runner,confidence}}}`.
    - Exit ≠ 0 → print ❌ with stderr and stop.
@@ -76,7 +75,7 @@ Reply e.g. "Y", "2 test.py = …", "1 3", "1 4".
    - `.husky/` exists → `hitl-index install-git-hook --husky`, else `hitl-index install-git-hook`.
    - Print ✅ with the hook path and: `It runs hitl-index precommit (blocks only on DELETED_REFERENCED / forged status). Uninstall: hitl-index install-git-hook --uninstall`.
 8. 🎯 Next:
-   - Any of `docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
+   - Any of `.hitl/docs/BUSINESS-CONTEXT.md`, `ARCHITECTURE.md`, `PATTERNS-CONVENTIONS.md` missing or still template → `/hitl:overview`
    - Else → `/hitl:go <describe the work>`
    - Always add one line: `ℹ️ Commit: hitl.config.json, docs/, specs/, changes/, archive/, tasks/,
      index/skeleton.lock.json, <provider>.map.json (linear|jira|github), reviews/<T>.review.md, reviews/<T>/decisions.json · Ignored

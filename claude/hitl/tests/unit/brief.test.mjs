@@ -132,6 +132,74 @@ Accept all recommendations of this round: >
   assert.deepEqual([briefSummary(done).open, done.counts.unanswered], [false, 0]);
 });
 
+test("0.14.1: accept-all never answers a `(needs its own Y)` question (Q0, 📥 For, 💡 Needs spec); `→ dropped (scope changed)` settles", () => {
+  const b = parseBrief(`# Design brief — feat-a
+> change: feat-a | key: FA | kind: design | status: open | round: 2
+
+## Round 2 — D: FA-D1…FA-D2 settled · open: 5
+
+Accept all recommendations of this round: > Y
+
+### Q0 Change id and key: \`feat-a\` / \`FA\` — keep? (needs its own Y)
+
+💡 Recommended: rename the key to \`FAB\` (FA is taken).
+
+>
+
+### Q4 📥 For feat-b: the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b? (needs its own Y)
+
+💡 Recommended: Y (feat-b owns the export).
+
+>
+
+### Q5 💡 Needs spec: an admin can cancel a running export (needs its own Y)
+
+📐 + FA-R4 …
+💡 Recommended: Y.
+
+>
+
+### Q6 💡 Needs spec: retry a failed export (needs its own Y)
+
+💡 Recommended: Y.
+
+> Y
+
+### Q7 [D] Stream rows or buffer them?
+
+💡 Recommended: stream.
+
+>
+
+### Q8 [D] Use a queue?
+
+💡 Recommended: no.
+
+>
+
+→ dropped (scope changed)
+
+### Q9 [D] Which format?
+
+💡 Recommended: CSV.
+
+> n
+
+→ recorded: declined
+`);
+  const q = (id) => b.questions.find((x) => x.id === id);
+  assert.deepEqual(["Q0", "Q4", "Q5", "Q6", "Q7"].map((id) => q(id).ownY), ["rename", "note", "spec", "spec", null]);
+  assert.equal(q("Q4").title, "📥 For feat-b: the export also lists cancelled orders · refs FB-R2 (Export a month) — note in feat-b?", "the marker text leaves the title");
+  assert.deepEqual(["Q0", "Q4", "Q5"].map((id) => [q(id).acceptedByRound, q(id).answered, q(id).pending]), [[false, false, true], [false, false, true], [false, false, true]], "an empty answer stays unanswered under accept-all Y");
+  assert.deepEqual([q("Q6").kind, q("Q6").answered, q("Q6").acceptedByRound], ["accept", true, false], "its own Y answers it");
+  assert.deepEqual([q("Q7").acceptedByRound, q("Q7").answered], [true, true], "an ordinary question is accepted by the round");
+  assert.deepEqual([q("Q8").dropped, q("Q8").settled, q("Q8").pending, q("Q8").recorded], [true, true, false, []]);
+  assert.deepEqual([q("Q9").kind, q("Q9").recorded, q("Q9").pending], ["decline", ["declined"], false]);
+  assert.deepEqual(b.counts, { questions: 7, pending: 5, answered: 2, unanswered: 3, notes: 0 });
+  // the `(needs its own Y)` text alone also marks a question
+  assert.equal(parseBrief("## Round 2\nAccept all recommendations of this round: > Y\n### Q3 Something else (needs its own Y)\n💡 Recommended: x\n>\n").questions[0].ownY, "other");
+});
+
 test("Notes blocks: empty, filled (vi, several lines), marked, in Close; only unmarked text is pending; never unanswered", () => {
   const b = parseBrief(`# Plan brief — feat-a
 > change: feat-a | key: FA | kind: plan | status: open | round: 3
@@ -241,32 +309,72 @@ test("hitl-index brief: parsed JSON; change/status --json carry brief and the an
   assert.deepEqual(after.json().items, before.json().items);
 });
 
-test("hitl-index brief rename: moves the folder, rewrites meta lines and notes' source; refused once ids exist or a key is taken", () => {
+test("hitl-index brief rename: moves the folder, rewrites meta lines, ids with the old key and notes' source; refused once a task exists or a key is taken", () => {
   const root = newChange();
   // feat-password-reset waits for feat-export-csv (created --before it)
   let r = cli(root, "note", "add", "--change", "feat-password-reset", "--source", "feat-export-csv", "--kind", "order", "--text", "Export first.", "--json");
   assert.equal(r.code, 0, r.err + r.out);
-  assert.equal(cli(root, "brief", "rename", "feat-export-csv", "--key", "PWR", "--json").json().code, "CHANGE_KEY_TAKEN");
+  r = cli(root, "brief", "rename", "feat-export-csv", "--key", "PWR", "--json");
+  assert.equal(r.code, 1);
+  assert.equal(r.json().code, "CHANGE_KEY_TAKEN");
+  assert.match(r.json().suggestion, /^[A-Z]{2,5}$/, "a taken key comes with the next free suggestion");
+  assert.notEqual(r.json().suggestion, "PWR");
   assert.equal(cli(root, "brief", "rename", "feat-export-csv", "--to", "feat-password-reset", "--json").json().code, "CHANGE_EXISTS");
   assert.equal(cli(root, "brief", "rename", "feat-export-csv", "--to", "Bad_Id", "--json").json().code, "ID_BAD_FORMAT");
   assert.equal(cli(root, "brief", "rename", "feat-export-csv").code, 2, "needs --to and/or --key");
+  // 0.14.1: later in the brainstorm — a delta, a glossary delta, a design, a design brief and a contract exist
+  const od = path.join(root, DIR);
+  fs.mkdirSync(path.join(od, "specs/orders"), { recursive: true });
+  fs.writeFileSync(path.join(od, "specs/orders/spec.md"), "# Delta: Orders\n\n> capability: orders | change: feat-export-csv\n\n## ADDED Requirements\n\n### Requirement: FEC-R1 Export a month\n\nWhen an admin exports a month, the system SHALL download one line per order.\n\n#### Scenario: FEC-R1.S1 One order\n");
+  fs.writeFileSync(path.join(od, "glossary.md"), "# Glossary delta\n\n> change: feat-export-csv\n\n## ADDED Terms\n\n### Term: Export\n\nA file of orders (FEC-R1).\n");
+  fs.writeFileSync(path.join(od, "design.md"), "# Design\n\n> change: feat-export-csv | status: draft | updated: 2026-11-19\n\n## Decisions\n\n| FEC-D1 | stream rows | memory | buffer | low | FEC-R1, FEC-R10 | accepted |\n");
+  fs.writeFileSync(path.join(od, "design-brief.md"), "# Design brief — feat-export-csv\n\n> change: feat-export-csv | key: FEC | kind: design | status: open | round: 1 | updated: 2026-11-19\n> next: answer the `>` lines, then run /hitl:design feat-export-csv\n\n## Round 1\n\n### Q1 [D] How is FEC-R1 built?\n\n> like feat-export-csv said: stream\n\n→ recorded: FEC-D1\n");
+  fs.mkdirSync(path.join(od, "contracts"), { recursive: true });
+  fs.writeFileSync(path.join(od, "contracts/cli-export.md"), "# CLI export\n\nServes FEC-R1; not XFEC-R1.\n");
+  fs.writeFileSync(path.join(od, ".scout.json"), JSON.stringify({ change: "feat-export-csv", facts: [] }));
   r = cli(root, "brief", "rename", "feat-export-csv", "--to", "feat-csv-export", "--key", "FCSV", "--json");
   assert.equal(r.code, 0, r.err + r.out);
-  assert.deepEqual(r.json(), { ok: true, from: "feat-export-csv", to: "feat-csv-export", key: "FCSV", oldKey: "FEC", dir: ".hitl/changes/feat-csv-export", notesUpdated: ["feat-password-reset"] });
-  assert.ok(!fs.existsSync(path.join(root, DIR)));
+  const j = r.json();
+  assert.deepEqual({ ...j, filesUpdated: undefined }, { ok: true, from: "feat-export-csv", to: "feat-csv-export", key: "FCSV", oldKey: "FEC", dir: ".hitl/changes/feat-csv-export", filesUpdated: undefined, notesUpdated: ["feat-password-reset"] });
+  assert.deepEqual(j.filesUpdated, [".scout.json", "contracts/cli-export.md", "design-brief.md", "design.md", "glossary.md", "plan-brief.md", "proposal.md", "specs/orders/spec.md"]);
+  assert.ok(!fs.existsSync(od));
   const nd = path.join(root, ".hitl/changes/feat-csv-export");
-  assert.match(fs.readFileSync(path.join(nd, "proposal.md"), "utf8"), /^> change: feat-csv-export \| key: FCSV \| status: draft/m);
-  const brief = fs.readFileSync(path.join(nd, "plan-brief.md"), "utf8");
+  const read = (rel) => fs.readFileSync(path.join(nd, rel), "utf8");
+  assert.match(read("proposal.md"), /^> change: feat-csv-export \| key: FCSV \| status: draft/m);
+  const brief = read("plan-brief.md");
   assert.match(brief, /^# Plan brief — feat-csv-export$/m);
   assert.match(brief, /^> change: feat-csv-export \| key: FCSV \| kind: plan/m);
-  assert.match(brief, /run \/hitl:plan feat-export-csv/, "only the meta lines change; the user's text stays");
+  assert.match(brief, /^> next: answer the `>` lines, then run \/hitl:plan feat-csv-export$/m, "the next line follows the new id");
+  assert.match(brief, /Q0 Change id and key: `feat-export-csv` \/ `FEC`/, "question text written before the rename stays");
+  assert.match(brief, /→ recorded: FCSV-R1, FCSV-R1\.S1/, "ids follow the new key");
+  assert.doesNotMatch(brief, /\bFEC-R/);
+  assert.match(read("specs/orders/spec.md"), /^> capability: orders \| change: feat-csv-export$/m);
+  assert.match(read("specs/orders/spec.md"), /### Requirement: FCSV-R1 Export a month[\s\S]*#### Scenario: FCSV-R1\.S1 One order/);
+  assert.match(read("glossary.md"), /^> change: feat-csv-export$/m);
+  assert.match(read("glossary.md"), /\(FCSV-R1\)/);
+  assert.match(read("design.md"), /\| FCSV-D1 \| stream rows .*\| FCSV-R1, FCSV-R10 \|/);
+  const db = read("design-brief.md");
+  assert.match(db, /^# Design brief — feat-csv-export$/m);
+  assert.match(db, /^> change: feat-csv-export \| key: FCSV \| kind: design/m);
+  assert.match(db, /^> like feat-export-csv said: stream$/m, "the user's answer keeps the old change id");
+  assert.match(db, /How is FCSV-R1 built\?[\s\S]*→ recorded: FCSV-D1/);
+  assert.match(read("contracts/cli-export.md"), /Serves FCSV-R1; not XFEC-R1\./, "only whole ids with the old key");
+  assert.equal(JSON.parse(read(".scout.json")).change, "feat-csv-export");
   assert.match(fs.readFileSync(path.join(root, ".hitl/changes/feat-password-reset/notes.md"), "utf8"), /- source: feat-csv-export/);
-  // once a delta exists the name is fixed
-  fs.mkdirSync(path.join(nd, "specs/orders"), { recursive: true });
-  fs.writeFileSync(path.join(nd, "specs/orders/spec.md"), "# Delta: Orders\n");
+  assert.equal(cli(root, "spec", "validate", "feat-csv-export", "--json").json().items.filter((i) => /KEY|ID/.test(i.code) && i.level === "error").length, 0, "no key/id errors after the rename");
+  // the key alone, later (no tasks yet): every id follows again
   r = cli(root, "brief", "rename", "feat-csv-export", "--key", "FCE", "--json");
+  assert.equal(r.code, 0, r.err + r.out);
+  assert.match(read("specs/orders/spec.md"), /FCE-R1\.S1/);
+  assert.equal(r.json().notesUpdated.length, 0, "a key-only rename leaves other changes' notes alone");
+  // once the change has its first task the name is fixed
+  fs.writeFileSync(path.join(nd, "tasks.md"), "# Export Tasks\n\n← Change: feat-csv-export\n\n> status: draft\n\n## FCE-T1 Export a month\n\n- prio: P1 | risk: low | impl: agent | blocked-by: none | status: todo\n\n### Acceptance criteria\n\n- [ ] FCE-T1.AC1 (FCE-R1.S1) Given one order When exported Then one line\n");
+  r = cli(root, "brief", "rename", "feat-csv-export", "--key", "FCX", "--json");
   assert.equal(r.code, 1);
   assert.equal(r.json().code, "BRIEF_RENAME_LATE");
+  assert.match(r.json().message, /already has 1 task\(s\)/);
+  assert.ok(fs.existsSync(path.join(nd, "tasks.md")), "nothing moved");
+  assert.match(read("specs/orders/spec.md"), /FCE-R1\.S1/, "nothing rewritten");
 });
 
 // ---- evals (dry): the 0.14 brief checks of evals/grade.mjs on synthetic transcripts and files (no claude calls)
@@ -311,6 +419,6 @@ test("evals (dry): plan-vi passes on a brief round 1 and fails on a chat round; 
   g = grade(d, root, dchat);
   assert.ok(g.design_brief_r1.ok, g.design_brief_r1.why);
   assert.ok(g.design_brief_chat.ok, g.design_brief_chat.why);
-  fs.writeFileSync(pr, filled.replace(/(### Q2 [^\n]*\n)💡 Recommended:[^\n]*\n/, "$1"));
+  fs.writeFileSync(pr, filled.replace(/(### Q2 [^\n]*\n\n)💡 Recommended:[^\n]*\n/, "$1"));
   assert.equal(grade(d, root, dchat).design_brief_r1.ok, false);
 });

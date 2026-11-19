@@ -37,7 +37,8 @@ Parse the arguments (whitespace or comma separated). The first token decides the
   `CMD = hitl-index approve --change <id> --stage dismiss --note N-k --reason "<reason>" --by human`. Step 2 only.
 - first token not `<KEY>-T<n>` and second token `defer` → **note decision**: third token `N-k`, fourth token the target change
   id (both required). `CMD = hitl-index approve --change <id> --stage defer --note N-k --to <target> --by human`. Step 2 only.
-- first token `<KEY>-T<n>` → task (required; missing → `❌ Usage: /hitl:approve <task-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept|reopen|dismiss|defer …`, stop);
+- any other first token (none, or a token that matches no form above and is not `<KEY>-T<n>`) → `❌ Usage: /hitl:approve <task-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept|reopen|dismiss|defer …`, stop.
+- first token `<KEY>-T<n>` → task form:
 - next token ∈ {skeleton, tests, done} → `--stage <it>` (omitted → the CLI picks the first stage not yet done);
 - `--ack` and the token after it (`N-k` or `N-k,N-m`) → `--ack <ids>` (releases those notes for this task: all its
   stages; the note stays open for other tasks and archive). Never add `--ack` yourself;

@@ -63,7 +63,7 @@ Low-risk tasks may use the ⚡ fast lane (auto skeleton/tests approval). Never l
   Quick tasks: no spec refs.
 
 ## 6. Symbols and owners
-- Row: `` n. [ ] `Ref` | new|modify | `path/file.ext` | impl: agent|manual | purpose ``. Order = implement order (callees first).
+- Row: `` n. [ ] `Ref` | new|modify | `path/file.ext` | impl: agent|manual | purpose ``. Row order = the tie-break of the implement order (`@prio` = row number); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`).
 - `Ref` is `Name` or `Class.method` (no path; the file column carries it).
 - `modify` only if the symbol exists now (`hitl-index context <ref> --json` or Grep); `new` only if it does not.
 - File follows PATTERNS-CONVENTIONS (layer dir, naming). A `new` symbol in a file that does not exist yet → note

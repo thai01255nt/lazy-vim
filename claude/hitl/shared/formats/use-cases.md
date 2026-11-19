@@ -7,15 +7,18 @@ trigger, main success scenario, extensions). hitl uses a lite subset and keeps i
 ## Template (fully dressed, lite)
 ```
 ### Flow: <KEY>-UC<n> <goal as an active verb phrase>
+
 Primary actor: <role> · Scope: <capability or system> · Level: user goal | summary | subfunction
-Stakeholders: <who cares and why>                     (optional)
-Preconditions: <what is already true>                  (or "none")
+Stakeholders: <who cares and why> (optional)
+Preconditions: <what is already true> (or "none")
 Trigger: <what starts it>
 Success guarantee: <what is true when the goal is met>
-Minimal guarantee: <what is true even on failure>      (optional)
+Minimal guarantee: <what is true even on failure> (optional)
 Main success scenario:
+
 1. <actor> <does something>.
 2. The system <responds> (<REQ-ID>).
+
 Extensions:
 2a. <condition>: <what happens>; <ends | continues at step n>.
 *a. <condition at any step>: <what happens>.
@@ -28,14 +31,17 @@ Extensions:
 ## Example
 ```
 ### Flow: ACC-UC1 Recover access
+
 Primary actor: registered user · Scope: accounts · Level: user goal
 Trigger: the user forgot their password
 Preconditions: none
 Success guarantee: the user can sign in with the new password; the link no longer works
 Main success scenario:
+
 1. The user asks for a reset with their email.
 2. The system sends a reset link (ACC-R5).
 3. The user opens the link and sets a new password (ACC-R6).
+
 Extensions:
 2a. Unknown email: the system shows the same confirmation and sends nothing (ACC-R5.S2).
 ```

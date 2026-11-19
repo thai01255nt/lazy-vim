@@ -1,4 +1,4 @@
-# HITL tag grammar (human-readable copy of design §E.3.5)
+# HITL tag grammar
 
 Tags live in the symbol's docstring (JSDoc `/** */` in TS/JS, the docstring in Python).
 The parser is `scripts/lib/tags.mjs`; this file is documentation only.

@@ -16,7 +16,8 @@ const PLUGIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", 
 const CLI = path.join(PLUGIN, "scripts/hitl-index.mjs");
 const cli = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", timeout: 60000 }); return { code: r.status, out: r.stdout, err: r.stderr }; };
 const w = (root, rel, text) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), text); };
-const rd = (root, rel) => fs.readFileSync(path.join(root, rel), "utf8");
+// 0.14.1: migrated files are written in markdownlint style (blank lines around blocks, padded tables); compare compact
+const rd = (root, rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\n{2,}/g, "\n").replace(/ {2,}/g, " ").replace(/\| -{3,}/g, "|---");
 const ex = (root, rel) => fs.existsSync(path.join(root, rel));
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "hitl-migspec-"));
 function listAll(dir, pre = "") {
@@ -63,7 +64,7 @@ test("round trip on the legacy ts-app: same AC↔test links, no block items, @de
   assert.ok(!ex(root, ".hitl/planning/feat-user-register.md") && !ex(root, ".hitl/tasks/feat-user-register.md"));
   assert.match(rd(root, `${C}/tasks.md`), /^← Change: feat-user-register$/m);
   assert.match(rd(root, `${C}/tasks.md`), /- \[ \] QT-T1\.AC1 \(UR-R1\.S1\) Given an existing email/);
-  assert.match(rd(root, `${C}/design.md`), /\| D-1 \| Duplicate check in UserService\.createUser \| single entry point \|  \| duplicates slip in \| UR-R1, UR-R2 \| accepted \|/);
+  assert.match(rd(root, `${C}/design.md`), /\| D-1 \| Duplicate check in UserService\.createUser \| single entry point \| \| duplicates slip in \| UR-R1, UR-R2 \| accepted \|/);
   assert.match(rd(root, `${C}/proposal.md`), /^> change: feat-user-register \| key: UR \| status:/m, "0.13: the derived key is the change key");
   assert.match(cli(root, "migrate", "--specs").out, /no \.hitl\/planning/);
   // 0.13: the tasks (moved quick ids) and decisions get the change key from migrate --ids
@@ -125,7 +126,7 @@ Totals must be right.
   const C = ".hitl/changes/fix-cart-total";
   assert.match(rd(root, `${C}/proposal.md`), /## Deferred\n- R-2 The system shall show a breakdown\./);
   assert.match(rd(root, `${C}/specs/cart-total/spec.md`), /## Retired IDs <!-- migrated -->\n- CT-R3 Totals are rounded — dropped/);
-  assert.match(rd(root, `${C}/design.md`), /\| D-1 \| Recompute on every change \| simple \|  \| slow \| CT-R1 \| accepted \|/);
+  assert.match(rd(root, `${C}/design.md`), /\| D-1 \| Recompute on every change \| simple \| \| slow \| CT-R1 \| accepted \|/);
   assert.equal(cli(root, "migrate", "--ids").code, 0);
   assert.match(rd(root, `${C}/design.md`), /\| CT-D1 \| Recompute on every change/);
   const v = JSON.parse(cli(root, "spec", "validate", "--json").out);

@@ -14,9 +14,9 @@ see NOTICE.md). You judge the requirements, not an implementation. You never edi
 
 ## Inputs (from the orchestrator prompt)
 Change id, change dir (`.hitl/changes/<id>/`), output path (`.hitl/changes/<id>/.spec-review.json`), CLI command, and
-optionally `Overlap: hitl-index overlap <id> --json` (0.12: other active changes that share ids, rules, contracts,
+optionally `Overlap: hitl-index overlap <id> --json` (other active changes that share ids, rules, contracts,
 files, glossary terms or a capability with this one).
-**Overlap mode** (0.13.1, from `/hitl:overlap`): the prompt starts with `Mode: overlap` and gives `Change: <A>`,
+**Overlap mode** (from `/hitl:overlap`): the prompt starts with `Mode: overlap` and gives `Change: <A>`,
 `Targets: <B, C, …>`, `Overlap: hitl-index overlap <A> --with <B,C> --json` and `Output: .hitl/.inbox/overlap-review.json`.
 Then skip the lenses and the Process below: follow **Overlap mode** only.
 

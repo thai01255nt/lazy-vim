@@ -17,7 +17,7 @@ Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_P
 - Title starts with the AC id: `PWR-T12.AC1 rejects duplicate email in any case`. Python function: `test_T12_AC1_<behaviour>`.
 - Turn `it.todo(...)` / `@unittest.skip("TODO(test)…")` / `@pytest.mark.skip` into an active test. Do not leave skips.
 - Import the unit under test through the `import paths:` line of the contract pack. Never import private internals.
-- Use the project's framework and style (contract pack + `docs/PATTERNS-CONVENTIONS.md`). Do not add dependencies.
+- Use the project's framework and style (contract pack + `.hitl/docs/PATTERNS-CONVENTIONS.md`). Do not add dependencies.
 - Patterns (names in `## Terms` words, anti-patterns, doubles, seams): `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md`
   (+ `skills/tdd/tests.md`, `mocking.md`).
 

@@ -8,7 +8,7 @@ allowed-tools: Read Glob Grep Edit Agent Skill Bash(hitl-index *) Bash(node *hit
 
 # /hitl:implement
 
-Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md` (language, CLI invocation, gate protocol, emoji, quality checklist).
+Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md` (conventions.md: language, CLI invocation, gate protocol, emoji; conventions-code.md: quality checklist).
 Reply in the user's language. Code, tags and identifiers stay English.
 
 Arguments: `$ARGUMENTS` → `<task-id> [symbol] [--all] [--lane fast]` or `--feature <change-id> [--lane fast]`
@@ -65,10 +65,10 @@ Route on task status (`tasks[T].status`) and risk:
 | `skeleton` (not approved) | ⚡ `hitl-index approve <T> --stage skeleton --by auto`, then as `approved` | 🛑 `Run /hitl:approve <T> first` |
 | `approved` (tests not locked) | ⚡ fast lane from the test step | 🛑 `Run /hitl:test <T>, then /hitl:approve <T> tests` |
 | `red` / `wip` | go to step 2 | go to step 2 if tests are locked, else 🛑 as `approved` |
-
-High risk **with** `--lane fast` (Lane override above): use the low-risk column with `BY = human-override`.
 | `green` | ✅ already green → `🎯 next: /hitl:review <T>` | same |
 | `review` / `verified` / `done` | print status and `next` from the CLI; stop | same |
+
+High risk **with** `--lane fast` (Lane override above): use the low-risk column with `BY = human-override`.
 
 Blocked by unfinished tasks → ⚠️ list them, ⛔ GATE `Continue anyway? (y/N)`, end turn.
 `tasks[T].notes` non-empty (an open note or a recheck touches T) → ⛔ GATE `📌 <T> is touched by N-k (<title>): its
@@ -76,8 +76,8 @@ approvals are refused until the note is applied (<apply>), or you ack, dismiss o
 end turn. `reopened` → print `🔁 <T> reopened by <note>` and its `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`); stop.
 When unsure, trust `tasks[T].next` from the CLI over your own reading.
 
-Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` exists and `onBranch` is false → print
-`🎯 branch: git switch -c <branch>` once. Run no git command yourself; `linear` null or missing → print nothing.
+Ticket tracker (optional, fail-open): if `status --json` `tasks[T].linear` is non-null and `tasks[T].linear.onBranch` is false → print
+`🎯 branch: git switch -c <tasks[T].linear.branch>` once. Run no git command yourself; `linear` null or missing → print nothing.
 
 ## Step 2 — Work list
 
@@ -156,7 +156,7 @@ After each symbol (low risk: after the batch, plus once per symbol in the summar
    ♻️ REUSE: PasswordHasher.hash (src/security/hasher.ts)              (only if the implementer reported reuse)
    ```
    Show the new body (or its diff) compactly so the human can glance at it — the v2 "show code" step.
-5. High risk: ⛔ GATE `Method done. Continue? (Y/n/<symbol>)`. End turn.
+5. High risk: ⛔ GATE `Function done. Continue? (Y/n/<symbol>)`. End turn.
    - Y → next symbol in the list. `<symbol>` → that one. n → stop with the 🎯 line.
 
 Red after a `green` claim → treat as `stuck` (print both claims and evidence; never paper over it).

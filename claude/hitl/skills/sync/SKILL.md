@@ -1,7 +1,7 @@
 ---
 name: sync
 description: Reconciles manual edits with the HITL index — reindexes the project, shows the full drift report against approved skeletons (signature/intent changes with affected callers, orphan symbols, deleted-but-referenced symbols, edited locked tests, stale @status tags), flags broken requirement/decision links (trace), walks the user through re-reviewing each change (accept, revert, defer, or accept + amend the change's spec delta / design decision), regenerates CODEBASE-MAP, and offers approval. Run by the user after editing code outside Claude.
-argument-hint: "[--files <paths...>] [<task-id>]"
+argument-hint: "[--files <paths...>] [<task-id>] | context <task-id|ref>"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -48,9 +48,9 @@ Not initialized (exit 3) → 🛑 `Run /hitl:setup first.`
 ⛔ SCN_UNKNOWN ACC-R1.S4 — PWR-T12.AC3 refs a scenario not in the change's spec view               (trace)
 ⚠️ DEC_SUPERSEDED_REF PWR-D1 — superseded by PWR-D4                                                  (trace)
 ## refactor-lua-const-mirror (archived)
-⚠️ ARCHIVED_BODY_CHANGED beginGranting — done in PWR-T13; test runs stale (run hitl-index test)
+⚠️ ARCHIVED_BODY_CHANGED beginGranting — done in RLCM-T1; test runs stale (run hitl-index test)
 ⚠️ INTENT_CHANGED beginGranting — approved: "<intent>"  →  current: "<intent>"
-⚠️ TEST_CHANGED tests/test_wallet.py "PWR-T13.AC1 …"
+⚠️ TEST_CHANGED tests/test_wallet.py "RLCM-T1.AC1 …"
 ## (no task)
 ⚠️ ORPHAN src/util/email.ts#normalize
 ```

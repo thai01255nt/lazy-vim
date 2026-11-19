@@ -16,7 +16,7 @@ old component tree.
 
 ## 1. Breadth — coverage
 Nine categories. Keep their status in the proposal `## Coverage` table (`| category | status | note |`) after every
-reply; the CLI reads it (`COVERAGE_GAP`).
+run; the CLI reads it (`COVERAGE_GAP`).
 | category | clear when | typical question |
 |---|---|---|
 | Scope & behaviour | every behaviour the user wants is a requirement; out of scope listed | "Does it also …?" |
@@ -31,7 +31,8 @@ reply; the CLI reads it (`COVERAGE_GAP`).
 Status: `✅` clear · `⚠️` partial · `❌` missing · `—` not applicable or deferred (the note says why).
 From round 2 on, each round heading of the brief carries one line, e.g.
 `## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ✅ · Edge ❌ · Integr — · NFR — · Terms ✅ · Success ⚠️`.
-Round 1 asks one core question per category instead (`SKILL.md` §3.4); the table gets its first status from the
+Round 1 asks the ten core questions of the template instead (all categories except Terminology, which comes through
+`[T]` questions; `SKILL.md` §3.4); the table gets its first status from the
 description before round 1 and is updated after every run.
 The next round's frontier takes ❌ first, then ⚠️ (highest impact first). Anything still unresolved is written as
 `[NEEDS CLARIFICATION: …]` in the delta or proposal at the place it belongs, plus an `## Open questions` line.
@@ -60,12 +61,16 @@ Check it with `hitl-index spec validate <id> --json`: no `COVERAGE_GAP` and no `
 Close section lists the gaps and asks the gap question instead:
 ```
 ## Close
+
 ⛔ Not ready for /hitl:design — gaps:
+
 - Edge cases & errors ❌ · Success criteria ⚠️
 - ACC-R7 SHALL with [NEEDS CLARIFICATION: end open sessions?]
 
 ### Close with gaps? (round · deep <ID> · force)
+
 💡 Recommended: round — one more round on the gaps
+
 >
 ```
 `force` writes `- 💡 Forced: closed with gaps <list> (<date>)` under the proposal's `## Open questions`; validate then

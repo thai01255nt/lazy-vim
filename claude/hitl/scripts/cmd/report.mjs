@@ -1,4 +1,5 @@
 // P2 — `hitl-index report <T> [--json]`: writes reviews/<T>.review.md (§E.9.3) and records state.reviews[T].
+import { tidyMarkdown } from "../lib/mdstyle.mjs";
 import { parseArgs } from "node:util";
 import { join, relative } from "node:path";
 import { readdirSync } from "node:fs";
@@ -21,7 +22,7 @@ export async function generateReport(root, config, T) {
   try { lensesRan = readdirSync(dir).map((n) => /^findings-([a-z]+)\.json$/.exec(n)?.[1]).filter(Boolean); } catch {}
   const rep = buildReport({ taskId: T, title: task?.title, l0, findings, decisions, risk, lensesRan, statuses: g.statuses, lock: g.lock, index: g.index, config, head });
   const file = join(P.reviews, `${T}.review.md`);
-  await writeFileAtomic(file, rep.markdown);
+  await writeFileAtomic(file, tidyMarkdown(rep.markdown));
   await writeJsonSorted(join(dir, "decisions.json"), rep.decisions);
   const bodyHashes = {}; for (const id of g.statuses.tasks[T]?.symbols || []) bodyHashes[id] = g.index.symbols[id]?.bodyHash;
   await recordReview(root, T, { verdict: rep.verdict, bodyHashes, report: relative(root, file) });

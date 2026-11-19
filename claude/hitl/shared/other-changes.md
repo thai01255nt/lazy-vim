@@ -1,10 +1,10 @@
-# Other active changes (0.12): prerequisite changes, owner check, overlaps
+# Other active changes: prerequisite changes, owner check, overlaps
 
 Used by `/hitl:go`, `/hitl:plan`, `/hitl:design`, `/hitl:implement`, `/hitl:review` and `/hitl:overlap`. One rule drives everything:
 **a note in change A with `source: B` blocks all of A until B is archived.** The notes in A are the only source of
 truth (the CLI computes the block from the folders; nothing else is synced). Who goes first and what runs in parallel
 is the user's call: never decide an order yourself, never write a note into another change without the user's typed
-`--before` or Y.
+`--before` or Y (its own `Y` under the `📥` question, §3; a round's accept-all line does not count).
 
 ## 1. Out of scope → a prerequisite change (the main path)
 In A's plan, design, implement or review, when the user or you spot work outside A's scope:
@@ -23,7 +23,7 @@ Right after B's proposal is written (§1 of plan):
   waits`, skip it.
 
 ## 3. Owner check (B's plan and design brainstorm)
-**Parents first (0.13.1).** A parent of B is an active change P that holds notes from B (`source: B`; B was created
+**Parents first.** A parent of B is an active change P that holds notes from B (`source: B`; B was created
 `--before P`, or an earlier owner check wrote one): `hitl-index overlap B --json` marks it `parent: true` and lists it
 even with no evidence. Round 1 of the plan brief holds one info line per parent, before the questions:
 `🔗 parent <P> — shared: <evidence refs (titles)>` (no evidence → `shared: none found yet`). The owner check then works
@@ -34,10 +34,23 @@ For each behaviour you are about to record in B, ask whose WHAT it is:
 - B's own behaviour, or a change to a **living** requirement (in `.hitl/specs/`) → B's delta, as usual.
 - A change to something an active parent P owns (P's ADDED or MODIFIED blocks, P's decisions, P's task ACs) → never in
   B's delta (B cannot modify a requirement that is not living yet). Draft it in P's words and ask it as a question of
-  the next brief round: `### Q<n> 📥 For <P>: <what changes, plain words> · refs <P's ids (titles)> → note in <P>? (Y/n/edit)`.
-  Y → `hitl-index note add --change P --source B --kind spec|design --refs <P's ids> --text "<what P must change and
-  why, B's behaviour in plain words>" --from "/hitl:plan B"` (`design` for a contract or decision of P). The text may
-  end with `Proposed for <P>:` and the requirement as P should read it. Print its `📥` line.
+  the next brief round:
+  ```
+  ### Q<n> 📥 For <P>: <what changes, plain words> · refs <P's ids (titles)> — note in <P>? (needs its own Y)
+
+  💡 Recommended: Y (<why P owns it>)
+
+  >
+  ```
+  Answers (interview.md §6):
+  - `Y` under this question → `hitl-index note add --change P --source B --kind spec|design --refs <P's ids> --text
+    "<what P must change and why, B's behaviour in plain words>" --from "/hitl:plan B"` (`design` for a contract or
+    decision of P; `--from "/hitl:design B"` in a design brief). The text may end with `Proposed for <P>:` and the
+    requirement as P should read it. Print its `📥` line; mark `→ recorded: <P> N-k`.
+  - The accept-all line never answers it (it writes into another change): an empty answer is carried to the next
+    round even when the round's accept-all line says `Y`.
+  - Text that rewords the note → reword it and ask again in the next round (same number).
+  - A bare `n` → nothing is written; mark `→ recorded: declined`.
 - B never edits P's files. The note reaches P only through the CLI.
 
 ## 4. Overlap with active changes B is not linked to (with or without `--before`)
@@ -72,7 +85,7 @@ checked here. Changes B already waits for (`waitsFor: true`) need nothing more.
   `/hitl:approve A dismiss N-k <reason>` for each note from B.
 - The human may dismiss a note from B at any time: the user decides the order, the tool never does.
 
-## 6. On demand: `/hitl:overlap <A> [<B> <C> …]` (0.13.1)
+## 6. On demand: `/hitl:overlap <A> [<B> <C> …]`
 Compares one active change with several (`--with B,C`; no targets = every other active change) at any phase, e.g.
 after a branch merge brought in other changes, or when two changes moved on since their plans. Deterministic first
 (`hitl-index overlap A --with B,C --json`, with a `code` section: symbols and files both changes' tasks name, drift on

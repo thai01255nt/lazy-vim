@@ -6,13 +6,14 @@ progress), chapter 8 decision tables and hit policies — https://www.omg.org/sp
 ## Template (inside a `### Rule:` block, business-readable)
 ```
 ### Rule: <KEY>-BR<n> <title>
+
 <the policy in one sentence>
 
 Hit policy: <U|A|P|F|R|O|C|C+|C<|C>|C#> (<name>)
 
-| # | <input 1> (in) | <input 2> (in) | <output> (out) |
-|---|---|---|---|
-| 1 | <condition> | <condition> | <value> |
+| #   | <input 1> (in) | <input 2> (in) | <output> (out) |
+| --- | -------------- | -------------- | -------------- |
+| 1   | <condition>    | <condition>    | <value>        |
 ```
 - **Input/output columns:** suffix `(in)` / `(out)`. Without any marker the last column is the output.
   The hit policy may also sit in the top-left header cell, as in DMN (`| U | age (in) | … |`).
@@ -26,15 +27,16 @@ Hit policy: <U|A|P|F|R|O|C|C+|C<|C>|C#> (<name>)
 ## Example
 ```
 ### Rule: ACC-BR1 Reset link validity
+
 A reset link is valid for 30 minutes and for one use only.
 
 Hit policy: U (unique)
 
-| # | link age (in) | already used (in) | outcome (out) |
-|---|---|---|---|
-| 1 | ≤ 30 min | no | accept |
-| 2 | ≤ 30 min | yes | reject "link already used" |
-| 3 | > 30 min | any | reject "link expired" |
+| #   | link age (in) | already used (in) | outcome (out)              |
+| --- | ------------- | ----------------- | -------------------------- |
+| 1   | ≤ 30 min      | no                | accept                     |
+| 2   | ≤ 30 min      | yes               | reject "link already used" |
+| 3   | > 30 min      | any               | reject "link expired"      |
 ```
 
 ## Warnings

@@ -1,6 +1,7 @@
 // `hitl-index trace [<T-id> | <change-id> | --capability <cap> | <legacy-planning-file>] [--check] [--fail-on block|warn]
 //   [--md] [--out <path>] [--json]` (hitl.trace/2, design v3 §5.2).
 // Never reindexes, never runs tests; writes only the --md file.
+import { tidyMarkdown } from "../lib/mdstyle.mjs";
 import { resolve, relative, sep } from "node:path";
 import { parseArgv, toRel } from "../lib/project.mjs";
 import { exists, writeTextAtomic } from "../lib/fsutil.mjs";
@@ -48,7 +49,7 @@ export async function run(argv, ctx) {
   let md = null;
   if (a.md) {
     const abs = outPath(root, a.out || ctx.config?.trace?.mdOut || `${HITL_PREFIX}index/trace.md`);
-    await writeTextAtomic(abs, renderTraceMd(trace));
+    await writeTextAtomic(abs, tidyMarkdown(renderTraceMd(trace)));
     md = relative(root, abs).split(sep).join("/");
   }
   if (ctx.json) console.log(JSON.stringify(md ? { ...trace, md } : trace, null, 2));

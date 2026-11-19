@@ -130,7 +130,7 @@ test("note add|list|show: writes notes.md, validates refs (exit 1, nothing writt
   assert.equal(d.note.title, "The link lasts 15 minutes");
   assert.deepEqual(d.blocks, ["PWR-T1"]);
   const text = fs.readFileSync(path.join(root, NOTES), "utf8");
-  assert.match(text, /## N-1 The link lasts 15 minutes\n- kind: spec\n- refs: PWR-R1\.S2 \(Unknown email reveals nothing\), PWR-D1 \(Store a hash/);
+  assert.match(text, /## N-1 The link lasts 15 minutes\n\n- kind: spec\n- refs: PWR-R1\.S2 \(Unknown email reveals nothing\), PWR-D1 \(Store a hash/);
   assert.match(text, /<!-- hitl \{"base":\{"PWR-R1\.S2":"[0-9a-f]{12}","PWR-D1":"[0-9a-f]{12}"\}\} -->/);
   const bad = cli(root, "note", "add", "--change", "feat-password-reset", "--kind", "spec", "--refs", "ACC-R9,NoSuch.symbol,QT-T99", "--text", "x", "--json");
   assert.equal(bad.code, 1);

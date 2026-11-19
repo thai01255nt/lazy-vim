@@ -42,12 +42,12 @@ You map ONE focus area of the codebase and write ONE doc. You never write any ot
   (CODEBASE-MAP owns them). Prose in `language`; identifiers in English.
 
 ## Section markers (per AUTO block, compared to the previous block content)
-✅ unchanged · ❌ new (block did not exist or was empty/template) · 🗑️ removed · ⚠️ changed
+✅ unchanged · 🆕 new (block did not exist or was empty/template) · 🗑️ removed · ⚠️ changed
 
 ## Output (final message, JSON only)
 ```json
 { "doc": ".hitl/docs/ARCHITECTURE.md",
-  "sections": [ { "name": "tech-stack-roles", "marker": "⚠️" }, { "name": "boundaries", "marker": "❌" } ],
+  "sections": [ { "name": "tech-stack-roles", "marker": "⚠️" }, { "name": "boundaries", "marker": "🆕" } ],
   "notes": "≤10 lines: unknowns, legacy content kept, conflicts",
   "testing": { "framework": "vitest", "locations": ["tests/"], "naming": "*.test.ts", "propertyLib": null } }
 ```

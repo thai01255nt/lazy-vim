@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseLivingSpec, parseDelta, parseGlossary, blockHash } from "../../scripts/lib/specmd.mjs";
+import { parseLivingSpec, parseDelta, parseGlossary, blockHash , canonicalBlock } from "../../scripts/lib/specmd.mjs";
 import { mergeChange, planCapability, planGlossary, renderLiving, livingModel, GLOSSARY_REL } from "../../scripts/lib/specmerge.mjs";
 import { runMerge, resetStatusCache } from "../../scripts/lib/changes.mjs";
 import { today } from "../../scripts/lib/specids.mjs";
@@ -156,7 +156,8 @@ test("living model round-trips through render with no errors", () => {
   const text = renderLiving(livingModel(doc));
   const again = living(text);
   assert.deepEqual(again.items.filter((i) => i.level === "error"), []);
-  assert.deepEqual(again.blocks.map((b) => b.livingText), doc.blocks.map((b) => b.livingText));
+  // 0.14.1: render puts blank lines around headings and block kinds (markdownlint style); the canonical text is the same
+  assert.deepEqual(again.blocks.map((b) => canonicalBlock(b.livingText)), doc.blocks.map((b) => canonicalBlock(b.livingText)));
   assert.equal(renderLiving(livingModel(again)), text);
 });
 

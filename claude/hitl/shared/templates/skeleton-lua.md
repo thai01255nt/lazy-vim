@@ -14,6 +14,7 @@ ids) in steps. Numbered step comments inside classes/enums are deleted after imp
 keep them).
 
 ## Annotation order (LuaLS binding — do not break it)
+
 Docstring order: intent prose → hitl tags → `---@alias` / `---@class` + `---@field` → `---@param` / `---@return`
 (`---@nodiscard`, `---@async`) → the `function` line.
 **Nothing (prose, tags, `--` or `---` lines) may sit between the last `---@field` and the first `---@param`.**
@@ -21,6 +22,7 @@ LuaLS would silently drop the function's signature (callers get an unknown retur
 A class shared by several functions goes in its own block, separated from the docstring by a blank line.
 
 ## Function stub (exact shape)
+
 ```lua
 -- Read phase of lease closing: lists the leases this settle uses up; writes nothing.
 -- A lease that gets a refund or still carries another reservation stays open.
@@ -40,16 +42,19 @@ local function findUsedUpLeases(options)
 	error("TODO(impl): src/cache_repos/lua/lease_exec_settle.lua#findUsedUpLeases")
 end
 ```
+
 `@dec <KEY>-D<n>` (optional, 0–3 per task): only on symbols that embody a design decision (change `design.md`, cited in the
-task's **Why**) whose *cost if wrong* matters. Not hashed; adding it never needs re-approval.
+task's **Why**) whose _cost if wrong_ matters. Not hashed; adding it never needs re-approval.
 Module function (`function M.name(...)` / `M.name = function(...)`): same docstring; ref `<file>#M.name`; export it
 in the module's return table when other scripts call it.
 
 ## Modify an existing symbol (keep working code)
+
 Rewrite the whole intent as one current contract; never append a sentence per task. Keep the intent to what this
 symbol guarantees: an orchestrator lists the outcome order and names its callee or enum (`→ checkAlreadySettled`,
 `statuses: SettleStatusEnum`) instead of re-explaining it. No ids in prose (`<KEY>-T<n>`, `<KEY>-D<n>`, spec or change ids): use `@dec`.
 The existing docstring has its class right above `---@param` → put the new prose and tags above the `---@class` line:
+
 ```lua
 -- Gives refund back to one lease and to the wallet lease total.      ← updated intent
 -- @task PWR-T2, PWR-T3 @impl agent @status skeleton @prio 1
@@ -66,6 +71,7 @@ end
 ```
 
 ## New module (file) holding stubs
+
 ```lua
 -- Lease helpers shared by the reserve / settle / release scripts.
 -- @task PWR-T4 @impl agent @status skeleton
@@ -77,6 +83,7 @@ return M
 ```
 
 ## Types needed by signatures (full types, no sentinel)
+
 ```lua
 ---@class WalletUtil.LeaseDeductionPlan
 ---@field leaseId string
@@ -85,15 +92,19 @@ return M
 ```
 
 ## Test stubs (one per test-plan row; no assertions yet)
+
 Busted (pure Lua); title starts with the AC id, describe name = the Test plan row's seam (usually the covered ref):
+
 ```lua
 describe("src/lib/lease.lua#findUsedUpLeases", function()
 	-- @covers src/lib/lease.lua#findUsedUpLeases @ac PWR-T4.AC1 @kind example @origin skeleton
 	pending("PWR-T4.AC1 skips a lease that gets a refund")
 end)
 ```
+
 Scripts run inside Redis/Valkey and tested from Python → `skeleton-py.md` § Test stubs, `@covers <file>.lua#<name>`.
 `@concurrency` ≠ none on a covered symbol → add one more stub with `@kind concurrency`.
 
 ## After implementation (for reference)
+
 `-- TODO(impl): 1. x` becomes `-- 1. x` and the sentinel is removed. Step comments stay so reviewers map the flow.

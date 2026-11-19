@@ -28,7 +28,7 @@ Rules for the card:
 - Reuse hints: search the codebase (Grep/Glob, or `hitl-index context` on a candidate) for existing functions that
   fit a TODO step. List at most 3 with file paths. Never propose new modules.
 - Quality reminders only when relevant (one line each): input validation, parameterized queries, resource release on
-  every path, structured errors, existing patterns (from `docs/PATTERNS-CONVENTIONS.md`).
+  every path, structured errors, existing patterns (from `.hitl/docs/PATTERNS-CONVENTIONS.md`).
 
 ## 3. ⛔ GATE
 

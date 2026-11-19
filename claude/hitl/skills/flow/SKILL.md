@@ -25,7 +25,7 @@ Arguments: `$ARGUMENTS`
 3. The user described a **new piece of work** (not a task id, not a status question) → `🎯 next: /hitl:go <description>`
    and one line why (it picks the route: a 📌 note or amend of an active change, `/hitl:tdd`, `/hitl:tasks quick` or
    `/hitl:plan`). Stop. A change to an active change's approved behaviour stated in chat gets the 📌 gate of
-   conventions "Changes stated in chat" first.
+   conventions "Edits to approved behaviour stated in chat" first.
 4. Status (default, or a task id):
    - `hitl-index status [T] --json`. First, when `.changes[]` is non-empty, one line per active change:
      `📦 feat-password-reset — phase: implement · tasks 1/2 done` (phases: spec → design → tasks → implement →

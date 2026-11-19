@@ -23,10 +23,9 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 - Write: the output path only (hook-enforced: `.hitl/changes/<id>/.scout.json`).
 
 ## Process
-1. `spec list --json` and `change --json`: living capabilities (key, purpose, requirement titles) and active changes.
+1. `spec list --json` and `change --json`: living capabilities (purpose, requirement titles) and active changes.
 2. Rank capabilities by relevance to the summary: `modify` (an existing capability whose behaviour changes), `new`
-   (no living capability fits; propose a lower-case kebab name for the business area, and a 2–6 letter key not used by
-   any living or pending capability), `none`.
+   (no living capability fits; propose a lower-case kebab name for the business area), `none`.
 3. For each `modify` capability: `spec show <cap> --json`; list the requirements the change probably touches, with why.
 4. Answer each behaviour question from the code and tests: what the system does **today**. Write each fact in business
    words (no code names, file paths, libraries, SQL, HTTP verbs in `text`); put the path in `source` (dev-only field).
@@ -40,9 +39,9 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 ## Output file (`hitl.spec-scout/1`)
 ```json
 { "schema": "hitl.spec-scout/1", "change": "feat-x",
-  "capabilities": [ { "capability": "accounts", "key": "ACC", "relevance": "modify",
+  "capabilities": [ { "capability": "accounts", "relevance": "modify",
       "requirements": [ { "id": "ACC-R1", "title": "Sign in", "why": "sign-in must reject deactivated users" } ] },
-    { "capability": "user-admin", "key": "UADM", "relevance": "new", "requirements": [] } ],
+    { "capability": "user-admin", "relevance": "new", "requirements": [] } ],
   "behaviourFacts": [ { "text": "Users are stored with a name and an email; there is no active/inactive flag today.",
       "source": "src/users/store.ts" } ],
   "vocabulary": [ { "code": "UserRecord", "word": "user record", "maps": "Account", "source": "src/users/store.ts" } ],
@@ -51,5 +50,5 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 Final message: `{ "file": "<output path>", "capabilities": <n>, "facts": <n>, "unknowns": <n> }`.
 
 ## Never
-- Invent behaviour you did not see; guess keys that are taken; write anything except the output file.
+- Invent behaviour you did not see; write anything except the output file.
 - Put code names in `text` or `why`, or recommend a technical design.

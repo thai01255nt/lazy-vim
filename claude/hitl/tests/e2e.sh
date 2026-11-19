@@ -358,7 +358,7 @@ s18a() {
   cd "$TS"
   afile .hitl/reviews/QT-T1/l0.json 'd.gates.some((g) => g.name === "trace" && ["pass", "warn"].includes(g.result)) && d.trace && d.trace.counts.block === 0'
   contains .hitl/reviews/QT-T1.review.md "## Trace"
-  contains .hitl/reviews/QT-T1.review.md "| trace |"
+  grep -qE '^\| trace +\|' .hitl/reviews/QT-T1.review.md || { echo "no trace gate row"; head -c 1500 .hitl/reviews/QT-T1.review.md; return 1; }
 }
 step 18a "l0 trace gate pass|warn, no block; review md has ## Trace and the trace gate row" s18a
 

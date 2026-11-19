@@ -70,12 +70,17 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
   lần chạy đầu cũng được. Vòng 1 là ~10 câu cốt lõi (mỗi câu có ví dụ `_e.g. …_`); từ vòng 2 mỗi câu có gợi ý 💡.
 - Sau lần chạy đầu, điều câu hỏi bỏ sót hoặc muốn sửa câu trả lời cũ (`sửa Q5: …`) thì viết vào khối **Notes** ở cuối
   vòng đang mở (không viết thêm vào Description nữa).
-- Cách trả lời: `y`/`được`/`đồng ý` = nhận gợi ý; `y` ở dòng "Accept all recommendations of this round" = nhận cả vòng;
+- Cách trả lời: `y`/`được`/`đồng ý` = nhận gợi ý; `y` ở dòng "Accept all recommendations of this round" = nhận gợi ý
+  của mọi câu bạn để trống trong vòng, trừ câu có chữ `(needs its own Y)` (đổi tên change, ghi note sang change khác,
+  thêm spec từ design: phải gõ `Y` ngay dưới câu đó); `n` kèm điều bạn muốn = câu trả lời, `n` kèm "để sau" = hoãn,
+  `n` trơn = Claude hỏi lại muốn thế nào (💬);
   `?`/`không biết` = Claude gợi ý và hỏi lại; viết một câu hỏi = Claude trả lời ngay dưới đó (💬) rồi hỏi lại;
   `deep <ID>` = đào sâu; `xong`/`done` = thôi hỏi. Duyệt spec cũng trong file: câu cuối `Approve the spec? (Y/n)`.
 - Plan tự dùng grilling, không cần gọi riêng `/hitl:grilling`.
-- Câu `Q0` của brief là **id và key** của change (key 2–5 chữ in hoa, vd. `PWR` cho feat-password-reset); để trống
-  hoặc `y` để giữ, hoặc viết id/key mới. Mọi mã của change bắt đầu bằng key này: `PWR-R1` (yêu cầu), `PWR-R1.S1`
+- Câu `Q0` của brief là **id và key** của change (key 2–5 chữ in hoa, vd. `PWR` cho feat-password-reset), heading có
+  chữ `(needs its own Y)`: gõ `y` ngay dưới câu để giữ (để trống thì câu được hỏi lại ở vòng sau, dòng Accept all không
+  trả lời nó; tới lúc đóng vẫn trống thì giữ nguyên), hoặc viết id/key mới. Đổi id/key được tới khi change có task
+  đầu tiên, cả trong câu trả lời hay Notes sau này. Mọi mã của change bắt đầu bằng key này: `PWR-R1` (yêu cầu), `PWR-R1.S1`
   (scenario), `PWR-D1` (quyết định thiết kế), `PWR-T1` (task), `PWR-T1.AC2` (tiêu chí nghiệm thu).
 - Kết quả nằm trong `.hitl/changes/feat-password-reset/` (proposal, spec, design, tasks).
 

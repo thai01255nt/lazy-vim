@@ -44,7 +44,7 @@ test("map-md writes the AUTO block and preserves manual text", async () => {
   await updateIndex(root, null, { full: true });
   await writeMapMd(root, await readIndex(root));
   const md = readFileSync(join(root, ".hitl/docs/CODEBASE-MAP.md"), "utf8");
-  assert.match(md, /^# Map\nmanual note\n<!-- AUTO-GENERATED:BEGIN codebase-map -->\n## src\/http\//);
+  assert.match(md, /^# Map\nmanual note\n<!-- AUTO-GENERATED:BEGIN codebase-map -->\n\n## src\/http\//, "0.14.1: markdownlint style inside the AUTO block");
   assert.match(md, /createUser\(email: string\): User` \(exported\) \[QT-T1 · agent · skeleton\] — Registers a user\./);
   assert.match(md, /<!-- AUTO-GENERATED:END codebase-map -->\ntail\n$/);
   assert.match(readFileSync(join(root, ".hitl/index/index.md"), "utf8"), /\| src\/repo\/userRepo.ts#UserRepo.findByEmail \| method \| QT-T1 \| manual/);

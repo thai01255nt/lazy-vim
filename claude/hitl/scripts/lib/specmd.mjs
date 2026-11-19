@@ -82,11 +82,41 @@ const collapseBlank = (lines) => lines.filter((l, i) => !(l.trim() === "" && i >
 const casefold = (s) => String(s ?? "").trim().toLocaleLowerCase();
 export const termKey = casefold;
 
-/** sha256 of a block: trailing whitespace stripped, blank-line runs collapsed, outer blank lines dropped (§7.4). */
+/** ≤ 0.14.0 normal form: trailing whitespace stripped, blank-line runs collapsed, outer blank lines dropped (§7.4). */
 export function normalizeBlock(text) {
   return collapseBlank(trimBlank(String(text ?? "").split(/\r?\n/).map((l) => l.replace(/\s+$/, "")))).join("\n");
 }
-export const blockHash = (text) => "sha256:" + createHash("sha256").update(normalizeBlock(text)).digest("hex");
+
+/**
+ * 0.14.1 canonical form, the same before and after a markdown formatter (prettier, markdownlint style): blank lines
+ * dropped, every line trimmed and its inner whitespace runs collapsed, `*`/`+` bullets → `-`, `*x*` → `_x_`, table rows
+ * re-rendered with trimmed cells (separator cells → `---`). Fenced code is kept as is (trailing whitespace only).
+ */
+export function canonicalBlock(text) {
+  const out = []; let fence = null;
+  for (const raw of String(text ?? "").split(/\r?\n/)) {
+    const l = raw.replace(/\s+$/, "");
+    if (fence) { out.push(l); if (l.trim().startsWith(fence)) fence = null; continue; }
+    const fm = l.match(/^\s*(```|~~~)/);
+    if (fm) { fence = fm[1]; out.push(l.trim()); continue; }
+    let t = l.trim();
+    if (!t) continue;
+    if (/^\|/.test(t)) {
+      const c = cells(t);
+      t = `| ${(isSep(c) ? c.map(() => "---") : c).join(" | ")} |`;
+    } else {
+      t = t.replace(/^[*+](\s)/, "-$1").replace(/(?<![*\w\\])\*(?![*\s])([^*\n]*?[^*\s\\])\*(?![*\w])/g, "_$1_");
+    }
+    out.push(t.replace(/[ \t]+/g, " "));
+  }
+  return out.join("\n");
+}
+/** sha256 of a block's canonical form (0.14.1; formatter-stable). */
+export const blockHash = (text) => "sha256:" + createHash("sha256").update(canonicalBlock(text)).digest("hex");
+/** ≤ 0.14.0 hash, still accepted when comparing with a stored base hash. */
+export const legacyBlockHash = (text) => "sha256:" + createHash("sha256").update(normalizeBlock(text)).digest("hex");
+/** A stored base hash still matches the block text (current or ≤ 0.14.0 hash). */
+export const hashMatches = (stored, text) => !!stored && (stored === blockHash(text) || stored === legacyBlockHash(text));
 
 /** `[NEEDS CLARIFICATION: …]` markers outside fences/comments: [{line, text}]. */
 export function findClarifications(text) {
@@ -218,8 +248,10 @@ export function parseSpecMd(text, file, { mode = "living" } = {}) {
       continue;
     }
     if (MIGRATED.test(L.raw)) block.migrated = true;
-    if (!L.fenced && (m = t.match(RX.changed))) { L.meta = "changed"; block.changed = m[1].trim() || null; block.lines.push(L); continue; }
-    if (!L.fenced && (m = t.match(RX.reason))) { L.meta = "reason"; block.reason = m[1].trim() || null; block.lines.push(L); continue; }
+    // 0.14.1: a key line right under a list is a lazy continuation for markdown; a formatter indents it ("  Changed: …")
+    const tl = t.trimStart();
+    if (!L.fenced && (m = tl.match(RX.changed))) { L.meta = "changed"; block.changed = m[1].trim() || null; block.lines.push(L); continue; }
+    if (!L.fenced && (m = tl.match(RX.reason))) { L.meta = "reason"; block.reason = m[1].trim() || null; block.lines.push(L); continue; }
     block.lines.push(L);
     if (block.kind !== "requirement" || L.fenced) continue;
     if (RX.anyH4.test(t)) {
@@ -234,16 +266,16 @@ export function parseSpecMd(text, file, { mode = "living" } = {}) {
       continue;
     }
     if (!scn) {
-      if ((m = t.match(RX.quality))) {
+      if ((m = tl.match(RX.quality))) {
         L.meta = "quality";
         // ISO/IEC 25010:2023 characteristic, optionally with a sub-characteristic: "performance-efficiency (time behaviour)"
         const q = m[1].trim().match(/^([a-z-]+)(?:\s*(?:\(([^)]*)\)|\/\s*(.+)))?$/);
         if (q && QUALITIES.includes(q[1])) { block.quality = q[1]; block.qualitySub = (q[2] || q[3] || "").trim() || null; }
         else add("error", "SPEC_PARSE", block.id, L.n, `invalid Quality "${m[1].trim()}" (ISO 25010: ${QUALITIES.join("|")})`);
-      } else if ((m = t.match(RX.fit))) {
+      } else if ((m = tl.match(RX.fit))) {
         L.meta = "fit";
         block.fit = m[1].trim() || null;
-      } else if ((m = t.match(RX.rules))) {
+      } else if ((m = tl.match(RX.rules))) {
         L.meta = "rules";
         for (const r of m[1].split(",").map((s) => s.trim()).filter(Boolean)) {
           if (parseId(r)?.kind === "BR") block.rules.push(r);

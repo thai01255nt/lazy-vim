@@ -40,13 +40,13 @@ JSON fields used below: `keys[]` {label, change, archived, key, source}, `legacy
 
 ## 2. ⛔ GATE — the key table (accept or edit all at once)
 One table for every change (active and archived) plus the legacy capability keys and the quick files; `source` is
-`suggested` (type letter + 3 initials of the change id, e.g. `feat-password-reset` → `FPSR`; a quick file's `Q` + 3 slug initials; a 5th letter only on collision), `proposal` (already set) or `given`:
+`suggested` (`hitl-index spec key` algorithm: the type letter + 3 letters from the change id's words, exact rule in `${CLAUDE_PLUGIN_ROOT}/shared/spec-format.md` "Names and ids", e.g. `feat-password-reset` → `FPSR`; a quick file: `Q` + 3 letters from the slug by the same rule; a 5th letter only on collision), `proposal` (already set) or `given`:
 ```
 🔑 Change keys (2–5 capitals, unique forever)
 | # | change | state | key | source |
 |---|--------|-------|-----|--------|
-| 1 | feat-password-reset | archived 2026-10-20 | PWR | suggested |
-| 2 | feat-fee | active | FEE | suggested |
+| 1 | feat-password-reset | archived 2026-10-20 | PWR | given |
+| 2 | feat-fee | active | FFEE | suggested |
 | 3 | accounts (living ids of unknown origin) | legacy | LACC | suggested |
 | 4 | tasks/quick-fix-label-typo.md (quick, QT-T7) | quick | QFLT | suggested |
 Keys OK? (Y) · or edit rows: "2 FEES, 3 LACT"

@@ -45,13 +45,17 @@ glossary term.
   `asked → included|skipped`, when: only a soft signal; or signals conflict (U says "simple", C shows a persisted
   change); or the artifact is security/data-related and its evidence is soft (skipping it costs more).
 - Never ask about an artifact with no signal. Re-evaluate every round; new evidence can add one
-  (`💡 Added artifact: …`). The user may answer `add <artifact>` / `drop <artifact>` under any question of a brief file.
+  (`💡 Added artifact: …`). The user may write `add <artifact>` / `drop <artifact>` as the answer to any question of a
+  brief file (interview.md §6).
 
-`[A]` wording:
+`[A]` question in a brief round (format: interview.md §4):
 ```
-❓ **Q3** [A] - **Business rule for reset limits?**: You said "not too many resets". Should this be a named business
-rule with a number (e.g. "max 3 reset requests per hour per account"), visible to BA/QA?
-💡 Recommended: yes — ACC-BR2 "max 3 requests / hour / account" (abuse protection; testable)
+### Q3 [A] Business rule for reset limits?
+
+You said "not too many resets". Should this be a named business rule with a number, visible to BA/QA?
+💡 Recommended: yes — PWR-BR2 "max 3 requests / hour / account" (abuse protection; testable)
+
+>
 ```
 
 ## 3. Skipping design

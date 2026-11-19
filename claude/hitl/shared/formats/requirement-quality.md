@@ -15,9 +15,10 @@ The CLI checks only what a regex can see; the `hitl:spec-reviewer` lenses judge 
 ## Template (EARS + one modal verb)
 ```
 ### Requirement: <KEY>-R<n> <title>
+
 [While <state>,] [When <trigger>,] [If <unwanted condition>, then] the <actor/system> SHALL <observable response>.
-Quality: <ISO 25010 characteristic>[ (<sub-characteristic>)]      ← NFR only
-Fit: <measurable criterion: metric, threshold, how measured>       ← NFR only (Volere fit criterion)
+Quality: <ISO 25010 characteristic>[ (<sub-characteristic>)] ← NFR only
+Fit: <measurable criterion: metric, threshold, how measured> ← NFR only (Volere fit criterion)
 ```
 
 ## NFR = Quality + Fit
@@ -30,6 +31,7 @@ optionally a sub-characteristic in parentheses (e.g. `performance-efficiency (ti
 Example:
 ```
 ### Requirement: ORD-R2 Order page response time
+
 While up to 500 customers use the shop at the same time, the system SHALL show the order page within 2 seconds for 95% of requests.
 Quality: performance-efficiency (time behaviour)
 Fit: 95th percentile page time ≤ 2 s in a 500-user load test

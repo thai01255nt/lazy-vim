@@ -44,7 +44,7 @@ sBR2() {
   node -e '
     const fs = require("fs"), f = ".hitl/changes/feat-csv-export/plan-brief.md";
     let n = 0;
-    const answer = (i) => (i === 0 ? "> feat-csv-export / FCSV" : i === 3 ? "> Admins and accountants.\nWarehouse staff must not see prices." : i === 5 ? "> không biết" : "> ok");
+    const answer = (i) => (i === 0 ? "> feat-csv-export / FCSV" : i === 3 ? "> Admins and accountants.\n> Warehouse staff must not see prices." : i === 5 ? "> không biết" : "> ok");
     const t = fs.readFileSync(f, "utf8").replace(/^>[ \t]*$/gm, () => answer(n++));
     fs.writeFileSync(f, t);'
   CLI brief feat-csv-export --json > "$W/br2.json"
@@ -60,7 +60,7 @@ sBR3() {
   node -e '
     const fs = require("fs"), f = process.argv[1];
     let t = fs.readFileSync(f, "utf8").replace("## Round 1", "## Round 1 ✅").replace("| round: 1 |", "| round: 2 |");
-    t = t.replace(/^(> .*(?:\n(?![#>→\n]).*)*)$/gm, (m) => /^> (?:change|next):/.test(m) ? m : m.includes("không biết") ? m + "\n→ carried to Round 2" : m + "\n→ recorded: FCSV-R1");
+    t = t.replace(/^(> .*(?:\n(?:> |(?![#>→\n])).*)*)$/gm, (m) => /^> (?:change|next):/.test(m) ? m : m.includes("không biết") ? m + "\n\n→ carried to Round 2" : m + "\n\n→ recorded: FCSV-R1");
     t += "\n## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ❌   (🔥 FCSV-R2)\nAccept all recommendations of this round: >\n\n### Q5 [R] Which rules and limits apply?\n💡 Recommended: at most 12 months per file.\n>\n\n### Q11 [R] 🔥 What happens above 10 000 rows?\n💡 Recommended: split into files of ≤ 10 000 rows.\n>\n\n### Notes — anything the questions missed, or a change to an earlier answer\n> sửa Q3: chỉ admin, không có kế toán\n";
     fs.writeFileSync(f, t);' "$F"
   CLI brief feat-csv-export --json > "$W/br3a.json"
@@ -73,7 +73,7 @@ sBR3() {
   CLI brief feat-csv-export --json | aj 'd.rounds[1].acceptAll && d.counts.unanswered === 0 && d.questions.filter((q) => q.round === 2).every((q) => q.acceptedByRound)'
   CLI brief feat-csv-export > "$W/br3c.txt"
   contains "$W/br3c.txt" "Notes (Round 2) — to process: sửa Q3: chỉ admin, không có kế toán"
-  printf '→ recorded: FCSV-R1 (changed)\n' >> "$F"
+  printf '\n→ recorded: FCSV-R1 (changed)\n' >> "$F"
   CLI brief feat-csv-export --json | aj 'd.rounds[1].notes.marked && d.counts.notes === 0'
   # the brief is not a spec file
   CLI spec validate feat-csv-export --json > "$W/br3b.json" || true
