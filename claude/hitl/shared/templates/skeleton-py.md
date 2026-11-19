@@ -77,7 +77,7 @@ class DiscountInput:
     # TODO(impl): define reason/audit fields
 ```
 
-## Test stubs (one per test-plan row; no assertions yet)
+## Test stubs (one per `new` test-plan row; no assertions yet)
 
 unittest (default when pytest is absent):
 
@@ -86,8 +86,10 @@ import unittest
 
 class TestOrders(unittest.TestCase):
     @unittest.skip("TODO(test): PWR-T2.AC1")
-    def test_T2_AC1_rejects_bad_pct(self):
-        """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton"""
+    def test_rejects_a_discount_over_100_percent(self):
+        """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton
+        @catches a discount over 100% makes the total negative
+        """
 ```
 
 pytest:
@@ -96,11 +98,15 @@ pytest:
 import pytest
 
 @pytest.mark.skip(reason="TODO(test): PWR-T2.AC1")
-def test_T2_AC1_rejects_bad_pct():
-    """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton"""
+def test_rejects_a_discount_over_100_percent():
+    """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton
+    @catches a discount over 100% makes the total negative
+    """
 ```
 
-Name: `test_T<n>_AC<k>_<short_snake_desc>`; unittest class = the Test plan row's seam (usually the covered symbol).
+Name: `test_<behaviour_in_domain_words>`, no planning id (ids live only in `@ac`, which may list several: a
+`shared:` row adds its AC id there). Unique per module: Python keeps only the last of two functions with one name, and
+the tests lock refuses it. unittest class = the Test plan row's seam (usually the covered symbol).
 `@concurrency` ≠ none → add a `@kind concurrency` stub.
 
 ## After implementation (for reference)

@@ -26,7 +26,9 @@ only through `hitl:test-author`, fresh test evidence before any claim.
      `hitl-index approve <T> --stage tests --by <BY>`.
    - If the RED check could not be satisfied (vacuous or broken tests after 2 bounces): _Stop:_ stop and show them.
      Do not implement against tests that never failed.
-   - Print `_Fast_ tests auto-locked: n red`.
+   - Print `_Fast_ tests auto-locked: n red` and the CLI's budget line (`Tests: n active · budget m`; ⚠️ when over).
+     The human chose these tests at the tasks gate (question 5, the test plan); the fast lane only skips the later
+     gates that check how they are written.
 3. **Implement** — return to SKILL.md step 2 with `--all`: loop over all agent symbols; manual symbols still use the
    hand-off gate.
 4. **Finish** — fresh `hitl-index test --task <T> --json`, `status --sync-tags`, then

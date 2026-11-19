@@ -90,6 +90,55 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.15.0
+
+0.16.0 đổi **chính sách test**. Không cần migrate: `tasks.md` cũ (bảng test plan 5 cột, không có cột `test`) vẫn đọc
+như trước, mỗi dòng là một test mới; test đã khoá giữ nguyên, không ai viết lại.
+
+**Đây là "test chấp nhận viết trước", không phải TDD của Kent Beck.** Luồng đầy đủ (plan → … → `/hitl:test` →
+implement) chốt hình dạng code trước (tên hàm, việc mỗi hàm phải làm), rồi một subagent riêng viết **cả loạt** test
+chấp nhận của task từ mô tả đó (nó không đọc được code), khoá lại, rồi mới viết code cho xanh. Điểm mạnh: người viết test
+không thấy code nên không chép lỗi của code vào test. Còn TDD thật (viết một test nhỏ, thấy nó đỏ, viết vừa đủ code cho
+xanh, dọn code, lặp lại; danh sách test lớn dần khi phát hiện trường hợp mới) là `/hitl:tdd`: dùng cho bug có cách tái
+hiện hoặc logic nhỏ.
+
+**Vì sao mỗi test phải nêu lỗi nó bắt.** Test là code: tốn công đọc, sửa và giữ. Trước đây luật chỉ có sàn ("ít nhất một
+test mỗi AC", test-author thêm test tuỳ ý, review chỉ thêm), nên số test tăng chỉ vì quy trình đòi. Nay mỗi test phải trả
+lời được "nếu code sai kiểu nào thì test này đỏ?". Không trả lời được thì không viết.
+
+Những gì đổi với bạn:
+- **Cột `test` trong test plan** (`/hitl:tasks`): mỗi AC một quyết định —
+  `new: <lỗi nó bắt>` (test mới) · `shared: AC1` (dùng chung test của AC1, một test mang cả hai `@ac`) ·
+  `covered: <test có sẵn>` (tên test, `file#tên` hoặc id AC khác) · `none: <lý do>` (không test tự động: kiểu đã do
+  compiler kiểm, nối dây thuần, cấu hình; **cấm** với task có risk `security`, `concurrency` hoặc `data`) ·
+  `manual: <cách kiểm tay>` (liệt kê lúc `/hitl:approve <T> done`; cũng **cấm** với task risk `security`,
+  `concurrency` hoặc `data`: task đó phải có test tự động cho mỗi AC). Ví dụ:
+  `| AC2 | shared: AC1 | — | — | — | — |`.
+- **Gate `/hitl:tasks` có câu 5: "Test plan ok?"** kèm bảng `task · AC · test · seam`. Đây là chỗ bạn quyết test nào
+  được viết và bao nhiêu, kể cả task low risk chạy fast lane.
+- **Tên test không chứa id** (`test_rejects_duplicate_email_ignoring_case`, không phải `test_T12_AC1_…`): một test có
+  thể chứng minh nhiều AC, kể cả AC của change sau, nên id chỉ nằm trong tag `@ac` (được ghi nhiều id, cách bằng dấu cách
+  hoặc dấu phẩy). Test cũ có id trong tên vẫn hợp lệ. Hai test trùng tên trong một file (Python chỉ giữ hàm định nghĩa
+  sau) → khoá test bị chặn, kèm gợi ý đổi tên.
+- **Tag `@catches <lỗi>`** trên test; test thêm ngoài test plan (test-author, mutation, fix loop) bắt buộc có nó.
+  **Ngân sách mềm**: mỗi task ≤ số dòng `new` + 2 test đang chạy; vượt → ⚠️ lúc khoá, không chặn. Report review và feature
+  report có mục số test theo task và tổng của change.
+- **`@kind regression`**: test giữ hành vi đã có được phép xanh ngay lần khoá đầu (liệt kê riêng: "Guards existing
+  behaviour"). Bảng RED nói rõ test **đỏ vì assertion** (`assertion-failed`) hay **chỉ chạm sentinel `TODO(impl)`**
+  (`reached-stub`).
+- **Review**: lens tests gợi ý gộp/xoá test thừa (test lặp chỉ khác dữ liệu, tracer trùng seam giữa các task, test không
+  nêu lỗi) — chỉ là gợi ý; xoá test đã khoá luôn qua `/hitl:approve <T> tests` của bạn.
+- **Mutation testing bắt buộc cho task high risk** khi đã cấu hình lệnh mutation (`mutationRequired: "high"`, mặc định
+  mới; `true` = mọi task, `false` = tắt). Project đã ghi `"mutationRequired": false` trong `hitl.config.json` giữ nguyên.
+  Với Stryker bật `disableBail` để `mutate` ghi test nào giết mutant nào.
+- **`hitl-index tests audit [<change>|<task>] [--json]`** (chỉ đọc): liệt kê test nên xem lại để tỉa (không nêu lỗi,
+  không có `@ac`, trùng AC cùng seam, tracer chồng nhau, không giết mutant nào, trùng tên, id trong tên) và ngân sách từng
+  task. Bạn chọn; xoá qua đường approve như trên.
+- **`/hitl:go`**: một luật duy nhất — thử lần lượt note → amend/update → tdd → quick → plan, đường đầu tiên khớp đủ điều
+  kiện thắng; không chắc một điều kiện thì coi như không khớp (rơi xuống đường nặng hơn). Bug một hàm có cách tái hiện
+  → `/hitl:tdd` (CLI tự chuyển `quick` có `bug-repro` sang `tdd`). `/hitl:tdd` giờ thêm trường hợp mới vào danh sách test
+  trong lúc làm và cho dọn code (refactor) sau mỗi vòng xanh.
+
 ### Nâng cấp từ 0.14.1
 
 0.15.0: **emoji được thay bằng nhãn chữ nghiêng** cho dễ đọc, ví dụ `_Rec:_` (gợi ý, trước là 💡 Recommended),
@@ -410,7 +459,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | Lệnh | Việc làm | Gate? | Ai gọi |
 |---|---|---|---|
 | `/hitl:setup [--reconfigure]` | Khởi tạo `.hitl`, dò lệnh test/lint/typecheck, index, tuỳ chọn cài git pre-commit | xác nhận lệnh | chỉ bạn |
-| `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` → `/hitl:tasks quick` → `/hitl:plan`; phân vân thì chọn nặng hơn), in `_Route:_ <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
+| `/hitl:go <mô tả> [--plan\|--quick\|--tdd]` | Cửa vào cho việc mới: subagent chỉ đọc `work-router` chọn đường (note / `amend` / `tasks <id> update` của change đang mở → `/hitl:tdd` (có cách tái hiện) → `/hitl:tasks quick` (không có gì để tái hiện) → `/hitl:plan`; thử theo thứ tự, không chắc điều kiện thì rơi xuống đường nặng hơn), in `_Route:_ <lệnh> — <lý do>` rồi chạy luôn. Cờ = tự chọn, bỏ qua phân tích | chỉ khi mơ hồ (≤ 3 câu) | bạn / Claude |
 | `/hitl:overlap <change-id> [<change khác> …]` · `--with B,C` | Kiểm tra chồng lấn của một change với các change đang mở khác (không nêu = tất cả): bằng chứng chắc chắn trước (id, rule, contract, thuật ngữ, symbol, file, drift), không có → ✅ dừng; có → một subagent `spec-reviewer` chấm cả cụm, mỗi finding phải có witness Given/When/Then trích từ từng change; chỉ ghi note khi bạn chọn "both sides". Dùng cả sau khi merge nhánh | một dòng mỗi finding | bạn / Claude |
 | `/hitl:flow [task-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `_Next:_`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | nếu đã có docs | bạn / Claude |
@@ -420,7 +469,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | diff / conflict | bạn / Claude |
 | `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | mỗi vòng | bạn / Claude |
-| `/hitl:tdd <việc cần làm>` | Chế độ test-first nhanh của hitl (chuyển thể từ mattpocock `tdd`) cho việc nhỏ **ngoài** change: chốt seam một vòng, rồi red→green từng test một. Việc thuộc một change/task → chuyển sang `/hitl:flow` | seam | bạn / Claude |
+| `/hitl:tdd <việc cần làm>` | TDD thật của hitl (chuyển thể từ mattpocock `tdd`) cho việc nhỏ có cách tái hiện, **ngoài** change: chốt seam + danh sách test một vòng, rồi red→green→refactor từng test một; danh sách lớn dần khi gặp trường hợp mới. Việc thuộc một change/task → chuyển sang `/hitl:flow` | seam + danh sách test | bạn / Claude |
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
@@ -703,12 +752,14 @@ Fast lane (tự skeleton → test → implement, không gate) mặc định bị
 
 ## 6. Các lớp test và review
 
-1. **AC** trong tasks md (2–6 Given/When/Then mỗi task, id `<KEY>-T<n>.AC<k>`) + test plan mỗi AC.
-2. **Test stub** ở skeleton (`@covers @ac @kind @origin`), `it.todo` / `@unittest.skip`.
-3. **test-author** cô lập: chỉ đọc contract pack (chữ ký, intent, TODO flow, AC), không thấy thân hàm (hook chặn Read src). Test phải **RED đúng lý do**; test pass trên stub = vô nghĩa → trả lại.
+1. **AC** trong tasks md (2–6 Given/When/Then mỗi task, id `<KEY>-T<n>.AC<k>`) + test plan: mỗi AC một quyết định
+   (`new: <lỗi>` · `shared:` · `covered:` · `none:` · `manual:`, 0.16), bạn duyệt ở gate tasks (câu 5).
+2. **Test stub** ở skeleton, chỉ cho dòng `new` (`@covers @ac @kind @origin @catches`), `it.todo` / `@unittest.skip`;
+   tên test là hành vi, không chứa id.
+3. **test-author** cô lập: chỉ đọc contract pack (chữ ký, intent, TODO flow, AC), không thấy thân hàm (hook chặn Read src). Test phải **RED đúng lý do**; test pass trên stub = vô nghĩa → trả lại (trừ `@kind regression`). Test thêm ngoài plan phải có `@catches`; ngân sách `new` + 2 mỗi task (cảnh báo).
 4. **Lock test** (`/hitl:approve T tests`): sau đó implementer không sửa được test; sửa test chỉ qua `/hitl:test` + duyệt lại.
 5. **Stop hook**: hàm agent vừa implement mà chưa có lần chạy test xanh "fresh" → chặn kết thúc (tối đa 2 lần).
-6. **Review L0** (tất định): lint, typecheck, tests, drift vs lock, **trace**, mutation (Stryker / mutmut, tắt mặc định).
+6. **Review L0** (tất định): lint, typecheck, tests, drift vs lock, **trace**, mutation (Stryker / mutmut; bắt buộc cho task high risk khi đã cấu hình).
 7. **Review L1**: reviewer subagent context mới, mỗi lens một agent song song — `contract`, `tests` (luôn có), `concurrency`, `security` (khi có tín hiệu) →
    **finding-verifier** (haiku) chấm lại 0–100, giữ ≥ 80 → report một màn hình `reviews/<KEY>-T<n>.review.md` (verdict PASS / WITH FIXES / FAIL).
 8. **Fix loop**: finding được accept trên hàm agent → test-author viết test fail trước, implementer làm xanh; hàm manual → TODO cho bạn. Tối đa 2 vòng rồi chuyển người.
@@ -904,7 +955,7 @@ phí; xem `evals/README.md`): Suite A (skill nào được gọi), Suite B (hàn
 6. Tên testcase JUnit khác nhau giữa runner (node:test / vitest / jest / pytest); khớp theo heuristic, test không khớp được liệt kê ở `unmatched`.
 7. Plugin cài đặt chạy từ bản cache của Claude, còn git hook chạy bản source (`$HITL_HOME`) → có thể lệch phiên bản; mọi JSON có schema version.
 8. PreToolUse chạy cả trên Read/Grep/Glob/Bash; có fast path cho main thread (mục tiêu < 60 ms).
-9. Mutation testing là best-effort và tắt mặc định (`mutationRequired: false`).
+9. Mutation testing là best-effort: chỉ bắt buộc cho task high risk khi đã cấu hình lệnh mutation (`mutationRequired: "high"`); dữ liệu "test nào giết mutant nào" chỉ có với Stryker (`killedBy`), đầy đủ khi tắt bail.
 10. Ngưỡng risk (0.3/0.6), confidence 80, mutation 0.8 là heuristic, chưa đo; chỉnh trong config.
 11. Tên tool/tham số của Linear MCP chưa được kiểm chứng trên mọi bản cài: `/hitl:tickets` dò tên tool lúc chạy (đọc schema trước lần gọi đầu); lần chạy thật đầu tiên nên theo dõi. Quyền MCP được hỏi một lần cho mỗi tool.
 12. Linear MCP không xoá được relation → khi bỏ `blocked-by`, skill chỉ in nhắc xoá tay.

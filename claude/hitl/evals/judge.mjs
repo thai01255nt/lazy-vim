@@ -60,7 +60,8 @@ Criteria:
 4. format_correctness — MADR records, D table with serves, contracts in a standard format, no function signatures.`,
   skeleton: `This is a code skeleton (/hitl:skeleton BURST-T1) for a Lua task: signatures with LuaLS annotations, intent prose
 (the contract a separate test author writes tests from), hitl tags, numbered TODO(impl) steps and a failing sentinel;
-existing working code must be kept; one pending test stub per acceptance criterion. The task: burst credit for a token
+existing working code must be kept; one pending test stub per \`new\` test-plan row (a \`shared:\` AC adds its id to that stub's
+@ac), each with @catches and a name that says the behaviour without planning ids. The task: burst credit for a token
 bucket (borrow up to a burst limit, refused requests change nothing, refill repays debt first).
 Criteria:
 1. intent_clarity — does each intent say exactly what the function does and returns, so tests can be written from it alone?

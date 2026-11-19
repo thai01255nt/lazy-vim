@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadApi, resolveWith, taskSymbolIds, taskTestIds, coversOf, isTest, CODE_KINDS } from "./lock.mjs";
+import { coveredTestIds } from "./testplan.mjs";
 import { calleeClosure, testsFor, directCoverage, isFresh } from "./status.mjs";
 import { parseJUnit, matchCases } from "./junit.mjs";
 import { recordRuns } from "./state.mjs";
@@ -58,6 +59,8 @@ export function selectTests(index, target, { tasks = [], api } = {}) {
     if (!task && !Object.values(index.symbols).some((s) => (s.tags?.task || []).includes(target.task))) errors.push(`task ${target.task} not found`);
     symbolIds = taskSymbolIds(index, target.task, task, api).filter((id) => CODE_KINDS.has(index.symbols[id].kind));
     const s = testsOf(symbolIds); for (const t of taskTestIds(index, target.task, symbolIds)) s.add(t);
+    // 0.16: the tests a `covered:` row of the task names run with it (they must pass at review)
+    for (const t of coveredTestIds(index, task)) s.add(t);
     testIds = [...s];
   } else if (target.symbol) {
     const r = resolveWith(api, index, target.symbol);

@@ -45,7 +45,7 @@ test("parseTasksMd extracts tasks, meta, ACs, symbols, test plan", () => {
   assert.deepEqual(t12.blockedBy, ["QT-T11"]);
   assert.deepEqual(t12.acs.map((a) => [a.id, a.done]), [["QT-T12.AC1", false], ["QT-T12.AC2", true]]);
   assert.deepEqual(t12.symbols[1], { order: 2, ref: "UserRepo.findByEmail", change: "modify", file: "src/repo/userRepo.ts", impl: "manual", purpose: "lookup", done: true });
-  assert.deepEqual(t12.testPlan, [{ ac: "AC1", kind: "example", oracle: "spec", seam: "UserService.createUser", author: "test-author" }]);
+  assert.deepEqual(t12.testPlan, [{ ac: "AC1", kind: "example", oracle: "spec", seam: "UserService.createUser", author: "test-author", test: "new", detail: null, legacy: true }], "a pre-0.16 table reads as new");
   assert.deepEqual(t11.blockedBy, []);
   assert.equal(t13.parseErrors.length, 1);
 });

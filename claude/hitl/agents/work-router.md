@@ -35,26 +35,29 @@ Budget: ≤ 12 reads or commands. Stop as soon as one route clearly fits.
    check exports, callers, stored data, auth/money/locks. These facts are your `signals`.
 4. Decide with the rules below. Write the file. Reply.
 
-## Routes (priority order: the first that fits wins)
+## Routes (one rule: try them in this order; the first whose conditions all hold wins)
 1. `note` — matches an active change **and changes its requirement or design** (a number, rule, scenario or decision
    it already states). `change` = its id; `refs` = the spec ids, `<KEY>-D<n>`, task/AC ids it touches, each with its title
    (`"ACC-R3.S2 (Reset link expires)"`); `kind` = `spec` | `design` (an `order` note comes only from `--before`, never from a description).
 2. `amend` — matches an active change and is **new behaviour inside its scope** that its spec does not state yet.
    `update` — inside its scope, the spec already covers it, only the task list lacks it (a missed slice, a chore).
-3. `tdd` — a reproducible bug, or small logic that needs no record: a failing input you can state, a fix in 1–2
-   functions, no spec or task needed afterwards.
-4. `quick` — trivial but worth a lock and trace: ≤ 1 function, no public interface, no security or concurrency, no
-   behaviour a BA cares about (a wording, a constant, a log line).
+3. `tdd` — a **reproducer** exists: a failing input you can state (`bug-repro`), or small logic whose expected output
+   you can state; a fix in 1–2 functions; no `security`, `concurrency` or `data` tag; no spec or task needed afterwards.
+   The reproducer is the one valuable test, so a one-function bug goes here, not to quick.
+4. `quick` — no reproducer to test (a wording, a constant, a log line): ≤ 1 function, no public interface, no risk tag,
+   no behaviour a BA cares about; worth a lock and trace. Its test plan usually says `none:` or `covered:`.
 5. `plan` — anything else: a new feature, a behaviour change a BA cares about, several functions, a new concept.
-**Ties go to the safer, heavier route: plan over quick over tdd.** When unsure between two, pick the heavier.
+**Doubt**: a condition you are not sure holds does not hold, so the work falls to a later, heavier route (tdd → quick →
+plan). tdd and quick never compete: tdd needs a reproducer, quick has none. The CLI applies the same rule to your
+signals: `quick` with `bug-repro` → `tdd`; `tdd` with `security`/`concurrency`/`data` or `functions` > 2 → `plan`;
+`quick` with any risk tag or `business-rule` → `plan`.
 
 ## Signals (`"<tag>: <evidence in a few words>"`; list a tag only when it holds, never `"<tag>: no"`)
 Risk tags (`skills/tasks/references/slicing-and-risk.md` §4): `security`, `concurrency`, `public-api`, `domain`, `data`,
 `core`. Also `business-rule` (behaviour a BA cares about), `bug-repro` (a stated failing case), `functions: <n>`,
 `active-change: <id>`. For `plan` only: `design-skip` when design is likely skipped (`shared/artifacts.md` §3: no
 new dependency, no stored-data change, no public interface change, ≤ 2 tasks, no high risk), `low-risk` when all
-tasks are likely low risk. A `quick` with a risk tag or `business-rule`, or a `tdd` with `security`, `concurrency` or
-`data`, is raised to `plan` by the CLI: route honestly and list the tags.
+tasks are likely low risk. The CLI moves routes by these tags (see Routes): route honestly and list every tag.
 
 ## Questions (only when you cannot route)
 Ask only when the description is too vague for any route (no goal, or the scope could be one function or a feature).

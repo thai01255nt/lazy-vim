@@ -53,16 +53,23 @@ with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `P
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
 turn — a note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
-`/hitl:tdd` for a reproducible bug or small logic, `/hitl:tasks quick` for a trivial locked task, else `/hitl:plan`.
-Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--tdd`.
+`/hitl:tdd` when a reproducer exists (a failing input or an expected output, 1–2 functions), `/hitl:tasks quick` for a
+trivial locked task with nothing to reproduce, else `/hitl:plan`. The routes are tried in that order; doubt moves the
+work to the next, heavier one. Pick it yourself with `--plan`, `--quick` or `--tdd`.
+**Tests** (0.16): the full flow writes a task's acceptance tests first, from the contract, then the code (acceptance
+tests first, not Kent Beck's one-test loop; `/hitl:tdd` is that loop). At the tasks gate you decide per acceptance
+criterion: `new: <the defect it catches>`, `shared: <ACk>`, `covered: <existing test>`, `none: <reason>` (not on
+security, concurrency or data tasks) or `manual: <check>`. Extra tests need a named defect; a task's tests stay within
+`new` rows + 2 (a warning). Review may suggest merging or deleting tests (`hitl-index tests audit`); you approve every
+deletion with `/hitl:approve <T> tests`.
 
 ```
 /hitl:setup → /hitl:overview → /hitl:go <description> ─┬─ active change: note · /hitl:plan <id> amend · /hitl:tasks <id> update
-                                                          ├─ bug or small logic, no record: /hitl:tdd [gate: seams] → red→green
-                                                          ├─ trivial, worth a lock: /hitl:tasks quick [gate] → /hitl:implement T (fast)
+                                                          ├─ reproducer, no record: /hitl:tdd [gate: seams, test list] → red→green→refactor
+                                                          ├─ trivial, nothing to reproduce: /hitl:tasks quick [gate] → /hitl:implement T (fast)
                                ┌──────────────────────────┘ anything else
                                ▼
-                               /hitl:plan (WHAT, brief file) → /hitl:design (HOW, brief file, skippable) → /hitl:tasks [gate]
+                               /hitl:plan (WHAT, brief file) → /hitl:design (HOW, brief file, skippable) → /hitl:tasks [gate + test plan]
                                                                                    │
           high risk ───────────────────────────────────────────────────────────────┤──── low risk (fast lane)
               ▼                                                                    │            ▼
@@ -86,11 +93,11 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]` | brief file, each round (amend: chat gate) |
 | `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | brief file, each round |
 | `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round) | brief file, each round (amend: chat gate) |
-| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan | quiz |
-| `/hitl:skeleton T` | stubs + intent tags + TODO flow + test stubs | review in editor |
+| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan (a test decision per AC: new · shared · covered · none · manual) | quiz (Q5: test plan) |
+| `/hitl:skeleton T` | stubs + intent tags + TODO flow + a test stub per `new` row | review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
 | `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
-| `/hitl:test T` | real failing tests via isolated test-author | high risk |
+| `/hitl:test T` | real failing tests via isolated test-author (regression tests may pass; RED table, budget `new` rows + 2) | high risk |
 | `/hitl:implement T` | agent fns via implementer, manual fns handed to you | manual fns |
 | `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | end / early stop |
 | `/hitl:review T` | L0 gates + lens reviewers + report | if human needed |
@@ -98,7 +105,7 @@ Ties go to the heavier route. Pick it yourself with `--plan`, `--quick` or `--td
 | `/hitl:sync` | reconcile manual edits, drift + trace report, amend spec | user-only |
 | `/hitl:tickets` | mirror tasks to Linear, Jira or GitHub Issues (optional) | first push |
 | `/hitl:grilling` | ad-hoc grill-me interview (plan and design load it automatically) | each round |
-| `/hitl:tdd` | hitl's quick test-first mode (adapted from mattpocock tdd) for small work outside a change; inside a change `/hitl:test` + `/hitl:implement` apply the same rules | seams |
+| `/hitl:tdd` | the real TDD loop (red → green → refactor, one test at a time; the test list grows) for small work with a reproducer, outside a change (adapted from mattpocock tdd); inside a change `/hitl:test` + `/hitl:implement` apply the same test rules | seams + test list |
 | `/hitl:overlap <id> [<id> …]` | check one active change against others (`--with B,C`; none = all active): shared ids, contracts, terms, symbols, files, drift → one judge with a Given/When/Then witness per finding → adjust one side · both sides (notes, the affected change waits) · not an overlap | one line per finding |
 | `/hitl:flow` | this status, task id routing and help (new work → `/hitl:go`) | — |
 | `/hitl:migrate` | upgrade a pre-0.13 project to change-key ids (`PWR-T3`, `PWR-R1`, `PWR-D1`): dry run, one key table, rename map, then apply | keys + `Apply? (Y/n)` |

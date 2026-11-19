@@ -9,8 +9,8 @@ allowed-tools: Read Glob Grep Edit Write Bash
 
 Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/tdd/SKILL.md @ 4ae2317. Changes: a
 guard that routes work of a hitl change to `/hitl:flow`; the seam question in the hitl gate shape; glossary from
-`.hitl/specs/GLOSSARY.md`; interface shape from `shared/test-patterns.md` §4 (no codebase-design skill); refactoring as
-a separate pass (no code-review skill).
+`.hitl/specs/GLOSSARY.md`; interface shape from `shared/test-patterns.md` §4 (no codebase-design skill); refactor
+under green in each cycle (no code-review skill); the test list grows as cases are found (Kent Beck, Canon TDD).
 
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-code.md`. Reply in the user's language.
 Patterns (read once, before the first test): `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md`,
@@ -33,20 +33,27 @@ Find the public interface with Grep/Read (only what you need). Then one GATE in 
 `**Q1** <title>` + one context line + `_Rec:_ …`, then `Reply: e.g. "y" (all recommendations) or "Q2: …"`
 (no brief file, no round header, no grilling load, nothing recorded):
 - **Q1 Seams**: 1–3 seams (test-patterns §5: highest, existing, fewest), each `seam — catches / misses — doubles (§3)`.
-- **Q2 Tests**: the behaviours in order, one line each, the tracer first (main success path through the highest seam).
+- **Q2 Tests**: the test list: the behaviours in order, one line each with the defect it catches, the tracer first
+  (main success path through the highest seam; for a bug, the reproducer). The list may grow during the loop (§3).
 - Q3 only if the interface must change to be testable (test-patterns §4).
 Names: the terms of `.hitl/specs/GLOSSARY.md` when it exists, never their `_Avoid_` words (test-patterns §1).
 END THE TURN. No test and no code before the reply.
 
 ## 3. Loop (one test at a time, in the agreed order)
-1. Write one test at an agreed seam (test-patterns §1–§3; expected values from the request or a worked example).
-2. Run it. It must fail for the right reason (an assertion or the missing behaviour, not an import or a typo).
+This is the real TDD loop (Kent Beck's red → green → refactor), unlike the hitl change flow, which writes a task's
+acceptance tests first and then the code.
+1. Write one test at an agreed seam (test-patterns §1–§3; name = the behaviour, no ids; expected values from the request
+   or a worked example).
+2. Run it. It must fail for the right reason: its assertion fails (or the missing behaviour), not an import or a typo.
 3. Write the minimal code that passes it. No code for the next test, no speculative options.
-4. Run the test file: green → the next behaviour. Red → fix the code, never the test.
+4. Run the test file: green → refactor now if the code asks for it (names, duplication, a guard clause), tests
+   untouched and green after; then the next behaviour. Red → fix the code, never the test.
+5. A new case found on the way (an edge the code reveals, a second failing input) → add it to the test list with its
+   defect, in order; never write it before the current test is green. A case with no defect → not on the list.
 A test that needs a seam nobody agreed, or must reach past the interface → stop and ask (same gate shape).
 
 ## 4. Done
 A fresh run of the touched test files and the project test command (`hitl.config.json` `commands.test` when present),
 with the counts in the reply before any claim (`${CLAUDE_PLUGIN_ROOT}/skills/test/references/tdd-rules.md` §5).
-List the tests added (`title → seam`). Refactoring is not part of this loop: do it as a separate pass under the green
-tests, or as a `refactor-` change through `/hitl:plan`. End with `_Next:_`.
+List the tests added (`title → seam → defect`) and mark the ones added to the list during the loop (`+ added`).
+A refactor wider than the touched code → a `refactor-` change through `/hitl:plan`. End with `_Next:_`.

@@ -1,6 +1,6 @@
 ---
 name: skeleton
-description: Drafts code skeletons for one hitl task (signatures, intent docstrings, TODO flow, failing sentinel) plus test stubs per acceptance criterion, then stops for human review. Use for "skeleton", "stub", "draft functions", "tạo skeleton", or after tasks are approved.
+description: Drafts code skeletons for one hitl task (signatures, intent docstrings, TODO flow, failing sentinel) plus test stubs for the test plan's new tests, then stops for human review. Use for "skeleton", "stub", "draft functions", "tạo skeleton", or after tasks are approved.
 argument-hint: "<task-id> [--quick [--override]]"
 allowed-tools: Read Glob Grep Write Edit Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---
@@ -70,18 +70,23 @@ For each row (`@prio` = row number; it only breaks ties — implement order is c
 - Respect `@impl manual` rows: stub only, same as agent rows (the human writes the body later).
 
 ## 4. Write test stubs
-- One stub per `### Test plan` row, in AC order (AC1 first), in the project's test location and framework (PATTERNS
-  `Testing Conventions`, config test command). `describe` = the row's seam.
-- Title starts with the AC id (`PWR-T12.AC1 …`), then the behaviour in `## Terms` words (test-patterns §1); tags
-  `@covers <ref> @ac <KEY>-T<n>.AC<k> @kind <kind> @origin skeleton`.
+- One stub per `new` row of the `### Test plan`, in AC order (AC1 first), in the project's test location and framework
+  (PATTERNS `Testing Conventions`, config test command). `describe` = the row's seam. A `shared: <ACk>` row adds its AC
+  id to the `@ac` of ACk's stub (one stub, several ids); `covered:`, `none:` and `manual:` rows get no stub (the lock
+  checks that a `covered:` test exists). A table without a `test` column (before 0.16): one stub per row.
+- Name = the behaviour in `## Terms` words, never a planning id (test-patterns §1): TS `it("rejects duplicate email
+  ignoring case")`, Python `test_rejects_duplicate_email_ignoring_case`. The ids live only in `@ac`; a name unique in
+  its file (a repeated name blocks the tests lock). Tags `@covers <ref> @ac <KEY>-T<n>.AC<k> [more AC ids] @kind <kind>
+  @origin skeleton`, and `@catches <the row's defect>` on its own line.
 - Body: `it.todo(...)` (TS) / skipped test with docstring only (Py). No assertions.
-- Any covered symbol with `@concurrency` ≠ none and no concurrency row → add a `@kind concurrency` stub and add the row to the Test plan.
-- Never edit existing locked tests; add new stubs beside them.
+- Any covered symbol with `@concurrency` ≠ none and no concurrency row → add a `@kind concurrency` stub and add the row
+  (`new: <the race it catches>`) to the Test plan.
+- Never edit existing locked tests; add new stubs beside them. Existing tests with ids in their names stay as they are.
 
 ## 5. Index and validate (loop until clean, max 3)
 1. `hitl-index index <changed files…> --json`.
 2. `hitl-index drift --task <T> --json`. Fix every warn about this task: missing/bad tags (`BAD_TAG`), `ORPHAN`,
-   `AMBIGUOUS_REF` / unresolved `@calls`, ACs without a stub, `PARSE_ERROR`, ids in intent prose
+   `AMBIGUOUS_REF` / unresolved `@calls`, `new`/`shared` ACs without a stub, `PARSE_ERROR`, ids in intent prose
    (`INTENT_TASK_REF`).
 3. `hitl-index tasks --check --json` (Symbols refs must resolve).
    `hitl-index trace <T> --json`: fix every `block` item (DEC_UNKNOWN, AC_UNKNOWN, COVERS_UNRESOLVED). Gaps

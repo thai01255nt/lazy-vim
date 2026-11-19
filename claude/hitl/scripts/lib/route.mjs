@@ -3,7 +3,12 @@
 // (`hitl-index route`) adds the change list and reads/removes the file.
 
 export const ROUTE_FILE = ".hitl/.inbox/route.json";
-/** Routes in priority order (the router's rules 1–5). */
+/**
+ * Routes in the order the router tries them (agents/work-router.md "Routes"): the first route whose conditions all hold
+ * wins; a condition the router is unsure of does not hold, so doubt moves the work to a later, heavier route (tdd →
+ * quick → plan). 0.16: tdd and quick do not overlap: tdd needs a reproducer (a stated failing case or expected output),
+ * quick has none.
+ */
 export const ROUTES = ["note", "amend", "update", "tdd", "quick", "plan"];
 /** Risk reasons of `skills/tasks/references/slicing-and-risk.md` §4 plus `business-rule` (behaviour a BA cares about). */
 export const RISK_TAGS = ["security", "concurrency", "public-api", "domain", "data", "core"];
@@ -27,7 +32,9 @@ function commandOf(skill, args, summary) {
  * {ok, action: "ask"|"note"|"invoke", route, from, change, skill, args, line, gate, noteKind, refs, hints[], questions[], errors[]}
  * `changes` = `changeInfo` objects (active and archived). `final` = the second dispatch: questions are dropped.
  * Rules: a change route needs an active change (else plan); a draft spec is edited by /hitl:plan <id> (no note, no
- * amend); update needs a tasks file (else amend); quick and tdd are raised to plan on risk signals. Ties go heavier.
+ * amend); update needs a tasks file (else amend); quick and tdd are raised to plan on risk signals; 0.16: a quick
+ * route with a reproducer (`bug-repro` signal) and no risk tag goes to tdd (tdd is tried before quick, and the
+ * reproducer is the one valuable test); a tdd route with `functions: n` > 2 is raised to plan.
  */
 export function resolveRoute(verdict, changes = [], { final = false } = {}) {
   const errors = [];
@@ -80,13 +87,16 @@ export function resolveRoute(verdict, changes = [], { final = false } = {}) {
     if (!draft && route === "update") { skill = "hitl:tasks"; args = `${change.id} update ${summary}`; }
   }
 
+  const fnCount = Math.max(0, ...signals.filter((x) => signalTag(x) === "functions").map((x) => Number(/(\d+)/.exec(x.split(":").slice(1).join(":"))?.[1]) || 0));
   if (route === "quick") {
     const hit = [...tags].filter((t) => QUICK_BLOCK.has(t));
     if (hit.length) raise("plan", `quick tasks exclude ${hit.join(", ")}`);
+    else if (tags.has("bug-repro") && fnCount <= 2) { from = from || route; route = "tdd"; why = why ? `${why}; a reproducer: tdd is tried before quick` : "a reproducer: tdd is tried before quick"; }
   }
   if (route === "tdd") {
     const hit = [...tags].filter((t) => TDD_BLOCK.has(t));
     if (hit.length) raise("plan", `${hit.join(", ")} needs a spec and gates`);
+    else if (fnCount > 2) raise("plan", `${fnCount} functions: tdd covers 1–2`);
   }
   if (route === "tdd") { skill = "hitl:tdd"; args = summary; }
   if (route === "quick") { skill = "hitl:tasks"; args = `quick ${summary}`; }
@@ -95,7 +105,7 @@ export function resolveRoute(verdict, changes = [], { final = false } = {}) {
     if (tags.has("design-skip")) hints.push("_Info:_ design will likely be skipped (no new dependency, stored data or public interface; ≤ 2 tasks)");
     if (tags.has("low-risk")) hints.push("_Tip:_ all tasks look low risk: fast lane (_Fast_) after /hitl:tasks");
   }
-  if (from) hints.unshift(`_Info:_ raised from ${from} to ${route}: ${why}`);
+  if (from) hints.unshift(`_Info:_ ${ROUTES.indexOf(route) < ROUTES.indexOf(from) ? "moved" : "raised"} from ${from} to ${route}: ${why}`);
 
   const action = gate && !skill ? "note" : "invoke";
   const head = action === "note" ? `_Note_ for ${change.id}` : commandOf(skill, args, summary);

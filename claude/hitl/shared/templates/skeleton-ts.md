@@ -85,7 +85,7 @@ export interface RegisterInput {
 }
 ```
 
-## Test stubs (one per test-plan row; no assertions yet)
+## Test stubs (one per `new` test-plan row; no assertions yet)
 
 vitest / jest / node:test all support `it.todo`. Import from the project's framework (`vitest`, `node:test`; jest = globals).
 
@@ -93,22 +93,35 @@ vitest / jest / node:test all support `it.todo`. Import from the project's frame
 import { describe, it } from "node:test"; // or "vitest"
 
 describe("UserService.createUser", () => {
-  /** @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton */
-  it.todo("PWR-T12.AC1 rejects duplicate email in any case");
+  /**
+   * @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton
+   * @catches a duplicate in another case is saved
+   */
+  it.todo("rejects duplicate email ignoring case");
 
-  /** @covers UserService.createUser @ac PWR-T12.AC2 @kind property @origin skeleton */
-  it.todo("PWR-T12.AC2 returns saved user without passwordHash");
+  /**
+   * @covers UserService.createUser @ac PWR-T12.AC2 PWR-T12.AC3 @kind property @origin skeleton
+   * @catches the result leaks passwordHash
+   */
+  it.todo("returns the saved user without passwordHash");
 });
 ```
+
+The second stub serves two ACs (row AC3 is `shared: AC2`): one test, both ids in `@ac`.
 
 `@concurrency` ≠ none on a covered symbol → add one more stub with `@kind concurrency`:
 
 ```ts
-/** @covers Cache.getOrLoad @ac PWR-T7.AC3 @kind concurrency @origin skeleton */
-it.todo("PWR-T7.AC3 concurrent getOrLoad calls load once");
+/**
+ * @covers Cache.getOrLoad @ac PWR-T7.AC3 @kind concurrency @origin skeleton
+ * @catches two overlapping calls load twice
+ */
+it.todo("concurrent getOrLoad calls load once");
 ```
 
-Title always starts with the AC id. Describe name = the seam from the Test plan row (usually the covered symbol ref).
+The name says the behaviour in domain words and carries no planning id: ids live only in `@ac` (one test may prove
+several ACs, also of later changes). Names are unique within a file. Describe name = the seam from the Test plan row
+(usually the covered symbol ref).
 
 ## After implementation (for reference)
 

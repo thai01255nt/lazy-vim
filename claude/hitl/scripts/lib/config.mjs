@@ -25,7 +25,8 @@ export const DEFAULTS = Object.freeze({
   commands: { test: { ts: null, py: null }, lint: null, typecheck: null, mutation: { ts: null, py: null } },
   review: { confidenceThreshold: 80, maxFixRounds: 2 },
   risk: { securityPaths: ["**/auth/**", "**/security/**", "**/crypto/**", "**/payment*/**"], corePaths: [], fanInThreshold: 5, bodyLinesThreshold: 60, weights: {} },
-  mutationRequired: false,
+  // 0.16: "high" = required for high-risk tasks when a mutation command is configured; true = always; false = never
+  mutationRequired: "high",
   mutationThreshold: 0.8,
   orphanScope: "tracked-files",
   stopGate: true,
@@ -115,6 +116,17 @@ export const EXT_LANG = { ".ts": "ts", ".tsx": "ts", ".mts": "ts", ".cts": "ts",
 export const ALL_LANGS = ["ts", "py", ...Object.keys(LANGS).filter((l) => l !== "py")];
 
 /** config.languages -> Set of enabled language ids ("*"/"auto" = all built-ins, "!x" excludes x). */
+/**
+ * Is mutation testing required for a task of this risk? `mutationRequired`: true → always (pre-0.16 meaning);
+ * "high" (default since 0.16) → for a high-risk task when `commands.mutation` has a command; false → never.
+ */
+export function mutationRequiredFor(config, risk) {
+  const m = config?.mutationRequired;
+  if (m === true || m === "all") return true;
+  if (m === "high") return risk === "high" && Object.values(config?.commands?.mutation || {}).some(Boolean);
+  return false;
+}
+
 export function enabledLanguages(config = DEFAULTS) {
   const list = config.languages || [];
   const all = list.includes("*") || list.includes("auto");

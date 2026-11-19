@@ -31,10 +31,11 @@ export function applyRuns(st, runs, at = nowIso()) {
 }
 export async function recordRuns(root, runs) { return mutate(root, (st) => { applyRuns(st, runs); return st; }); }
 
-/** m: {score, survivors, bodyHash, details?} */
+/** m: {score, survivors, bodyHash, details?, kills?} — kills (0.16): {byTest:{testId:{killed, unique}}, complete} */
 export async function recordMutation(root, id, m) {
   return mutate(root, (st) => {
-    st.mutation[id] = { score: Number(m.score), survivors: Number(m.survivors) || 0, bodyHash: m.bodyHash ?? null, at: nowIso(), ...(m.details !== undefined ? { details: m.details } : {}) };
+    st.mutation[id] = { score: Number(m.score), survivors: Number(m.survivors) || 0, bodyHash: m.bodyHash ?? null, at: nowIso(), ...(m.details !== undefined ? { details: m.details } : {}),
+      ...(m.kills ? { kills: m.kills } : {}) };
     return st.mutation[id];
   });
 }

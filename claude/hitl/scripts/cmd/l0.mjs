@@ -1,7 +1,9 @@
 // P2 — `hitl-index l0 <T> [--json]`: deterministic gates → reviews/<T>/l0.json (§E.8)
 import { parseArgs } from "node:util";
 import { join } from "node:path";
-import { loadApi, p2paths, writeJsonSorted, CODE_KINDS } from "../lib/lock.mjs";
+import { loadApi, p2paths, writeJsonSorted, CODE_KINDS, readLock, taskSymbolIds, taskTestIds, testOwner } from "../lib/lock.mjs";
+import { mutationRequiredFor } from "../lib/config.mjs";
+import { testBudget } from "../lib/testplan.mjs";
 import { executeTest, runShell, buildCommand } from "../lib/runner.mjs";
 import { readState } from "../lib/state.mjs";
 import { buildTrace, loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
@@ -45,7 +47,7 @@ export async function computeL0(root, config, T) {
     inputs = await loadTraceInputs(root, config, { index: index || undefined, state, statuses: t.statuses, tasks: t.tasks });
     const tr = buildTrace(inputs, { kind: "task", id: T });
     const acs = tr.rows.flatMap((r) => r.acs).filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i)
-      .map((a) => ({ id: a.id, reqs: a.reqs, proven: a.proven, tests: a.tests.length }));
+      .map((a) => ({ id: a.id, reqs: a.reqs, proven: a.proven, tests: a.tests.length, test: a.test || "new", ...(a.testDetail ? { testDetail: a.testDetail } : {}) }));
     const spec = {};
     for (const id of symIds) {
       const sp = specLinksFor(inputs, id);
@@ -70,10 +72,25 @@ export async function computeL0(root, config, T) {
     if (m && m.bodyHash === index.symbols[id]?.bodyHash) { perSymbol[id] = { score: m.score, survivors: m.survivors }; if (m.score < thr) low++; }
     else if (!index.symbols[id]?.stub) missing++;
   }
+  // 0.16: required per task risk (mutationRequiredFor: default "high" = high-risk tasks when a mutation command is set)
+  const taskObj = (inputs?.tasks || t.tasks || []).find((x) => x.id === T);
+  const risk = taskObj?.risk || t.lock?.tasks?.[T]?.risk || "high";
+  const required = mutationRequiredFor(config, risk);
+  const req = required ? " (required: high risk)" : "";
   gates.push(!configured && !Object.keys(perSymbol).length ? { name: "mutation", result: "skip", detail: "not configured" }
-    : low ? { name: "mutation", result: config?.mutationRequired ? "fail" : "pass", detail: `${low} symbol(s) below ${thr}` }
-    : missing ? { name: "mutation", result: config?.mutationRequired ? "fail" : "skip", detail: `${missing} symbol(s) not mutated for current body (hitl-index mutate --task ${T})` }
+    : low ? { name: "mutation", result: required ? "fail" : "pass", detail: `${low} symbol(s) below ${thr}${req}` }
+    : missing ? { name: "mutation", result: required ? "fail" : "skip", detail: `${missing} symbol(s) not mutated for current body (hitl-index mutate --task ${T})${req}` }
     : { name: "mutation", result: "pass", detail: "" });
+  // 0.16 test economy: the task's test budget (active own tests vs new rows + 2), shown in the review report
+  let budget = null;
+  if (taskObj && index) {
+    const syms = taskSymbolIds(index, T, taskObj).filter((id) => CODE_KINDS.has(index.symbols[id]?.kind));
+    const lock = t.lock || (await readLock(root));
+    const own = taskTestIds(index, T, syms).filter((id) => [null, T].includes(testOwner(index, lock, id)) && index.symbols[id].test?.mode === "active");
+    const b = testBudget(index, lock, taskObj, own);
+    budget = { newRows: b.newRows, limit: b.limit, tests: b.tests, over: b.over };
+  }
+  if (trace) trace.budget = budget;
   return { schema: "hitl.l0/1", task: T, gates, tests, drift, trace, terms, mutation: { configured, perSymbol } };
 }
 

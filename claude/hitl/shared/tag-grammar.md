@@ -13,20 +13,22 @@ The parser is `scripts/lib/tags.mjs`; this file is documentation only.
 ```
 doc        := line*
 tag-line   := WS* "@" RESERVED value? ( WS+ "@" RESERVED value? )* WS*
-RESERVED   := task | impl | status | prio | calls | concurrency | covers | ac | kind | origin | risk | dec
+RESERVED   := task | impl | status | prio | calls | concurrency | covers | ac | kind | origin | risk | dec | catches
 value      := text up to the next WS "@" RESERVED, or end of line, trimmed
-task       := TASKID ("," WS* TASKID)*                      TASKID := KEY "-T" [0-9]+   KEY := [A-Z]{2,5}
+task       := TASKID (SEP TASKID)*                          TASKID := KEY "-T" [0-9]+   KEY := [A-Z]{2,5}
+SEP        := ("," | WS) WS*                               (list items: commas and/or spaces, 0.16)
 impl       := "agent" | "manual"
 status     := "skeleton" | "wip" | "red" | "green" | "verified" | "done"
 prio       := [0-9]+
-calls      := REF ("," WS* REF)*                            REF := QualName | relpath "#" QualName
+calls      := REF (SEP REF)*                            REF := QualName | relpath "#" QualName
 concurrency:= "none" | "shared-state" | "async" | "locks" | "io"
-covers     := REF ("," WS* REF)*
-ac         := ACID ("," WS* ACID)*                          ACID := TASKID ".AC" [0-9]+
-kind       := "example" | "property" | "concurrency" | "golden" | "metamorphic"
+covers     := REF (SEP REF)*
+ac         := ACID (SEP ACID)*                              ACID := TASKID ".AC" [0-9]+
+kind       := "example" | "property" | "concurrency" | "golden" | "metamorphic" | "regression"
 origin     := "skeleton" | "test-author" | "human" | "agent-posthoc"
 risk       := "low" | "high"                               (per-symbol override; rare)
-dec        := DECID ("," WS* DECID)*                          DECID := KEY "-D" [0-9]+
+dec        := DECID (SEP DECID)*                            DECID := KEY "-D" [0-9]+
+catches    := free text: the production defect that makes the test fail (tests only, 0.16)
 ```
 
 ## 2. Rules
@@ -63,8 +65,9 @@ dec        := DECID ("," WS* DECID)*                          DECID := KEY "-D" 
 | `@calls` | code | declared collaborators; drift reports undeclared/missing calls; also orders implement work (callees in the same task first) |
 | `@concurrency` | code | none / shared-state / async / locks / io; ≠ none adds a concurrency test stub |
 | `@covers` | test | symbol(s) the test exercises |
-| `@ac` | test | acceptance criteria ids the test proves |
-| `@kind` | test | example / property / concurrency / golden / metamorphic |
+| `@ac` | test | acceptance criteria ids the test proves; several allowed (`@ac PWR-T12.AC1 FEC-T1.AC4`): a `shared:` row, or ACs of later changes. The only place a test carries planning ids: trace, lock and the contract pack read this tag, never the test name. Owner = the task that locked it, else the first id |
+| `@kind` | test | example / property / concurrency / golden / metamorphic / regression (guards unchanged behaviour: may pass at the first tests lock) |
+| `@catches` | test | the production defect that would make it fail (not hashed). Written by the skeleton from the row's `new: <defect>`; required on a test added after the skeleton (extras, mutation killers, fix-loop tests) |
 | `@origin` | test | who wrote it: skeleton (stub) / test-author / human / agent-posthoc |
 | `@risk` | code | rare per-symbol override of task risk |
 | `@dec` | code | design decision(s) `<KEY>-D<n>` of the task's change this symbol embodies (spec link; not hashed) |
@@ -96,17 +99,22 @@ def apply_discount(order: Order, pct: Decimal) -> Order:
     """
 ```
 
-TS test stub:
+TS test stub (the name says the behaviour; ids only in `@ac`):
 ```ts
-/** @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton */
-it.todo("PWR-T12.AC1 rejects duplicate email in any case");
+/**
+ * @covers UserService.createUser @ac PWR-T12.AC1 @kind example @origin skeleton
+ * @catches a duplicate in another case is saved
+ */
+it.todo("rejects duplicate email ignoring case");
 ```
 
 Python test stub:
 ```py
 @unittest.skip("TODO(test): PWR-T2.AC1")
-def test_T2_AC1_rejects_bad_pct(self):
-    """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton"""
+def test_rejects_a_discount_over_100_percent(self):
+    """@covers apply_discount @ac PWR-T2.AC1 @kind example @origin skeleton
+    @catches a discount over 100% makes the total negative
+    """
 ```
 
 Wrong (mixed line → whole line becomes prose, tags lost):

@@ -33,10 +33,11 @@ Không cần tự chọn lệnh đầu tiên. Mô tả việc cần làm, Claude
 ```
 - Một subagent chỉ đọc (không sửa gì) xem các change đang mở, spec, glossary, docs và code, rồi in một dòng
   `_Route:_ <lệnh> — <lý do>` và chạy lệnh đó ngay. Không hỏi "Go?".
-- Thứ tự ưu tiên: đổi yêu cầu/thiết kế của change đang mở → note · việc mới trong phạm vi change đó →
-  `/hitl:plan <id> amend` hoặc `/hitl:tasks <id> update` · lỗi tái hiện được / logic nhỏ không cần ghi lại → `/hitl:tdd`
-  · việc rất nhỏ nhưng nên có lock và trace → `/hitl:tasks quick` · còn lại → `/hitl:plan`. Phân vân thì chọn đường
-  nặng hơn (plan > quick > tdd).
+- Một luật, thử theo thứ tự, đường đầu tiên khớp đủ điều kiện thắng: đổi yêu cầu/thiết kế của change đang mở → note
+  · việc mới trong phạm vi change đó → `/hitl:plan <id> amend` hoặc `/hitl:tasks <id> update` · có cách tái hiện (đầu
+  vào làm sai, hoặc kết quả mong đợi nêu được; 1–2 hàm) → `/hitl:tdd` · việc rất nhỏ, không có gì để tái hiện, nên có
+  lock và trace → `/hitl:tasks quick` · còn lại → `/hitl:plan`. Không chắc một điều kiện thì coi như không khớp, rơi
+  xuống đường nặng hơn (tdd → quick → plan).
 - Mô tả quá mơ hồ → Claude hỏi tối đa 3 câu ngắn (mục tiêu và phạm vi), một vòng, rồi tự quyết.
 - Tự chọn đường: thêm `--plan`, `--quick` hoặc `--tdd` (bỏ qua phân tích).
 - Gõ thẳng `/hitl:plan …`, `/hitl:tdd …`, `/hitl:tasks quick …` vẫn chạy như cũ.
@@ -124,6 +125,15 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
 ```
 Chỉ **bạn** gõ được `/hitl:approve`.
 
+### Test: bao nhiêu và vì sao (0.16)
+- Luồng change là **test chấp nhận viết trước** (cả loạt test của task viết từ mô tả hàm, khoá, rồi mới code), không
+  phải TDD của Kent Beck; TDD thật (một test → đỏ → code → xanh → dọn code) là `/hitl:tdd`.
+- Ở gate `/hitl:tasks` (câu 5) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
+  sẵn>`, `none: <lý do>` hoặc `manual: <cách kiểm tay>` (hai loại này không dùng cho task risk security/concurrency/data: task đó phải có test tự động cho mỗi AC).
+- Mỗi test phải nêu lỗi nó bắt (`@catches`); test thêm ngoài plan cũng vậy. Mỗi task ≤ số dòng `new` + 2 test (vượt
+  chỉ cảnh báo). Tên test là hành vi, không chứa id (id nằm trong `@ac`).
+- Muốn tỉa test: `hitl-index tests audit <change>` liệt kê ứng viên; bạn chọn, rồi `/hitl:approve <T> tests`.
+
 ### Để Claude build hết rồi review một lần (nâng cao)
 ```
 /hitl:implement PWR-T2 --lane fast                          # một task, không gate, review ở cuối
@@ -204,7 +214,7 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 | Đẩy task lên Linear / Jira / GitHub | `/hitl:tickets init [linear\|jira\|github]` (một lần), sau đó `/hitl:tickets push` |
 | Audit bảo mật cả change | `/hitl:review --security-audit feat-xxx` |
 | "Grill" một ý tưởng bất kỳ | `/hitl:grilling` |
-| Sửa nhỏ / làm nhanh theo TDD, không mở change | `/hitl:tdd <việc cần làm>` (chốt seam, rồi red→green từng test) |
+| Sửa nhỏ / làm nhanh theo TDD, không mở change | `/hitl:tdd <việc cần làm>` (chốt seam + danh sách test, rồi red→green→refactor từng test) |
 | Không chắc nên dùng lệnh nào cho việc mới | `/hitl:go <mô tả>` (Claude chọn và chạy; `--plan`/`--quick`/`--tdd` để tự chọn) |
 
 Commit: `/hitl:setup` đã tạo sẵn `.hitl/.gitignore`, cứ `git add .hitl`.

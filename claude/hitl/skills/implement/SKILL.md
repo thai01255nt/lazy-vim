@@ -164,7 +164,9 @@ Red after a `green` claim → treat as `stuck` (print both claims and evidence; 
 ## Step 5 — Finish
 
 When every task symbol is green in a fresh run **in this turn**: `✅ PWR-T12: all functions green (n tests)` and
-`_Next:_ /hitl:review <T>`.
+`_Next:_ /hitl:review <T>`. A high-risk task with a mutation command configured (`hitl.config.json`
+`commands.mutation`) needs mutation testing before its review passes (`mutationRequired: "high"`, default since 0.16):
+`_Next:_ /hitl:test <T> mutate`, then `/hitl:review <T>`.
 Otherwise list what is left (`manual pending`, `red`, `stuck`) and the next command. Never say "done" without the run.
 
 ## Never

@@ -170,6 +170,14 @@ export function buildFeatureReport(o) {
   L.push(`verdict: ${verdict} | PASS ${counts.PASS} · WITH FIXES ${counts["WITH FIXES"]} · FAIL ${counts.FAIL} · not reviewed ${counts["not reviewed"]} | override: ${plan.items.filter((i) => i.override).length} | human required: ${humanRequired}`);
   L.push(`tasks: ${plan.file} | generated: ${o.now || new Date().toISOString()}`);
   L.push("", "| task | title | risk | override | status | verdict | trace | pending |", "|---|---|---|---|---|---|---|---|", ...rows);
+  // 0.16 test economy: per task active tests vs the budget (new rows + 2), and the change total
+  const budgets = plan.items.map((it) => ({ id: it.id, b: o.perTask?.[it.id]?.l0?.trace?.budget })).filter((x) => x.b);
+  if (budgets.length) {
+    L.push("", "## Tests (budget: new rows + 2 per task)", "", "| task | new rows | tests | budget |", "|---|---|---|---|");
+    for (const { id, b } of budgets) L.push(`| ${id} | ${b.newRows} | ${b.tests} | ${b.limit}${b.over ? " ⚠️ over" : ""} |`);
+    const sum = budgets.reduce((a, { b }) => ({ n: a.n + b.newRows, t: a.t + b.tests, l: a.l + b.limit }), { n: 0, t: 0, l: 0 });
+    L.push("", `total: ${sum.t} tests for ${sum.n} new rows (budget ${sum.l}); prune candidates: \`hitl-index tests audit ${plan.name}\``);
+  }
   L.push("", "## Findings needing a decision");
   L.push(...(cards.length ? cards : ["none"]));
   L.push("", "## Human review required (override)");

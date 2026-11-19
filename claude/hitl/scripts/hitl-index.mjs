@@ -11,7 +11,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSION = "1.1.0";
 const P1 = new Set(["index", "parse", "drift", "context", "map-md", "tasks", "next-id", "trace", "tickets", "spec", "change", "note", "overlap", "route", "brief"]);
 const USAGE = `usage: hitl-index <cmd> [args] [--root dir] [--json] [--quiet] [--soft]
-commands: init migrate index parse drift context map-md tasks next-id approve status test record-mutation mutate l0 risk report review-decide precommit install-git-hook trace tickets feature spec change note overlap route strip intents brief`;
+commands: init migrate index parse drift context map-md tasks next-id approve status test tests record-mutation mutate l0 risk report review-decide precommit install-git-hook trace tickets feature spec change note overlap route strip intents brief`;
 
 async function main(args) {
   const g = { json: false, quiet: false, soft: false, root: null };

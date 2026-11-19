@@ -9,6 +9,7 @@ import { readTasks } from "./tasksmd.mjs";
 import { planningRel, readPlanning, statusText } from "./planningmd.mjs";
 import { parseId, compareIds } from "./specids.mjs";
 import { changeForTask, findInView, loadSpecContext, resolveSpecRef, unknownCode } from "./changes.mjs";
+import { acPlan, resolveCovered } from "./testplan.mjs";
 
 export const SCHEMA = "hitl.trace/2";
 const LEVEL = { block: 0, warn: 1, info: 2 };
@@ -189,7 +190,21 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       }
     }
     for (const ac of t.acs) {
-      const ts = testsOfAc.get(ac.id) || [];
+      // 0.16: the AC's test decision decides which tests prove it and what a missing test means:
+      // new → its own @ac tests; shared:<ACk> → its own @ac tests, else ACk's; covered:<ref> → the tests the ref resolves
+      // to (plus its own @ac tests); none / manual → no test expected (info AC_NO_TEST_BY_DECISION / AC_MANUAL_CHECK),
+      // never AC_NO_TEST or AC_NOT_PROVEN. proven = a fresh passing active test among those.
+      const plan = acPlan(t, ac.id);
+      const own = testsOfAc.get(ac.id) || [];
+      let ts = own;
+      let unresolved = null;
+      if (plan.test === "shared" && !own.length) ts = testsOfAc.get(plan.sharedWith) || [];
+      if (plan.test === "covered") {
+        const ids = plan.covered.flatMap((r) => resolveCovered(c.index, r));
+        if (!ids.length) unresolved = plan.covered.join("; ");
+        ts = [...new Map([...own, ...ids.map((id) => S[id]).filter(Boolean)].map((x) => [x.id, x])).values()];
+      }
+      const exempt = plan.test === "none" || plan.test === "manual" ? plan.test : null;
       if (cx) for (const r of ac.reqs || []) {
         if (!parseId(r)) { add("block", "REQ_UNKNOWN", r, t.id, g, `${ac.id} references legacy ${r} (change tasks ref spec ids)`); continue; }
         const x = resolveSpecRef(cx.view, r, cx.change);
@@ -205,19 +220,24 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
         else if (x.status === "dropped" || x.status === "superseded") add("block", "REQ_INACTIVE", r, t.id, g, `${ac.id} references ${r} which is ${statusText(x)}`);
       }
       if ((cx || doc?.hasRequirements) && !(ac.reqs || []).length) add("info", "AC_NO_REQ", ac.id, t.id, g, `${ac.id} has no ${cx ? "spec" : "(R-n) requirement"} reference`);
-      if (!ts.length) add(skeletonApproved ? "warn" : "info", "AC_NO_TEST", ac.id, t.id, g, `${ac.id} has no test with @ac ${ac.id}`);
+      if (plan.test === "none") add("info", "AC_NO_TEST_BY_DECISION", ac.id, t.id, g, `${ac.id} has no test by decision (none: ${plan.detail || "?"})`);
+      else if (plan.test === "manual") add("info", "AC_MANUAL_CHECK", ac.id, t.id, g, `${ac.id} is checked by hand at done (manual: ${plan.detail || "?"})`);
+      else if (unresolved !== null && !ts.length) add(skeletonApproved ? "warn" : "info", "AC_COVERED_UNRESOLVED", ac.id, t.id, g, `${ac.id} covered: ${unresolved} resolves to no test`);
+      else if (!ts.length) add(skeletonApproved ? "warn" : "info", "AC_NO_TEST", ac.id, t.id, g, `${ac.id} has no test with @ac ${ac.id}`);
       else if (ts.every((x) => x.test?.mode !== "active")) add(testsLocked ? "warn" : "info", "AC_ONLY_STUB", ac.id, t.id, g, `${ac.id} has only todo/skip tests`);
-      const proven = ts.some((x) => testProves(c, x));
-      if (late && !proven) add("warn", "AC_NOT_PROVEN", ac.id, t.id, g, `${ac.id} has no fresh passing test (task is ${statuses.tasks[t.id].status})`);
+      const proven = !exempt && ts.some((x) => testProves(c, x));
+      if (late && !proven && !exempt) add("warn", "AC_NOT_PROVEN", ac.id, t.id, g, `${ac.id} has no fresh passing test (task is ${statuses.tasks[t.id].status})`);
       const symIds = [...new Set(ts.flatMap((x) => x.test?.coversResolved || []))].sort();
-      acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven,
+      acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven, test: plan.test, testDetail: plan.detail, exempt,
         tests: ts.map((x) => ({ id: x.id, title: x.test?.titlePath?.at(-1) ?? x.name, mode: x.test?.mode ?? null, outcome: state.runs?.[x.id]?.outcome ?? null,
           fresh: testFresh(c, x), locked: lock.tests?.[x.id]?.stage === "locked" })),
         symbols: symIds.map((id) => ({ id, name: S[id]?.name || id.split("#").pop(), status: (statuses.tasks?.[t.id]?.symbolStatus?.[id] || statuses.symbols?.[id])?.status ?? null })) });
     }
     for (const id of syms) {
       if (S[id]?.kind === "class") continue;
-      if (!testsFor(c.index, id, cov).tests.length) add(skeletonApproved ? "warn" : "info", "SYMBOL_NO_TEST", id, t.id, g, `${S[id]?.name || id} has no test (direct or via callers)`);
+      // 0.16: a plan whose every AC is none / manual / covered expects no test of the task's own: info only
+      const planNoTest = (t.testPlan || []).some((r) => !r.legacy) && t.acs.length > 0 && t.acs.every((a) => ["none", "manual", "covered"].includes(acPlan(t, a.id).test));
+      if (!testsFor(c.index, id, cov).tests.length) add(skeletonApproved && !planNoTest ? "warn" : "info", "SYMBOL_NO_TEST", id, t.id, g, `${S[id]?.name || id} has no test (direct or via callers)`);
     }
   }
 
@@ -373,7 +393,9 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
   const summary = {
     reqs: { total: reqs.length, active: reqs.filter((r) => r.req.status === "active").length, covered: reqs.filter((r) => r.req.status === "active" && hasAcs(r)).length },
     scenarios: { total: scn.length, withAc: scn.filter((s) => s.acs.length).length, tested: scn.filter((s) => s.acs.some(tested)).length, proven: scn.filter((s) => s.acs.some((a) => a.proven)).length },
-    acs: { total: allAcs.length, tested: allAcs.filter(tested).length, proven: allAcs.filter((a) => a.proven).length },
+    // 0.16: none/manual ACs (exempt) are neither tested nor unproven; `byTest` counts the decisions
+    acs: { total: allAcs.length, tested: allAcs.filter(tested).length, proven: allAcs.filter((a) => a.proven).length,
+      exempt: allAcs.filter((a) => a.exempt).length, byTest: allAcs.reduce((m, a) => { m[a.test || "new"] = (m[a.test || "new"] || 0) + 1; return m; }, {}) },
     tasks: tasks.length,
   };
   const plannings = pList.map((p) => {
@@ -457,7 +479,9 @@ function marker(t) {
   if (t.outcome === "fail" || t.outcome === "error") return "❌";
   return "_Todo_";
 }
-const testsCell = (a) => (a.tests.length ? a.tests.map((t) => `"${clip(t.title, 40)}" ${marker(t)}`).join(" · ") : "—").replace(/\|/g, "\\|");
+const decisionNote = (a) => (a.test && a.test !== "new" ? `${a.test}: ${clip(a.testDetail || "?", 40)}` : "");
+const testsCell = (a) => [a.tests.length ? a.tests.map((t) => `"${clip(t.title, 40)}" ${marker(t)}`).join(" · ") : (decisionNote(a) ? "" : "—"), decisionNote(a)]
+  .filter(Boolean).join(" · ").replace(/\|/g, "\\|");
 const symsCell = (a) => (a.symbols.length ? a.symbols.map((s) => `${s.name} (${s.status || "?"})`).join(" · ") : "—");
 const itemLine = (i) => `${ICON[i.level]} ${i.code} ${i.ref} — ${i.message}`;
 

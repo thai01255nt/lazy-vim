@@ -19,7 +19,7 @@ const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function safeBash(cmd, re) { return typeof cmd === "string" && re.test(cmd) && !CHAIN_RE.test(cmd); }
 const TEST_AUTHOR_BASH = /^\s*(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)\s+(?:test|context|status)\b/;
-const REVIEWER_BASH = /^\s*(?:(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)\s+(?:context|status|drift|test)\b|git\s+(?:-C\s+\S+\s+)?(?:--no-pager\s+)?(?:diff|log|show|blame)\b)/;
+const REVIEWER_BASH = /^\s*(?:(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)\s+(?:context|status|drift|test|tests\s+audit)\b|git\s+(?:-C\s+\S+\s+)?(?:--no-pager\s+)?(?:diff|log|show|blame)\b)/;
 
 // spec agents (design v3 §4.5): read-only CLI subcommands, one scratch output file each
 const HI = String.raw`^\s*(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)\s+`;
@@ -364,7 +364,7 @@ async function main(input) {
   // 3. reviewer / finding-verifier: read-only except reviews/
   if (R === "reviewer" || R === "finding-verifier") {
     if (EDIT_TOOLS.has(tool) && !(rel && rel.startsWith(CUSTOM + "reviews/"))) deny(`${R} may write only under ${CUSTOM}reviews/`);
-    if (tool === "Bash" && !safeBash(cmd, REVIEWER_BASH)) deny(`${R} may run only: hitl-index context|status|drift|test, git diff|log|show|blame (no chaining or redirection)`);
+    if (tool === "Bash" && !safeBash(cmd, REVIEWER_BASH)) deny(`${R} may run only: hitl-index context|status|drift|test|tests audit, git diff|log|show|blame (no chaining or redirection)`);
   }
 
   // 4. codebase-mapper: only docs/*.md except CODEBASE-MAP.md

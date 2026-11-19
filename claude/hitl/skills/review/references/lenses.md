@@ -97,7 +97,9 @@ lists them as suggestions and the fix is a refactor pass (`fix-loop.md` §6). On
 
 - Rules: the `Test patterns:` files in your prompt (`shared/test-patterns.md` §1–§5 + `skills/tdd/tests.md`,
   `mocking.md`): the same rules the test-author got.
-- Each AC has ≥1 active test with `@ac` that would fail if the AC were broken (name the mutation that it kills).
+- Each AC whose test decision is `new`, `shared` or `covered` has ≥1 active test (its `@ac`, ACk's for `shared`, the
+  named test for `covered`) that would fail if the AC were broken (name the mutation that it kills). `none:` and
+  `manual:` ACs need no test: check only that the reason holds (a `none:` reason that hides real logic → finding).
 - Seam fidelity: each test enters at its Test-plan row's seam (the review context lists the Test plan). A lower entry
   without a reason in the row → finding.
 - Each test-patterns §2 tell (mocked project module, call assertion on an internal collaborator, **side channel** such as
@@ -105,10 +107,17 @@ lists them as suggestions and the fix is a refactor pass (`fix-loop.md` §6). On
   tell. Severity `important` if it would let an AC break unnoticed, else `minor` (a private-helper test: category
   `structure`). A call assertion on a fake true-external port that *is* the AC's outcome ("nothing is sent") is correct,
   not a finding.
-- No weakened assertions, added skips, deleted cases, or loosened matchers vs the locked version (L0 shows TEST_CHANGED;
-  you judge whether it weakens the test).
-- Edge checklist coverage relevant to the intent: empty/None, boundaries, unicode/case, duplicates, ordering, timeouts/cancel,
-  partial failure/rollback, resource release on error.
+- No weakened assertions, added skips, or loosened matchers vs the locked version (L0 shows TEST_CHANGED; you judge
+  whether it weakens the test). A deleted case is a finding only when it had a unique AC or a unique mutant kill
+  (`hitl-index tests audit` kill data); a deletion the human approved through `/hitl:approve <T> tests` is not.
+- Edge checklist coverage relevant to the intent, where a missing case hides a real defect: empty/None, boundaries,
+  unicode/case, duplicates, ordering, timeouts/cancel, partial failure/rollback, resource release on error.
+- **Test economy** (category `structure`, severity `minor`, never blocking; a suggestion like Structure): a test whose
+  setup and assertion differ from another's only in data (merge into one table test); an overlapping tracer (same
+  seam, same scenario as another task's test → keep one, `covered:`); a test with no `@catches` and no `new: <defect>`
+  row behind it (delete or name the defect); a test that kills no mutant another test does not also kill, when kill
+  data exists. Input: `hitl-index tests audit <T> --json` candidates and the review context's budget line. Fix path:
+  the human picks, the test-author merges or deletes, the human re-locks (`fix-loop.md` §6).
 - `@concurrency` ≠ none → a `@kind concurrency` test exists and would fail without the guard. Otherwise finding
   "untested concurrency" (`important`, fixOwner agent → feeds test-author).
 - Mutation survivors in l0.json on task symbols → one finding per meaningful survivor (skip equivalent mutants; say why).

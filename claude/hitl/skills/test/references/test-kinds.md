@@ -1,20 +1,23 @@
 # Test kinds, oracles and the edge checklist
 
-For the test-author. The kind for each AC comes from the task's `### Test plan` row (`kind`, `oracle`, `seam`).
+For the test-author. The kind for each `new` row comes from the task's `### Test plan` row (`test`, `kind`, `oracle`,
+`seam`); `shared:` rows ride on another row's test, `covered:` / `none:` / `manual:` rows get no test.
 Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-ts.md`,
 `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-py.md`, `${CLAUDE_PLUGIN_ROOT}/shared/templates/skeleton-lua.md`.
 
 ## Contents
 1. Tags and naming (all kinds)
-2. Kinds: example, property, concurrency, golden, metamorphic
+2. Kinds: example, property, concurrency, golden, metamorphic, regression
 3. Edge-case checklist
 4. Per-framework notes
 
 ## 1. Tags and naming (all kinds)
 
-- Keep the stub's tags; change only `@origin skeleton` → `@origin test-author`. New tests get the full set:
-  `@covers <ref> @ac <KEY>-T<n>.AC<k> @kind <kind> @origin test-author`.
-- Title starts with the AC id: `PWR-T12.AC1 rejects duplicate email in any case`. Python function: `test_T12_AC1_<behaviour>`.
+- Keep the stub's tags and name; change only `@origin skeleton` → `@origin test-author`. New tests get the full set:
+  `@covers <ref> @ac <KEY>-T<n>.AC<k> [more AC ids] @kind <kind> @origin test-author` and `@catches <defect>`.
+- Name = the behaviour in domain words, no planning id: `rejects duplicate email ignoring case`; Python function
+  `test_rejects_duplicate_email_ignoring_case`. Ids live only in `@ac` (several allowed, spaces or commas). Unique per
+  file: Python keeps only the last function of one name, and the tests lock refuses a repeated name.
 - Turn `it.todo(...)` / `@unittest.skip("TODO(test)…")` / `@pytest.mark.skip` into an active test. Do not leave skips.
 - Import the unit under test through the `import paths:` line of the contract pack. Never import private internals.
 - Use the project's framework and style (contract pack + `.hitl/docs/PATTERNS-CONVENTIONS.md`). Do not add dependencies.
@@ -25,8 +28,10 @@ Tags and stub shapes: `${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md`, `${CLAUDE_P
 
 ### example
 Concrete input → expected output from the AC (Given/When/Then). Prefer a small **table** of cases over many near-copies
-(`for (const [input, expected] of cases)` / `subTest`). Cover the happy path, each error path named in `@throws`/`Raises`,
-and the boundaries from section 3.
+(`for (const [input, expected] of cases)` / `subTest`). Within the row's table, cover the cases that serve its defect:
+the path the AC names, its error path from `@throws`/`Raises`, and the relevant boundaries from section 3. An error
+path or boundary no row names is an extra test only with its own named defect (`@catches`); it counts against the
+budget (`new` rows + 2).
 
 ### property
 An invariant that holds for all inputs (oracle like `invariant: result.email == lower(input)`).
@@ -49,11 +54,16 @@ Required when `@concurrency` ≠ none. The test must fail if the guard (lock, at
 Compare output to a human-validated fixture (`oracle: fixtures/<name>.json`). Never generate the golden file from the code
 under test. If the fixture does not exist, write the test against the path and list the fixture in `needsHuman`.
 
+### regression
+Guards behaviour that exists already (a prefactor, an `## Unchanged behaviour` item, a characterization test before a
+change). Expected values come from the spec or the current, human-confirmed behaviour. It may **pass** at the first
+tests lock (every other kind must fail first); the lock lists it apart as "guards existing behaviour".
+
 ### metamorphic
 When the exact output is unknown but a relation between two runs is known: f(x) vs f(transform(x))
 (e.g. adding an irrelevant item does not change the total; scaling inputs scales outputs). State the relation in the test title.
 
-## 3. Edge-case checklist (derive from the docstring; skip what is irrelevant)
+## 3. Edge-case checklist (a menu for rows and table cases, not a mandate; skip what is irrelevant)
 
 - empty / null / None / undefined; missing optional fields
 - boundaries: 0, 1, max, max+1, negative; empty string vs whitespace

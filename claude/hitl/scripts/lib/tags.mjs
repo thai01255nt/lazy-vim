@@ -1,6 +1,6 @@
 // Reserved-tag grammar for intent docstrings (§E.3.5).
 import { AC_ID_RE, DEC_ID_RE, LEGACY_AC_RE, LEGACY_DEC_RE, LEGACY_TASK_RE, TASK_ID_RE } from "./specids.mjs";
-export const RESERVED = ["task", "impl", "status", "prio", "calls", "concurrency", "covers", "ac", "kind", "origin", "risk", "dec"];
+export const RESERVED = ["task", "impl", "status", "prio", "calls", "concurrency", "covers", "ac", "kind", "origin", "risk", "dec", "catches"];
 const LISTS = new Set(["task", "calls", "covers", "ac", "dec"]);
 const TASKID = TASK_ID_RE;
 const ACID = AC_ID_RE;
@@ -12,13 +12,15 @@ const ENUMS = {
   impl: ["agent", "manual"],
   status: ["skeleton", "wip", "red", "green", "verified", "done"],
   concurrency: ["none", "shared-state", "async", "locks", "io"],
-  kind: ["example", "property", "concurrency", "golden", "metamorphic"],
+  kind: ["example", "property", "concurrency", "golden", "metamorphic", "regression"],
   origin: ["skeleton", "test-author", "human", "agent-posthoc"],
   risk: ["low", "high"],
 };
 const ITEM = { task: TASKID, ac: ACID, calls: REF, covers: REF, dec: DECID };
+// 0.16: free-text scalars (a test's `@catches <the defect it catches>`)
+const TEXT = new Set(["catches"]);
 
-export const emptyTags = () => ({ task: [], impl: null, status: null, prio: null, calls: [], concurrency: null, covers: [], ac: [], kind: null, origin: null, risk: null, dec: [] });
+export const emptyTags = () => ({ task: [], impl: null, status: null, prio: null, calls: [], concurrency: null, covers: [], ac: [], kind: null, origin: null, risk: null, dec: [], catches: null });
 
 const AT = /(^|\s)@([A-Za-z][\w-]*)/g;
 
@@ -49,12 +51,14 @@ export function parseDoc(doc) {
     for (const [tag, value] of pairs) {
       if (!value) { bad(tag, value, `@${tag} needs a value`); continue; }
       if (LISTS.has(tag)) {
-        for (const item of value.split(",").map((s) => s.trim()).filter(Boolean)) {
+        // 0.16: items are separated by commas and/or spaces (`@ac PWR-T12.AC1 FEC-T1.AC4`)
+        for (const item of value.split(/[\s,]+/).filter(Boolean)) {
           if (ITEM[tag].test(item)) { if (!tags[tag].includes(item)) tags[tag].push(item); }
           else if (LEGACY[tag]?.test(item)) bad(tag, item, `invalid @${tag} item "${item}" (pre-0.13 id: run /hitl:migrate)`);
           else bad(tag, item, `invalid @${tag} item "${item}"`);
         }
-      } else if (tag === "prio") {
+      } else if (TEXT.has(tag)) tags[tag] = value;
+      else if (tag === "prio") {
         if (/^\d+$/.test(value)) tags.prio = Number(value); else bad(tag, value, `invalid @prio "${value}"`);
       } else if (ENUMS[tag].includes(value)) tags[tag] = value;
       else bad(tag, value, `invalid @${tag} "${value}" (expected ${ENUMS[tag].join("|")})`);

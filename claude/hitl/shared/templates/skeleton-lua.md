@@ -91,14 +91,16 @@ return M
 -- TODO(impl): define audit fields
 ```
 
-## Test stubs (one per test-plan row; no assertions yet)
+## Test stubs (one per `new` test-plan row; no assertions yet)
 
-Busted (pure Lua); title starts with the AC id, describe name = the Test plan row's seam (usually the covered ref):
+Busted (pure Lua); the title says the behaviour, no planning id (ids live only in `@ac`); describe name = the Test
+plan row's seam (usually the covered ref):
 
 ```lua
 describe("src/lib/lease.lua#findUsedUpLeases", function()
 	-- @covers src/lib/lease.lua#findUsedUpLeases @ac PWR-T4.AC1 @kind example @origin skeleton
-	pending("PWR-T4.AC1 skips a lease that gets a refund")
+	-- @catches a refunded lease is counted as used up
+	pending("skips a lease that gets a refund")
 end)
 ```
 

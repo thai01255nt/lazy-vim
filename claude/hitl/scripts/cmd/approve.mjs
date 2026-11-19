@@ -50,15 +50,34 @@ export async function run(argv, ctx) {
     testsLocked: Object.values(l.tests).filter((t) => t.task === T && t.stage === "locked").length });
   const nextCmd = plan.stage === "skeleton" ? `/hitl:test ${T}` : plan.stage === "tests" ? `/hitl:implement ${T}` : null;
   const out = { ok: plan.ok, task: T, stage: plan.stage, by, ...(by === "human-override" ? { override: true } : {}), dryRun: !!v["dry-run"], reasons: plan.reasons,
-    warnings: plan.warnings || [], ...(plan.blockedBy?.length ? { blockedBy: plan.blockedBy } : {}), ...(plan.noteAcks?.length ? { acked: plan.noteAcks } : {}), changes: plan.changes };
+    warnings: plan.warnings || [], ...(plan.blockedBy?.length ? { blockedBy: plan.blockedBy } : {}), ...(plan.noteAcks?.length ? { acked: plan.noteAcks } : {}), changes: plan.changes,
+    ...(plan.red ? { red: plan.red } : {}), ...(plan.budget ? { budget: plan.budget } : {}), ...(plan.manual?.length ? { manual: plan.manual } : {}) };
   const warn = () => { if (!json) for (const w of out.warnings) console.log(`⚠️ ${w}`); };
+  // 0.16: the RED table (regression tests that pass listed apart), the test budget, the manual checks at done
+  const policy = () => {
+    if (json) return;
+    if (plan.red?.length) {
+      const reg = plan.red.filter((r) => r.result === "passes (regression)");
+      const rest = plan.red.filter((r) => r.result !== "passes (regression)");
+      console.log("| ac | test | kind | result |\n|---|---|---|---|");
+      for (const r of rest) console.log(`| ${r.ac.join(" ") || "—"} | ${String(r.name).replace(/\|/g, "\\|")} | ${r.kind} | ${r.result} |`);
+      if (reg.length) {
+        console.log("Guards existing behaviour (@kind regression, passes now):");
+        for (const r of reg) console.log(`- ${r.ac.join(" ") || "—"} ${r.name}`);
+      }
+      const stub = plan.red.filter((r) => r.result === "reached-stub").length;
+      if (stub) console.log(`_Info:_ ${stub} test(s) only reached the TODO(impl) sentinel: their assertions are first shown to work when the code turns them green (mutation testing checks them)`);
+    }
+    if (plan.budget) console.log(`Tests: ${plan.budget.tests} active · budget ${plan.budget.limit} (${plan.budget.newRows} new rows + 2)${plan.budget.extras.length ? ` · extras: ${plan.budget.extras.map((x) => `${x.name} (${x.catches || "no defect named"})`).join("; ")}` : ""}`);
+    if (plan.manual?.length) { console.log("Manual checks (confirm each before done):"); for (const m of plan.manual) console.log(`- ${m.ac}: ${m.check}`); }
+  };
 
   if (!plan.ok) {
     const suggest = plan.blockedBy?.length ? plan.blockedBy[0].apply
       : plan.stage === "skeleton" ? `fix the skeleton/tags then rerun; check with: hitl-index drift --task ${T}`
       : plan.stage === "tests" ? `hitl-index test --task ${T}` : `/hitl:review ${T}`;
     if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));
-    else { console.log(`_Stop:_ approve ${T} --stage ${plan.stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); console.log(`_Tip:_ ${suggest}`); }
+    else { console.log(`_Stop:_ approve ${T} --stage ${plan.stage} refused:`); for (const r of plan.reasons) console.log(`  - ${r}`); policy(); console.log(`_Tip:_ ${suggest}`); }
     return 1;
   }
   if (v["dry-run"]) {
@@ -74,6 +93,7 @@ export async function run(argv, ctx) {
       console.log(`  tests: new ${c.tests.new.length}, changed ${c.tests.changed.length}, unchanged ${c.tests.unchanged.length}, removed ${c.tests.removed.length}`);
       for (const id of c.tests.removed) console.log(`    - ${id} (removed from lock)`);
       for (const [ac, ts] of Object.entries(c.acCoverage)) console.log(`    ${ac}: ${ts.length} test(s)`);
+      policy();
       warn();
     }
     return 0;
@@ -110,6 +130,7 @@ export async function run(argv, ctx) {
     const k = counts(plan.lock);
     console.log(`✅ ${T} ${plan.stage} approved by ${by}: ${k.symbols} symbol(s), ${k.tests} test(s) (${k.testsLocked} locked)`);
     if (plan.noteAcks?.length) console.log(`_Note_ acked for ${T}: ${plan.noteAcks.join(", ")} (the note stays open; it still blocks other tasks and archive)`);
+    policy();
     warn();
     const removed = [...plan.changes.symbols.removed, ...plan.changes.tests.removed];
     if (removed.length) console.log(`Removed from lock: ${removed.join(", ")}`);

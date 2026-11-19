@@ -65,8 +65,10 @@ function gateRow(g, l0) {
     result = `sig ${c(["SIG_CHANGED"])} · intent ${c(["INTENT_CHANGED"])} · tests ${c(["TEST_CHANGED", "TEST_DELETED", "TEST_SKIPPED"])} changed` + (l0.drift.summary?.block ? ` · ${l0.drift.summary.block} block` : "");
   }
   if (g.name === "trace" && l0?.trace) {
-    const acs = l0.trace.acs || []; const c = l0.trace.counts || {};
-    result = `AC ${acs.filter((a) => a.proven).length}/${acs.length} proven · ${c.block || 0} block · ${c.warn || 0} warn ${g.result}`;
+    const all = l0.trace.acs || []; const c = l0.trace.counts || {};
+    // 0.16: none/manual ACs need no test: counted apart, never "not proven"
+    const acs = all.filter((a) => !["none", "manual"].includes(a.test)); const ex = all.length - acs.length;
+    result = `AC ${acs.filter((a) => a.proven).length}/${acs.length} proven${ex ? ` · ${ex} by decision (none/manual)` : ""} · ${c.block || 0} block · ${c.warn || 0} warn ${g.result}`;
   }
   const name = g.name === "drift" ? "drift vs lock" : g.name;
   return `| ${name} | ${result} | ${String(g.detail ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ")} |`;
@@ -102,11 +104,16 @@ export function buildReport(o) {
     const acs = tr.acs || [];
     for (const a of acs.slice(0, 10)) {
       const n = a.tests || 0;
-      L.push(`- ${a.id}${a.reqs?.length ? ` (${a.reqs.join(", ")})` : ""} — ${n} test${n === 1 ? "" : "s"} ${a.proven ? "✅ proven" : "⚠️ not proven"}`);
+      const refs = a.reqs?.length ? ` (${a.reqs.join(", ")})` : "";
+      if (a.test === "none") L.push(`- ${a.id}${refs} — no test by decision (none: ${a.testDetail || "?"})`);
+      else if (a.test === "manual") L.push(`- ${a.id}${refs} — manual check: ${a.testDetail || "?"}`);
+      else L.push(`- ${a.id}${refs} — ${n} test${n === 1 ? "" : "s"}${a.test === "shared" || a.test === "covered" ? ` (${a.test}: ${a.testDetail || "?"})` : ""} ${a.proven ? "✅ proven" : "⚠️ not proven"}`);
     }
     if (acs.length > 10) L.push(`… +${acs.length - 10} more`);
     if (!acs.length) L.push("- no acceptance criteria");
     for (const i of (tr.items || []).filter((x) => x.level !== "info").slice(0, 5)) L.push(`${i.level === "block" ? "_Block:_" : "⚠️"} ${i.code} ${i.ref} — ${i.message}`);
+    const b = tr.budget;
+    if (b) L.push(`${b.over ? "⚠️" : "-"} tests: ${b.tests} active · budget ${b.limit} (${b.newRows} new rows + 2)${b.over ? " — over budget: the tests lens checks for redundant tests" : ""}`);
   }
 
   L.push("", "## Functions (sorted by risk)", "| symbol | impl | status | risk | reasons | route |", "|---|---|---|---|---|---|");

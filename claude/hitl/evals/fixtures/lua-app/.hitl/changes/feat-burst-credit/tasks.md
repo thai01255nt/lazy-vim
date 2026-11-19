@@ -18,12 +18,12 @@
 3. [ ] `M.takeWithBurst` | new | `src/ratelimit/bucket_util.lua` | impl: agent | refill, plan, then apply the plan or refuse; exported
 
 ### Test plan
-| ac | kind | oracle | seam | author |
-|----|------|--------|------|--------|
-| AC1 | example | spec | M.takeWithBurst | test-author |
-| AC2 | example | spec | M.takeWithBurst | test-author |
-| AC3 | example | spec | M.takeWithBurst | test-author |
-| AC4 | example | spec | refillBucket | test-author |
+| ac | test | kind | oracle | seam | author |
+|----|------|------|--------|------|--------|
+| AC1 | new: a request within the burst limit is refused, or borrows the wrong amount | example | spec | M.takeWithBurst | test-author |
+| AC2 | new: a refused request still changes tokens or debt | example | spec | M.takeWithBurst | test-author |
+| AC3 | shared: AC2 | — | — | — | — |
+| AC4 | new: refill adds tokens before the debt is repaid | example | spec | refillBucket | test-author |
 
 ### Notes
 - Bucket gets `debt` and `burstLimit` fields (data model in design.md).

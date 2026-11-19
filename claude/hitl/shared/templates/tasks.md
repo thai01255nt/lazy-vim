@@ -25,10 +25,14 @@
 
 ### Test plan
 
-| ac  | kind     | oracle                                  | seam                   | author      |
-| --- | -------- | --------------------------------------- | ---------------------- | ----------- |
-| AC1 | example  | spec                                    | UserService.createUser | test-author |
-| AC2 | property | invariant: result.email == lower(input) | UserService.createUser | test-author |
+<!-- one row per AC; the test cell is the test decision: new: <the defect it catches> · shared: <ACk> (one test, both
+     @ac) · covered: <test title, file#title or AC id> · none: <reason> (not on security/concurrency/data tasks) ·
+     manual: <check>. Non-new rows may leave kind/oracle/seam/author as "—". -->
+
+| ac  | test                                      | kind     | oracle                                  | seam                   | author      |
+| --- | ----------------------------------------- | -------- | --------------------------------------- | ---------------------- | ----------- |
+| AC1 | new: a duplicate in another case is saved | example  | spec                                    | UserService.createUser | test-author |
+| AC2 | new: the result leaks passwordHash        | property | invariant: result.email == lower(input) | UserService.createUser | test-author |
 
 ### Notes
 

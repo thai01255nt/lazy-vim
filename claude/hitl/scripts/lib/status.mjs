@@ -1,6 +1,8 @@
 // P2 — status machine (§E.6). Pure: computeStatuses(index, lock, state, config, tasks).
 import { CODE_KINDS, isTest, coversOf, taskSymbolIds, taskRisk, isOverride, lockedTasks, openReopen } from "./lock.mjs";
 import { nextForTask } from "./nextstep.mjs";
+import { mutationRequiredFor } from "./config.mjs";
+import { acPlan } from "./testplan.mjs";
 import { archivedChangeOf } from "./tasksmd.mjs";
 
 export const ORDER = ["skeleton", "red", "wip", "green", "verified", "done"];
@@ -134,7 +136,7 @@ function testFacts(index, state, id, cov) {
  * - a fresh failing test → red; the sentinel, or open TODO(impl) steps of T → skeleton;
  * - all tests fresh and passing → done (T's done record matches the body) / verified (T's review PASS) / green; else wip.
  */
-function statusFor(index, lock, state, config, id, T, facts, owners, archivedOf = () => null) {
+function statusFor(index, lock, state, config, id, T, facts, owners, archivedOf = () => null, noTest = () => false) {
   const S = index.symbols[id];
   const reasons = [...facts.reasons];
   const { stale } = facts;
@@ -152,12 +154,16 @@ function statusFor(index, lock, state, config, id, T, facts, owners, archivedOf 
   if (S.stub) { reasons.push("stub (TODO(impl) sentinel present)"); return { status: "skeleton", stale, reasons }; }
   const steps = openStepsFor(index, lock, id, T);
   if (steps) { reasons.push(`${steps} open TODO(impl) step(s) for ${T}`); return { status: "skeleton", stale, reasons }; }
-  if (facts.allPass) {
+  // 0.16: a task whose test plan gives no AC a new or shared test (only none / manual / covered) may have code with no
+  // test of its own: it counts like all-pass once its body is written (covered tests run with the task at review)
+  const byPlan = !facts.A.length && !facts.failing.length && T && noTest(T);
+  if (byPlan) reasons.push("no test of its own by the test plan (none/manual/covered)");
+  if (facts.allPass || byPlan) {
     const task = T || lock.symbols?.[id]?.task;
     const rv = state.reviews?.[task]; const mut = state.mutation?.[id];
     const impl = S.tags?.impl || lock.symbols?.[id]?.impl;
     const thr = config?.mutationThreshold ?? 0.8;
-    const mutOk = !config?.mutationRequired || impl === "manual" || (mut && mut.bodyHash === S.bodyHash && mut.score >= thr);
+    const mutOk = !mutationRequiredFor(config, lock.tasks?.[task]?.risk || "high") || impl === "manual" || (mut && mut.bodyHash === S.bodyHash && mut.score >= thr);
     if (lock.tasks?.[task]?.doneBodyHashes?.[id] && lock.tasks[task].doneBodyHashes[id] === S.bodyHash) return { status: "done", stale, reasons };
     if (rv && rv.verdict === "PASS" && rv.bodyHashes?.[id] === S.bodyHash && mutOk) return { status: "verified", stale, reasons };
     if (rv && rv.verdict === "PASS" && !mutOk) reasons.push("mutation score below threshold or missing");
@@ -169,11 +175,11 @@ function statusFor(index, lock, state, config, id, T, facts, owners, archivedOf 
 }
 
 /** Per-task statuses of one symbol + their minimum (the symbol's overall status, e.g. for its source @status tag). */
-function symbolStatuses(index, lock, state, config, id, cov, archivedOf) {
+function symbolStatuses(index, lock, state, config, id, cov, archivedOf, noTest) {
   const facts = testFacts(index, state, id, cov);
   const owners = tasksOfSymbol(index, lock, id);
   if (!owners.length) return { overall: statusFor(index, lock, state, config, id, null, facts, owners, archivedOf), byTask: {} };
-  const byTask = Object.fromEntries(owners.map((T) => [T, statusFor(index, lock, state, config, id, T, facts, owners, archivedOf)]));
+  const byTask = Object.fromEntries(owners.map((T) => [T, statusFor(index, lock, state, config, id, T, facts, owners, archivedOf, noTest)]));
   if (owners.length === 1) return { overall: byTask[owners[0]], byTask };
   const low = owners.reduce((a, b) => (rank(byTask[b].status) < rank(byTask[a].status) ? b : a));
   const overall = { ...byTask[low], reasons: [`${low}: ${byTask[low].reasons.join("; ") || byTask[low].status}`],
@@ -198,6 +204,9 @@ export function computeStatuses(index, lock, state, config, tasks) {
   const cov = directCoverage(index);
   const archMemo = new Map();
   const archivedOf = (T) => { if (!archMemo.has(T)) archMemo.set(T, archivedChangeOf(lock, tasks, T)); return archMemo.get(T); };
+  const noTestSet = new Set(tasks.filter((t) => (t.testPlan || []).some((r) => !r.legacy) && t.acs.length
+    && t.acs.every((a) => ["none", "manual", "covered"].includes(acPlan(t, a.id).test))).map((t) => t.id));
+  const noTest = (T) => noTestSet.has(T);
   const taskIds = new Set(tasks.map((t) => t.id));
   for (const s of Object.values(index.symbols || {})) for (const t of s.tags?.task || []) taskIds.add(t);
   for (const t of Object.keys(lock.tasks || {})) taskIds.add(t);
@@ -216,12 +225,12 @@ export function computeStatuses(index, lock, state, config, tasks) {
   for (const id of ids) {
     const S = index.symbols[id];
     if (!CODE_KINDS.has(S.kind)) continue;
-    const r = symbolStatuses(index, lock, state, config, id, cov, archivedOf);
+    const r = symbolStatuses(index, lock, state, config, id, cov, archivedOf, noTest);
     symbols[id] = r.overall; perTask[id] = r.byTask;
   }
   // status of id for task T: computed per task (owners), or for a ### Symbols row T has not started on
   const forTask = (id, T) => perTask[id]?.[T]
-    || (CODE_KINDS.has(index.symbols[id]?.kind) ? statusFor(index, lock, state, config, id, T, facts(id), tasksOfSymbol(index, lock, id), archivedOf) : symbols[id]);
+    || (CODE_KINDS.has(index.symbols[id]?.kind) ? statusFor(index, lock, state, config, id, T, facts(id), tasksOfSymbol(index, lock, id), archivedOf, noTest) : symbols[id]);
   for (const id of ids) { // classes: min of their members
     const S = index.symbols[id];
     if (S.kind !== "class") continue;

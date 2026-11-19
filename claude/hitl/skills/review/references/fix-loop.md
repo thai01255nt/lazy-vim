@@ -44,7 +44,8 @@ If you pushed back and were wrong, say so in one line and fix it.
 
 1. `hitl-index context <T> --contract --out .hitl/index/contracts/<T>.md`.
 2. Spawn `hitl:test-author`: contract pack path, test file paths, the test-patterns paths (as in `/hitl:test` fill), the finding (title, evidence, trigger — not the code),
-   `Write one failing test that reproduces F-n (tag @ac with the closest AC, @kind per behaviour, @origin test-author)`.
+   `Write one failing test that reproduces F-n (tag @ac with the closest AC, @kind per behaviour, @origin test-author,
+   @catches = the finding; prefer a new case in the AC's existing table test)`.
 3. `hitl-index test --task <T> --json` → the new test must **fail** on the current body for the reason in the finding.
    It passes → the finding is not reproduced: report it (likely false positive → propose `reject`), stop for this finding.
 4. `hitl-index context <ref> --out .hitl/index/contracts/<T>.impl.md`; spawn `hitl:implementer` with the slice,
@@ -70,6 +71,9 @@ A suggestion, never required: `defer F-n` is fine. On `fix F-n`:
    `Refactor F-n: <title>. Same behaviour; do not edit any test; all tests stay green.` One finding per call.
    Locked signatures and docstrings stay; a rename of a locked symbol goes to the human (§3).
    A private-helper test (tests lens) → test-author moves it to the seam; the human re-locks it (`/hitl:approve <T> tests`).
+   A test-economy finding (redundant, overlapping tracer, no defect named) → the human picks; test-author merges or
+   deletes only those tests; the human re-locks (`/hitl:approve <T> tests` prunes deleted tests from the lock; an
+   archived change: `/hitl:approve <change> accept`). Never deleted without that approval.
 3. Fresh run: all green and no `TEST_CHANGED` in L0 drift → `✅ F-n refactored, task tests n/n`. Otherwise: spawn
    `hitl:implementer` once more with `Undo your refactor of F-n: restore every changed line exactly; all tests stay
    green.`, re-run; still not clean → _Stop:_ show `git diff -- <files>` and stop for the human.

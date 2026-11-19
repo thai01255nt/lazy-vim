@@ -7,6 +7,8 @@ import { HITL_DIR } from "./paths.mjs";
 import { archivedChangeOf } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
 import { blockingNotes, applyCommand, changeWait, waitReasons } from "./notes.mjs";
+import { acPlan, duplicateTestNames, resolveCovered, testBudget } from "./testplan.mjs";
+import { mutationRequiredFor } from "./config.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/2";
 
@@ -253,15 +255,17 @@ export function lockedTasks(entry) {
 }
 
 /**
- * Owner task of a test: the task of its `@ac` ids, else its `@task` tag, else the task that locked it, else null
- * (a plain `@covers` test belongs to whichever task covers it). A test owned by task A that also covers task B's
- * symbols is a regression check for B: B runs it but never re-locks it or requires it to be red.
+ * Owner task of a test: the task of its `@ac` ids (several tasks: the one that locked it, else the first id), else its
+ * `@task` tag, else the task that locked it, else null (a plain `@covers` test belongs to whichever task covers it). A
+ * test owned by task A that also covers task B's symbols (or carries a B AC id) is a regression check for B: B runs it
+ * but never re-locks it or requires it to be red.
  */
 export function testOwner(index, lock, id) {
   const t = index?.symbols?.[id];
-  const ac = (t?.tags?.ac || [])[0];
-  if (ac) return ac.slice(0, ac.indexOf(".AC"));
-  return (t?.tags?.task || [])[0] || lock?.tests?.[id]?.task || null;
+  const acTasks = (t?.tags?.ac || []).map((a) => a.slice(0, a.indexOf(".AC")));
+  const locked = lock?.tests?.[id]?.task || null;
+  if (acTasks.length) return locked && acTasks.includes(locked) ? locked : acTasks[0];
+  return (t?.tags?.task || [])[0] || locked || null;
 }
 
 const taskNum = (t) => Number(/^[A-Z]{2,5}-T(\d+)$/.exec(t)?.[1] ?? -1);
@@ -640,7 +644,8 @@ export function planApproval(opts) {
   const changes = { symbols: { new: [], changed: [], unchanged: [], removed: [], renamed: [] }, tests: { new: [], changed: [], unchanged: [], removed: [] }, acCoverage: {} };
   const warnings = [];
   let noteAcks = [], blockedBy = [];
-  const res = (ok) => ({ ok, stage, task: taskId, by, reasons, warnings, changes, lock, noteAcks, blockedBy });
+  const extra = {};
+  const res = (ok) => ({ ok, stage, task: taskId, by, reasons, warnings, changes, lock, noteAcks, blockedBy, ...extra });
 
   if (opts.ack?.length && by !== "human") { reasons.push(`--ack is human-only (--by human), not --by ${by}`); return res(false); }
   if (CHANGE_STAGES.includes(stage) || opts.changeId) {
@@ -691,10 +696,22 @@ export function planApproval(opts) {
       else if (r.ambiguous) reasons.push(`symbol ${sym.ref} is ambiguous: ${r.ambiguous.join(", ")}`);
       else if (!(index.symbols[r.id].tags?.task || []).includes(taskId)) reasons.push(`symbol ${sym.ref} has no @task ${taskId} tag`);
     }
+    // 0.16: what an AC needs depends on its test decision (testplan.mjs): new → a stub with its @ac; shared:<ACk> → one
+    // stub carrying both @ac ids; covered:<ref> → the ref resolves to an indexed test; none / manual → nothing
+    const hasAcs = (id, want) => want.every((a) => (index.symbols[id].tags?.ac || []).includes(a));
+    const allTests = Object.keys(index.symbols).filter((id) => isTest(index.symbols[id]));
     for (const ac of task?.acs || []) {
-      const cov = testIds.filter((t) => (index.symbols[t].tags?.ac || []).includes(ac.id));
+      const cov = allTests.filter((t) => hasAcs(t, [ac.id]));
       changes.acCoverage[ac.id] = cov;
-      if (!cov.length) reasons.push(`${ac.id} has no test stub with @ac ${ac.id}`);
+      const p = acPlan(task, ac.id);
+      for (const row of p.rows.length ? p.rows : [{ test: "new" }]) {
+        const d = row.test || "new";
+        if (d === "new" && !cov.length) reasons.push(`${ac.id} has no test stub with @ac ${ac.id}`);
+        else if (d === "shared" && p.sharedWith && !allTests.some((t) => hasAcs(t, [ac.id, p.sharedWith])))
+          reasons.push(`${ac.id} shares the test of ${p.sharedWith}: no test stub carries both @ac ${p.sharedWith} ${ac.id}`);
+        else if (d === "covered" && row.detail && !resolveCovered(index, row.detail).length)
+          reasons.push(`${ac.id} covered: ${row.detail} resolves to no indexed test (a test id file#title, a test title, or an AC id with tests)`);
+      }
     }
     if (!symIds.length) reasons.push(`no indexed symbols tagged @task ${taskId}`);
     if (reasons.length && !opts.force) return res(false);
@@ -792,20 +809,53 @@ export function planApproval(opts) {
     // (mutation killers, fix-loop regressions) may already be green; they still need a fresh run.
     const relock = !!lt.testsAt;
     const active = ownTestIds.filter((id) => index.symbols[id].test?.mode === "active");
-    if (!active.length) reasons.push("no active tests cover the task (fill the stubs with /hitl:test first)");
+    // 0.16: a test plan with no new row (every AC none / manual / covered / shared on nothing) needs no own test
+    const planNeedsTests = !(task?.testPlan || []).length || (task.testPlan || []).some((r) => r.legacy || (r.test || "new") === "new");
+    if (!active.length && planNeedsTests) reasons.push("no active tests cover the task (fill the stubs with /hitl:test first)");
+    // 0.16 RED table: assertion-failed (the assertion ran and failed) · reached-stub (only the TODO(impl) sentinel was
+    // hit: the test reaches the code, its assertion is not yet shown to work) · passes (allowed only for @kind regression
+    // at the first lock, or on a re-lock) · broken · skipped · no-run · stale
+    const red = [];
     for (const id of active) {
       const t = index.symbols[id];
       const r = runs[id];
       const name = t.name || id;
-      if (!r) reasons.push(`${name}: no recorded run (hitl-index test --task ${taskId})`);
-      else if (r.testBodyHash !== t.bodyHash) reasons.push(`${name}: run is stale (test changed since last run)`);
-      else if (r.outcome === "pass" && !relock) reasons.push(`${name}: passes against the stub (vacuous test)`);
-      else if (r.outcome === "error" && !String(r.message || "").includes(SENTINEL)) reasons.push(`${name}: errors without the TODO(impl) sentinel: ${r.message || ""}`);
-      else if (r.outcome === "skip") reasons.push(`${name}: skipped`);
+      const regression = t.tags?.kind === "regression";
+      const row = (result) => red.push({ id, name: t.test?.titlePath?.at(-1) ?? name, ac: t.tags?.ac || [], kind: t.tags?.kind || "example", result });
+      if (!r) { row("no-run"); reasons.push(`${name}: no recorded run (hitl-index test --task ${taskId})`); }
+      else if (r.testBodyHash !== t.bodyHash) { row("stale"); reasons.push(`${name}: run is stale (test changed since last run)`); }
+      else if (r.outcome === "pass" && !relock && !regression) { row("passes"); reasons.push(`${name}: passes against the stub (vacuous test; a test of unchanged behaviour is @kind regression)`); }
+      else if (r.outcome === "error" && !String(r.message || "").includes(SENTINEL)) { row("broken"); reasons.push(`${name}: errors without the TODO(impl) sentinel: ${r.message || ""}`); }
+      else if (r.outcome === "skip") { row("skipped"); reasons.push(`${name}: skipped`); }
       // 0.9: a reopened test that was rewritten must fail against the current code (it shows the new behaviour)
-      else if (lock.tests[id]?.stage === "reopened" && t.bodyHash !== lock.tests[id].lockedBodyHash && r.outcome === "pass")
+      else if (lock.tests[id]?.stage === "reopened" && t.bodyHash !== lock.tests[id].lockedBodyHash && r.outcome === "pass") {
+        row("passes");
         reasons.push(`${name}: rewritten after the reopen but passes against the current code; it must fail to show the new behaviour (the human may add --force when the code already does it)`);
+      } else row(r.outcome === "pass" ? (regression && !relock ? "passes (regression)" : "passes") : r.outcome === "error" ? "reached-stub" : "assertion-failed");
     }
+    // 0.16: covered/shared rows hold at the lock; tests added after the skeleton (extras) name the defect they catch
+    for (const ac of task?.acs || []) {
+      const p = acPlan(task, ac.id);
+      for (const row of p.rows) {
+        if (row.test === "covered" && row.detail) {
+          const ids = resolveCovered(index, row.detail);
+          if (!ids.length) reasons.push(`${ac.id} covered: ${row.detail} resolves to no indexed test`);
+          else if (!ids.some((id) => index.symbols[id].test?.mode === "active")) reasons.push(`${ac.id} covered: ${row.detail} is not an active test (todo/skip)`);
+        } else if (row.test === "shared" && p.sharedWith && !active.some((id) => [ac.id, p.sharedWith].every((a) => (index.symbols[id].tags?.ac || []).includes(a))))
+          warnings.push(`${ac.id} shares the test of ${p.sharedWith}, but no active test carries both @ac ${p.sharedWith} ${ac.id}`);
+        else if ((row.test || "new") === "new" && row.author !== "human" && !active.some((id) => (index.symbols[id].tags?.ac || []).includes(ac.id)))
+          warnings.push(`${ac.id} (new) has no active test yet`);
+      }
+    }
+    const budget = testBudget(index, lock, task, active);
+    // a pre-0.16 test plan (no `test` column) keeps the old rule: extras without @catches are listed, not refused
+    const legacyPlan = !(task?.testPlan || []).some((r) => !r.legacy);
+    for (const x of budget.extras) if (!x.catches) (legacyPlan ? warnings : reasons).push(`${x.name}: a test added after the skeleton needs @catches <the defect it catches> (extras only with a named defect)`);
+    if (budget.over) warnings.push(`test budget: ${budget.tests} active tests > ${budget.limit} (${budget.newRows} new rows + 2)${budget.extras.length ? `; extras: ${budget.extras.map((x) => `${x.name} (${x.catches || "no defect named"})`).join("; ")}` : ""}`);
+    // 0.16: one test name twice in a test file (Python keeps only the last definition) blocks the lock
+    for (const d of duplicateTestNames(index, [...new Set(ownTestIds.map((id) => index.symbols[id].file))]))
+      reasons.push(`duplicate test name ${d.name} in ${d.file} (${d.ids.length}×): ${d.suggestion}`);
+    extra.red = red; extra.budget = budget;
     if (reo?.pending?.includes("tests")) {
       for (const ac of reo.acs || []) if (!active.some((id) => (index.symbols[id].tags?.ac || []).includes(ac))) reasons.push(`${ac} (reopened) has no active test`);
       // only the reopened tests may change while the reopen is open
@@ -830,6 +880,8 @@ export function planApproval(opts) {
     lt.testsAt = now;
     if (reo?.pending?.includes("tests")) lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, pending: reo.pending.filter((x) => x !== "tests") }];
   } else if (stage === "done") {
+    // 0.16: manual checks of the test plan, listed for the human's confirmation
+    extra.manual = (task?.acs || []).flatMap((a) => acPlan(task, a.id).manual.map((check) => ({ ac: a.id, check })));
     const reo = openReopen(lt);
     if (reo?.pending?.length) { reasons.push(`${taskId} is reopened (${reo.note}, ${reo.pending.join(" then ")} pending): ${reo.pending[0] === "skeleton" ? `/hitl:skeleton ${taskId}` : `/hitl:test ${taskId}`} first`); return res(false); }
     const rv0 = state.reviews?.[taskId];
@@ -839,7 +891,7 @@ export function planApproval(opts) {
     const st = { ...(statuses?.symbols || {}), ...(statuses?.tasks?.[taskId]?.symbolStatus || {}) };
     for (const id of symIds) {
       const s = st[id]?.status;
-      const okGreen = s === "green" && rv?.verdict === "PASS" && !config.mutationRequired;
+      const okGreen = s === "green" && rv?.verdict === "PASS" && !mutationRequiredFor(config, risk);
       if (!(s === "verified" || s === "done" || okGreen)) reasons.push(`${index.symbols[id].name}: status ${s || "unknown"} (needs verified)`);
     }
     if (!symIds.length) reasons.push("task has no symbols");

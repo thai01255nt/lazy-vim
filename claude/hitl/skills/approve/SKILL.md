@@ -78,6 +78,12 @@ Linked <symbol>: PWR-D1, ACC-R1.S1 — if the decision changed, amend the spec (
 The `Removed from lock` line: only when the JSON `changes.symbols.removed` / `changes.tests.removed` is non-empty (locked items of the task deleted or renamed in code).
 The `Renamed in lock` line: one entry per JSON `changes.symbols.renamed` item (`from → to`); empty → no line.
 The `Linked` line: one per entry of the JSON `specLinks` (skeleton re-approvals only); no `specLinks` → no line.
+Tests stage (0.16): from the JSON `red` (`ac · test · kind · result`, result `assertion-failed` | `reached-stub`),
+`Guards existing behaviour:` for `passes (regression)` rows, and `Tests: <budget.tests> active · budget
+<budget.limit> (<budget.newRows> new rows + 2)` with the extras and their defects (⚠️ over budget: a warning, never a
+refusal). Deleted tests appear in `Removed from lock` (the approve path for a prune the human chose).
+Done stage: each JSON `manual` item as `- <ac>: <check>` under `Manual checks (confirm each):` — ask nothing more;
+the human typed the approval.
 Change form:
 ```
 ✅ Re-approved intents of <change-id> (by human): <n> symbol(s)

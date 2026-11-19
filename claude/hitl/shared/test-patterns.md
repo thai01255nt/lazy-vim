@@ -21,8 +21,11 @@ Plugin vocabulary for skeleton, test, implement and review. It is **not** the pr
 "Component" (the C4 level in `design.md`) and "trust boundary" (security) keep their meaning.
 
 ## 1. Names
-- Title = `<KEY>-T<n>.AC<k>` + the capability in domain words: WHAT, not HOW (`PWR-T12.AC2 unknown email gets the same message`,
-  not `calls mailer 0 times`). One behaviour per title; "and" → split.
+- Name = the capability in domain words: WHAT, not HOW (`unknown email gets the same message`, not `calls mailer 0
+  times`; Python `test_unknown_email_gets_the_same_message`). No planning id in a name: one test may prove several ACs
+  and ACs of later changes, and tasks get superseded; the ids live only in `@ac` (several allowed), which trace, lock and
+  the contract pack read. One behaviour per name; "and" → split. Unique per file (Python keeps only the last of two).
+- Before writing a test, name the production defect that makes it fail (`@catches`). No defect → no test.
 - Use the contract pack's `## Terms` (glossary order, ≤ 8): write each **term** as given, never a word from its
   `(avoid: …)` list, in `describe`/`it` titles and test helper names. No `## Terms` → the AC's own words.
 - `describe` = the row's seam (usually the covered symbol ref).
@@ -63,18 +66,20 @@ Asserting on a call is allowed **only** at a true-external port when the call *i
 - The **highest** seam that can observe the AC; prefer existing seams; the fewest per task. A lower seam needs a reason
   in the Test plan row (e.g. a pure function with a property test).
 - Per seam, one line: what it **catches** and what it **misses** (design `## Test strategy`).
-- **AC1 is the tracer**: the main success path end to end through the highest seam. Test files keep AC order.
+- **AC1 is the tracer**: the main success path end to end through the highest seam. Test files keep AC order. A later
+  task's tracer through the same seam is `covered:` by the earlier one, not a second test.
 - Slow seams (browser, e2e) never drive RED; keep them for a later regression row.
 - No independent oracle (pure wiring or config) → test at a higher seam that exercises it, or `author: human` with a
   reason. Never a tautology.
 
 ## 6. The double loop
-- **Outer loop** (`/hitl:test`): the AC tests of one task, written from the contract and locked RED together. A batch
-  for a ≤ 6-symbol slice with human-approved oracles; not upstream's "horizontal slicing" of a whole feature.
+- **Outer loop** (`/hitl:test`): the `new` tests of one task's test plan (approved at the tasks gate), written from the
+  contract and locked RED together: acceptance tests first, not Beck's one-test cycle. A batch for a ≤ 6-symbol slice
+  with human-approved oracles; not upstream's "horizontal slicing" of a whole feature.
 - **Inner loop** (implementer, `/hitl:tdd`): one failing test at a time in file order, AC1 first. Write only the code
   that test needs (within the TODO steps), run, see it green, take the next. Never write code for a test that is not
   current. A run that turns a test green is progress; only runs without progress count against the iteration cap.
 
 ## 7. Refactor
-Not part of implement or the loop. Structure fixes happen in `/hitl:review` and its fix loop (implementer, under the
-locked green tests), or in a `refactor-` change. The contract lens lists them as suggestions (`lenses.md` "Structure").
+Not part of implement. Structure fixes happen in `/hitl:review` and its fix loop (implementer, under the locked green
+tests), or in a `refactor-` change. `/hitl:tdd` (no lock) may refactor after each green cycle, tests untouched. The contract lens lists them as suggestions (`lenses.md` "Structure").

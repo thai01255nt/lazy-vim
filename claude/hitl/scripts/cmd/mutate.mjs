@@ -31,15 +31,44 @@ function tally(per, id, status) {
 }
 const finish = (per) => { for (const c of Object.values(per)) c.score = c.total ? Math.round((c.killed / c.total) * 1000) / 1000 : 0; return per; };
 
-/** Stryker mutation.json → {perSymbol:{id:{score,survivors,killed,total}}, unmapped} */
+/**
+ * Index test id of a Stryker test name (schema `testFiles[*].tests[{id, name}]`): the test whose title path joined with
+ * " " (Stryker's full name) or whose last title equals it; else `name:<stryker name>`.
+ */
+function testKeyOf(index, name) {
+  const tests = Object.values(index.symbols).filter((s) => s.kind === "test" || s.test);
+  const hit = tests.find((s) => (s.test?.titlePath || []).join(" ") === name) || tests.find((s) => s.test?.titlePath?.at(-1) === name || s.name === name);
+  return hit ? hit.id : `name:${name}`;
+}
+
+/**
+ * Stryker mutation.json → {perSymbol:{id:{score,survivors,killed,total,kills?}}, unmapped}. 0.16: when mutants carry
+ * `killedBy` (test ids), `kills` = {byTest:{testKey:{killed, unique}}, complete} per symbol — which tests kill which
+ * mutants, for pruning (`hitl-index tests audit`). `complete` is false when a mutant lists one killer only while others
+ * cover it (Stryker stops at the first killing test unless `disableBail` is set), so "unique" is then a lower bound.
+ */
 export function parseStryker(report, index, ids, root = "") {
   const per = {}; let unmapped = 0;
+  const names = new Map();
+  for (const tf of Object.values(report?.testFiles || {})) for (const t of tf.tests || []) names.set(String(t.id), t.name);
+  const keyOf = new Map();
+  const key = (tid) => { if (!keyOf.has(tid)) keyOf.set(tid, testKeyOf(index, names.get(String(tid)) ?? String(tid))); return keyOf.get(tid); };
   for (const [f, data] of Object.entries(report?.files || {})) {
     let rel = f.replace(/\\/g, "/"); if (root && rel.startsWith(root + "/")) rel = rel.slice(root.length + 1); rel = rel.replace(/^\.\//, "");
     for (const m of data.mutants || []) {
       const id = innermost(index, rel, m.location?.start?.line ?? -1, ids);
       if (!id) { unmapped++; continue; }
       tally(per, id, m.status);
+      if (!Array.isArray(m.killedBy)) continue;
+      const c = per[id];
+      c.kills ||= { byTest: {}, complete: true };
+      const killers = [...new Set(m.killedBy.map(key))];
+      if (KILLED.has(m.status) && killers.length === 1 && (m.coveredBy || []).length > 1) c.kills.complete = false;
+      for (const k of killers) {
+        const e = (c.kills.byTest[k] ||= { killed: 0, unique: 0 });
+        e.killed++; if (killers.length === 1) e.unique++;
+      }
+      for (const k of (m.coveredBy || []).map(key)) c.kills.byTest[k] ||= { killed: 0, unique: 0 };
     }
   }
   return { perSymbol: finish(per), unmapped };
@@ -126,8 +155,8 @@ export async function run(argv, ctx) {
     if (!parsed) continue;
     result.unmapped += parsed.unmapped;
     for (const [id, c] of Object.entries(parsed.perSymbol)) {
-      await recordMutation(ctx.root, id, { score: c.score, survivors: c.survivors, bodyHash: index.symbols[id].bodyHash, details: { killed: c.killed, total: c.total } });
-      result.perSymbol[id] = { score: c.score, survivors: c.survivors, total: c.total };
+      await recordMutation(ctx.root, id, { score: c.score, survivors: c.survivors, bodyHash: index.symbols[id].bodyHash, details: { killed: c.killed, total: c.total }, ...(c.kills ? { kills: c.kills } : {}) });
+      result.perSymbol[id] = { score: c.score, survivors: c.survivors, total: c.total, ...(c.kills ? { kills: c.kills } : {}) };
     }
   }
   if (json) console.log(JSON.stringify(result, null, 2));

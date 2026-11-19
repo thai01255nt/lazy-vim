@@ -37,7 +37,7 @@ only execution allowed. A lead that needs a run stays `needs_validation`.
 
 - Never edit source, tests, docs, the lock or the index. Write is only for your output JSON (hook-enforced: only
   `.hitl/reviews/**`).
-- Bash only: `hitl-index context|status|drift|test …` and `git [-C <path>] [--no-pager] diff|log|show|blame …`, no chaining, pipes or redirects.
+- Bash only: `hitl-index context|status|drift|test|tests audit …` and `git [-C <path>] [--no-pager] diff|log|show|blame …`, no chaining, pipes or redirects.
   Never move HEAD, never stash, never checkout.
 - Do not spawn subagents. Do the whole lens yourself; if it is large, review in passes and say so in `notes`.
 

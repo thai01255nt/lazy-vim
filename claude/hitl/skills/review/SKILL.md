@@ -43,7 +43,11 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    broken references: `CHANGE_MISSING`, `REQ_UNKNOWN`, `SCN_UNKNOWN`, `RULE_UNKNOWN`, `REQ_INACTIVE` (the task's own
    change removes it), `SPEC_STALE` (an archived task refs an id a later change removed; block only while the task is
    not done), `DEC_UNKNOWN`, `AC_UNKNOWN`, `COVERS_UNRESOLVED` (legacy plannings: `PLANNING_MISSING`, `R-n` codes).
-   Gaps (`AC_NOT_PROVEN`, `SCN_NO_AC`, `REQ_NO_AC`, `AC_REQ_LEVEL`, …) make it `warn` — list them, never block on them.
+   Gaps (`AC_NOT_PROVEN`, `AC_COVERED_UNRESOLVED`, `SCN_NO_AC`, `REQ_NO_AC`, `AC_REQ_LEVEL`, …) make it `warn` — list
+   them, never block on them. ACs with test decision `none:` or `manual:` are info (`AC_NO_TEST_BY_DECISION`,
+   `AC_MANUAL_CHECK`), never "not proven"; `l0.trace.budget` = the task's active tests vs `new` rows + 2.
+   The `mutation` gate fails for a high-risk task when a mutation command is configured and a symbol is unmutated or
+   below the threshold (`mutationRequired: "high"`, the default since 0.16).
    `l0.trace.spec[<symbol>]` gives each symbol's spec block (`change`, `archived`, `capability`, `design`, decisions,
    requirements with `scenario`) — the reviewers and `amend F-n` use it.
    The `terms` gate is `warn` when a task intent uses a glossary `_Avoid_` word (`TERM_AVOIDED`, with the term to use); never blocks.
@@ -67,7 +71,8 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    Write findings JSON (schema hitl.findings/1) to .hitl/reviews/<T>/findings-<lens>.json, then return the summary JSON.
    ```
    Security lens: add the line `Security method: ${CLAUDE_PLUGIN_ROOT}/skills/review/references/security.md §2–3 (upstream attack-class docs, guidance mode).`
-   Tests lens: add the line `Test patterns: ${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md`.
+   Tests lens: add the line `Test patterns: ${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md`
+   and the line `Test economy: hitl-index tests audit <T> --json (prune candidates; suggestions only)`.
 6. **Verify**: read `review.confidenceThreshold` from `.hitl/hitl.config.json` (default 80). Spawn **one**
    `hitl:finding-verifier` (haiku) with: the list of `R/findings-<lens>.json` files that exist, the review-context path,
    the threshold, and the output path `R/findings.json`. If a reviewer failed to write its file, note `⚠️ <lens> lens missing`

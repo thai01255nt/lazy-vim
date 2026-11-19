@@ -130,7 +130,10 @@ export async function buildContext(root, target, { contract = false, budget = 12
         ...reo.tests.filter((id) => !(lock.tests?.[id]?.ac || []).some((a) => reo.acs.includes(a))).map((id) => `- covers a reopened symbol: ${tname(id)}`),
         "A rewritten test must FAIL against the current code (it shows the new behaviour). Leave every other locked test unchanged.");
     }
-    if (task.testPlan.length) head.push("", "## Test plan", "| ac | kind | oracle | seam | author |", "|---|---|---|---|---|", ...task.testPlan.map((r) => `| ${r.ac} | ${r.kind} | ${r.oracle} | ${r.seam} | ${r.author} |`));
+    // 0.16: the test decision per row (`new: <defect>` rows are the ones to write; shared → one test with both @ac;
+    // covered / none / manual → no test to write)
+    const testCell = (r) => (r.legacy ? "new" : `${r.test || "?"}${r.detail ? `: ${r.detail}` : ""}`).replace(/\|/g, "\\|");
+    if (task.testPlan.length) head.push("", "## Test plan", "| ac | test | kind | oracle | seam | author |", "|---|---|---|---|---|---|", ...task.testPlan.map((r) => `| ${r.ac} | ${testCell(r)} | ${r.kind} | ${r.oracle} | ${r.seam} | ${r.author} |`));
   } else head.push(`# Context ${S[ids[0]].name}`);
   sections.push({ text: head.join("\n") });
 

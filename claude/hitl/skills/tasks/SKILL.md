@@ -29,6 +29,8 @@ Arguments: `$ARGUMENTS`
     tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
     tests reopen through `/hitl:approve <id> reopen`); remove tasks only if the
     user agrees at the quiz gate. overwrite: only for tasks with status `todo`.
+    A test-plan table without the `test` column (before 0.16) stays as it is; when you add a row to it, add the column
+    to that table and give each old row its decision (`new: <defect>` for the tests it already has).
 
 ## 2. Load (no questions)
 - `hitl-index spec show --change <id> --json` (effective view: requirements, scenarios with GIVEN/WHEN/THEN, rules,
@@ -47,7 +49,7 @@ write its exact path. Many unknowns → one Explore subagent (thoroughness: medi
 
 ## 4. Draft
 Per `slicing-and-risk.md`: vertical slices (prefactor first, expand–contract for wide refactors), `blocked-by` edges,
-prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), test-plan row per AC.
+prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), a test-plan row per AC with its test decision (`new: <defect>` · `shared: <ACk>` · `covered: <test>` · `none: <reason>` · `manual: <check>`, `slicing-and-risk.md` §7).
 - Tasks come from the **scenarios** (behaviour) sliced along the design's **components** (where it lives).
 - Each AC carries the scenario it instantiates right after its id: `- [ ] PWR-T12.AC1 (PWR-R3.S1) Given … When … Then …`.
   Only ADDED/MODIFIED (or living, for a regression AC) ids of the change's view. A requirement-level ref `(PWR-R3)` is
@@ -55,13 +57,15 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
 - `**Why**` cites the design decisions it implements: `… (PWR-D1, PWR-D2)`. No design (skipped) → cite the requirement ids.
 - Symbols (`### Symbols`) are the first place code names appear: they belong here, not in the spec or design.
 - Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high → tell the user and recommend `/hitl:plan` at the gate.
+  A trivial change (wording, constant, log line) usually gets `none: <reason>` or `covered: <test>` instead of a new test.
 
 ## 5. Write and validate (loop until clean)
 1. Write the file: header (`# <Title> Tasks`, `← Change: <id>` — quick: `← Change: none | key: <key>` — `> status: draft`), then tasks sorted by prio.
    Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
    (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
-   `new` symbol already exists, AC without test-plan row, bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
+   `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK`,
+   bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
    `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids) and re-run.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
@@ -77,8 +81,15 @@ _Summary:_ changes/<id>/tasks.md — <n> tasks (<h> high, <l> low) · spec: <sta
 | PWR-T11 | Extract PasswordHasher        | P0   | low                   | agent  | —          |
 | PWR-T12 | Register user (unique email)  | P1   | high (security, api)  | mixed  | PWR-T11       |
 
+_Test plan:_ <n> new tests (budget <n+2 per task>) · <s> shared · <c> covered · <x> none · <m> manual
+| task    | AC  | test                                        | seam                   |
+|---------|-----|---------------------------------------------|------------------------|
+| PWR-T12 | AC1 | new: a duplicate in another case is saved   | UserService.createUser |
+| PWR-T12 | AC2 | shared: AC1                                 | —                      |
+
 <consistency lines: trace warn/info (one line per code: ids) + semantic checks from slicing-and-risk.md §8, if any>
 1. Granularity ok?  2. Blocking edges right?  3. Merge/split?  4. Owners (agent/manual) ok?
+5. Test plan ok? (new tests and the defect each catches, shared/covered/none/manual, seams)
 — reply changes, or Y
 ```
 END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: set the header `> status: approved`

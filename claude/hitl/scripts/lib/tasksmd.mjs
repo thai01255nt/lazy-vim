@@ -8,6 +8,7 @@ import { paths } from "./project.mjs";
 import { exists, readJson } from "./fsutil.mjs";
 import { readPlanning, statusText } from "./planningmd.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
+import { checkCoveredAcRefs, checkTestPlan, parseTestCell } from "./testplan.mjs";
 import { AC_ID_RE, AC_ID_SRC, ARCHIVE_DIR_RE, CHANGE_KEY_RE, DEC_ID_RE, LEGACY_DEC_RE, QUICK_KEY, SPECREF_SRC, TASK_ID_SRC, formatTaskId, isChangeId, parseId, parseTaskId } from "./specids.mjs";
 
 const REF = `(?:${SPECREF_SRC}|R-\\d+)`;
@@ -124,9 +125,10 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       task.symbols.push({ order: Number(m[1]), ref: m[3], change: m[4], file: m[5], impl: m[6], purpose: m[7].trim(), done: m[2] === "x" });
     else if (section === "symbols" && /^\d+\. /.test(line)) task.parseErrors.push(`malformed symbol line: ${line}`);
     else if (section === "test plan" && /^\|/.test(line)) {
-      const cells = line.split("|").slice(1, -1).map((c) => c.trim());
-      if (cells.length < 5 || /^-+$/.test(cells[0]) || cells[0].toLowerCase() === "ac") continue;
-      task.testPlan.push({ ac: cells[0], kind: cells[1], oracle: cells[2], seam: cells[3], author: cells[4] });
+      const cells = splitRow(line);
+      if (cells[0]?.toLowerCase() === "ac") { task._cols = cells.map((c) => c.toLowerCase()); continue; }
+      if (cells.length < 5 || /^:?-+:?$/.test(cells[0])) continue;
+      task.testPlan.push(testPlanRow(cells, task._cols));
     }
   }
   if (doc.change === "none") doc.change = null;
@@ -143,8 +145,37 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     t.changeDir = doc.changeDir;
     if (!t._meta && !t.parseErrors.some((e) => e.startsWith("malformed meta"))) t.parseErrors.push("meta line missing");
     delete t._meta;
+    delete t._cols;
   }
   return doc;
+}
+
+/** Cells of a markdown table row; `\|` stays a literal pipe inside a cell. */
+function splitRow(line) {
+  const cells = [];
+  let cur = "";
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "\\" && line[i + 1] === "|") { cur += "|"; i++; continue; }
+    if (ch === "|") { cells.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  cells.push(cur);
+  return cells.slice(1, -1).map((c) => c.trim());
+}
+
+/**
+ * One `### Test plan` row. 0.16: columns by the header names (`| ac | test | kind | oracle | seam | author |`); the
+ * `test` cell holds the test decision (testplan.mjs). A table without a `test` column (before 0.16) reads each row as
+ * `new` with no defect named (`legacy: true`), so old tasks files keep working unchanged.
+ */
+function testPlanRow(cells, cols) {
+  const at = (name, pos) => { const i = cols ? cols.indexOf(name) : -1; return i >= 0 ? cells[i] ?? "" : cols ? "" : cells[pos] ?? ""; };
+  const hasTest = !!cols && cols.includes("test");
+  const base = { ac: at("ac", 0), kind: at("kind", 1), oracle: at("oracle", 2), seam: at("seam", 3), author: at("author", 4) };
+  if (!hasTest) return { ...base, test: "new", detail: null, legacy: true };
+  const p = parseTestCell(at("test", -1));
+  return { ...base, test: p.test, detail: p.detail, ...(p.bad ? { bad: true, raw: p.raw } : {}) };
 }
 
 const dirNames = async (dir) => (await fs.readdir(dir, { withFileTypes: true }).catch(() => []))
@@ -210,6 +241,7 @@ export async function checkTasks(root, tasks, index) {
     }
   }
   for (const [id, n] of ids) if (n > 1) err(tasks.find((t) => t.id === id), `duplicate task id ${id} (${n}×)`);
+  const allAcIds = new Set(tasks.flatMap((t) => t.acs.map((a) => a.id)));
   for (const t of tasks) {
     for (const e of t.parseErrors) err(t, e);
     for (const b of t.blockedBy) if (!ids.has(b)) err(t, `blocked-by ${b} is not a known task`);
@@ -221,6 +253,9 @@ export async function checkTasks(root, tasks, index) {
     }
     const planned = new Set(t.testPlan.map((r) => acKey(t.id, r.ac)));
     for (const ac of t.acs) if (!planned.has(ac.id)) err(t, `${ac.id} has no test-plan row`);
+    // 0.16: the test decision of each row (new: <defect> | shared | covered | none | manual)
+    for (const e of checkTestPlan(t)) err(t, e);
+    for (const e of checkCoveredAcRefs(t, allAcIds)) err(t, e);
     // spec references (refs on ACs, D-n in **Why**) must resolve against the task's change (effective spec view +
     // design.md) or, for a v0.5 task file, against its planning file
     const hasReqs = t.acs.some((a) => (a.reqs || []).length);

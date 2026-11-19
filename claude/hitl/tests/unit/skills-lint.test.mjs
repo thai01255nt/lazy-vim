@@ -206,7 +206,8 @@ test("go (0.11): one entry for new work, router agent, trigger split, docs rows"
   assert.equal(ag.name, "work-router");
   assert.doesNotMatch(ag.tools, /\bEdit\b/);
   const router = read("agents/work-router.md");
-  assert.match(router, /Ties go to the safer, heavier route: plan over quick over tdd/);
+  // 0.16: one ordered rule replaced "ties go heavier" (doubt falls to the next, heavier route)
+  assert.match(router, /falls to a later, heavier route \(tdd → quick →\s+plan\)/);
   assert.match(router, /"schema": "hitl\.route\/1"/);
   for (const r of ["`note`", "`amend`", "`update`", "`tdd`", "`quick`", "`plan`"]) assert.ok(router.includes(r), `router route ${r}`);
   assert.match(router, /≤ 3 short questions/);
@@ -409,5 +410,39 @@ test("0.15.0: label legend in help, pointer in conventions, upgrade note; brief 
   assert.match(read("agents/work-router.md"), /"summary": "/);
   assert.doesNotMatch(read("agents/work-router.md"), /"brief":/);
   assert.match(read("skills/go/SKILL.md"), /--text "<\.summary>"/);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.15.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.15\.\d+$|^0\.(1[6-9]|[2-9]\d)\.\d+$/, "version ≥ 0.15.0");
+});
+
+// 0.16.0 — test policy: per-AC test decision, test plan at the tasks gate, names without ids, budget, audit, router rule
+test("0.16.0: test policy in the docs (decisions, Q5, names without ids, @catches, regression, budget, audit, router rule)", () => {
+  const tpl = read("shared/templates/tasks.md");
+  assert.match(tpl, /^\| ac +\| test +\| kind +\| oracle +\| seam +\| author +\|$/m, "tasks template has the test column");
+  assert.match(tpl, /\| AC1 \| new: \S/);
+  const sr = read("skills/tasks/references/slicing-and-risk.md");
+  for (const d of ["`new: <defect>`", "`shared: <ACk>`", "`covered: <test>`", "`none: <reason>`", "`manual: <check>`"]) assert.ok(sr.includes(d), `slicing §7 names ${d}`);
+  assert.match(sr, /5\. Test plan ok\?/);
+  assert.match(read("skills/tasks/SKILL.md"), /5\. Test plan ok\?/);
+  assert.match(read("skills/tasks/SKILL.md"), /TEST_PLAN_BAD\|NO_DEFECT\|EMPTY\|SHARED\|COVERED\|NONE_RISK/);
+  assert.match(read("skills/skeleton/SKILL.md"), /One stub per `new` row/);
+  for (const f of ["shared/test-patterns.md", "skills/test/references/test-kinds.md", "skills/test/references/tdd-rules.md", "agents/test-author.md", "shared/tag-grammar.md"])
+    assert.doesNotMatch(read(f), /[Tt]itle (?:always )?starts with the AC id|test_T\d+_AC\d+|keeps the `<KEY>-T<n>\.AC<k>` prefix/, `${f}: names carry no ids`);
+  for (const f of ["shared/templates/skeleton-ts.md", "shared/templates/skeleton-py.md", "shared/templates/skeleton-lua.md"]) {
+    assert.match(read(f), /@catches /, `${f}: stub carries @catches`);
+    assert.doesNotMatch(read(f), /(?:it\.todo|pending)\("[A-Z]{2,5}-T\d+\.AC|def test_T\d+_AC/, `${f}: stub names carry no ids`);
+  }
+  assert.match(read("shared/tag-grammar.md"), /\| `@catches` \| test \|/);
+  assert.match(read("shared/tag-grammar.md"), /"regression"/);
+  assert.match(read("agents/test-author.md"), /"catches": "<defect>"/);
+  assert.match(read("skills/test/SKILL.md"), /`reached-stub`/);
+  assert.match(read("skills/review/references/lenses.md"), /\*\*Test economy\*\*/);
+  assert.match(read("skills/tdd/SKILL.md"), /add it to the test list/);
+  const wr = read("agents/work-router.md");
+  assert.match(wr, /## Routes \(one rule: try them in this order; the first whose conditions all hold wins\)/);
+  assert.doesNotMatch(wr, /Ties go to the safer, heavier route: plan over quick over tdd/, "the old contradictory tie rule is gone");
+  assert.doesNotMatch(read("skills/flow/references/help.md"), /Ties go to the heavier route/);
+  const readme = read("README.md");
+  assert.match(readme, /^### Nâng cấp từ 0\.15\.0/m);
+  const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.15.0"), readme.indexOf("### Nâng cấp từ 0.14.1"));
+  for (const w of ["không phải TDD của Kent Beck", "/hitl:tdd", "lỗi nó bắt", "tests audit", "mutationRequired", "@kind regression"]) assert.ok(note.includes(w), `README 0.16 note: ${w}`);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.16.0");
 });

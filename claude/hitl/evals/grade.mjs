@@ -296,6 +296,13 @@ const CHECKS = {
   tasks_all_scenarios: (S, P) => { const r = json(cli(P, "trace", "feat-password-reset", "--json").out); const n = (r?.items ?? []).filter((i) => i.code === "SCN_NO_AC").length; return ok(r && n === 0, `SCN_NO_AC: ${n}`); },
   tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(new RegExp(`\\*\\*Why\\*\\*.*\\(${K}-D\\d+`).test(t), "Why does not cite a decision <KEY>-D<n>"); },
   tasks_quiz_gate: (S) => ok(new RegExp(`\\| *${K}-T\\d+`).test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
+  // 0.16: the test plan has a test decision per row (new rows name a defect) and the gate asks question 5 (test plan)
+  tasks_test_decisions: (S, P) => {
+    const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? "";
+    const rows = t.split("\n").filter((l) => /^\|\s*AC\d+\s*\|/.test(l));
+    const decided = rows.filter((l) => /\|\s*(new:\s*\S|shared:\s*\S|covered:\s*\S|none:\s*\S|manual:\s*\S)/.test(l));
+    return ok(rows.length > 0 && decided.length === rows.length && /Test plan ok/i.test(S.text), `rows ${rows.length}, with a decision ${decided.length}, gate Q5 ${/Test plan ok/i.test(S.text)}`);
+  },
   tasks_not_approved: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(!/> status: approved/.test(t), "self-approved tasks"); },
   // ---- review
   review_l0: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/QT-T1/l0.json")), "no l0.json"),
@@ -354,10 +361,14 @@ const CHECKS = {
     const bad = (r?.items ?? []).filter((i) => /BAD_TAG|ORPHAN|PARSE_ERROR/.test(i.code ?? ""));
     return ok(r && !bad.length, `drift: ${JSON.stringify(bad).slice(0, 300)}`);
   },
+  // 0.16: one stub per `new` row (AC1, AC2, AC4); AC3 is `shared: AC2` → its id joins AC2's @ac; names carry no ids
   lua_test_stubs: (S, P) => {
     const specs = walk(path.join(P, "spec")).filter((f) => f.endsWith(".lua")).map(read).join("\n");
-    const miss = [1, 2, 3, 4].filter((k) => !new RegExp(`@ac BURST-T1\\.AC${k}\\b`).test(specs) || !new RegExp(`["']BURST-T1\\.AC${k}\\b`).test(specs));
-    return ok(!miss.length, `ACs without a stub: ${miss.join(",")}`);
+    const acLines = specs.split("\n").filter((l) => /@ac\b/.test(l));
+    const miss = [1, 2, 3, 4].filter((k) => !acLines.some((l) => new RegExp(`BURST-T1\\.AC${k}\\b`).test(l)));
+    const shared = acLines.some((l) => /BURST-T1\.AC2\b/.test(l) && /BURST-T1\.AC3\b/.test(l));
+    const idInName = /(?:pending|it|describe)\(\s*["'][^"']*BURST-T1\.AC\d/.test(specs);
+    return ok(!miss.length && shared && !idInName, `ACs without a stub: ${miss.join(",") || "none"}; AC3 shares AC2's stub: ${shared}; id in a name: ${idInName}`);
   },
   skeleton_gate: (S) => {
     const b = bashCalls(S).find((x) => /\bapprove\b/.test(x));

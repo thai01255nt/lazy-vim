@@ -32,8 +32,10 @@ the right thing.
 - Source of truth for expected values: the intent docstring, the TODO(impl) flow, the ACs and the test-plan oracle.
   **Never the implementation** (the test-author never sees bodies). Expected values must come from an independent source;
   a test that recomputes the answer the way the code does is tautological.
-- One behaviour per test. The title starts with the AC id: `PWR-T12.AC1 rejects duplicate email in any case`.
-- Before writing a test, name the production defect that would make it fail. If you cannot, the test is not worth writing.
+- One behaviour per test. The name says it in domain words, no planning id (`rejects duplicate email ignoring case`);
+  the AC ids live in `@ac`.
+- Before writing a test, name the production defect that would make it fail (`@catches`, the row's `new: <defect>`).
+  If you cannot, the test is not worth writing. A test is code that must earn its place: it costs reading and upkeep.
 - Names, anti-patterns and doubles: `${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md` §1–§3 (+ `skills/tdd/tests.md`,
   `mocking.md`).
 - Keep test-only helpers in test files/utilities, never in production modules.
@@ -43,9 +45,12 @@ the right thing.
 Run `hitl-index test --task <T> --json`. Each new test must be:
 - `fail` with the expected assertion message, or
 - `error` whose message contains `TODO(impl)` (the stub's sentinel was reached through the real call path).
+The lock reports which: `assertion-failed` shows the assertion works; `reached-stub` shows only that the test reaches
+the code (any assertion would be red against a stub). The assertion's value shows at green and under mutation.
 
 Anything else is wrong:
-- **passes** → it tests existing behaviour or nothing (vacuous). Tighten it.
+- **passes** → it tests existing behaviour or nothing (vacuous). Tighten it. Exception: a `@kind regression` test
+  guards behaviour that exists already; it may pass (listed apart at the lock).
 - **errors without the sentinel** (import path, syntax, typo, fixture) → fix the test until it fails correctly.
 
 ## 4. GREEN — minimal body

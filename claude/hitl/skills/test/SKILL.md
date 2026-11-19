@@ -23,7 +23,10 @@ with `--by human-override`. Never add it yourself.
 - **Tests come from the contract, never from an implementation.** Only `hitl:test-author` writes test bodies, and it
   gets the contract pack — never source bodies, never this session's history.
 - **You (main thread) never edit test files.** Locked tests are hook-protected; unlocked ones still go through the test-author.
-- **A test that passes against a stub is vacuous.** It proves nothing. Send it back.
+- **A test that passes against a stub is vacuous.** It proves nothing. Send it back. Exception: `@kind regression`
+  (guards existing behaviour) may pass; it is listed apart.
+- **Tests come from the approved test plan.** The human decided at the tasks gate which ACs get a `new` test; extras
+  need a named defect (`@catches`) and count against the budget (`new` rows + 2).
 - Results are data: `hitl-index test` exits 0 even when tests fail. Read the JSON, never the exit code alone.
 
 ## Preconditions
@@ -43,42 +46,52 @@ with `--by human-override`. Never add it yourself.
 ## Mode `fill`
 
 1. **Contract pack**: `hitl-index context <T> --contract --out .hitl/index/contracts/<T>.md`.
-   Read it. Extract the test file paths (the `tests:` lines) and the test-plan rows.
+   Read it. Extract the test file paths (the `tests:` lines) and the test-plan rows. Only `new` rows are filled
+   (a `shared:` AC rides on its ACk's test); `covered:`, `none:`, `manual:` rows get no test.
    Rows with `author: human` are not delegated: list them as `_Yours:_ <KEY>-T<n>.AC<k> (<kind>)`.
 2. **Spawn `hitl:test-author`** (Agent tool, `subagent_type: hitl:test-author`). Prompt, nothing else:
    ```
    Task: <T>. Contract pack: .hitl/index/contracts/<T>.md (read it first).
-   Test files you may edit: <paths>. Rows to fill: <ac → kind → oracle → seam>, skip author=human rows.
+   Test files you may edit: <paths>. Rows to fill: <ac (+ shared ACs) → defect → kind → oracle → seam>, skip author=human rows.
    Kinds/edge checklist: ${CLAUDE_PLUGIN_ROOT}/skills/test/references/test-kinds.md
    Test patterns (read first): ${CLAUDE_PLUGIN_ROOT}/shared/test-patterns.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/tests.md, ${CLAUDE_PLUGIN_ROOT}/skills/tdd/mocking.md
    Test command: hitl-index test --task <T> --json
-   Keep AC order (AC1 first). Every test must FAIL against the current stubs for the right reason. Return the JSON from your Output section.
+   Keep AC order (AC1 first). Names without planning ids. Every test must FAIL against the current stubs for the right
+   reason (@kind regression may pass). Extras only with @catches and a reason. Return the JSON from your Output section.
    ```
 3. **RED check**: `hitl-index index <test files> --json`, then `hitl-index test --task <T> --json`. For every filled/added test:
    | outcome | verdict |
    |---|---|
-   | `fail` (assertion) | ✅ red for the right reason |
-   | `error` with `TODO(impl)` in the message | ✅ red (sentinel reached) |
+   | `fail` (assertion) | ✅ red for the right reason (`assertion-failed`) |
+   | `error` with `TODO(impl)` in the message | ✅ red, sentinel reached (`reached-stub`: the assertion is not yet shown to work) |
    | `error` without the sentinel (import, syntax, type, fixture) | ❌ broken → bounce |
+   | `pass`, `@kind regression` | ✅ guards existing behaviour (listed apart) |
    | `pass` | ❌ vacuous (passes on a stub) → bounce |
    | `skip` / still `todo` | ❌ not filled → bounce |
-   Also check: each AC in the task has ≥1 active test (`@ac`), and `unmatched` is empty (⚠️ list otherwise).
+   Also check: each `new`/`shared` AC has ≥1 active test (`@ac`), each extra in `added` has `@catches` and a reason,
+   no test name repeats in a file, and `unmatched` is empty (⚠️ list otherwise).
    **Pattern glance** (before lock): read the filled test files once and look for a test-patterns §2 tell (mocked project
    module, call assertion on an internal collaborator, side channel, entry below the row's seam, an avoid word from
    `## Terms` in a title). A tell → bounce like a RED failure (same budget); never edit the test yourself.
 4. **Bounce** (max 2 rounds): send the same test-author a follow-up (SendMessage if available, else a new spawn with the
    same prompt plus the list): `These tests are not red for the right reason: <testId → outcome → message>. Fix them.`
-   (a tell: `<testId → tell (test-patterns §2) → fix>`). After 2 bounces, stop bouncing and report them as `needsHuman`;
+   (a tell: `<testId → tell (test-patterns §2) → fix>`; an extra without a defect: `<testId → name its defect or drop
+   it>`). After 2 bounces, stop bouncing and report them as `needsHuman`;
    a tell left after the budget is a ⚠️ line at the lock, never a block.
 5. **Lock**:
    - Risk **high** (no `--override`): GATE — print the table, then the line below, end turn.
      ```
      | ac | test | kind | result |
      |----|------|------|--------|
-     | PWR-T12.AC1 | rejects duplicate email in any case | example | ❌ fail (expected throw) |
+     | PWR-T12.AC1 PWR-T12.AC3 | rejects duplicate email ignoring case | example | assertion-failed |
+     | PWR-T12.AC2 | returns the saved user without passwordHash | property | reached-stub |
      ```
+     Then, from `hitl-index approve <T> --stage tests --dry-run --json`: regression tests that pass under
+     `Guards existing behaviour:`, the extras (`budget.extras`, each with its defect), and the budget line
+     `Tests: <n> active · budget <new rows + 2>` (⚠️ when over: a warning, never a block).
      `Review tests in <files>, then /hitl:approve <T> tests  •  or tell me what to change.`
-   - Risk **low** (and the RED check is clean): `hitl-index approve <T> --stage tests --by auto`, print `_Fast_ tests auto-locked`.
+   - Risk **low** (and the RED check is clean): `hitl-index approve <T> --stage tests --by auto`, print `_Fast_ tests auto-locked`
+     plus its budget line and extras.
      If the RED check is not clean, do not auto-lock: _Stop:_ show the failures.
    - `--override` (and the RED check is clean): `hitl-index approve <T> --stage tests --by human-override` (alone, no
      chaining), print `⚠️ _Fast_ tests locked by human override`. Same rule: a dirty RED check never locks.
@@ -101,12 +114,16 @@ Stale results (body changed since the run) are not evidence; say so.
      `hitl-index init --set commands.mutation.ts="npx stryker run --mutate {mutate} --reporters json,clear-text"`
      (`{mutate}` = changed function ranges; the `json` reporter writes the `reports/mutation/mutation.json` the CLI reads).
    - Python: mutmut 3 (`pip install mutmut`), then `hitl-index init --set commands.mutation.py="mutmut run"`.
-   Mutation is optional (`mutationRequired: false` by default).
+   Mutation is required for high-risk tasks once a mutation command is configured (`mutationRequired: "high"`, the
+   default since 0.16; `true` = every task, `false` = never). With Stryker, set `disableBail: true` and
+   `coverageAnalysis: "perTest"` so `mutate` records which tests kill which mutants (`kills`, used by
+   `hitl-index tests audit`).
 2. Print per symbol: score, survivors (location + mutated operator).
    Ignore `@impl manual` survivors for auto-fixing: list them for the human.
 3. Survivors on agent-owned symbols → spawn `hitl:test-author` with the contract pack, the test-patterns paths and the survivor list:
-   `Add a test that kills each survivor. Expected values come from the contract/ACs; if the mutant is equivalent
-   (no observable behaviour change), say so in notes instead of writing a test.`
+   `Add a test that kills each survivor (prefer a new case in an existing table; @catches names the mutant's defect).
+   Expected values come from the contract/ACs; if the mutant is equivalent (no observable behaviour change), say so in
+   notes instead of writing a test.`
 4. `hitl-index test --task <T> --json`: the new killer tests must **pass** on the real body (they target mutants, not stubs).
    A killer test that fails on the real body is either a real bug (report it, `_Next:_ /hitl:review <T>`) or a wrong test (bounce once).
 5. Re-run `hitl-index mutate --task <T> --json` and print before → after.

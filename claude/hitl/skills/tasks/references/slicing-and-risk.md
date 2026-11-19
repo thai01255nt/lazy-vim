@@ -72,13 +72,32 @@ Low-risk tasks may use the fast lane (auto skeleton/tests approval). Never lower
 - Meta `impl:` = `agent` / `manual` if all rows agree, else `mixed`.
 
 ## 7. Test plan
-One row per AC (more rows allowed): `| AC1 | kind | oracle | seam | author |`.
+An AC is a key example of behaviour; a test is code that must earn its place. The plan records a **test decision per
+AC**, not one test per AC. Row: `| AC1 | test | kind | oracle | seam | author |`, one row per AC (more rows allowed).
+The `test` cell (checked by `hitl-index tasks --check`):
+| test | meaning | what the CLI requires |
+|---|---|---|
+| `new: <defect>` | a new test at `seam`; `<defect>` = the production defect that would make it fail and no other planned or existing test catches | a stub with its `@ac` at the skeleton lock (`TEST_PLAN_NO_DEFECT` without a defect) |
+| `shared: <ACk>` | the test of ACk (a `new` row of this task) proves this AC too | one stub carrying both `@ac` ids |
+| `covered: <test>` | an existing test already proves it: its title, `file#title`, or an AC id (another task's AC whose tests prove it) | resolves to an indexed test at the lock; it runs with `hitl-index test --task`; an AC id must exist |
+| `none: <reason>` | no automated test: type-checked, pure wiring with no independent oracle, config, behaviour a library guarantees | reason; refused on a task whose risk reasons include `security`, `concurrency` or `data` (`TEST_PLAN_NONE_RISK`) |
+| `manual: <check>` | a human check (UI look, external system) | the check; `/hitl:approve <T> done` lists it; refused like `none` on a `security`, `concurrency` or `data` task (`TEST_PLAN_NONE_RISK`) |
+Non-`new` rows may leave kind, oracle, seam and author as `—`. A table without the `test` column (before 0.16) reads
+every row as `new`. Choose:
+- `new` only when you can name its defect; prefer `shared` (or one table test) when two ACs are the same call with
+  different expectations of one outcome.
+- Prefactor ACs ("existing tests stay green") → `covered: <AC id or test>` or `none: refactor, existing suite`.
+- A later task whose AC1 enters the same seam as an earlier task's tracer → `covered: <that AC>` (or extend its
+  table), not a second tracer.
+- Quick tasks: a trivial change (wording, constant, log line) usually ends with `none:` or `covered:`.
+- Budget: a task's active tests stay ≤ `new` rows + 2 (a warning at the tests lock, never a block).
 - kind: `example` (default) · `property` (an invariant over many inputs) · `concurrency` (symbol has @concurrency ≠ none)
-  · `golden` (stable output snapshot) · `metamorphic` (relation between two runs).
+  · `golden` (stable output snapshot) · `metamorphic` (relation between two runs) · `regression` (guards unchanged
+  behaviour; may pass at the first lock).
 - oracle: where the expected value comes from — `spec` (the AC text), `invariant: <expr>`, `golden file`, `relation: <r>`. Never "the implementation".
 - seam: the public symbol or endpoint the test calls (from design.md `## Test strategy`; design skipped → the
   highest existing public seam). Highest seam that can observe the AC, prefer existing, fewest per task; a lower seam
-  needs a reason in the cell; no independent oracle (pure wiring) → `author: human` + reason (test-patterns §5).
+  needs a reason in the cell; no independent oracle (pure wiring) → `none:` with the reason, or `author: human` (test-patterns §5).
 - author: `test-author` (default) or `human`.
 
 ## 8. Consistency check (before the gate)
@@ -91,9 +110,12 @@ gate, warn/info items are listed there. Add these semantic checks yourself, one 
 - symbols listed in two tasks (choose one owner task; the other is blocked-by it)
 
 ## 9. Quiz (the gate)
-Present the table, then ask:
+Present the task table and the test-plan table (`task · AC · test · seam`, one line per row, the defect or reason in
+plain words), then ask:
 1. Granularity ok? (too coarse / too fine)
 2. Blocking edges right? Does each task depend only on tasks that genuinely gate it?
 3. Merge or split any task?
 4. Owners (agent/manual) ok?
-Iterate until the user replies Y.
+5. Test plan ok? (which ACs get a new test and the defect each catches, shared/covered/none/manual, seams, count)
+This gate is where the human decides whether and how many tests; it is the one human gate a low-risk (fast-lane) task
+passes. Iterate until the user replies Y.
