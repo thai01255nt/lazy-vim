@@ -62,19 +62,29 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
 /hitl:tasks feat-password-reset                          # chia task PWR-T1, PWR-T2… (low/high risk)
 /hitl:flow                                               # không nhớ bước tiếp? gõ cái này
 ```
-- Claude hỏi từng vòng, mỗi câu có sẵn đáp án gợi ý 💡. Gõ `y` để nhận hết, hoặc `Q2: <ý bạn>`.
+- Plan và design **hỏi trong một file brief**, không hỏi trong chat (0.14): `.hitl/changes/<id>/plan-brief.md` (và
+  `design-brief.md`). Mở file trong editor, viết câu trả lời ở dòng `>` dưới mỗi câu (dài bao nhiêu cũng được), lưu,
+  rồi chạy lại `/hitl:plan feat-password-reset` (hoặc gõ "tiếp"/"xong" trong cùng hội thoại). Claude ghi lại, đánh
+  `→ recorded: …` dưới mỗi câu và thêm vòng sau vào cuối file.
+- Mô tả càng chi tiết càng ít câu hỏi: `## Description` của brief là nguyên văn mô tả của bạn, viết thêm vào đó trước
+  lần chạy đầu cũng được. Vòng 1 là ~10 câu cốt lõi (mỗi câu có ví dụ `_e.g. …_`); từ vòng 2 mỗi câu có gợi ý 💡.
+- Sau lần chạy đầu, điều câu hỏi bỏ sót hoặc muốn sửa câu trả lời cũ (`sửa Q5: …`) thì viết vào khối **Notes** ở cuối
+  vòng đang mở (không viết thêm vào Description nữa).
+- Cách trả lời: `y`/`được`/`đồng ý` = nhận gợi ý; `y` ở dòng "Accept all recommendations of this round" = nhận cả vòng;
+  `?`/`không biết` = Claude gợi ý và hỏi lại; viết một câu hỏi = Claude trả lời ngay dưới đó (💬) rồi hỏi lại;
+  `deep <ID>` = đào sâu; `xong`/`done` = thôi hỏi. Duyệt spec cũng trong file: câu cuối `Approve the spec? (Y/n)`.
 - Plan tự dùng grilling, không cần gọi riêng `/hitl:grilling`.
-- Ở gate đầu tiên plan gợi ý **key** cho change (2–5 chữ in hoa, vd. `PWR` cho feat-password-reset); gõ `y` để nhận
-  hoặc `K <KEY>` để đổi. Mọi mã của change bắt đầu bằng key này: `PWR-R1` (yêu cầu), `PWR-R1.S1` (scenario),
-  `PWR-D1` (quyết định thiết kế), `PWR-T1` (task), `PWR-T1.AC2` (tiêu chí nghiệm thu).
+- Câu `Q0` của brief là **id và key** của change (key 2–5 chữ in hoa, vd. `PWR` cho feat-password-reset); để trống
+  hoặc `y` để giữ, hoặc viết id/key mới. Mọi mã của change bắt đầu bằng key này: `PWR-R1` (yêu cầu), `PWR-R1.S1`
+  (scenario), `PWR-D1` (quyết định thiết kế), `PWR-T1` (task), `PWR-T1.AC2` (tiêu chí nghiệm thu).
 - Kết quả nằm trong `.hitl/changes/feat-password-reset/` (proposal, spec, design, tasks).
 
 ### Plan hỏi rộng và hỏi sâu
-- **Độ phủ**: mỗi vòng có dòng `Độ phủ: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
+- **Độ phủ**: từ vòng 2, tiêu đề vòng có dòng `Coverage: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
 - **🔥** đánh dấu chỗ quan trọng mà còn mơ hồ: Claude hỏi sâu chỗ đó trước.
 - **`deep <ID>`** (vd. `deep PWR-R3`): bạn tự chọn đào sâu (ví dụ cụ thể, 5 whys, edge case, pre-mortem, bảng quyết định…).
 - **Điều kiện dừng**: plan chỉ xong khi mọi nhóm ✅ hoặc — và không còn `[NEEDS CLARIFICATION]` ở yêu cầu bắt buộc;
-  muốn chốt sớm thì chọn "force" (được ghi lại).
+  muốn chốt sớm thì trả lời `force` ở câu `Close with gaps?` (được ghi lại).
 - **Viết theo chuẩn** (`shared/formats/`): mỗi yêu cầu một `SHALL`, không từ mơ hồ ("nhanh", "dễ dùng", "v.v."); NFR có
   `Fit:` đo được. `spec validate` chỉ cảnh báo, Claude tự sửa câu chữ hoặc hỏi bạn con số.
 
@@ -161,8 +171,9 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 /hitl:approve feat-receipt reopen N-3         (chỉ bạn, như mục 5a)
 ```
 - Thôi chờ (thứ tự là quyết định của bạn) hoặc feat-fee bị bỏ: `/hitl:approve feat-receipt dismiss N-1 <lý do>`.
-- Chồng lấn với change chưa liên kết (dù có `--before` hay không): plan tự chạy `hitl-index overlap <id>` và hỏi bạn ở
-  cổng (`⚠️ Overlap with … (1/2/3)`). Change cha (đang chờ change này) hiện thành dòng `🔗 parent … — shared: …` ở vòng 1.
+- Chồng lấn với change chưa liên kết (dù có `--before` hay không): plan tự chạy `hitl-index overlap <id>` và hỏi bạn
+  trong phần `## Close` của brief (`⚠️ Overlap with … (1/2/3)`). Change cha (đang chờ change này) hiện thành dòng
+  `🔗 parent … — shared: …` ở vòng 1 của brief.
 - Kiểm tra chồng lấn bất cứ lúc nào (vd. sau khi merge nhánh có change khác):
 ```
 /hitl:overlap feat-fee feat-waive feat-report      (hoặc --with feat-waive,feat-report; không nêu = mọi change đang mở)
@@ -175,6 +186,8 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.
 - `?` / `wait` / `hả` = giải thích lại rồi hỏi lại (không phải câu trả lời).
+- Trong file brief của plan/design thì khác: `?` / `không biết` = Claude gợi ý và hỏi lại ở vòng sau; muốn được giải
+  thích thì viết câu hỏi của bạn ở dòng `>` (Claude trả lời bằng `💬` ngay dưới đó).
 - Finding trong review: `accept F-1`, `reject F-2 <lý do>`, `defer F-3`, `amend F-4`; sửa: `/hitl:review PWR-T2 fix F-1`.
 
 ## 7. Tuỳ chọn

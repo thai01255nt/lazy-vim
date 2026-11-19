@@ -321,5 +321,43 @@ test("0.13.2: a key per quick file — tasks quick mode, migrate, id docs, upgra
   assert.match(read("skills/flow/references/help.md"), /a quick file has its own key/);
   assert.match(read("README.md"), /^### Nâng cấp từ 0\.13\.1/m);
   assert.match(read("HUONG-DAN.md"), /Từ 0\.13\.2, task quick cũ dạng `QT-T7`/);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.13.2");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.13\.[2-9]$|^0\.(1[4-9]|[2-9]\d)\.\d+$/, "version ≥ 0.13.2");
+});
+
+test("0.14: plan and design interview in a brief file; no chat rounds, no design --auto", () => {
+  for (const f of ["shared/templates/plan-brief.md", "shared/templates/design-brief.md"]) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} exists`);
+  const iv = read("shared/interview.md");
+  assert.match(iv, /^## 4\. The brief file and the round format/m);
+  assert.match(iv, /There is no\s+chat round mode/);
+  assert.match(iv, /`Accept all recommendations of this round: >`/);
+  for (const w of ["`được`", "`đồng ý`", "`ừ`", "`không biết`", "`chưa biết`", "`xong`", "`deep`", "→ carried to Round <n>", "→ recorded: <ids>", "💬"])
+    assert.ok(iv.includes(w), `interview: ${w}`);
+  assert.doesNotMatch(iv, /Reply:/, "no chat Reply: line left in the overlay");
+  const plan = read("skills/plan/SKILL.md");
+  assert.match(plan, /📝 Brief ready: \.hitl\/changes\/<id>\/plan-brief\.md — answer in the file, then run \/hitl:plan <id>/);
+  assert.match(plan, /\*\*Round 1 carries no recommendations\*\*/);
+  assert.match(plan, /hitl-index brief rename <id>/);
+  assert.match(plan, /### Approve the spec\? \(Y\/n\)/);
+  assert.match(plan, /Unchanged by the brief file: amend stays one chat gate/);
+  assert.doesNotMatch(plan, /Reply:|Spec complete\?/);
+  const design = read("skills/design/SKILL.md");
+  assert.match(design, /\*\*Every question carries `💡 Recommended`\*\*/);
+  assert.match(design, /📝 Design brief ready: \.hitl\/changes\/<id>\/design-brief\.md/);
+  assert.match(design, /### Approve the design\? \(Y\/n\)/);
+  for (const f of ["skills/design/SKILL.md", "skills/flow/references/help.md", "README.md", "HUONG-DAN.md", "skills/implement/SKILL.md", "evals/scenarios.json", "evals/README.md", "evals/judge.mjs"])
+    assert.doesNotMatch(read(f).replace(/^### Nâng cấp từ 0\.13\.2[\s\S]*?(?=^### )/m, ""), /design[^\n|]*--auto|--auto[^\n|]*design/, `${f} still offers /hitl:design --auto`);
+  assert.doesNotMatch(frontmatter(design)["argument-hint"], /--auto/);
+  assert.match(read("skills/flow/SKILL.md"), /📝 <id> — <kind> brief round <round>: <unanswered> unanswered/);
+  assert.match(read("skills/flow/references/help.md"), /\*\*Brief files\*\* \(0\.14\)/);
+  assert.match(read("README.md"), /^### Nâng cấp từ 0\.13\.2/m);
+  assert.match(read("README.md"), /\*\*`\/hitl:design --auto` bị bỏ\*\*/);
+  // per-round Notes block: templates, overlay rule, both skills; Description is the initial description only
+  const NOTES = "### Notes — anything the questions missed, or a change to an earlier answer";
+  for (const f of ["shared/templates/plan-brief.md", "shared/templates/design-brief.md", "shared/interview.md", "skills/plan/SKILL.md", "skills/design/SKILL.md"])
+    assert.ok(read(f).includes(NOTES), `${f}: Notes block`);
+  assert.match(iv, /Only an unmarked, non-empty Notes block is processed/);
+  assert.match(iv, /`sửa Q5: …`/);
+  for (const f of ["skills/plan/SKILL.md", "skills/design/SKILL.md"]) assert.doesNotMatch(read(f), /count as answers for the round|append it to `## Description`/, `${f}: new information goes into Notes`);
+  assert.match(read("HUONG-DAN.md"), /khối \*\*Notes\*\*/);
+  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.14.0");
 });

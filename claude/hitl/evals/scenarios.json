@@ -8,15 +8,11 @@
    "prompt": "/hitl:plan feat-deactivate-account Cho phép admin (nhân viên hỗ trợ) vô hiệu hoá tài khoản người dùng; tài khoản bị vô hiệu hoá thì không đăng nhập được nữa.",
    "checks": [
     "plan_change_created",
-    "plan_delta_written",
-    "plan_validate_0_errors",
-    "plan_no_code_names",
-    "plan_coverage_line",
+    "plan_brief_written",
+    "plan_brief_round1",
+    "plan_brief_chat",
     "plan_coverage_table",
-    "plan_hotspot",
-    "plan_questions",
-    "plan_round_header",
-    "plan_reply_line",
+    "plan_no_code_names",
     "grilling_loaded",
     "scout_spawned",
     "no_main_source_reads"
@@ -29,15 +25,11 @@
    "prompt": "/hitl:plan feat-login-lockout Lock an account after too many failed sign-in attempts so attackers cannot guess passwords.",
    "checks": [
     "plan_change_created",
-    "plan_delta_written",
-    "plan_validate_0_errors",
-    "plan_no_code_names",
-    "plan_coverage_line",
+    "plan_brief_written",
+    "plan_brief_round1",
+    "plan_brief_chat",
     "plan_coverage_table",
-    "plan_hotspot",
-    "plan_questions",
-    "plan_round_header",
-    "plan_reply_line",
+    "plan_no_code_names",
     "grilling_loaded",
     "scout_spawned",
     "no_main_source_reads"
@@ -50,16 +42,33 @@
    "prompt": "/hitl:plan feat-merge-duplicates Cho phép nhân viên hỗ trợ gộp hai user record trùng email thành một.",
    "checks": [
     "plan_change_created",
+    "plan_brief_written",
+    "plan_brief_round1",
+    "plan_brief_chat",
+    "plan_no_code_names",
+    "plan_term_challenge",
+    "plan_avoided_terms",
+    "scout_spawned",
+    "no_main_source_reads"
+   ]
+  },
+  {
+   "id": "plan-answered",
+   "fixture": "plan-answered",
+   "runs": 2,
+   "prompt": "/hitl:plan feat-deactivate-account",
+   "checks": [
     "plan_delta_written",
     "plan_validate_0_errors",
     "plan_no_code_names",
-    "plan_questions",
-    "plan_round_header",
-    "plan_reply_line",
-    "plan_term_challenge",
+    "plan_brief_recorded",
+    "plan_brief_carried",
+    "plan_brief_notes",
+    "plan_brief_round2",
+    "plan_brief_hotspot",
+    "plan_brief_coverage",
+    "plan_brief_chat",
     "plan_avoided_terms",
-    "reply_ids_glossed",
-    "scout_spawned",
     "no_main_source_reads"
    ]
   },
@@ -75,11 +84,24 @@
    ]
   },
   {
-   "id": "design-auto",
+   "id": "design-r1",
    "fixture": "design",
    "runs": 2,
-   "prompt": "/hitl:design feat-password-reset --auto",
+   "prompt": "/hitl:design feat-password-reset",
    "checks": [
+    "design_written",
+    "design_context_facts",
+    "design_brief_r1",
+    "design_brief_chat"
+   ]
+  },
+  {
+   "id": "design-accept-all",
+   "fixture": "design-answered",
+   "runs": 2,
+   "prompt": "/hitl:design feat-password-reset",
+   "checks": [
+    "design_brief_processed",
     "design_written",
     "design_validate_0_errors",
     "design_madr",

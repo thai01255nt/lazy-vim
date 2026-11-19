@@ -172,7 +172,7 @@ test("evals: every scenario check exists in grade.mjs", () => {
 test("evals (dry): go-auto-plan passes on a good transcript and fails on a Go? gate or a missing route line", () => {
   const c = scenarios.find((x) => x.id === "go-auto-plan");
   const good = [tool("Agent", { subagent_type: "hitl:work-router", prompt: "Description: …" }), tool("Bash", { command: "hitl-index route --json" }),
-    text("🧭 /hitl:plan — a new feature that admins will use"), tool("Skill", { skill: "hitl:plan", args: "Admins export all users as CSV" }), text("🌳 Round 1 …")];
+    text("🧭 /hitl:plan — a new feature that admins will use"), tool("Skill", { skill: "hitl:plan", args: "Admins export all users as CSV" }), text("📝 Brief ready: .hitl/changes/feat-export-users-csv/plan-brief.md — answer in the file, then run /hitl:plan feat-export-users-csv")];
   const g = grade(c, good);
   for (const k of c.checks) assert.ok(g[k].ok, `${k}: ${g[k].why}`);
   const bad = grade(c, [tool("Agent", { subagent_type: "hitl:work-router" }), text("I suggest /hitl:plan. Go? (Y/n)"), tool("Skill", { skill: "plan" })]);

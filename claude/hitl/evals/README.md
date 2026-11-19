@@ -16,7 +16,7 @@ supported way to start a case from a fixture project. This runner covers both. C
 | `ab.mjs` | runner: builds fixtures, runs variants, grades, `summary.json`, cost cap, resumable |
 | `regrade.mjs` | re-grade finished runs after editing `grade.mjs` (no new claude calls) |
 | `judge.mjs` | Suite C: blind pairwise LLM judge of plan / design / skeleton outputs, both orders |
-| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: FEE-T1 done with locked tests, then an open note, then a recheck waiting for reopen), and `churn-waiting` (0.12: churn + a change `feat-report` created `--before feat-fee`, so feat-fee waits), and `churn-overlap` (0.13.1: churn + two unlinked changes `feat-waive` and `feat-report` with tasks on the same `settle`, for `/hitl:overlap`) |
+| `fixtures/build.sh` | builds `plan` / `design` / `tasks` / `flow` / `review` projects from `tests/fixtures`, `plan-answered` / `design-answered` (0.14: a brief file whose round 1 is answered, from `fixtures/briefs/`; the next run must record it and append round 2 or Close), and `lua` from `fixtures/lua-app` (skeleton-lua: LuaLS signature probe via `lua-language-server`, `$LUALS` overrides the path), and `churn` / `churn-noted` / `churn-recheck` from `fixtures/churn-app` (0.9 notes and reopen: FEE-T1 done with locked tests, then an open note, then a recheck waiting for reopen), and `churn-waiting` (0.12: churn + a change `feat-report` created `--before feat-fee`, so feat-fee waits), and `churn-overlap` (0.13.1: churn + two unlinked changes `feat-waive` and `feat-report` with tasks on the same `settle`, for `/hitl:overlap`) |
 
 ## Run
 ```sh
@@ -24,7 +24,7 @@ cp -R ~/.config/nvim/claude/hitl /tmp/hitl-base          # freeze BASE before ed
 OUT=/tmp/hitl-ev
 node evals/ab.mjs trigger   --variant BASE=/tmp/hitl-base --variant NEW=. --out $OUT -j 3 --max-cost 15
 node evals/ab.mjs behaviour --variant BASE=/tmp/hitl-base --variant NEW=. --out $OUT -j 3 --max-cost 30
-node evals/judge.mjs $OUT BASE NEW            # Suite C on plan-vi, plan-en, design-auto
+node evals/judge.mjs $OUT BASE NEW            # Suite C on plan-vi, plan-en, design-accept-all
 node evals/regrade.mjs $OUT behaviour BASE=/tmp/hitl-base NEW=.
 ```
 - `--case <substring>` runs a subset, `--runs n` overrides per-case runs (default: case `runs`, trigger 1).
@@ -44,7 +44,7 @@ node evals/regrade.mjs $OUT behaviour BASE=/tmp/hitl-base NEW=.
 Any regression → restore that part from BASE and re-run the affected cases.
 
 ## Cost (Opus, effort high, 0.6.2 measurements)
-Trigger ≈ $0.18 per prompt-run (≈ $6 per variant). Plan round 1 ≈ $0.9, design --auto ≈ $1.4, tasks ≈ $0.9,
+Trigger ≈ $0.18 per prompt-run (≈ $6 per variant). Plan round 1 ≈ $0.9, design accept-all ≈ $1.4, tasks ≈ $0.9,
 review ≈ $0.8, flow/tickets ≈ $0.25. Judge ≈ $0.1–0.2 per call.
 
 ## Known limits

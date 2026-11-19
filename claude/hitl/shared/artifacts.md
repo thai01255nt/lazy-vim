@@ -37,14 +37,15 @@ glossary term.
 
 ## 2. Confidence rule
 - **High → act, no question**: (a) any hard signal → include; (b) no signal from U, S or C → skip; (c) U explicitly
-  excludes it → skip. Print one line each time and record the row as `assumed → included|skipped`:
+  excludes it → skip. Print one line each time (plan/design: an info line under the brief's round heading) and record
+  the row as `assumed → included|skipped`:
   `💡 Assumed: include decision table for ACC-BR1 (2 interacting conditions)` ·
   `💡 Assumed: skip use-case flow (single actor, 2 steps)`.
 - **Uncertain → ask** as `[A]` in the next round, with a recommendation (max 2 `[A]` per round), and record
   `asked → included|skipped`, when: only a soft signal; or signals conflict (U says "simple", C shows a persisted
   change); or the artifact is security/data-related and its evidence is soft (skipping it costs more).
 - Never ask about an artifact with no signal. Re-evaluate every round; new evidence can add one
-  (`💡 Added artifact: …`). The user may type `add <artifact>` / `drop <artifact>` at any gate.
+  (`💡 Added artifact: …`). The user may answer `add <artifact>` / `drop <artifact>` under any question of a brief file.
 
 `[A]` wording:
 ```

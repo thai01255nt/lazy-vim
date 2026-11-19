@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Suite C: blind pairwise LLM judge of plan / design / skeleton outputs (variant A vs B), both presentation orders.
-//   node evals/judge.mjs <out> BASE NEW [--cases plan-vi,plan-en,design-auto] [--model opus]
+//   node evals/judge.mjs <out> BASE NEW [--cases plan-vi,plan-en,design-accept-all] [--model opus]
 // Reads <out>/behaviour/<variant>/<case>/<run>/ (grade.json lastText + written files), pairs run i of A with run i of B,
 // asks the judge twice (A first, then B first) and writes <out>/judge/<case>-<run>-<order>.json + <out>/judge/summary.json.
 import fs from "node:fs";
@@ -8,7 +8,7 @@ import path from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 
 const [out, A, B, ...rest] = process.argv.slice(2);
-let cases = ["plan-vi", "plan-en", "design-auto"], model = "opus";
+let cases = ["plan-vi", "plan-en", "design-accept-all"], model = "opus";
 for (let i = 0; i < rest.length; i++) {
   if (rest[i] === "--cases") cases = rest[++i].split(",");
   else if (rest[i] === "--model") model = rest[++i];
@@ -33,22 +33,26 @@ function artefact(runDir, c) {
     return `### What the user saw (final message)\n${g.lastText ?? ""}\n\n### Diff\n${diff}\n${added.map((f) => `--- new file: ${f}\n${read(path.join(proj, f))}`).join("\n")}`.slice(0, 60000);
   } else {
     const d = path.join(proj, ".hitl/changes/feat-password-reset");
-    files = [path.join(d, "design.md"), path.join(d, "data-model.md"), ...walk(path.join(d, "contracts"))].filter((f) => fs.existsSync(f));
+    files = [path.join(d, "design.md"), path.join(d, "data-model.md"), path.join(d, "design-brief.md"), ...walk(path.join(d, "contracts"))].filter((f) => fs.existsSync(f));
   }
   const body = files.map((f) => `--- file: ${path.relative(proj, f)}\n${read(f)}`).join("\n\n");
   return `### What the user saw (final message)\n${g.lastText ?? ""}\n\n### Files written\n${body}`.slice(0, 60000);
 }
 
 const RUBRIC = {
-  plan: `This is round 1 of a requirements interview (/hitl:plan): the assistant drafted a business-readable change
-(proposal + spec delta) and asked the first round of numbered questions with recommended answers.
+  plan: `This is round 1 of a requirements interview (/hitl:plan) written into a brief file the user answers in an editor
+(plan-brief.md): the user's description verbatim, Q0 (keep the change id and key?), about ten core questions (one per
+coverage category, each with a one-line "e.g." hint and no recommendation) and up to five questions tailored to this
+change; plus a business-readable proposal draft (Why, What changes, Coverage table). The chat reply only points at the file.
 Criteria:
-1. question_sharpness — are the questions specific, decision-oriented, non-redundant, each with a sensible recommendation; do they ask what matters most first?
-2. hotspot_depth — does it find and drill into the risky/uncertain parts (security, data, conflicts with existing behaviour), marked 🔥?
-3. spec_completeness — does the draft capture everything the user said, as testable requirements with scenarios, without inventing unrequested behaviour?
-4. format_correctness — business-readable (no code names), EARS-style SHALL statements, GIVEN/WHEN/THEN scenarios, coverage line/table, round format.`,
-  design: `This is a technical design written in --auto mode (/hitl:design): decisions <KEY>-D<n> with alternatives, components,
-data model, contracts, test strategy, risks — module level, no function signatures.
+1. question_sharpness — are the tailored questions and hints specific to this change, decision-oriented and non-redundant; do the hints help a non-technical user answer?
+2. hotspot_depth — do the tailored questions find the risky/uncertain parts (security, data, conflicts with current behaviour or the glossary)?
+3. spec_completeness — does the proposal draft capture everything the user said without inventing unrequested behaviour?
+4. format_correctness — business-readable (no code names), brief format (header, Description verbatim, Round 1, Q0, hints, empty answer lines), coverage table.`,
+  design: `This is a technical design written after the developer accepted every recommendation of round 1 of the design
+brief (Y on the accept-all line of design-brief.md, /hitl:design): decisions <KEY>-D<n> with alternatives, components,
+data model, contracts, test strategy, risks — module level, no function signatures — plus the brief marked as recorded
+and either the next round or the Close section.
 Criteria:
 1. question_sharpness — are the decisions the right ones, with real alternatives and reasons tied to requirements?
 2. hotspot_depth — depth on the risky parts (security of reset links, token storage, enumeration, expiry, concurrency).

@@ -6,6 +6,9 @@
 #         design    = spec, minus design.md/tasks.md of feat-password-reset (proposal approved)
 #         tasks     = spec, minus tasks.md (spec + design approved)
 #         flow      = design (next step should be /hitl:design feat-password-reset)
+#         plan-answered   = plan + a new change feat-deactivate-account whose plan brief round 1 is answered (0.14)
+#         design-answered = design + a draft design.md (Context facts) and a design brief whose round 1 is accepted
+#                   with Y on the accept-all line (0.14; replaces the old design --auto case)
 #         review    ts-app (v0.5 tasks file) driven to "QT-T1 implemented, tests green, skeleton+tests locked"
 #         lua       lua-app (pure Lua + LuaLS annotations, busted) with approved change feat-burst-credit, BURST-T1 todo
 #         churn     churn-app (node:test) with approved change feat-fee: FEE-T1 settle done (2 locked tests), FEE-T2 todo
@@ -27,7 +30,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 gitc() { git -C "$dest" init -q; git -C "$dest" add -A; git -C "$dest" -c user.email=e@x -c user.name=eval commit -qm fixture; }
 
 case "$kind" in
-  spec|plan|design|tasks|flow)
+  spec|plan|design|tasks|flow|plan-answered|design-answered)
     cp -R "$FIX/ts-app/src" "$FIX/ts-app/tests" "$FIX/ts-app/package.json" "$dest/"
     cp "$FIX/ts-app/variants/src/services/userService.ts.green" "$dest/src/services/userService.ts"
     cp "$FIX/ts-app/variants/src/repo/userRepo.ts.manual" "$dest/src/repo/userRepo.ts"
@@ -41,6 +44,8 @@ case "$kind" in
     C="$dest/.hitl/changes/feat-password-reset"
     case "$kind" in
       design|flow) rm -f "$C/design.md" "$C/tasks.md" ;;
+      design-answered) rm -f "$C/design.md" "$C/tasks.md"; cp "$HERE"/briefs/feat-password-reset/* "$C/" ;;
+      plan-answered) cp -R "$HERE/briefs/feat-deactivate-account" "$dest/.hitl/changes/" ;;
       tasks) rm -f "$C/tasks.md" ;;
     esac
     gitc ;;

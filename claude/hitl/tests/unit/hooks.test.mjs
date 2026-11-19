@@ -327,6 +327,17 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Write", { file_path: path.join(root, "docs/notes.md"), content: "x" }));
   });
 
+  test("0.14: brief files are written by the main thread (Claude and the user), not by the spec agents", async () => {
+    const { root } = await mkProject();
+    for (const f of ["plan-brief.md", "design-brief.md"]) {
+      const p = path.join(root, ".hitl/changes/feat-x", f);
+      assertSilent(pre(root, "Write", { file_path: p, content: "# Plan brief — feat-x\n" }));
+      assertSilent(pre(root, "Edit", { file_path: p, old_string: "a", new_string: "b" }));
+      assertSilent(pre(root, "Bash", { command: `sed -i 's/a/b/' .hitl/changes/feat-x/${f}` }));
+      assertDeny(pre(root, "Write", { file_path: p, content: "x" }, "hitl:spec-scout"), /spec-scout may write only/);
+    }
+  });
+
   test("session-start: one migrate --specs line while v0.5 planning files exist", async () => {
     const { root } = await mkProject();
     fs.mkdirSync(path.join(root, ".hitl/planning"), { recursive: true });

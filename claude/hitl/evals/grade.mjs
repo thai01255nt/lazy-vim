@@ -58,6 +58,16 @@ const skillName = (t) => { const x = String(t.input.skill || t.input.command || 
 // a function signature or code-body line in a design doc (module level only is allowed)
 const SIG_RE = /(^|\s)(function\s+\w+\s*\(|(async\s+)?\w+\s*\([^()\n]*:\s*[\w<>\[\]|]+[^()\n]*\)\s*:\s*[\w<>\[\]|]+|def\s+\w+\s*\(|\bclass\s+\w+\s*\{)/m;
 
+/** Parsed brief file of a change (`hitl-index brief <id> --kind <kind> --json`), or null. */
+const briefOf = (proj, ch, kind) => (ch ? json(cli(proj, "brief", ch, "--kind", kind, "--json").out) : null);
+/** The description part of a /hitl:plan prompt (without the command, the change id and --before …). */
+const promptDescription = (c) => String(c?.prompt ?? "").replace(/^\/hitl:plan\s+/, "").replace(/^(?:feat|fix|refactor|perf|docs|test|chore)-[a-z0-9-]+\s+/, "").replace(/\s+--before\s+\S+/g, "").trim();
+/** The chat reply of a brief run is short and never repeats the questions. */
+const briefChat = (S, file) => {
+  const lines = S.text.split("\n").filter((l) => l.trim());
+  return ok(S.text.includes(file) && lines.length <= 6 && !/^\s*(?:###\s*Q\d+|❓|\*\*Q\d+\*\*)/m.test(S.text), `chat: ${lines.length} lines, mentions ${file}: ${S.text.includes(file)}`);
+};
+
 function questions(text) {
   const qs = text.match(/\*\*Q\d+\*\*/g) ?? [];
   const recs = text.match(/💡\s*(\*\*)?(Recommended|Đề xuất|Khuyến nghị|My Recommendation)/gi) ?? [];
@@ -129,7 +139,47 @@ function idGlossing(text) {
 }
 
 const CHECKS = {
-  // ---- plan (round 1 of a new change)
+  // ---- plan (0.14: round 1 of a new change is written into plan-brief.md; chat only points at it)
+  plan_brief_written: (S, P, c) => {
+    const ch = newChanges(P)[0]; const b = briefOf(P, ch, "plan");
+    const want = promptDescription(c).slice(0, 40);
+    return ok(b && b.kind === "plan" && b.rounds.some((r) => r.n === 1) && (b.description || "").includes(want), b ? `description lacks "${want}"` : "no plan-brief.md");
+  },
+  plan_brief_round1: (S, P) => {
+    const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
+    const r1 = b.questions.filter((q) => q.round === 1); const q0 = r1.find((q) => q.id === "Q0"); const rest = r1.filter((q) => q.id !== "Q0");
+    const recs = rest.filter((q) => q.recommended != null).length; const hints = rest.filter((q) => q.hint).length;
+    return ok(q0 && q0.recommended && rest.length >= 9 && rest.length <= 16 && recs === 0 && hints >= 8 && !b.rounds[0].acceptAllLine && b.rounds[0].notes,
+      `Q0=${!!q0} questions=${rest.length} with 💡=${recs} hints=${hints} acceptAll=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes}`);
+  },
+  plan_brief_chat: (S, P) => briefChat(S, "plan-brief.md"),
+  // ---- plan (0.14: a later run reads the answered round 1, records it, appends round 2)
+  plan_brief_recorded: (S, P) => {
+    const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
+    const r1 = b.questions.filter((q) => q.round === 1);
+    return ok(b.rounds[0]?.done && r1.every((q) => q.settled), `round 1 ✅=${b.rounds[0]?.done}; unmarked: ${r1.filter((q) => !q.settled).map((q) => q.id).join(",")}`);
+  },
+  plan_brief_round2: (S, P) => {
+    const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
+    const r2 = b.questions.filter((q) => q.round === 2); const r = b.rounds.find((x) => x.n === 2);
+    return ok(r && r.acceptAllLine && r2.length >= 1 && r2.length <= 7 && r2.every((q) => q.recommended), `round 2: ${r ? "" : "missing; "}accept-all=${r?.acceptAllLine} questions=${r2.length} without 💡=${r2.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
+  },
+  plan_brief_carried: (S, P) => {
+    // Q6 asks a question (→ 💬 + carried), Q5 is "không biết", Q7 is empty: all three come back in round 2 with their numbers
+    const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
+    const q = (round, id) => b.questions.find((x) => x.round === round && x.id === id);
+    const back = ["Q5", "Q6", "Q7"].filter((id) => q(2, id));
+    return ok(q(1, "Q6")?.discussed && q(1, "Q6")?.carried === 2 && back.length === 3, `Q6 💬=${q(1, "Q6")?.discussed} carried=${q(1, "Q6")?.carried}; back: ${back.join(",")}`);
+  },
+  // the round-1 Notes ("sửa Q3: …", a correction) is processed once (one mark) and round 2 ends with a Notes block
+  plan_brief_notes: (S, P) => {
+    const b = briefOf(P, newChanges(P)[0], "plan"); if (!b) return ok(false, "no plan-brief.md");
+    const n1 = b.rounds[0]?.notes; const r2 = b.rounds.find((r) => r.n === 2);
+    return ok(n1?.marked && !n1.pending && (!r2 || r2.notes), `round 1 Notes marked=${n1?.marked}; round 2 Notes block=${!!r2?.notes}`);
+  },
+  plan_brief_hotspot: (S, P) => { const b = briefOf(P, newChanges(P)[0], "plan"); return ok(b && (b.questions.some((q) => q.round > 1 && q.hot) || b.rounds.some((r) => r.hot.length)), "no 🔥 in round 2"); },
+  plan_brief_coverage: (S, P) => { const b = briefOf(P, newChanges(P)[0], "plan"); return ok(b && b.rounds.some((r) => r.n > 1 && /✅|⚠️|❌/.test(r.coverage || "")), "no Coverage line on round 2"); },
+  // ---- plan (round 1 of a new change; pre-0.14 chat checks, kept for old variants)
   plan_change_created: (S, P) => { const ch = newChanges(P); return ok(ch.length === 1 && fs.existsSync(path.join(P, ".hitl/changes", ch[0], "proposal.md")), `new changes: ${ch.join(",") || "none"}`); },
   plan_delta_written: (S, P) => { const ch = newChanges(P)[0]; return ok(ch && walk(path.join(P, ".hitl/changes", ch, "specs")).some((f) => f.endsWith("spec.md")), "no spec delta"); },
   plan_validate_0_errors: (S, P) => {
@@ -156,7 +206,11 @@ const CHECKS = {
   plan_round_header: (S) => ok(/🌳\s*(Round|Vòng)\s*1/.test(S.text), "no round-1 header"),
   plan_reply_line: (S) => ok(/Reply:|Trả lời:/.test(S.text), "no Reply: line"),
   // shared language: the prompt says "user record", the living glossary has Account (_Avoid_: user record, profile)
-  plan_term_challenge: (S) => ok(/\[T\]/.test(S.text) && /Account/.test(S.text) && /user record/i.test(S.text), "no [T] question naming Account and quoting \"user record\""),
+  plan_term_challenge: (S, P) => {
+    const b = briefOf(P, newChanges(P)[0], "plan");
+    const t = (b?.questions ?? []).filter((q) => q.tag === "T").map((q) => `${q.title}\n${q.body}\n${q.hint ?? ""}`).join("\n");
+    return ok(/Account/.test(t) && /user record/i.test(t), "no [T] question in the brief naming Account and quoting \"user record\"");
+  },
   // report-only for now (always ok): share of ids glossed on first prose mention; bare ids listed in `warn`
   reply_ids_glossed: (S) => { const g = idGlossing(S.text); const ratio = g.ids ? +((g.ids - g.bare.length) / g.ids).toFixed(2) : 1; return { ok: true, why: "", ratio, warn: ratio < 0.8 ? `bare ids: ${g.bare.join(", ")}` : "" }; },
   grilling_loaded: (S) => ok(skillCalls(S).some((s) => /grilling/.test(s)) || S.tools.some((t) => t.name === "Read" && /grilling\/SKILL\.md/.test(t.input.file_path || "")), "grilling not loaded"),
@@ -184,7 +238,21 @@ const CHECKS = {
   go_before_plan: (S) => ok(skillCalls(S).some((x) => /plan/.test(x)) && S.tools.some((t) => t.name === "Skill" && /plan/.test(String(t.input.skill || "")) && /--before\s+feat-fee\b/.test(String(t.input.args || ""))), "no Skill hitl:plan with --before feat-fee"),
   before_parent_untouched: (S, P) => { const d = gitDirty(P, [".hitl/changes/feat-fee/proposal.md", ".hitl/changes/feat-fee/specs", ".hitl/changes/feat-fee/tasks.md", ".hitl/index/skeleton.lock.json", "src", "tests"]); return ok(d === "", `the parent change or code changed: ${d}`); },
   approve_blocked_by_wait: (S) => ok(/feat-report/.test(S.text) && /wait|archiv|chờ/i.test(S.text), "refusal does not say feat-fee waits for feat-report"),
-  // ---- design --auto
+  // ---- design (0.14: round 1 is written into design-brief.md, every question with a 💡)
+  design_brief_r1: (S, P) => {
+    const b = briefOf(P, "feat-password-reset", "design"); if (!b) return ok(false, "no design-brief.md");
+    const r1 = b.questions.filter((q) => q.round === 1);
+    return ok(b.rounds[0]?.acceptAllLine && b.rounds[0]?.notes && r1.length >= 8 && r1.every((q) => q.recommended) && r1.every((q) => ["D", "A"].includes(q.tag)),
+      `accept-all=${b.rounds[0]?.acceptAllLine} notes=${!!b.rounds[0]?.notes} questions=${r1.length} without 💡=${r1.filter((q) => !q.recommended).map((q) => q.id).join(",")}`);
+  },
+  design_brief_chat: (S) => briefChat(S, "design-brief.md"),
+  design_context_facts: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; const sec = t.split(/^## /m).find((x) => x.startsWith("Context")) ?? ""; const n = (sec.match(/\(source:/g) ?? []).length; return ok(n >= 3, `## Context has ${n} sourced facts`); },
+  // ---- design (0.14: the accept-all Y of round 1 records every recommendation; replaces design --auto)
+  design_brief_processed: (S, P) => {
+    const b = briefOf(P, "feat-password-reset", "design"); if (!b) return ok(false, "no design-brief.md");
+    const r1 = b.questions.filter((q) => q.round === 1);
+    return ok(b.rounds[0]?.done && r1.every((q) => q.settled) && (b.rounds.length > 1 || b.close), `round 1 ✅=${b.rounds[0]?.done}; unmarked: ${r1.filter((q) => !q.settled).map((q) => q.id).join(",")}; next round or Close: ${b.rounds.length > 1 || !!b.close}`);
+  },
   design_written: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/changes/feat-password-reset/design.md")), "no design.md"),
   design_validate_0_errors: (S, P) => {
     const r = json(cli(P, "spec", "validate", "feat-password-reset", "--json").out);
@@ -211,7 +279,7 @@ const CHECKS = {
   },
   design_test_strategy: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; const id = specIdOf(P, "Reset password by email"); return ok(id && new RegExp(`## Test strategy\\s*\\n[\\s\\S]*?${reEsc(id)}\\b`).test(t), `test strategy misses ${id ?? "the reset requirement"}`); },
   design_risk_security: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/design.md")) ?? ""; return ok(/## Risks[\s\S]*security/i.test(t), "no security risk"); },
-  design_gate: (S) => ok(/Design complete\?|approved|Y\/n/i.test(S.text), "no close gate"),
+  design_gate: (S, P) => { const b = briefOf(P, "feat-password-reset", "design"); return ok(b && (b.rounds.length > 1 || /Approve the design\?/.test(b.close?.question ?? "")) && /design-brief\.md/.test(S.text), "no next round or Close question in design-brief.md, or chat does not point at it"); },
   // ---- tasks
   tasks_written: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")), "no tasks.md"),
   tasks_check: (S, P) => { const r = cli(P, "tasks", "--check", "--json"); return ok(r.code === 0, `tasks --check exit ${r.code}: ${r.out.slice(0, 300)}`); },

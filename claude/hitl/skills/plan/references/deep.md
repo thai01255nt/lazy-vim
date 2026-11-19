@@ -1,10 +1,11 @@
 # `deep <ID|topic>` — technique menu (`/hitl:plan`)
 
-Own text; technique ideas cited in `elicitation.md` (NOTICE.md). Read when the user replies `deep …`.
+Own text; technique ideas cited in `elicitation.md` (NOTICE.md). Read when an answer in the brief says `deep …`.
 
-Reply `deep ACC-R7` (or `deep refunds`) at any round gate. Answer with a numbered menu as the next gate:
+The user answers `deep ACC-R7` (or `deep refunds`, or a bare `deep` under a question: that question's topic) in the
+plan brief. The next round holds the menu as one question:
 ```
-🔎 deep ACC-R7 Deactivate a user — pick a technique (number, or "Y" for 💡):
+### Q14 [R] 🔎 deep ACC-R7 Deactivate a user — which technique? (number, or Y for 💡)
 1. Example mapping — rules → concrete examples → questions        → #### Scenario blocks
 2. Five whys — dig to the real need behind it                       → ## Why / requirement wording
 3. Edge cases / what-if — invalid, duplicate, timing, partial failure → failure scenarios
@@ -12,9 +13,10 @@ Reply `deep ACC-R7` (or `deep refunds`) at any round gate. Answer with a numbere
 5. Business rule → decision table — conditions × outcome             → <KEY>-BR<n> + table, Rules: link
 6. Stakeholder lenses — BA · PO · ops/support · security · end user  → missing requirements per lens
 💡 Recommended: 1 (the rule has no examples yet)
+>
 ```
-END THE TURN. On the pick, run it as one round (≤ 7 questions, recommendations as usual) and **write the results
-straight into the delta or proposal** (ids from `hitl-index spec next-id`):
+On the pick (next run), the round after holds the technique's questions (≤ 7, recommendations as usual); on their
+answers **write the results straight into the delta or proposal** (ids from `hitl-index spec next-id`):
 1. **Example mapping** — list the rules of the item (yellow), 2–4 examples each (green) as candidate scenarios with
    concrete values, open questions (red) as questions. Accepted examples → `#### Scenario` blocks; red →
    `[NEEDS CLARIFICATION]` or answered.

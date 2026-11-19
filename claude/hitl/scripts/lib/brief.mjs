@@ -1,0 +1,291 @@
+// Brief files (0.14): the interview of /hitl:plan and /hitl:design happens in a markdown file the user edits,
+// `.hitl/changes/<id>/plan-brief.md` and `design-brief.md` (templates: shared/templates/{plan,design}-brief.md;
+// format and answer grammar: shared/interview.md §4–§6). This module parses one brief deterministically and tolerantly:
+// unknown lines are ignored, a missing header falls back to the file name and the round headings.
+import { join } from "node:path";
+import { readText } from "./fsutil.mjs";
+
+export const BRIEF_SCHEMA = "hitl.brief/1";
+export const BRIEF_KINDS = ["plan", "design"];
+/** File name of a brief kind: plan-brief.md | design-brief.md. */
+export const briefFileName = (kind) => `${kind}-brief.md`;
+/** The skill that processes a brief kind. */
+export const briefSkill = (kind) => (kind === "design" ? "/hitl:design" : "/hitl:plan");
+
+// ---------------------------------------------------------------- answer grammar (English + Vietnamese)
+const ACCEPT = new Set(["y", "yes", "ok", "okay", "accept", "agree", "được", "đồng ý", "ừ", "ừ đúng", "có", "chốt"]);
+const UNKNOWN = new Set(["?", "??", "don't know", "dont know", "do not know", "idk", "không biết", "chưa biết", "ko biết"]);
+const DONE = new Set(["done", "xong"]);
+const DECLINE = new Set(["n", "no", "không", "ko"]);
+const norm = (s) => String(s ?? "").normalize("NFC").trim().toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").replace(/^[.!]+|[.!]+$/g, "").trim();
+
+/**
+ * Kind of an answer: "empty" | "accept" (take the 💡 recommendation) | "unknown" (carry with a recommendation) |
+ * "done" (stop asking) | "deep" (`deep` or `deep <ID|topic>`) | "decline" (n/no) | "text" (an answer, a question or a
+ * doubt: the skill reads it; interview.md §6 decides answer vs discussion).
+ */
+export function answerKind(text) {
+  const raw = String(text ?? "").normalize("NFC").trim();
+  if (!raw) return "empty";
+  if (/^\?+$/.test(raw)) return "unknown";
+  const t = norm(raw);
+  if (!t) return "empty";
+  if (ACCEPT.has(t)) return "accept";
+  if (UNKNOWN.has(t)) return "unknown";
+  if (DONE.has(t)) return "done";
+  if (DECLINE.has(t)) return "decline";
+  if (/^deep(?:\s|$)/.test(t)) return "deep";
+  return "text";
+}
+
+// ---------------------------------------------------------------- parser
+const Q_HEAD = /^###\s+Q(\d+)\b\s*(.*)$/;
+const ANSWER = /^ {0,3}>\s?(.*)$/;
+const MARKER = /^\s*(?:→|💬|💡|_e\.g\.|_z\.?b\.|#|accept all\b)/i;
+const ACCEPT_ALL = /^\s*(?:\*\*)?accept all\b/i;
+/** `### Notes — …`: the free-text block that ends every round and the Close section. */
+const NOTES_HEAD = /^###\s+Notes\b/i;
+
+function metaOf(line) {
+  const out = {};
+  for (const part of line.replace(/^>\s*/, "").split("|")) {
+    const m = /^\s*([a-z][\w-]*)\s*:\s*(.*?)\s*$/i.exec(part);
+    if (m) out[m[1].toLowerCase()] = m[2];
+  }
+  return out;
+}
+
+const newQuestion = (n, rest, round, line) => {
+  let t = rest.trim();
+  let tag = null;
+  const tm = /^\[([A-Z])\]\s*/.exec(t);
+  if (tm) { tag = tm[1]; t = t.slice(tm[0].length); }
+  const hot = /🔥/.test(t);
+  t = t.replace(/🔥\s*/g, "").trim();
+  return { id: `Q${n}`, n: Number(n), round, tag, hot, title: t, line, body: [], hint: null, recommended: null,
+    answerLines: [], answer: "", kind: "empty", answered: false, acceptedByRound: false, recorded: [], carried: null,
+    parked: false, discussed: false, settled: false, pending: false };
+};
+
+/** A Notes block: parsed with the question machinery (answer lines, marks, 💬), kept apart from the questions. */
+const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id: "notes" });
+
+/**
+ * parseBrief(text, file?) -> {schema, file, kind, change, key, status, round, updated, title, description,
+ *   rounds:[{n, done, acceptAllLine, acceptAll, acceptAllAnswer, coverage, hot, line}], questions:[…], close, openQuestions, counts, items}.
+ * A question: {id:"Q8", n, round, tag, hot, title, hint, recommended, answer, kind, answered, acceptedByRound, recorded[],
+ *   carried (round number or null), parked, discussed, settled, pending}.
+ * Notes (every round's `round.notes`, and `close.notes`): {id:"notes", round, text, answered (non-empty), recorded[],
+ *   carried, parked, discussed, marked (a → line follows), pending (non-empty and not marked: the next run processes it)}.
+ */
+export function parseBrief(text, file = null) {
+  // HTML comments (template guidance) are not content: blank them, keeping line numbers
+  const lines = String(text ?? "").replace(/\r\n?/g, "\n").replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, "")).split("\n");
+  const out = { schema: BRIEF_SCHEMA, file, kind: null, change: null, key: null, status: null, round: 0, updated: null, title: null,
+    description: "", rounds: [], questions: [], close: null, openQuestions: [], counts: null, items: [] };
+  const fromFile = /(?:^|\/)(plan|design)-brief\.md$/.exec(file || "");
+  let section = "head"; let round = null; let q = null; let mode = null; // mode: body | answer | discussion | after
+  const desc = [];
+  let acceptTarget = null; // round whose accept-all answer continues on `>` lines
+  let closeQ = null;
+  const endQuestion = () => { q = null; mode = null; };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]; const ln = i + 1;
+    if (/^#\s/.test(line) && out.title === null) {
+      out.title = line.replace(/^#\s+/, "").trim();
+      const k = /^(plan|design)\s+brief\b/i.exec(out.title);
+      if (k) out.kind = k[1].toLowerCase();
+      const c = /[—-]\s*([a-z]+-[a-z0-9-]+)\s*$/.exec(out.title);
+      if (c) out.change = c[1];
+      continue;
+    }
+    if (section === "head" && /^>\s*\w[\w-]*\s*:/.test(line)) {
+      const m = metaOf(line);
+      if (m.change) out.change = m.change;
+      if (m.key) out.key = m.key;
+      if (m.kind) out.kind = m.kind.toLowerCase();
+      if (m.status) out.status = m.status.toLowerCase();
+      if (m.round && /^\d+$/.test(m.round)) out.round = Number(m.round);
+      if (m.updated) out.updated = m.updated;
+      continue;
+    }
+    const h2 = /^##\s+(.*)$/.exec(line);
+    if (h2) {
+      endQuestion(); acceptTarget = null; closeQ = null;
+      const head = h2[1].trim();
+      const rm = /^Round\s+(\d+)\b(.*)$/i.exec(head);
+      if (/^Description\b/i.test(head)) { section = "description"; round = null; }
+      else if (rm) {
+        section = "round";
+        const rest = rm[2];
+        const cov = /Coverage\s*:\s*([^(]*)/i.exec(rest);
+        const hot = /\(🔥\s*([^)]*)\)/.exec(rest);
+        round = { n: Number(rm[1]), done: /^\s*✅/.test(rest), notes: null, acceptAllLine: false, acceptAll: false, acceptAllAnswer: null,
+          coverage: cov ? cov[1].trim().replace(/\s+$/, "") || null : null, hot: hot ? hot[1].split(/[,·]/).map((s) => s.trim()).filter(Boolean) : [], line: ln };
+        if (out.rounds.some((r) => r.n === round.n)) out.items.push({ level: "warn", code: "BRIEF_ROUND_DUP", line: ln, message: `Round ${round.n} appears twice` });
+        out.rounds.push(round);
+      } else if (/^Close\b/i.test(head)) { section = "close"; round = null; out.close = { line: ln, question: null, answer: "", kind: "empty", items: [], gaps: [], resolved: null, notes: null }; }
+      else if (/^Open questions\b/i.test(head)) { section = "open"; round = null; }
+      else { section = "other"; round = null; }
+      continue;
+    }
+    if (section === "description") { desc.push(line); continue; }
+    if (section === "open") { const m = /^\s*-\s*(?:\[[ x]\]\s*)?(Q\d+)\b\s*(.*)$/.exec(line); if (m) out.openQuestions.push({ id: m[1], text: m[2].trim() }); continue; }
+    if (section === "close") {
+      // `### <question>` items (overlap findings `O1…`, then the approve / gap question last), each with `>` lines;
+      // `### Notes` is the free-text block, parsed like a round's Notes
+      const c = out.close;
+      if (NOTES_HEAD.test(line)) { closeQ = null; q = newNotes(null, ln); mode = "body"; c.notes = q; continue; }
+      if (q) { if (/^###\s/.test(line)) endQuestion(); else { questionLine(line); continue; } }
+      if (/^###\s+/.test(line)) { closeQ = { title: line.replace(/^###\s+/, "").trim(), answerLines: [], resolved: null, line: ln }; c.items.push(closeQ); continue; }
+      const a = ANSWER.exec(line);
+      if (a && closeQ) { closeQ.answerLines.push(a[1]); continue; }
+      const r = /^\s*→\s*(.*)$/.exec(line);
+      if (r && closeQ) { closeQ.resolved = r[1].trim(); continue; }
+      if (closeQ && closeQ.answerLines.length && line.trim() && !MARKER.test(line)) { closeQ.answerLines.push(line.trim()); continue; }
+      if (!closeQ && /^\s*-\s+/.test(line)) c.gaps.push(line.replace(/^\s*-\s+/, "").trim());
+      continue;
+    }
+    if (section !== "round") continue;
+    if (NOTES_HEAD.test(line)) {
+      acceptTarget = null; q = newNotes(round.n, ln); mode = "body";
+      if (round.notes) out.items.push({ level: "warn", code: "BRIEF_NOTES_DUP", line: ln, message: `Round ${round.n} has two Notes blocks` });
+      round.notes = q;
+      continue;
+    }
+    const qh = Q_HEAD.exec(line);
+    if (qh) {
+      acceptTarget = null;
+      q = newQuestion(qh[1], qh[2], round.n, ln); mode = "body";
+      if (out.questions.some((x) => x.round === round.n && x.n === q.n)) out.items.push({ level: "warn", code: "BRIEF_Q_DUP", line: ln, message: `Q${q.n} appears twice in Round ${round.n}` });
+      out.questions.push(q);
+      continue;
+    }
+    if (/^###\s/.test(line)) { endQuestion(); continue; }
+    if (ACCEPT_ALL.test(line)) {
+      endQuestion();
+      const gt = line.lastIndexOf(">");
+      const tail = gt >= 0 ? line.slice(gt + 1).trim() : "";
+      round.acceptAllLine = true; round.acceptAllAnswer = tail || null; acceptTarget = round;
+      continue;
+    }
+    if (acceptTarget && !q) {
+      const a = ANSWER.exec(line);
+      if (a) { const v = a[1].trim(); if (v) acceptTarget.acceptAllAnswer = [acceptTarget.acceptAllAnswer, v].filter(Boolean).join(" "); continue; }
+      if (line.trim()) acceptTarget = null;
+      continue;
+    }
+    if (!q) continue;
+    questionLine(line);
+  }
+  /** One line inside a question or a Notes block: answer, mark, 💬, 💡, lazy continuation, body, hint. */
+  function questionLine(line) {
+    const a = ANSWER.exec(line);
+    if (a) { q.answerLines.push(a[1]); mode = "answer"; return; }
+    const arrow = /^\s*→\s*(.*)$/.exec(line);
+    if (arrow) {
+      const t = arrow[1].trim(); mode = "after";
+      const rec = /^recorded\s*:\s*(.*)$/i.exec(t);
+      const car = /^carried\s+to\s+round\s+(\d+)/i.exec(t);
+      if (rec) q.recorded.push(...rec[1].split(/,\s*/).map((s) => s.trim()).filter(Boolean));
+      else if (car) q.carried = Number(car[1]);
+      else if (/^parked\b/i.test(t)) q.parked = true;
+      else q.recorded.push(t);
+      return;
+    }
+    if (/^\s*💬/.test(line)) { q.discussed = true; mode = "discussion"; return; }
+    const rm = /^\s*💡\s*(?:\*\*)?(?:My\s+)?Recommend(?:ed|ation)(?:\*\*)?\s*:?\s*(.*)$/i.exec(line);
+    if (rm) { q.recommended = rm[1].trim() || q.recommended || ""; return; }
+    if (mode === "answer" && line.trim() && !MARKER.test(line)) { q.answerLines.push(line.trim()); return; } // lazy continuation
+    if (mode === "body") {
+      const h = /^\s*_(e\.g\.[^]*?)_\s*$/.exec(line);
+      if (h) q.hint = h[1].trim(); else if (line.trim()) q.body.push(line.trim());
+    }
+  }
+  out.description = desc.join("\n").trim();
+  if (!out.kind && fromFile) out.kind = fromFile[1];
+  if (!out.round && out.rounds.length) out.round = Math.max(...out.rounds.map((r) => r.n));
+  if (!out.status) out.status = out.close ? "closing" : "open";
+  if (!out.title) out.items.push({ level: "warn", code: "BRIEF_NO_HEADER", line: 1, message: "no `# Plan brief — <id>` / `# Design brief — <id>` title" });
+  for (const r of out.rounds) r.acceptAll = answerKind(r.acceptAllAnswer) === "accept";
+  const roundOf = new Map(out.rounds.map((r) => [r.n, r]));
+  for (const x of out.questions) {
+    x.answer = x.answerLines.map((s) => s.replace(/\s+$/, "")).join("\n").trim();
+    delete x.answerLines;
+    x.body = x.body.join("\n");
+    x.kind = answerKind(x.answer);
+    const r = roundOf.get(x.round);
+    x.acceptedByRound = x.kind === "empty" && !!r?.acceptAll && !!x.recommended;
+    x.answered = x.kind !== "empty" || x.acceptedByRound;
+    x.settled = x.recorded.length > 0 || x.carried !== null || x.parked;
+    x.pending = !x.settled && !r?.done;
+  }
+  if (out.close) {
+    for (const it of out.close.items) {
+      it.answer = it.answerLines.join("\n").trim();
+      delete it.answerLines;
+      const t = norm(it.answer);
+      it.kind = /^force\b/.test(t) ? "force" : /^(round|one more round|thêm vòng)\b/.test(t) ? "round" : answerKind(it.answer);
+    }
+    const last = out.close.items.at(-1) || null;
+    out.close.question = last?.title ?? null; out.close.answer = last?.answer ?? ""; out.close.kind = last?.kind ?? "empty";
+    out.close.resolved = last?.resolved ?? null;
+  }
+  // Notes: free text; a non-empty block without a → mark is processed by the next run (in any round), never twice
+  const finishNotes = (x) => {
+    if (!x) return null;
+    const text = x.answerLines.map((l) => l.replace(/\s+$/, "")).join("\n").trim();
+    const marked = x.recorded.length > 0 || x.carried !== null || x.parked;
+    return { id: "notes", round: x.round, line: x.line, text, kind: answerKind(text), answered: !!text, recorded: x.recorded,
+      carried: x.carried, parked: x.parked, discussed: x.discussed, marked, pending: !!text && !marked };
+  };
+  for (const r of out.rounds) r.notes = finishNotes(r.notes);
+  if (out.close) out.close.notes = finishNotes(out.close.notes);
+  const notesPending = [...out.rounds.map((r) => r.notes), out.close?.notes].filter((n) => n?.pending).length;
+  const pending = out.questions.filter((x) => x.pending);
+  const closeOpen = !!out.close && !out.close.resolved && out.status !== "done";
+  const closeItems = closeOpen ? out.close.items.filter((it) => !it.resolved) : [];
+  // Notes count as answers (a round with only Notes filled is processed), never as unanswered questions
+  out.counts = { questions: out.questions.length, pending: pending.length + closeItems.length + notesPending,
+    answered: pending.filter((x) => x.answered).length + closeItems.filter((it) => it.kind !== "empty").length + notesPending,
+    unanswered: pending.filter((x) => !x.answered).length + closeItems.filter((it) => it.kind === "empty").length, notes: notesPending };
+  return out;
+}
+
+/** The short form `hitl-index change|status --json` carries: {kind, file, status, round, open, unanswered, pending, notes}
+ *  (`notes` = Notes blocks with unprocessed text; they count in `pending`, not in `unanswered`). */
+export function briefSummary(b) {
+  if (!b) return null;
+  return { kind: b.kind, file: b.file, status: b.status, round: b.round, open: b.status !== "done",
+    unanswered: b.counts.unanswered, pending: b.counts.pending, notes: b.counts.notes };
+}
+
+/** Parsed brief of a change folder (root-relative dir), or null when the file does not exist. */
+export async function readBrief(root, changeDir, kind) {
+  const rel = `${changeDir}/${briefFileName(kind)}`;
+  const text = await readText(join(root, rel), null);
+  return text === null ? null : parseBrief(text, rel);
+}
+
+/** Both briefs of a change folder: {plan, design} (null when missing). */
+export async function readBriefs(root, changeDir) {
+  return { plan: await readBrief(root, changeDir, "plan"), design: await readBrief(root, changeDir, "design") };
+}
+
+/** The brief that belongs to the change's phase: spec → plan; design → design (else plan); later → design, else plan. */
+export function pickBrief(phase, { plan, design }) {
+  if (phase === "spec") return plan || null;
+  if (phase === "design") return design || plan || null;
+  return design || plan || null;
+}
+
+/**
+ * Next step for a change whose phase brief waits for the user's answers, else null:
+ * `answer .hitl/changes/<id>/<kind>-brief.md, then /hitl:<plan|design> <id>`.
+ */
+export function briefNext(changeId, phase, brief) {
+  if (!brief || !brief.open || !(brief.unanswered > 0)) return null;
+  const want = phase === "spec" ? "plan" : phase === "design" ? "design" : null;
+  if (!want || brief.kind !== want) return null;
+  return `answer ${brief.file}, then ${briefSkill(brief.kind)} ${changeId}`;
+}

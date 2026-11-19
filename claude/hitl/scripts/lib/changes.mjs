@@ -13,6 +13,7 @@ import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, v
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
 import { BLOCKING, applyCommand, blocksArchive, changeWait, noteCounts, readActiveNotes, readNotes, waitReasons } from "./notes.mjs";
 import { avoidedMessage, effectiveTerms, findAvoided } from "./glossary.mjs";
+import { briefNext, briefSummary, pickBrief, readBriefs } from "./brief.mjs";
 export { SPECS_REL };
 
 export const CHANGES_REL = `${HITL_PREFIX}changes`;
@@ -302,13 +303,15 @@ export async function changeInfo(root, config, ch, { activeNotes = null } = {}) 
   const blocks = an.filter((x) => x.change !== ch.id).map((x) => ({ change: x.change, notes: x.notes.filter((n) => n.source === ch.id && !["dismissed", "deferred"].includes(n.status)).map((n) => n.id) }))
     .filter((x) => x.notes.length);
   const waitNext = w.amend.length ? applyCommand(ch.id, w.amend[0]) : w.waits.length && ["implement", "archive-ready"].includes(phase) ? `/hitl:flow ${w.waits[0].source}` : null;
-  // an open note blocks archive: an archive-ready change routes to resolving it first
+  // 0.14: the brief file of the phase (plan-brief.md, design-brief.md), when there is one
+  const brief = briefSummary(pickBrief(phase, await readBriefs(root, ch.dir).catch(() => ({ plan: null, design: null }))));
+  // an open note blocks archive: an archive-ready change routes to resolving it first; an open brief round waits for answers
   const next = waitNext ? waitNext
     : phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
-    : { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
+    : briefNext(ch.id, phase, brief) || { spec: `/hitl:plan ${ch.id}`, design: `/hitl:design ${ch.id}`, tasks: `/hitl:tasks ${ch.id}`, implement: tc.next, "archive-ready": `/hitl:archive ${ch.id}`, archived: null }[phase];
   return { id: ch.id, dir: ch.dir, archived: ch.archived, title: ch.proposal?.title ?? null, proposal, design,
     capabilities: ch.deltas.map((d) => d.capability || d.folder), contracts: ch.contracts.length, tasksFile: ch.tasksFile, tasks,
-    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), before: ch.proposal?.before || [], wait, blocks, phase, next };
+    taskCounts: { total: tc.total, done: tc.done, byStatus: tc.byStatus }, notes: noteCounts(notes), before: ch.proposal?.before || [], wait, blocks, phase, next, ...(brief ? { brief } : {}) };
 }
 
 // ---------------------------------------------------------------- validation (§6.1)

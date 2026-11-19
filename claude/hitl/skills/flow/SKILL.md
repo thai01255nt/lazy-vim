@@ -29,7 +29,11 @@ Arguments: `$ARGUMENTS`
 4. Status (default, or a task id):
    - `hitl-index status [T] --json`. First, when `.changes[]` is non-empty, one line per active change:
      `📦 feat-password-reset — phase: implement · tasks 1/2 done` (phases: spec → design → tasks → implement →
-     archive-ready; `archive-ready` → `🎯 /hitl:archive <id>`). Then print the frontier tasks table, sorted by prio then id (max 10 rows; say `+N more`):
+     archive-ready; `archive-ready` → `🎯 /hitl:archive <id>`). A change with `.changes[].brief` whose `kind` matches
+     its phase (spec → plan, design → design) and `pending > 0` → one more line (0.14, the brief file of
+     `/hitl:plan` / `/hitl:design`): `📝 <id> — <kind> brief round <round>: <unanswered> unanswered → answer <file>,
+     then /hitl:<plan|design> <id>` (no unanswered left → `→ /hitl:<plan|design> <id>` to process the answers).
+     Then print the frontier tasks table, sorted by prio then id (max 10 rows; say `+N more`):
 
 ```
 | task | title                       | prio | risk | status   | drift | next                    |
@@ -59,7 +63,8 @@ Arguments: `$ARGUMENTS`
    - Else `.trace.block > 0` → `🎯 next: hitl-index trace --json and fix the references` (this overrides next).
    - End with `🎯 next: <.next from status --json>` and one line why.
    - No tasks at all → the first active change's `next` from `.changes[]` / `hitl-index change --json`
-     (`/hitl:design <id>`, `/hitl:tasks <id>`, `/hitl:archive <id>`), else `🎯 next: /hitl:go <description>`.
+     (`answer <brief file>, then /hitl:plan <id>`, `/hitl:design <id>`, `/hitl:tasks <id>`, `/hitl:archive <id>`),
+     else `🎯 next: /hitl:go <description>`.
    - `.hitl/planning/*.md` exists (v0.5) → one line `💡 v0.5 planning files — /hitl:plan offers the migration`.
 
 Status comes from tooling only (`hitl-index status`); never infer it from `@status` tags or checkboxes.

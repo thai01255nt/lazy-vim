@@ -1,4 +1,5 @@
 // P2 — next-step rules (§E.6).
+import { briefNext } from "./brief.mjs";
 const prioNum = (p) => { const m = /P?(\d)/.exec(p || ""); return m ? Number(m[1]) : 9; };
 const idNum = (id) => Number(String(id).replace(/^T-/, "")) || 0;
 
@@ -28,6 +29,9 @@ export function lockedDrift(drift, lock) {
 
 /** Next command for a change phase (design v3 §6.4); null for implement/archived (tasks drive those). */
 export function nextForChange(c) {
+  // 0.14: the phase's brief file still has unanswered questions → answer it first, then run the phase skill
+  const bn = c ? briefNext(c.id, c.phase, c.brief) : null;
+  if (bn) return bn;
   switch (c?.phase) {
     case "spec": return `/hitl:plan ${c.id}`;
     case "design": return `/hitl:design ${c.id}`;
@@ -91,7 +95,11 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
   }
   const waiting = changes.filter((c) => c.phase in CHANGE_ORDER && !(c.phase === "archive-ready" && waitOf.has(c.id)))
     .sort((a, b) => CHANGE_ORDER[a.phase] - CHANGE_ORDER[b.phase] || String(a.id).localeCompare(String(b.id)))[0];
-  if (waiting) return { task: null, command: nextForChange(waiting), reason: `change ${waiting.id}: ${CHANGE_REASON[waiting.phase]}`, change: waiting.id };
+  if (waiting) {
+    const b = briefNext(waiting.id, waiting.phase, waiting.brief) ? waiting.brief : null;
+    const reason = b ? `${b.kind} brief round ${b.round} has ${b.unanswered} unanswered question(s)` : CHANGE_REASON[waiting.phase];
+    return { task: null, command: nextForChange(waiting), reason: `change ${waiting.id}: ${reason}`, change: waiting.id };
+  }
   if (all.length && !all.every((t) => isDone(t.id))) return { task: null, command: "/hitl:flow", reason: "no unblocked task (check blocked-by edges)" };
   const p = planning.find((x) => x.status === "approved" && !x.hasTasks);
   if (p) return { task: null, command: `/hitl:tasks ${p.file}`, reason: "approved planning has no tasks file" };

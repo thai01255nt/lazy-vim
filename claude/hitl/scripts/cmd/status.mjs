@@ -45,6 +45,20 @@ export function waitLines(ni) {
   return out;
 }
 
+/** One line per change whose phase brief file waits for answers (0.14): `📝 <id> — <kind> brief round <n>: <k> unanswered → …`. */
+export function briefLines(changes) {
+  const out = [];
+  for (const c of changes || []) {
+    const b = c.brief;
+    if (!b || !b.open || !(b.pending > 0)) continue;
+    const want = c.phase === "spec" ? "plan" : c.phase === "design" ? "design" : null;
+    if (b.kind !== want) continue;
+    const cmd = `${b.kind === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id}`;
+    out.push(`📝 ${c.id} — ${b.kind} brief round ${b.round}: ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
+  }
+  return out;
+}
+
 /** `status --brief` notes line, or null. */
 export function notesLine(ni) {
   if (!ni?.changes.length) return null;
@@ -99,7 +113,9 @@ export async function changesInfo(root, statuses) {
     const { artifactDecision } = await import("../lib/specmd.mjs");
     const tasksSkipped = artifactDecision(c.proposal, "tasks") === "skipped" || (!!c.proposal?.noBehaviourChange && !c.deltas.length);
     const phase = ch.changePhase({ archived: false, proposal, design, tasks, tasksSkipped, taskCounts: { total: ts.length, done } });
-    out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done } });
+    const b = await import("../lib/brief.mjs");
+    const brief = b.briefSummary(b.pickBrief(phase, await b.readBriefs(root, c.dir).catch(() => ({ plan: null, design: null }))));
+    out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done }, ...(brief ? { brief } : {}) });
   }
   return out;
 }
@@ -201,7 +217,7 @@ export async function run(argv, ctx) {
           trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via }) => ({ id: n, title, status, kind, via, apply })),
           ...(waitOf(id) ? { wait: waitOf(id) } : {}) }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
-      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc }) => ({ id, phase, tasks: tc, notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
+      console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc, brief }) => ({ id, phase, tasks: tc, ...(brief ? { brief } : {}), notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
         wait: (({ change, ...w }) => w)((ni.waits || []).find((x) => x.change === id) || { change: null }) })).map((c) => (Object.keys(c.wait).length ? c : (({ wait, ...r }) => r)(c))), drift: drift ? drift.summary : null, lockedDrift: ld.length,
         trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
         tickets, ...(idsLegacy ? { idsLegacy } : {}),
@@ -223,6 +239,7 @@ export async function run(argv, ctx) {
       const nl = notesLine(ni);
       if (nl) console.log(nl);
       for (const l of waitLines(ni)) console.log(l);
+      for (const l of briefLines(changes)) console.log(l);
       return 0;
     }
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
@@ -244,6 +261,7 @@ export async function run(argv, ctx) {
     const nl = notesLine(ni);
     if (nl) console.log(`\n${nl}`);
     for (const l of waitLines(ni)) console.log(l);
+    for (const l of briefLines(changes)) console.log(l);
     console.log(`\n🎯 next: ${next.command} (${next.reason})`);
     return 0;
   } catch (e) {

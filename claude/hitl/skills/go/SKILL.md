@@ -69,7 +69,8 @@ Two or more flags → ⛔ GATE `Pick one: 1. --plan · 2. --quick · 3. --tdd` (
      --json` (questions are dropped) and step 3. Never a second question round.
 
 ## Rules
-- One 🧭 line, then the next skill runs in the same turn. Its gates are the next stop.
+- One 🧭 line, then the next skill runs in the same turn. Its gates are the next stop (`/hitl:plan` stops after it
+  writes the brief file `.hitl/changes/<id>/plan-brief.md` that the user answers in the editor).
 - An id always with its title (`feat-password-reset (Password reset by email)`, `ACC-R3.S2 (Reset link expires)`).
 - Explicit asks skip this skill: "plan …" → `/hitl:plan`, "TDD this" → `/hitl:tdd`, "tasks quick …" → `/hitl:tasks`,
   "check overlap / chồng lấn between <changes>" → `/hitl:overlap`.

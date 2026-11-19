@@ -211,8 +211,8 @@ is copied; the templates, examples and lint heuristics in `shared/formats/`, `sh
 ### mattpocock/skills `grilling` — https://github.com/mattpocock/skills
 Vendored byte-identical as `skills/grilling/` (skill `hitl:grilling`): `SKILL.md` (from
 `skills/productivity/grilling/SKILL.md`) and the upstream `LICENSE`. Commit, date, checksums and the re-sync procedure:
-`skills/grilling/UPSTREAM.md`. `/hitl:plan` and `/hitl:design` load it through the Skill tool; the hitl overlay (round
-header, tags, caps, recording) is separate: `shared/interview.md`. License text: section 1, mattpocock/skills
+`skills/grilling/UPSTREAM.md`. `/hitl:plan` and `/hitl:design` load it through the Skill tool; the hitl overlay (brief
+file, tags, caps, recording) is separate: `shared/interview.md`. License text: section 1, mattpocock/skills
 (Copyright (c) 2026 Matt Pocock).
 
 ### mattpocock/skills `tdd` reference files — https://github.com/mattpocock/skills

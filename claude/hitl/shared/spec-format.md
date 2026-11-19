@@ -28,6 +28,8 @@ Requirement-quality lints run on a change's ADDED/MODIFIED blocks only; `spec.qu
 .hitl/changes/<change-id>/            active change
   proposal.md (b) · specs/<capability>/spec.md (b, delta) · glossary.md (b, delta)
   design.md (a) · data-model.md (a) · contracts/* (a) · tasks.md (a) · .base.json (generated)
+  plan-brief.md · design-brief.md     interview brief files (0.14, `shared/interview.md` §4): the user's answers and
+                                      Claude's rounds; not spec files — `spec validate` and merge never read them
 .hitl/archive/<YYYY-MM-DD>-<change-id>/   archived change (frozen)
 ```
 (b) business-readable: no code names, file paths, class/function/library names, SQL or HTTP verbs (`BIZ_CODE_TOKEN`).

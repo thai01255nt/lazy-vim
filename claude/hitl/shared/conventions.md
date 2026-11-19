@@ -23,6 +23,9 @@ A step marked `⛔ GATE` is a real stop:
 - A bare "y", "yes", "ok", "được", "ừ", "có" accepts the recommended option. "n"/"không" declines.
 - Missing required input at a gate (file, task id) → show the error and stop; do not guess.
 - A gate question must be answerable without scrolling: restate the options in plain words.
+- Not a chat gate: the interview rounds of `/hitl:plan` and `/hitl:design`. They live in a brief file the user answers
+  in the editor (`shared/interview.md` §4, its own answer grammar: there `?` means "don't know"); the run ends after
+  writing the round, with ≤ 3 chat lines.
 
 ## Plain replies (shared language)
 - Use the project's words: the `### Term:` names in `.hitl/specs/GLOSSARY.md` and the change's `glossary.md`, never their

@@ -29,8 +29,10 @@ reply; the CLI reads it (`COVERAGE_GAP`).
 | Terminology | each concept one name; new terms in the glossary | "Is 'disabled' the same as 'deactivated'?" |
 | Success criteria | measurable, technology-free outcome(s) `SC-n` | "How will you know it worked?" |
 Status: `✅` clear · `⚠️` partial · `❌` missing · `—` not applicable or deferred (the note says why).
-Each round header carries one line (in the user's language), e.g.
-`Độ phủ: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ✅ · Edge ❌ · Integr — · NFR — · Terms ✅ · Success ⚠️`.
+From round 2 on, each round heading of the brief carries one line, e.g.
+`## Round 2 — Coverage: Scope ✅ · Actors ✅ · Data ⚠️ · Rules ✅ · Edge ❌ · Integr — · NFR — · Terms ✅ · Success ⚠️`.
+Round 1 asks one core question per category instead (`SKILL.md` §3.4); the table gets its first status from the
+description before round 1 and is updated after every run.
 The next round's frontier takes ❌ first, then ⚠️ (highest impact first). Anything still unresolved is written as
 `[NEEDS CLARIFICATION: …]` in the delta or proposal at the place it belongs, plus an `## Open questions` line.
 
@@ -39,28 +41,33 @@ Score every requirement and open point by **impact × uncertainty** (H/M/L each)
 - impact H: money, security/privacy, data loss, legal, many users, irreversible; M: a main flow; L: cosmetic/rare.
 - uncertainty H: the user hesitated, answers conflict, a rule has no number, the scout found surprising current
   behaviour; M: one assumption taken; L: stated plainly.
-H×H, H×M and M×H are **hotspots**: mark them `🔥` in the round (`❓ **Q2** [R] 🔥 - …`) and in the header
-(`🔥 ACC-R7, refunds`). Grilling descends into a hotspot's child decisions first (the frontier rule: its
+H×H, H×M and M×H are **hotspots**: mark them `🔥` in the question heading (`### Q12 [R] 🔥 …`) and in the round
+heading (`(🔥 ACC-R7, refunds)`). Grilling descends into a hotspot's child decisions first (the frontier rule: its
 sub-questions become askable as soon as its parent is answered), before widening to other ❌ categories. A hotspot
 cools when its scenarios cover the failure path and its rule has numbers.
 
 ## 3. User-driven depth — `deep <ID|topic>`
-The user may reply `deep ACC-R7` (or `deep refunds`) at any round gate or the gap gate (§4): then read
-`deep.md` (same folder) and show its technique menu as the next gate (example mapping, five whys, edge cases,
-pre-mortem, decision table, stakeholder lenses; results go straight into the delta/proposal).
+The user may answer `deep ACC-R7` (or `deep refunds`) under any question of the brief, or under the gap question of
+the Close section (§4): then read `deep.md` (same folder) and put its technique menu into the next round as one
+question (example mapping, five whys, edge cases, pre-mortem, decision table, stakeholder lenses; results go straight
+into the delta/proposal).
 
 ## 4. Stop rule
-`/hitl:plan` may close (the "Spec complete?" gate) only when:
+`/hitl:plan` may close (the `### Approve the spec? (Y/n)` question of the brief's Close section) only when:
 - every coverage category is `✅` or `—` with a reason, and
 - no SHALL/MUST requirement holds `[NEEDS CLARIFICATION]`.
-Check it with `hitl-index spec validate <id> --json`: no `COVERAGE_GAP` and no `REQ_UNCLEAR` items. Otherwise the close
-gate lists the gaps instead:
+Check it with `hitl-index spec validate <id> --json`: no `COVERAGE_GAP` and no `REQ_UNCLEAR` items. Otherwise the
+Close section lists the gaps and asks the gap question instead:
 ```
+## Close
 ⛔ Not ready for /hitl:design — gaps:
 - Edge cases & errors ❌ · Success criteria ⚠️
 - ACC-R7 SHALL with [NEEDS CLARIFICATION: end open sessions?]
-1. 💡 one more round on the gaps   2. deep <ID>   3. force close (recorded as "💡 Forced: …" in Open questions)
+
+### Close with gaps? (round · deep <ID> · force)
+💡 Recommended: round — one more round on the gaps
+>
 ```
-Option 3 writes `- 💡 Forced: closed with gaps <list> (<date>)` under `## Open questions`; validate then downgrades
-the gaps (REQ_UNCLEAR and NEEDS_CLARIFICATION warn, COVERAGE_GAP info) and approval proceeds. `done` from the user is not a force: it ends the
-rounds and goes to this gate.
+`force` writes `- 💡 Forced: closed with gaps <list> (<date>)` under the proposal's `## Open questions`; validate then
+downgrades the gaps (REQ_UNCLEAR and NEEDS_CLARIFICATION warn, COVERAGE_GAP info) and approval proceeds. `done` from
+the user is not a force: it ends the rounds and goes to this question.

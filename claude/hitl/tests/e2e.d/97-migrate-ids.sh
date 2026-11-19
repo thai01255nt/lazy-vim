@@ -32,7 +32,7 @@ sMI2() {
   CLI migrate --ids --keys "$MI_KEYS" --json > "$W/mi2b.json"
   afile "$W/mi2b.json" 'd.status === "applied" && d.map.tasks["T-12"] === "PWR-T1" && d.map.specs["ACC-R5"] === "PWR-R1" && d.map.specs["ACC-R1"] === "LACC-R1" && d.idMap === ".hitl/index/id-map.json"'
   DK=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).quickKeys[0].key)' "$W/mi2a.json")
-  afile "$W/mi2b.json" "d.quickKeys.length === 1 && /^QF[A-Z]{3}\$/.test(d.quickKeys[0].key) && d.quickKeys[0].key === \"$DK\" && d.map.tasks[\"T-20\"] === \"$DK-T1\""
+  afile "$W/mi2b.json" "d.quickKeys.length === 1 && /^Q[A-Z]{3,4}\$/.test(d.quickKeys[0].key) && d.quickKeys[0].key === \"$DK\" && d.map.tasks[\"T-20\"] === \"$DK-T1\""
   CLI migrate --ids --json | aj 'd.status === "current"'
   git add -A && git -c user.email=e2e@x -c user.name=e2e commit -qm "chore(hitl): migrate to 0.13 ids"
   CLI migrate --ids --json | aj 'd.status === "current"'
@@ -101,6 +101,6 @@ sMI4() {
   contains "$W/mi4e.err" "QT-T1 is now $NK-T1"
   # a new quick task never gets QT: its own key, free of every key in the registry
   NQ=$(CLI next-id --quick fix-greeting)
-  case "$NQ" in QF???-T1) ;; *) echo "next-id --quick gave $NQ"; return 1;; esac
+  case "$NQ" in Q???-T1|Q????-T1) ;; *) echo "next-id --quick gave $NQ"; return 1;; esac
 }
 step MI4 "0.13.1 QT quick task: status/tasks --check report IDS_LEGACY; migrate --ids gives the file its own key (header, tags, lock, review dir, id map); next-id --quick never QT" sMI4

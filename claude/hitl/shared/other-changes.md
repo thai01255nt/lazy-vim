@@ -25,7 +25,7 @@ Right after B's proposal is written (§1 of plan):
 ## 3. Owner check (B's plan and design brainstorm)
 **Parents first (0.13.1).** A parent of B is an active change P that holds notes from B (`source: B`; B was created
 `--before P`, or an earlier owner check wrote one): `hitl-index overlap B --json` marks it `parent: true` and lists it
-even with no evidence. Plan round 1 prints one line per parent, before the questions:
+even with no evidence. Round 1 of the plan brief holds one info line per parent, before the questions:
 `🔗 parent <P> — shared: <evidence refs (titles)>` (no evidence → `shared: none found yet`). The owner check then works
 through this concrete list (the refs named there first), every round, instead of relying on memory. Design close does
 the same for new `contract` or `file` evidence against a parent (a `design` note in P, below).
@@ -33,8 +33,8 @@ the same for new `contract` or `file` evidence against a parent (a `design` note
 For each behaviour you are about to record in B, ask whose WHAT it is:
 - B's own behaviour, or a change to a **living** requirement (in `.hitl/specs/`) → B's delta, as usual.
 - A change to something an active parent P owns (P's ADDED or MODIFIED blocks, P's decisions, P's task ACs) → never in
-  B's delta (B cannot modify a requirement that is not living yet). Draft it in P's words and ask in the round gate:
-  `📥 For <P>: <what changes, plain words> · refs <P's ids (titles)> → note in <P>? (Y/n/edit)`.
+  B's delta (B cannot modify a requirement that is not living yet). Draft it in P's words and ask it as a question of
+  the next brief round: `### Q<n> 📥 For <P>: <what changes, plain words> · refs <P's ids (titles)> → note in <P>? (Y/n/edit)`.
   Y → `hitl-index note add --change P --source B --kind spec|design --refs <P's ids> --text "<what P must change and
   why, B's behaviour in plain words>" --from "/hitl:plan B"` (`design` for a contract or decision of P). The text may
   end with `Proposed for <P>:` and the requirement as P should read it. Print its `📥` line.
@@ -45,17 +45,17 @@ This applies to every active change B holds no notes from and that holds none fr
 B itself was created with `--before`: B made `--before A` is linked to A (A is a parent, §3) but not to C, so C is
 checked here. Changes B already waits for (`waitsFor: true`) need nothing more.
 - **plan §3**, after the scout: `hitl-index overlap B --json`. Each candidate with `shared: true` and `linked: false`
-  → one round-1 line `🔎 may overlap <P>: <evidence refs (titles)>`, and a `[R]` question when the evidence names
+  → one round-1 info line `🔎 may overlap <P>: <evidence refs (titles)>` in the brief, and a `[R]` question when the evidence names
   behaviour (same-id, ac-ref, rule-ref, term). Capability-only candidates: the info line only.
-- **plan §6 close**: the spec-reviewer gets the candidates (its prompt line `Overlap: hitl-index overlap B --json`).
+- **plan §5 close**: the spec-reviewer gets the candidates (its prompt line `Overlap: hitl-index overlap B --json`).
   It judges each candidate as a cluster and must quote a witness (one Given/When/Then run where B's text and P's text
-  disagree or chain). One gate line per finding:
-  `⚠️ Overlap with <P> — <witness> → 1. adjust <B> only · 2. both sides: <B>'s delta + 📥 note in <P> (<P> then waits
+  disagree or chain). One question per finding in the brief's Close section, answered there (1/2/3):
+  `### O<n> ⚠️ Overlap with <P> — <witness> → 1. adjust <B> only · 2. both sides: <B>'s delta + 📥 note in <P> (<P> then waits
   until <B> is archived) · 3. not an overlap`.
   2 → the §3 note(s) into P with `--source B`. 3 → one line in B's proposal `## Assumptions`
   (`Checked against <P>: no overlap`). Nothing else is recorded.
 - **design close**: `hitl-index overlap B --json` again; judge only the new `contract` and `file` evidence with the
-  same witness rule and the same gate (against a parent: the 🔗 line and the owner check of §3).
+  same witness rule and the same Close question (against a parent: the 🔗 line and the owner check of §3).
 - After design nothing special runs: a later collision in code is handled by the normal task flow and drift. To check
   on demand (another change moved on, a branch with other changes was merged, or before archiving), run
   `/hitl:overlap B [<P> …]` (§6).
