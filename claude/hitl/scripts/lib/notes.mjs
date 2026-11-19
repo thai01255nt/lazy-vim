@@ -95,6 +95,7 @@ export function reopensLine(reopen) {
   if (!reopen?.length) return "nothing (confirm no impact)";
   return reopen.map((r) => {
     if (!r.stage) return `${r.task} nothing to unlock`;
+    if (r.stage === "takeover") return `${r.task} takes over ${(r.tests || []).length} test(s) from ${(r.from || []).join(", ") || "?"}`;
     const what = r.stage === "skeleton" ? [...(r.symbols || []).map((s) => s.slice(s.indexOf("#") + 1)), ...(r.acs || [])] : (r.acs || []);
     const extra = r.newAc?.length ? `new AC for ${r.newAc.join(", ")}` : "";
     return `${r.task} ${r.stage} (${[...what, extra].filter(Boolean).join(", ") || "—"})`;

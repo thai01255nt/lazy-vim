@@ -106,9 +106,10 @@ user said "fix").
 
 `amend F-n` = accept + amend the spec:
 1. `hitl-index review-decide <T> F-n accept --note "amend spec"`.
-2. Follow `shared/amend-spec.md` (delta + `_Impact:_` block; `note apply --from "/hitl:review <T> amend F-n"`) with
-   `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing → the task's
-   change and the finding text): `_Delta:_` preview, GATE `Apply? (Y/n/edit)`, END THE TURN.
+2. Follow `shared/amend-spec.md` §1–§2 with `R/l0.json` `trace.spec[<finding symbol>]` as the spec block (missing →
+   the task's change and the finding text). Route `chat · gate` (wording only): `_Delta:_` preview, `_Impact:_` block
+   (`note apply --from "/hitl:review <T> amend F-n"`), GATE `Apply? (Y/n/edit)`, END THE TURN. Route `brief`: write the
+   amend brief (amend-spec.md §4.1), `_Next:_ answer <file>, then /hitl:plan <id> amend`; the review waits for it.
 3. On Y apply it; if the locked contract must change too, print what changes in the skeleton and
    `_Next:_ edit the skeleton, then /hitl:approve <T> skeleton <symbols>`. Then `hitl-index report <T> --json`.
 Also offer `amend F-n` when the human accepts a contract finding that implies a different design.

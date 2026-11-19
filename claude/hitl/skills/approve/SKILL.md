@@ -1,6 +1,6 @@
 ---
 name: approve
-description: Human approval gate that locks a task's reviewed skeleton (signatures, intents, TODO flow, test stubs), its red tests, or its final verified result into skeleton.lock.json and advances its status; "<change-id> intent" re-locks the tidied intents of a done change; "<change-id> accept" accepts later drift on an archived change; "<change-id> reopen" unlocks what an amendment changed; "dismiss|defer N-k" and "--ack N-k" decide a blocking note (dismissing a note from another change ends its wait). Only the human runs this.
+description: Human approval gate that locks a task's reviewed skeleton (signatures, intents, TODO flow, test stubs), its red tests, or its final verified result into skeleton.lock.json and advances its status; "<change-id> intent" re-locks the tidied intents of a done change; "<change-id> accept" accepts later drift on an archived change; "<change-id> reopen" unlocks what an amendment changed and moves taken-over tests to their new task; "dismiss|defer N-k" and "--ack N-k" decide a blocking note (dismissing a note from another change ends its wait). Only the human runs this.
 argument-hint: "<task-id> [skeleton|tests|done] [symbols...] [--ack N-k] | <change-id> intent|accept [symbols...] | <change-id> reopen [N-k] | <change-id> dismiss N-k <reason> | <change-id> defer N-k <change>"
 disable-model-invocation: true
 allowed-tools: Read Skill Bash(hitl-index *) Bash(node *hitl-index.mjs *)
@@ -29,7 +29,7 @@ Parse the arguments (whitespace or comma separated). The first token decides the
   `CMD = hitl-index approve --change <id> --stage accept [--symbols a,b] --by human` (same shape rules as intent: never
   `--force`, never `--by auto` or `human-override`). Go to step 2, skip step 3 and step 5.
 - first token not `<KEY>-T<n>` and second token `reopen` → **change form, reopen** (0.9: the human confirms what an amendment
-  reopens — the recheck note's list): optional third token `N-k` → `--note N-k`.
+  reopens — the recheck note's list, and since 0.17 the tests a new task takes over): optional third token `N-k` → `--note N-k`.
   `CMD = hitl-index approve --change <id> --stage reopen [--note N-k] --by human`. Go to step 2, skip step 3; step 5
   pushes each reopened task.
 - first token not `<KEY>-T<n>` and second token `dismiss` → **note decision**: third token `N-k` (required), the rest is the
@@ -60,7 +60,9 @@ CLI checks preconditions before writing and writes nothing when they fail. (`--d
   Print `_Stop:_ Approval token missing or used. Type /hitl:approve <args> again.` Stop. Never retry or work around it.
 - Never add `--force` unless the user typed `--force` in the arguments.
 - Refused with `_Note N-k_ (…) touches <T> via …` → print each reason and the three ways out from it: apply the note
-  (`/hitl:plan <id> amend N-k`), `/hitl:approve <T> <stage> --ack N-k`, or `/hitl:approve <id> dismiss|defer N-k …`. Stop.
+  (`/hitl:plan <id> amend N-k`: a chat gate when wording only, else an amend brief), `/hitl:approve <T> <stage> --ack
+  N-k`, or `/hitl:approve <id> dismiss|defer N-k …`. Stop.
+- Refused with `REMOVE_STILL_PRESENT` (done stage, 0.17) → the task's remove rows still exist in the code: `/hitl:implement <T>`. Stop.
 - A preview without locking is available to the user as `hitl-index approve <T> --dry-run` in their own shell.
 
 ## 3. Sync tags
@@ -99,9 +101,13 @@ Reopen form (JSON `reopened`, `nothing`, `empty`):
 ✅ N-4 reopened (confirmed by human):
 _Reopen_ PWR-T12 tests: 2 test(s) (PWR-T12.AC2) — rewrite them to the new AC
 _Reopen_ PWR-T14 skeleton: 1 symbol (ResetService.request) + 1 test
+_Reopen_ PWR-T15 takes over 1 test(s) from PWR-T12 (issues a link valid for one hour): rewrite them to its AC
 ```
+A `takeover` item (0.17, an amend set's `rewrite:` row) moves a locked test of a done task (or of an archived change)
+to the new task; the done task keeps its done record.
 `empty: true` → exactly `✅ N-4 closed: wording only, nothing to unlock (confirmed by human)` (it confirms no impact; it
-reopens nothing). _Next:_ the JSON `next` (`/hitl:skeleton <T>` or `/hitl:test <T>`).
+reopens nothing). _Next:_ the JSON `next` (`/hitl:skeleton
+<T>`, `/hitl:test <T>`, or `/hitl:flow <T>` for a take-over).
 Dismiss / defer: `✅ N-3 (<title>) dismissed: <reason>` · `✅ N-3 (<title>) deferred → <target> N-k (open there)`, plus a
 `⚠️` line for refs dropped because the target change does not have them. _Next:_ `hitl-index status --json` `.next`.
 Dismissing a note from another change (`source: <other>`, 0.12) also ends the wait it caused; the human may do it at

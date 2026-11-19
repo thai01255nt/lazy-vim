@@ -153,6 +153,8 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
   const acRows = new Map(); // ac id -> ac row
   for (const t of tasks) {
     const g = groupOf(c, t);
+    // 0.17: a dropped task (tasks drop) is history: no coverage, no ref checks
+    if (t.status === "dropped") { add("info", "TASK_DROPPED", t.id, t.id, g, `${t.id} is dropped${t.dropped ? `: ${t.dropped}` : ""}`); continue; }
     const cx = g.cx;
     const isCh = isChangeTask(t);
     const pfile = isCh ? null : g.planning;
@@ -190,6 +192,13 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       }
     }
     for (const ac of t.acs) {
+      // 0.17: a superseded AC (an amendment replaced it; shared/task-changes.md) is history: its ref may be removed now and
+      // it needs no test; the successor AC carries the coverage
+      if (ac.superseded) {
+        add("info", "AC_SUPERSEDED", ac.id, t.id, g, `${ac.id} is superseded by ${ac.superseded.by}${ac.superseded.amend ? ` (${ac.superseded.amend})` : ""}`);
+        acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven: false, test: null, testDetail: null, exempt: "superseded", superseded: ac.superseded, tests: [], symbols: [] });
+        continue;
+      }
       // 0.16: the AC's test decision decides which tests prove it and what a missing test means:
       // new → its own @ac tests; shared:<ACk> → its own @ac tests, else ACk's; covered:<ref> → the tests the ref resolves
       // to (plus its own @ac tests); none / manual → no test expected (info AC_NO_TEST_BY_DECISION / AC_MANUAL_CHECK),
@@ -288,7 +297,7 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
     const design = ch.design;
     const decisions = design?.decisions || [];
     if (!ch.archived) {
-      const refs = new Set(tasksOfChange(x).flatMap((t) => t.acs.flatMap((a) => a.reqs || [])));
+      const refs = new Set(tasksOfChange(x).filter((t) => t.status !== "dropped").flatMap((t) => t.acs.filter((a) => !a.superseded).flatMap((a) => a.reqs || [])));
       for (const d of ch.deltas) for (const b of d.blocks) {
         if (b.kind !== "requirement" || (b.op !== "ADDED" && b.op !== "MODIFIED")) continue;
         const cap = d.capability || d.folder;

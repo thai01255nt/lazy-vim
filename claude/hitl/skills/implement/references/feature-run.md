@@ -32,7 +32,8 @@ this change's tasks; it covers `--by human-override` for any of them during this
 Before each task, re-run `hitl-index feature <change-id> [--lane fast] --json` and take `current`:
 - `phase: "review"` → step 3.
 - `stop` set → _Stop:_ print it and `_Next:_ resume with /hitl:implement --feature <change-id>[ --lane fast]` (after the human step). End.
-  (`stop` covers block-level drift, a human approval a normal-lane task waits for, and a task blocked outside the feature.)
+  (`stop` covers block-level drift, a human approval a normal-lane task waits for, a task blocked outside the feature,
+  and a task an open amend brief holds — action `held`, 0.17: answer and approve the amend brief first.)
 - `current.action`:
   - `implement` → run SKILL.md steps 1–5 for `current.id` as if the user typed `/hitl:implement <T> --all`
     (lane `override` → with `--lane fast`, `BY = human-override`; lane `fast` → `BY = auto`). No per-symbol gates for

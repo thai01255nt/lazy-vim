@@ -138,7 +138,7 @@ test("churn (0.9): capture rule next to Plain replies, Impact block, approve for
   assert.match(cap, /explicit "amend\/apply it now" \(go straight to `amend-spec\.md`\)/);
   assert.match(conv, /Edit `\.hitl\/changes\/\*\/notes\.md`/);
   const amend = read("shared/amend-spec.md");
-  assert.match(amend, /\*\*Impact block\*\*/);
+  assert.match(amend, /\*\*then\*\* the Impact block/); // 0.17: the Impact block comes before the Apply? question
   assert.match(amend, /hitl-index note apply --change <id> \[N-k\] --impact/);
   assert.match(amend, /\/hitl:approve <id> reopen N-k/);
   const ap = read("skills/approve/SKILL.md");
@@ -339,7 +339,7 @@ test("0.14: plan and design interview in a brief file; no chat rounds, no design
   assert.match(plan, /\*\*Round 1 carries no recommendations\*\*/);
   assert.match(plan, /hitl-index brief rename <id>/);
   assert.match(plan, /### Approve the spec\? \(Y\/n\)/);
-  assert.match(plan, /Unchanged by the brief file: amend stays one chat gate/);
+  assert.match(plan, /the wording-only amend gate \(§7\)/); // 0.17: a meaning change has its own amend brief
   assert.doesNotMatch(plan, /Reply:|Spec complete\?/);
   const design = read("skills/design/SKILL.md");
   assert.match(design, /\*\*Every question carries `_Rec:_`\*\*/);
@@ -444,5 +444,5 @@ test("0.16.0: test policy in the docs (decisions, Q5, names without ids, @catche
   assert.match(readme, /^### Nâng cấp từ 0\.15\.0/m);
   const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.15.0"), readme.indexOf("### Nâng cấp từ 0.14.1"));
   for (const w of ["không phải TDD của Kent Beck", "/hitl:tdd", "lỗi nó bắt", "tests audit", "mutationRequired", "@kind regression"]) assert.ok(note.includes(w), `README 0.16 note: ${w}`);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.16.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(1[6-9]|[2-9]\d)\.\d+$/, "version ≥ 0.16.0");
 });

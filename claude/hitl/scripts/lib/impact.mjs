@@ -47,7 +47,7 @@ const ownsTest = (t, T) => t.task === T || (t.ac || []).some((a) => a.startsWith
  * counts:{tests, skeletons, tasks}, suggestFollowUp, tasksUpdate, recheck}. `tasks` = the change's active tasks.
  * `recheck` = a recheck note is needed: some hit task has locked work (even when nothing reopens).
  */
-export function computeImpact({ entries, tasks, index, lock, resolve, statusOf = () => null, symbolOf = {} }) {
+export function computeImpact({ entries, tasks, index, lock, resolve, statusOf = () => null, symbolOf = {}, keepDone = false }) {
   const out = [];
   let tasksUpdate = false;
   for (const t of tasks) {
@@ -98,6 +98,9 @@ export function computeImpact({ entries, tasks, index, lock, resolve, statusOf =
     for (const id of testsOf((x) => (x.ac || []).some((a) => r.acs.has(a)) || (x.covers || []).some((s) => r.symbols.has(s)))) r.tests.add(id);
     if (r.locked) r.reopen = r.symbols.size ? "skeleton" : r.tests.size || r.newAc.size ? "tests" : null;
     if (!r.locked) { r.tests.clear(); r.symbols.clear(); }
+    // 0.17 (amend brief, shared/task-changes.md): a done task is never reopened; a new task takes over its symbols and
+    // its old-behaviour tests (rewrite: rows), and its stale ACs get superseded lines
+    if (keepDone && lock?.tasks?.[T]?.doneAt) { r.kept = "done"; r.reopen = null; r.locked = false; r.tests.clear(); r.symbols.clear(); r.newAc.clear(); }
     out.push({ ...r, acs: [...r.acs].sort(), tests: [...r.tests].sort(), symbols: [...r.symbols].sort(), newAc: [...r.newAc].sort() });
   }
   const counts = { tests: out.reduce((n, x) => n + (x.reopen ? x.tests.length : 0), 0), skeletons: out.reduce((n, x) => n + (x.reopen === "skeleton" ? x.symbols.length : 0), 0),
@@ -110,7 +113,8 @@ export function computeImpact({ entries, tasks, index, lock, resolve, statusOf =
 export function impactLine(imp) {
   const parts = [];
   for (const x of imp.tasks) {
-    if (!x.locked) parts.push(`${x.task} not locked yet: nothing to reopen`);
+    if (x.kept === "done") parts.push(`${x.task} done: kept (a new task takes over)`);
+    else if (!x.locked) parts.push(`${x.task} not locked yet: nothing to reopen`);
     else if (!x.reopen) parts.push(`${x.task} nothing to unlock`);
     else parts.push(`${x.task}: ${x.tests.length} test(s)${x.reopen === "skeleton" ? `, ${x.symbols.length} skeleton symbol(s)` : ""}${x.newAc.length ? `, new AC for ${x.newAc.join(", ")}` : ""}`);
   }

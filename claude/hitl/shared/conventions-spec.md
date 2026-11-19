@@ -4,7 +4,7 @@ Read with `conventions.md` (core).
 
 ## Confirm a name
 - New change: `Create change \`feat-x\`? (Y/n) or enter a different id:`
-- Existing file conflict: `\`tasks.md\` exists. (update/overwrite)` — `_Rec:_ update`.
+- An existing tasks.md is always updated, never overwritten (`shared/task-changes.md`).
 
 ## Naming and layout
 - Change id: `[type]-[slug]`, type ∈ feat|fix|refactor|perf|docs|test|chore; slug = short kebab case; ≤ 48 chars.
@@ -15,13 +15,15 @@ Read with `conventions.md` (core).
   `PWR-R1.S1`, rule `PWR-BR1`, flow `PWR-UC1`, from `hitl-index spec next-id <change-id>`; MODIFIED/REMOVED keep the
   original id; ids are identity, never renumbered or reused. Decisions `PWR-D1` (`spec next-id <change-id> --kind D`),
   max+1 within the change, never edited after approval (supersede, `amend-spec.md`). Task ids `PWR-T3` from
-  `hitl-index next-id <change-id>`. A quick file (`tasks/quick-<slug>.md`) has its own key (0.13.2):
+  `hitl-index next-id <change-id>`. Amendment ids `PWR-A1` (`spec next-id <change-id> --kind A`, 0.17): one amend
+  brief `amend-PWR-A1-brief.md` per amendment, cited by the amend task set's `amend:` meta. A quick file (`tasks/quick-<slug>.md`) has its own key (0.13.2):
   `hitl-index next-id --quick <slug>` → `QFLT-T1`, header `← Change: none | key: QFLT` (no gate; `Q` + 3 letters of the slug by the same algorithm, a 5th letter on collision). A quick key used twice, or also a change's key → `QUICK_KEY_TAKEN`; a task not under its file's
   key → `TASK_KEY_MISMATCH`; a legacy shared `QT-T<n>` in a keyed project → `IDS_LEGACY` (`/hitl:migrate`).
 - Project dir `.hitl/`:
   `docs/` (steering: BUSINESS-CONTEXT, ARCHITECTURE, PATTERNS-CONVENTIONS, CODEBASE-MAP, optional CONSTITUTION) ·
   `specs/<capability>/spec.md` + `specs/GLOSSARY.md` (living specs) ·
-  `changes/<id>/` (proposal, spec deltas, glossary, design, data-model, contracts, tasks.md) ·
+  `changes/<id>/` (proposal, spec deltas, glossary, design, data-model, contracts, tasks.md, notes.md, the briefs
+  `plan-brief.md`, `design-brief.md`, `amend-<KEY>-A<n>-brief.md`) ·
   `archive/<date>-<id>/` (finished changes) · `tasks/quick-<slug>.md` · `index/ reviews/ .inbox/` ·
   `hitl.config.json`, `<provider>.map.json` (linear|jira|github). A v0.5 `planning/` dir is legacy, read-only (migrate: `hitl-index migrate --specs`).
 - Audience: proposal, spec deltas and glossary are business-readable (no code names); design, data-model, contracts and

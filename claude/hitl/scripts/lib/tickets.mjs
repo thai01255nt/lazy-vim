@@ -199,6 +199,7 @@ export function stateTypeFor(status, cfg, map) {
   const st = (map && map.states) || {};
   let t;
   if (status === "done") t = "completed";
+  else if (status === "dropped") t = st.canceled ? "canceled" : "completed"; // 0.17: a dropped task (tracker: cancelled)
   else if (["green", "review", "verified"].includes(status)) t = "review";
   else if (["skeleton", "approved", "red", "wip", "reopened"].includes(status)) t = "started";
   else t = cfg.pushTodoAs === "backlog" ? "backlog" : "unstarted";

@@ -44,6 +44,7 @@ Apply? (Y/n)
 | `BASE_CHANGED` (a living requirement changed after this change copied it) | show the living text vs the delta text; 1. _Rec:_ update the delta to include the living change (I edit `specs/<cap>/spec.md` of this change, re-run validate and the preview) · 2. keep the delta as is (`--accept-base <IDs>`) · 3. stop |
 | `CROSS_CHANGE_CONFLICT` / `DELTA_TARGET_MISSING` / `CAP_*` / `ARCHIVE_EXISTS` | explain in one line each; 1. _Rec:_ stop and fix (`/hitl:plan <id> amend`) |
 | `preconditions.notes.wait` (a note from another change: that change is not archived yet, is gone, or its note is not taken in) | print each line as is (`_Waits:_ … waits for <other>` / `_From <other>:_ N-k …`); `--force` never skips it; 1. _Rec:_ finish and archive `<other>` first, or take the note in (`/hitl:plan <id> amend N-k`) · 2. the human types `/hitl:approve <id> dismiss N-k <reason>` (the user decides the order, never you) |
+| `preconditions.notes.open` item with `kind: amend` (0.17: an amend brief is still open) | `<title> — <apply>`; `--force` never skips it; _Rec:_ finish the amendment (answer the brief, approve its Close) |
 | `preconditions.notes.open` without `source` (an open note or a recheck waiting for reopen) | one line each `_Note N-k_ (<title>) — <apply>`; `--force` never skips it; 1. _Rec:_ apply it (its `apply` command) 2. the human types `/hitl:approve <id> dismiss N-k <reason>` or `defer N-k <change>` |
 END THE TURN.
 

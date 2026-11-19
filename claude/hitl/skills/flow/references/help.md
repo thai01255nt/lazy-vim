@@ -26,12 +26,17 @@ what instead. `?` / `không biết` keeps it open, `deep <ID>` digs deeper, `don
 change has its first task you may rename its id or key and change its scope in any answer or Notes. Each round
 (and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
-Amend (`<id> amend`) stays a chat gate.
-**Requirement changes mid-change** (0.9): say it in chat and Claude asks `_Note_ for <change>, refs …? (Y/n)`. The note
-blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or `/hitl:design … amend N-k`):
-the preview shows what it reopens (tests per AC, skeleton symbols). Only you unlock locked work: `/hitl:approve <id>
-reopen`. Escape hatches, also yours only: `/hitl:approve <KEY>-T<n> <stage> --ack N-k`, `… <id> dismiss N-k <reason>`,
-`… <id> defer N-k <other-change>`.
+**Requirement changes mid-change** (0.9, amend brief 0.17): say it in chat and Claude asks `_Note_ for <change>, refs …?
+(Y/n)`. The note blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or
+`/hitl:design … amend N-k`). Wording only → one chat gate (delta preview, Impact, `Apply?`); only task-level things →
+`/hitl:tasks <id> update`; anything else → an **amend brief** `amend-<KEY>-A<n>-brief.md`: it starts with where each task
+stands and what the change touches, asks what changes, whether the old behaviour is only in this branch, merged or
+released, what to do with out-of-scope work (`[X]`) and with half-done tasks (`[K]`), and closes with the delta, the
+Impact and the **amend task set** (new tasks marked `amend: <KEY>-A<n>`, `kind: prep|expand|migrate|switch|contract|revert`).
+Its own `Y` applies it. While it is open, the tasks it touches are held (`_Held:_`); the others go on. A done task is
+never reopened: a new task takes over its code and its old-behaviour tests (`rewrite:`), its old ACs get
+`superseded:` lines. Only you unlock locked work: `/hitl:approve <id> reopen`. Escape hatches, also yours only:
+`/hitl:approve <KEY>-T<n> <stage> --ack N-k`, `… <id> dismiss N-k <reason>`, `… <id> defer N-k <other-change>`.
 **Two changes at once** (0.12): work that is too big for change A becomes its own change, created *before* A:
 `/hitl:go <X> --before A` (several: `--before A,C`). A then waits: no task approval, implement or archive of A until the
 new change is archived (A's plan, design and tasks stay open). While planning the new change, its effect on A goes into
@@ -81,7 +86,9 @@ deletion with `/hitl:approve <T> tests`.
    all tasks done → /hitl:archive <change-id> [gate]  (deltas → living specs .hitl/specs/, change → .hitl/archive/)
    User-only override: /hitl:implement T --lane fast · whole change: /hitl:implement --feature <change-id> [--lane fast]
    Manual edits outside Claude → /hitl:sync · Optional side channel: /hitl:tickets push (Linear, Jira or GitHub; never a gate)
-   Changed requirement mid-change → note → /hitl:plan <id> amend N-k [gate, Impact] → /hitl:approve <id> reopen → /hitl:test T
+   Changed requirement mid-change → note → /hitl:plan <id> amend N-k ─┬─ wording only: [gate: delta, Impact, Apply?]
+                                                                     └─ else amend brief [file: rounds, Close: delta, Impact, amend task set]
+                                       → /hitl:approve <id> reopen (in-progress tasks, taken-over tests) → the amend set's tasks
    Too big for A → /hitl:go <X> --before A → A waits → <X> archived → A takes in: /hitl:plan A amend N-k [gate] → reopen as above
 ```
 
@@ -90,13 +97,13 @@ deletion with `/hitl:approve <T> tests`.
 | `/hitl:setup` | init `.hitl`, detect test cmds, opt-in pre-commit, migrate v0.5 planning | user-only |
 | `/hitl:go <description> [--plan\|--quick\|--tdd] [--before <id>]` | entry for new work: a router subagent picks note/amend/update, tdd, tasks quick or plan and runs it; `--before <id>` = plan a prerequisite change `<id>` waits for | note (Y/n) · vague description (≤ 3 questions) · conflicting flags |
 | `/hitl:overview` | steering docs BUSINESS / ARCHITECTURE / PATTERNS + generated CODEBASE-MAP | if docs exist |
-| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]` | brief file, each round (amend: chat gate) |
+| `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]`: a wording-only chat gate, else an amend brief `amend-<KEY>-A<n>-brief.md` that ends in an amend task set | brief file, each round (amend: chat gate when wording only) |
 | `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | brief file, each round |
-| `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round) | brief file, each round (amend: chat gate) |
-| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan (a test decision per AC: new · shared · covered · none · manual) | quiz (Q5: test plan) |
+| `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round); `<id> amend [N-k]` as plan | brief file, each round (amend: chat gate when wording only) |
+| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan (a test decision per AC: new · shared · covered · none · manual · rewrite); an existing tasks.md is always updated (per task state: edit, reopen, a new task for done work, `tasks drop` for an unneeded todo task) | quiz (Q5: test plan) |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + a test stub per `new` row | review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
-| `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols); `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
+| `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols) and move taken-over tests to their new task; `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |
 | `/hitl:test T` | real failing tests via isolated test-author (regression tests may pass; RED table, budget `new` rows + 2) | high risk |
 | `/hitl:implement T` | agent fns via implementer, manual fns handed to you | manual fns |
 | `/hitl:implement --feature <id>` | all tasks of a change in order, one combined review | end / early stop |
@@ -145,6 +152,8 @@ still reads them in existing brief files.
 | `_Delta:_` | preview of a spec or design change (delta) before `Apply?` |
 | `_Impact:_` | what an amend reopens: tests per AC, skeleton symbols |
 | `_Reopen_` | locked work that an applied note reopened |
+| `_Held:_` | a task an open amend brief touches: it waits until the amendment is approved |
+| `_Amend set:_` | the tasks an amendment adds or changes, in their order (amend brief Close) |
 | `_Yours:_` | work only you do: a manual function or test, a step in the ticket tracker |
 | `_Fast_` | fast lane: skeleton and tests approved automatically (low risk, or your override) |
 | `_Route:_` | the route `/hitl:go` picked, and why |

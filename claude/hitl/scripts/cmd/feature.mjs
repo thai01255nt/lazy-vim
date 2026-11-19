@@ -21,6 +21,7 @@ const ACTION_TEXT = {
   approve: (i) => `human: /hitl:approve ${i.id}`,
   "approve-tests": (i) => `human: /hitl:approve ${i.id} tests`,
   blocked: (i) => `waits for ${i.waitsFor.join(", ")}`,
+  held: (i) => `_Held:_ amend brief ${i.hold.amend} (${i.hold.apply})`,
   skip: () => "implemented (review at the end)",
 };
 
@@ -59,7 +60,10 @@ export async function run(argv, ctx) {
     else { console.log(`❌ ${feature.error}`); if (feature.candidates?.length) console.log(`tasks files: ${feature.candidates.join(", ")}`); }
     return 1;
   }
-  const plan = planFeature({ feature, allTasks: g.tasks, statuses: g.statuses, drift: g.drift, laneFast: v.lane === "fast" });
+  // 0.17: tasks an open amend brief touches are held
+  let holds = {};
+  try { const { notesInfo } = await import("./status.mjs"); holds = (await notesInfo(ctx.root, g)).holds || {}; } catch { holds = {}; }
+  const plan = planFeature({ feature, allTasks: g.tasks, statuses: g.statuses, drift: g.drift, laneFast: v.lane === "fast", holds });
   if (v.report) {
     const r = await featureReport(ctx.root, ctx.config, plan, g.state, v["security-audit"]);
     if (r.error) { if (json) console.log(JSON.stringify({ error: r.error }, null, 2)); else console.log(`❌ ${r.error}`); return 1; }

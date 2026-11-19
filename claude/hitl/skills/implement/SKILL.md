@@ -28,6 +28,9 @@ No task id → take the first frontier task from `hitl-index status --json` (`.n
 - **No completion claim without a fresh `hitl-index test` run in this turn** (verification-before-completion).
   "Implementer said green" is a claim, not evidence. Re-run.
 - One function at a time. Each function ends with a fresh test result printed to the user.
+- Step comments the implementer writes state the current intent only, also on a symbol an amendment changed: no history
+  words ("previously", "now", "no longer", "changed"); the history lives in the spec delta, design.md Changelog, the
+  amend brief, tasks.md and git (`${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md` §2).
 - **`--lane fast` is the user's decision, never yours.** Use it only when the user typed it in `$ARGUMENTS`; never suggest
   it to get past a gate, never add it on a resume the user did not type.
 
@@ -54,6 +57,11 @@ If not initialized (exit 3): _Stop:_ `Run /hitl:setup first.` and stop.
 _Stop:_ `<change> waits for <wait.for[].change> (<notes>)` or `_Take in:_ <wait.amend> first`, then `_Next:_` the status
 JSON `.next`. Stop: no implement, no approval (the hook denies the implementer's edits anyway; the order is the user's
 call — `/hitl:approve <change> dismiss N-k <reason>` ends a wait).
+`tasks[T].amendHold` set (0.17: an amend brief of T's change is open and touches T) → _Stop:_ `<T> waits for the amend
+brief <amendHold.amend> (<amendHold.file>, via <amendHold.via>)` and `_Next:_ <amendHold.apply>` (answer the brief,
+then approve it). No implement, no y/N override: building on a contract under discussion is the churn the brief
+prevents. Untouched tasks go on (`hitl-index status --json` `.next`).
+`tasks[T].status` `dropped` → `_Stop:_ <T> is dropped (<tasks[T].dropped>)`.
 Work outside the task that is too big for this change → `_Tip:_ Out of scope for <change>: … → /hitl:go <X> --before
 <change>` (`${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` §1); never build it here.
 
@@ -87,6 +95,12 @@ earlier, done task built is judged on <T>'s own TODO steps and tests), in **work
 together), then `@prio`, then the `### Symbols` row. Never reorder it by `@prio` alone: a caller implemented before its
 callees only hits their sentinels.
 If `symbol` was given, the list is just that symbol (short ref is fine if unambiguous; otherwise ask via a gate).
+**Remove rows** (0.17, `### Symbols` action `remove`; `status <T> --json` `tasks[T].removePending`): after every other
+symbol of the list is green, you (main thread) delete each listed symbol and its uses that the task's ACs name, re-index
+(`hitl-index index <file> --json`), run `hitl-index test --task <T> --json` and `hitl-index drift --task <T> --json`
+(a `DELETED_REFERENCED` item → a caller still uses it: stop and show it). Deleting is not writing a body; a remove row of
+an `@impl manual` symbol goes to the human like a manual function. The task is not finished while `removePending` lists
+one (`REMOVE_STILL_PRESENT` at done).
 
 Print it in the v2 style, then start the first item without asking (the `/hitl:implement` call is the go-ahead):
 ```
@@ -131,8 +145,8 @@ messages (if any), then continue with the next symbol.
      1. _Rec:_ amend spec (I draft the delta, you approve it, then you edit the skeleton + /hitl:approve PWR-T12)
      2. you implement it (flip @impl manual)   3. stop
      ```
-     GATE, end turn. Option 1 → `shared/amend-spec.md` (`_Delta:_` preview + `_Impact:_` block, `Apply? (Y/n/edit)`, then the
-     approve command). The user only mentions a requirement change here → the note rule (`conventions.md`) instead.
+     GATE, end turn. Option 1 → `shared/amend-spec.md` §1–§2 (route: wording only → `_Delta:_` preview + `_Impact:_`
+     block + `Apply? (Y/n/edit)`, then the approve command; else the amend brief: write it and stop the loop). The user only mentions a requirement change here → the note rule (`conventions.md`) instead.
      Never let the agent deviate from the contract, and never re-run it with a "work around it" hint.
    - `unreachable` (its tests enter through a task caller that is still a stub — `via`) → not a failure: print
      `_Skip:_ <ref> written, verified later through <via>` and go on (high risk: still the step-4 gate). The caller's turn

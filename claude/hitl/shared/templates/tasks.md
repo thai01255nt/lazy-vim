@@ -7,6 +7,12 @@
 <!-- task ids {KEY}-T<n> from `hitl-index next-id {change-id}` ({KEY} = the change key). A quick file instead:
      header `← Change: none | key: {QKEY}`, one task {QKEY}-T1 from `hitl-index next-id --quick {slug}` -->
 
+<!-- 0.17 amend task set (shared/task-changes.md), all optional: meta `| amend: PWR-A1 | kind: switch` before
+     `| status:` (kinds prep · expand · migrate · switch · contract · revert); a Symbols row `remove` (the task deletes
+     it); a test-plan cell `rewrite: <locked test or old AC id>` (takes over a done task's test); under a done task's
+     ACs `- superseded: PWR-T12.AC2 → PWR-T15.AC1 (PWR-A1)`; `status: dropped` + `**Dropped**: <reason>` only from
+     `hitl-index tasks drop`. -->
+
 ## PWR-T12 Register user with unique email
 
 - prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo

@@ -3,7 +3,7 @@ import { CODE_KINDS, isTest, coversOf, taskSymbolIds, taskRisk, isOverride, lock
 import { nextForTask } from "./nextstep.mjs";
 import { mutationRequiredFor } from "./config.mjs";
 import { acPlan } from "./testplan.mjs";
-import { archivedChangeOf } from "./tasksmd.mjs";
+import { archivedChangeOf, removeStillPresent } from "./tasksmd.mjs";
 
 export const ORDER = ["skeleton", "red", "wip", "green", "verified", "done"];
 export const rank = (s) => { const i = ORDER.indexOf(s); return i < 0 ? -1 : i; };
@@ -266,14 +266,27 @@ export function computeStatuses(index, lock, state, config, tasks) {
         status = rv && rv.verdict !== "PASS" ? "review" : "green";
       } else status = m;
     }
+    // 0.17: remove rows (shared/task-changes.md): the task is not finished while a symbol it removes still exists; a
+    // task with only remove rows is todo until they are gone, then green → review → verified
+    const removes = (task?.symbols || []).filter((x) => x.change === "remove");
+    const present = removes.length ? removeStillPresent(index, task) : [];
+    if (removes.length && !(lt?.doneAt)) {
+      if (!syms.length) {
+        const rv = state.reviews?.[T];
+        status = present.length ? "todo" : rv?.verdict === "PASS" ? "verified" : rv ? "review" : "green";
+      } else if (present.length && ["green", "review", "verified"].includes(status)) status = "wip";
+    }
     // 0.9: a reopen the human confirmed routes back to the skeleton or the tests until those are re-approved
     const reo = openReopen(lt);
     const pendingStage = reo?.pending?.[0] || null;
     if (pendingStage && !archivedOf(T)) status = "reopened";
+    // 0.17: a dropped task (`hitl-index tasks drop`, todo tasks only) is history: no next step, never in the frontier
+    if (task?.status === "dropped" && !lt?.doneAt) status = "dropped";
     const risk = taskRisk(task, lock, T);
     // targets: every task symbol with a status, classes included (display); `symbols` (code kinds) drives the task status
     const targets = perTaskSyms[T].filter((id) => symbols[id]);
     out[T] = { status, next: nextForTask(T, status, { risk, testsLocked, reopenStage: pendingStage }), symbols: syms, targets, symbolStatus, testsLocked, risk, override: isOverride(lock, T),
+      ...(present.length ? { removePending: present } : {}),
       ...(reo ? { reopen: { note: reo.note, at: reo.at, stage: pendingStage, pending: reo.pending || [], acs: reo.acs || [], symbols: reo.symbols || [], tests: reo.tests || [] } } : {}) };
   }
   return { symbols, tasks: out };

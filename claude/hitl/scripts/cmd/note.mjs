@@ -5,7 +5,9 @@
 //              until B is archived; --kind order needs no refs (it only says "<id> waits for B").
 //   note list  [--change <id>] [--status open|pending|all] [--task <T>]
 //   note show  --change <id> N-k
-//   note apply --change <id> [N-k] --impact "<ref>=<class>,…" [--from "…"] [--dry-run]
+//   note apply --change <id> [N-k] --impact "<ref>=<class>,…" [--amend <KEY>-A<n>] [--from "…"] [--dry-run]
+//              --amend (0.17): the approved amend brief; its `from:` notes are applied, done tasks are kept (never
+//              reopened), and the `rewrite:` rows of its tasks become take-overs in the recheck note
 // Releasing a block (ack, dismiss, defer, reopen) is not here: it is a human /hitl:approve form (hitl-index approve).
 import { parseArgv } from "../lib/project.mjs";
 import { TASK_ID_RE } from "../lib/specids.mjs";
@@ -18,7 +20,7 @@ import { gather } from "./status.mjs";
 const USAGE = `usage: hitl-index note add --change <id> --kind spec|design|order --refs a,b --text "…" [--title "…"] [--from "…"] [--source <other-change>]
        hitl-index note list [--change <id>] [--status open|pending|all] [--task <T>]
        hitl-index note show --change <id> <N-k>
-       hitl-index note apply --change <id> [<N-k>] --impact "<ref>=<class>,…" [--from "…"] [--dry-run]`;
+       hitl-index note apply --change <id> [<N-k>] --impact "<ref>=<class>,…" [--amend <KEY>-A<n>] [--from "…"] [--dry-run]`;
 const usage = (msg) => Object.assign(new Error(msg ? `${msg}\n${USAGE}` : USAGE), { usage: true });
 const fail = (msg) => Object.assign(new Error(msg), { code: 1 });
 const splitList = (s) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -54,7 +56,7 @@ export function noteBlocks(notes, tasks, g) {
 export async function run(argv, ctx) {
   const sub = argv[0];
   if (!["add", "list", "show", "apply"].includes(sub)) throw usage(sub ? `unknown note command: ${sub}` : null);
-  const a = parseArgv(argv.slice(1), { flags: ["json", "dry-run"], values: ["change", "kind", "refs", "text", "title", "from", "status", "task", "impact", "source"] });
+  const a = parseArgv(argv.slice(1), { flags: ["json", "dry-run"], values: ["change", "kind", "refs", "text", "title", "from", "status", "task", "impact", "source", "amend"] });
   const json = ctx.json || a.json;
   if (!ctx.root) { console.error("hitl: not initialized here — run /hitl:setup (hitl-index init)"); return 3; }
   if (sub === "add") return add(a, ctx, json);
@@ -165,19 +167,33 @@ async function apply(a, ctx, json) {
   if (pi.errors.length) throw usage(pi.errors.join("; "));
   const c = await loadChangeCtx(ctx.root, ctx.config, a.change);
   const notes = await readNotes(ctx.root, c.entry.dir);
-  const note = id ? notes.find((n) => n.id === id) : null;
   const errors = [...classErrors(pi.entries)];
-  if (id && !note) errors.push(`${id} not found in ${c.entry.dir}/notes.md`);
-  else if (note && note.status !== "open") errors.push(`${id} is ${note.status}; only an open note is applied`);
-  else if (note?.kind === "recheck") errors.push(`${id} is a recheck note: the human confirms it with /hitl:approve ${c.entry.id} reopen ${id}`);
-  if (!pi.entries.length && !(note && !note.refs.length)) errors.push("--impact is required: one <ref>=<class> per changed id (wording|behaviour|contract|scenario|requirement)");
-  // refs must resolve now; a removed scenario/requirement (behaviour: removed) and the note's own refs are accepted as they are
-  const fresh = pi.entries.map((e) => e.ref).filter((r) => !note?.refs.includes(r));
+  // 0.17: --amend <KEY>-A<n> applies the approved amend brief: its `from:` notes (and N-k, if given) together
+  let brief = null;
+  if (a.amend !== undefined) {
+    const { readAmendBriefs } = await import("../lib/brief.mjs");
+    brief = (await readAmendBriefs(ctx.root, c.entry.dir)).find((b) => b.amend === String(a.amend)) || null;
+    if (!brief) errors.push(`no amend-${a.amend}-brief.md in ${c.entry.dir}`);
+  }
+  const ids = [...new Set([...(id ? [id] : []), ...(brief?.from || [])])];
+  const picked = ids.map((x) => notes.find((n) => n.id === x) || { id: x, missing: true });
+  const note = picked[0] && !picked[0].missing ? picked[0] : null;
+  for (const n of picked) {
+    if (n.missing) errors.push(`${n.id} not found in ${c.entry.dir}/notes.md`);
+    else if (n.status !== "open") errors.push(`${n.id} is ${n.status}; only an open note is applied`);
+    else if (n.kind === "recheck") errors.push(`${n.id} is a recheck note: the human confirms it with /hitl:approve ${c.entry.id} reopen ${n.id}`);
+  }
+  const live = picked.filter((n) => !n.missing);
+  const noteRefs = new Set(live.flatMap((n) => n.refs));
+  if (!pi.entries.length && !(note && !note.refs.length && live.length === 1)) errors.push("--impact is required: one <ref>=<class> per changed id (wording|behaviour|contract|scenario|requirement)");
+  // refs must resolve now; a removed scenario/requirement (behaviour: removed) and the notes' own refs are accepted as they are
+  const fresh = pi.entries.map((e) => e.ref).filter((r) => !noteRefs.has(r));
   const v = validateRefs(fresh, c.refCtx);
   for (const e of v.errors) if (!/removed spec id/.test(e)) errors.push(e);
-  if (note) {
-    const g = changedSinceNoted(note, c.refCtx);
-    if (g.checked && !g.changed.length) errors.push(`${id}: none of its refs (${note.refs.filter((r) => note.meta?.base?.[r]).join(", ")}) changed since it was noted; amend first, or the human dismisses it (/hitl:approve ${c.entry.id} dismiss ${id} <reason>)`);
+  // the apply guard (a ref must have changed) holds for the real apply; a --dry-run previews the Impact before the edit
+  if (!a["dry-run"]) for (const n of live) {
+    const g = changedSinceNoted(n, c.refCtx);
+    if (g.checked && !g.changed.length) errors.push(`${n.id}: none of its refs (${n.refs.filter((r) => n.meta?.base?.[r]).join(", ")}) changed since it was noted; amend first, or the human dismisses it (/hitl:approve ${c.entry.id} dismiss ${n.id} <reason>)`);
   }
   if (errors.length) {
     if (json) console.log(JSON.stringify({ ok: false, change: c.entry.id, errors }, null, 2));
@@ -185,32 +201,47 @@ async function apply(a, ctx, json) {
     return 1;
   }
   const statusOf = (T) => c.g.statuses.tasks?.[T]?.status ?? null;
-  const imp = computeImpact({ entries: pi.entries, tasks: c.tasks, index: c.g.index, lock: c.g.lock, resolve: c.resolve, statusOf, symbolOf: { ...(note?.meta?.symbols || {}), ...v.symbols } });
-  const out = { ok: true, change: c.entry.id, note: id, dryRun: !!a["dry-run"], impact: pi.entries, tasks: imp.tasks, counts: imp.counts, suggestFollowUp: imp.suggestFollowUp,
-    tasksUpdate: imp.tasksUpdate, line: impactLine(imp), recheck: null };
+  const symbolOf = Object.assign({}, ...live.map((n) => n.meta?.symbols || {}), v.symbols);
+  const imp = computeImpact({ entries: pi.entries, tasks: c.tasks, index: c.g.index, lock: c.g.lock, resolve: c.resolve, statusOf, symbolOf, keepDone: !!brief });
+  // 0.17: take-overs — locked tests of other tasks (done here, or archived) that the amend set's `rewrite:` rows name
+  const takeovers = [];
+  if (brief) {
+    const { rewriteTargets } = await import("../lib/testplan.mjs");
+    for (const t of c.tasks.filter((x) => x.amend === brief.amend && x.status !== "dropped")) {
+      const refs = {};
+      for (const x of rewriteTargets(c.g.index, c.g.lock, t)) for (const tid of x.ids) if (c.g.lock.tests?.[tid]?.stage === "locked" && c.g.lock.tests[tid].task !== t.id) refs[tid] = x.ref;
+      if (Object.keys(refs).length) takeovers.push({ task: t.id, stage: "takeover", tests: Object.keys(refs).sort(), refs, from: [...new Set(Object.keys(refs).map((tid) => c.g.lock.tests[tid].task))] });
+    }
+  }
+  const line = impactLine(imp) + (takeovers.length ? ` · takes over ${takeovers.reduce((n, x) => n + x.tests.length, 0)} locked test(s): ${takeovers.map((x) => `${x.task} ← ${x.from.join(", ")}`).join("; ")}` : "");
+  const out = { ok: true, change: c.entry.id, note: id, notes: live.map((n) => n.id), amend: brief?.amend ?? null, dryRun: !!a["dry-run"], impact: pi.entries, tasks: imp.tasks, counts: imp.counts, suggestFollowUp: imp.suggestFollowUp,
+    tasksUpdate: imp.tasksUpdate, takeovers, line, recheck: null };
   if (!a["dry-run"]) {
     const at = todayIso();
-    const titles = { ...(note?.refTitles || {}), ...v.titles };
+    const titles = Object.assign({}, ...live.map((n) => n.refTitles || {}), v.titles);
     out.recheck = await updateNotes(ctx.root, c.entry.dir, c.entry.id, (ns) => {
-      const n = id ? ns.find((x) => x.id === id) : null;
-      if (n) { n.status = "applied"; n.resolved = `applied ${at}: ${pi.entries.map((e) => `${e.ref} ${e.class}`).join(", ") || "no refs"}`; }
-      if (!imp.recheck) return null;
-      const r = { id: nextNoteId(ns), title: n ? `Recheck after ${n.id}` : `Recheck: ${a.from || "amend"}`, kind: "recheck", refs: pi.entries.map((e) => e.ref),
+      const applied = live.map((x) => ns.find((y) => y.id === x.id)).filter(Boolean);
+      for (const n of applied) { n.status = "applied"; n.resolved = `applied ${at}${brief ? ` in ${brief.amend}` : ""}: ${pi.entries.map((e) => `${e.ref} ${e.class}`).join(", ") || "no refs"}`; }
+      const n = applied[0] || null;
+      if (!imp.recheck && !takeovers.length) return null;
+      const what = brief ? brief.amend : n ? n.id : null;
+      const r = { id: nextNoteId(ns), title: what ? `Recheck after ${what}` : `Recheck: ${a.from || "amend"}`, kind: "recheck", refs: pi.entries.map((e) => e.ref),
         refTitles: Object.fromEntries(pi.entries.map((e) => [e.ref, titles[e.ref]]).filter(([, t]) => t)), status: "reopen pending", deferredTo: null,
-        from: a.from ? String(a.from) : n ? `amend of ${n.id}` : "amend", at, acks: [], reason: null, resolved: null,
-        text: imp.counts.tests || imp.counts.skeletons || imp.tasks.some((x) => x.newAc.length)
-          ? `${impactLine(imp).replace(/^r/, "R")}. The human confirms with /hitl:approve ${c.entry.id} reopen.`
+        from: a.from ? String(a.from) : what ? `amend of ${what}` : "amend", at, acks: [], reason: null, resolved: null,
+        text: imp.counts.tests || imp.counts.skeletons || imp.tasks.some((x) => x.newAc.length) || takeovers.length
+          ? `${line.replace(/^r/, "R")}. The human confirms with /hitl:approve ${c.entry.id} reopen.`
           : `Wording only on locked work: nothing to unlock. The human confirms with /hitl:approve ${c.entry.id} reopen.`,
-        meta: { impact: pi.entries, reopen: imp.tasks.filter((x) => x.locked).map((x) => ({ task: x.task, stage: x.reopen, acs: x.acs, symbols: x.symbols, ...(x.newAc.length ? { newAc: x.newAc } : {}) })) } };
+        meta: { impact: pi.entries, ...(brief ? { amend: brief.amend } : {}),
+          reopen: [...imp.tasks.filter((x) => x.locked).map((x) => ({ task: x.task, stage: x.reopen, acs: x.acs, symbols: x.symbols, ...(x.newAc.length ? { newAc: x.newAc } : {}) })), ...takeovers] } };
       ns.push(r);
       return r.id;
     });
   }
   if (json) { console.log(JSON.stringify(out, null, 2)); return 0; }
-  console.log(`_Impact:_ (${c.entry.id}${id ? ` ${id}` : ""}): ${out.line}`);
+  console.log(`_Impact:_ (${c.entry.id}${brief ? ` ${brief.amend}` : id ? ` ${id}` : ""}): ${out.line}`);
   if (imp.suggestFollowUp) console.log("_Tip:_ This touches more than 3 tasks or a contract: a follow-up change may be cleaner.");
   if (out.dryRun) { console.log("(dry run: nothing written)"); return 0; }
-  if (id) console.log(`✅ ${id} applied`);
+  for (const n of live) console.log(`✅ ${n.id} applied`);
   if (out.recheck) console.log(`_Note ${out.recheck}_ recheck written (reopen pending) → _Next:_ the human types /hitl:approve ${c.entry.id} reopen ${out.recheck}`);
   else console.log("✅ nothing locked is touched: no recheck needed");
   if (imp.tasksUpdate) console.log(`_Next:_ /hitl:tasks ${c.entry.id} update (new scenario or requirement)`);

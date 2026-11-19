@@ -17,7 +17,8 @@ grammar, recording). Artifacts: `${CLAUDE_PLUGIN_ROOT}/shared/artifacts.md` (ste
   CLI md), `architecture-c4.md`, `state-machines.md`.
 - `${CLAUDE_PLUGIN_ROOT}/shared/spec-format.md` (§ Design: the D table and contract rules the CLI checks) — when
   `spec validate` reports an error whose fix is not clear from its message.
-- `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — for a `_Needs spec:_` delta preview (§4) or amend mode (§7).
+- `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — for a `_Needs spec:_` delta preview (§4) or amend mode (§7);
+  `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` — amend mode (§7) only.
 - `${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` — when a decision changes what another active change owns (owner
   check §3), when `hitl-index overlap` reports new contract or file evidence (§4), or when work turns out to be out of
   this change's scope (§1).
@@ -31,8 +32,9 @@ empty (then the change from this conversation, else the active change with `phas
 **The interview happens in a brief file** (`.hitl/changes/<id>/design-brief.md`, interview.md §4), never in chat: the
 developer answers in the editor, then runs `/hitl:design <id>` again (or says "continue", "next", "xong" here). Every
 question carries a `_Rec:_`; `Y` on a round's accept-all line takes them all (the build-then-review shortcut),
-except the `(needs its own Y)` questions (`_Needs spec:_`, `_To <P>:_`, a rename; interview.md §4). Amend (§7) and the
-approved-design gate (§1) stay chat gates.
+except the `(needs its own Y)` questions (`_Needs spec:_`, `_To <P>:_`, a rename; interview.md §4). The approved-design
+gate (§1) and the wording-only amend gate (§7) stay chat gates; an amendment that changes meaning has its own brief
+file (§7).
 
 **Granularity limit (normative).** Modules/services/components, external interfaces (contracts), entities and fields,
 component-level sequence, error strategy, test strategy and seams, risks, rollout. **Never** function signatures,
@@ -50,8 +52,11 @@ per-file symbol lists or code bodies: those belong to `/hitl:tasks` (`### Symbol
   + the file) when it exists.
 - New design: write `design.md` from the template (`status: draft`, today); drop the template rows; remove the
   `## Constitution check` section when there is no CONSTITUTION.md.
-- design.md `status: approved` and no `amend` argument → GATE (chat):
-  `Design is approved. 1. small edit: /hitl:design <id> amend · 2. reopen the design: design back to draft, a new round in the design brief`
+- design.md `status: approved` and no `amend` argument: an amend brief of the change is open → §7 continues it (the
+  text after the id goes into its open round's Notes); the change has a task in tasks.md → §7 with the text after the
+  id as the amendment, no gate (reopening an approved design is allowed only before the first task,
+  `shared/amend-spec.md` §6); no task yet → GATE (chat):
+  `Design is approved. 1. amend it: /hitl:design <id> amend · 2. reopen the design: design back to draft, a new round in the design brief`
   END THE TURN. Reply `1` → §7 (amend). Reply `2` → design.md `status: draft`, `updated:` today; the design brief gets
   a new `## Round <n>` after its last section (header `status: open`, the text after the id, if any, in its Notes) and
   §4 runs on it.
@@ -128,8 +133,8 @@ again before writing the next round.
   Technical-only names (token hash, queue) stay out of the glossary.
 - A decision that needs **new behaviour** → a `### Q<n> _Needs spec:_ <behaviour> (needs its own Y)` question in the
   next round whose body is the `_Delta:_` preview of `shared/amend-spec.md` §2; its own `Y` applies it, never the
-  accept-all line (the change's delta gets the requirement; proposal back to draft only for a new capability or a new
-  `must` requirement); a bare `n` → nothing written, `→ recorded: declined`.
+  accept-all line (the change's delta gets the requirement; the proposal keeps `approved`, `updated:` today — that Y is
+  its re-approval, amend-spec.md §6); a bare `n` → nothing written, `→ recorded: declined`.
 4. Recompute the frontier: decisions that unblock others first (boundaries and components → data and contracts →
    errors → test strategy → risks → rollout), carried questions (same numbers), `_Needs spec:_` / `_Needs term:_`.
    Discussion Mode when several approaches are valid; Suggestion Mode for clear best practice. Frontier empty, or the
@@ -181,17 +186,25 @@ header `status: open`, process the text (§4.2–4.3) and append the next round.
 under it, header stays `closing`, END THE TURN. Empty → `<path>: waits for your answer`, END THE TURN.
 
 ## 7. Amend (`<change-id> amend [N-k]`)
-Unchanged by the brief file: one chat gate.
-Approved design: decisions are never edited in place — supersede per `shared/amend-spec.md` (new D row, old row
-`superseded by <KEY>-D<k>`, Changelog line), in one GATE with the `_Delta:_` preview, the `_Impact:_` block and `Apply? (Y/n/edit)`.
-With `N-k`, the change is that design note (`hitl-index note show --change <id> N-k --json`); superseding the `<KEY>-D<n>` it
-names is what lets `note apply` accept it. A superseded contract decision is class `contract` (reopens the skeleton).
-A note from another change (`source: <other>`) is amended the same way; the change still waits until `<other>` is
-archived (other-changes.md §5).
+A change to the approved design (or spec) of an active change: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (route, chat
+gate, amend brief, the status rule) and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` (the amend task set). Same steps
+as `/hitl:plan` §7 with these differences:
+- the amendment is a design note (`hitl-index note show --change <id> N-k --json`, kind `design`) or the text after
+  `amend`; an open amend brief of the change is continued, whichever skill opened it;
+- route `brief` → amend-spec.md §4.1 with `--skill design`: Part 2 **How** may start in round 1 (a pure design
+  amendment: `[D]` per hit decision, supersede or keep; contracts; data), Part 1 **What** only when the decision
+  changes behaviour (then `[R]` questions in business words);
+- decisions are never edited in place once the design is approved: supersede per amend-spec.md §5 (new D row, old
+  row `superseded by <KEY>-D<k>`, Changelog line), applied at the amend brief's approval. Superseding the `<KEY>-D<n>`
+  a note names is what lets `note apply` accept it; a superseded contract decision is class `contract`.
+- A note from another change (`source: <other>`) is amended the same way; the change still waits until `<other>` is
+  archived (other-changes.md §5).
 
 ## Rules
-- Write only in `.hitl/changes/<id>/`: `design.md`, `data-model.md`, `contracts/*`, `design-brief.md` (Claude's parts:
-  rounds, marks, `_Disc:_`, Close — never the developer's `>` lines or Description text), and the proposal `## Artifacts`
-  rows for (a) artifacts. Spec deltas only through the `_Needs spec:_` path; `glossary.md` only through `_Needs term:_`.
+- Write only in `.hitl/changes/<id>/`: `design.md`, `data-model.md`, `contracts/*`, `design-brief.md` and
+  `amend-<KEY>-A<n>-brief.md` (Claude's parts: rounds, marks, `_Disc:_`, `## Unchanged`, Close — never the developer's
+  `>` lines or Description text), and the proposal `## Artifacts` rows for (a) artifacts. Spec deltas only through the
+  `_Needs spec:_` path or an amend brief's approval (with tasks.md and `@dec` lines, amend-spec.md §4.4);
+  `glossary.md` only through `_Needs term:_`.
   Never code, never `.hitl/specs/**`.
 - No function signatures, no per-file symbol lists, no line numbers. Name existing modules as they are in the code.

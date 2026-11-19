@@ -90,6 +90,66 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.16.0
+
+0.17.0 đổi cách xử lý **yêu cầu thay đổi giữa chừng** (spec hoặc design đã duyệt, vài task đã xong, vài task đang làm).
+Không cần migrate: `tasks.md` cũ (không có `amend:`, `kind:`, `remove`, `dropped`, `superseded:`) vẫn đọc như trước.
+
+**Bạn làm gì khi yêu cầu đổi giữa lúc implement:**
+1. Nói thay đổi trong chat như trước → Claude hỏi `_Note_ for <change>, refs …? (Y/n)` → `Y` ghi note `N-k`.
+2. Chạy `/hitl:plan <id> amend N-k` (thay đổi về thiết kế: `/hitl:design <id> amend N-k`). Không có lệnh mới.
+   CLI (`hitl-index amend start`) chọn đường đi một cách tất định:
+   - mọi id chỉ đổi **câu chữ** (class `wording`) → vẫn một gate trong chat như cũ (preview delta, khối Impact, rồi
+     `Apply?`);
+   - chỉ đụng task, AC, symbol, test → `/hitl:tasks <id> update`;
+   - còn lại (hành vi, contract, scenario, requirement mới) → một **amend brief** riêng:
+     `.hitl/changes/<id>/amend-PWR-A1-brief.md` (id `PWR-A1` từ `hitl-index spec next-id <id> --kind A`).
+3. Mở file đó trong editor. Đầu file là sự thật do CLI ghi: **task nào đang ở đâu** (todo / đang làm / đã xong, đã khoá
+   gì) và **amendment chạm tới gì** (AC, decision, symbol, test đã khoá — kể cả test của change đã archive). Vòng 1 hỏi:
+   đổi gì (bằng lời nghiệp vụ); hành vi cũ **chỉ ở branch này, đã merge hay đã release**; mỗi việc ngoài phạm vi `[X]`
+   (nhận vào change này · change riêng · bỏ); mỗi task làm dở `[K]` (giữ và sửa · revert). Trả lời trên dòng `>`, chạy
+   lại `/hitl:plan <id> amend`.
+4. Phần `## Close` cho xem preview delta, khối Impact và **amend task set** (thứ tự prep → switch → contract, hoặc
+   prep → expand → migrate → switch → contract khi hành vi cũ đã merge/release). Gõ `Y` dưới câu hỏi
+   `Approve the amendment?` → Claude sửa delta/design, ghi task set vào `tasks.md`, đánh dấu note đã áp dụng. Khi có
+   việc đã khoá cần mở, bạn vẫn tự gõ `/hitl:approve <id> reopen N-k` (chỉ bạn mở khoá).
+
+**Luật theo trạng thái task** (một file: `shared/task-changes.md`, dùng chung cho amend và `/hitl:tasks update`):
+- task `todo` → sửa tại chỗ, hoặc bỏ: `hitl-index tasks drop <T> --reason "…"` (ghi `status: dropped` + dòng
+  `**Dropped**:`; id không bao giờ dùng lại);
+- task đang làm (skeleton/test đã khoá, chưa xong) → mở lại tại chỗ, bước TODO được làm mới;
+- task `done` → **không bao giờ mở lại**: một task mới (id mới) nhận các symbol của nó (`modify`/`remove`) và các test
+  cũ khẳng định hành vi cũ (dòng test plan `rewrite: <test hoặc AC cũ>`); AC cũ được ghi
+  `- superseded: PWR-T1.AC2 → PWR-T5.AC1 (PWR-A1)`. Review và bản ghi done của task cũ giữ nguyên.
+- việc dọn dẹp (xoá code chết, revert, migrate) luôn là task mới.
+
+Ví dụ ngắn: link đặt lại mật khẩu đổi từ 1 giờ xuống 15 phút; PWR-T1 (gửi link) đã xong, PWR-T2 (đặt mật khẩu mới) đang
+đỏ, PWR-T3 (khoá tài khoản) chưa làm.
+```
+_Amend set:_ PWR-A1 — 3 tasks · transition: branch · order: switch → contract
+1. PWR-T5 switch   Link hết hạn sau 15 phút        modify ResetService.request (done in PWR-T1) · rewrite: PWR-T1.AC2
+2. PWR-T2 switch   Đặt mật khẩu mới (mở lại)        AC1 sửa chữ · bước TODO làm mới · blocked-by PWR-T5
+3. PWR-T6 contract Bỏ job quét link hết hạn          remove ResetJob.sweep · blocked-by PWR-T5
+superseded: PWR-T1.AC2 → PWR-T5.AC1 · PWR-T3 giữ nguyên (## Unchanged)
+```
+Sau `Y`: `/hitl:approve feat-password-reset reopen N-3` chuyển test cũ của PWR-T1 sang PWR-T5 và mở lại test của PWR-T2;
+rồi làm PWR-T5 như mọi task.
+
+Những gì khác đổi:
+- **Trong lúc amend brief còn mở, task bị chạm sẽ đứng chờ** (`_Held:_` trong status): `/hitl:implement` dừng, hook
+  chặn implementer; task không bị chạm vẫn chạy tiếp.
+- **Không còn `overwrite`**: `/hitl:tasks <id>` trên `tasks.md` đã có luôn là update. Chia lại toàn bộ khi mọi task còn
+  `todo` = update bỏ task cũ (`tasks drop`, chạy sau `Y` ở quiz gate) và thêm task mới.
+- Meta task mới: `| amend: PWR-A1 | kind: switch` (đứng trước `| status:`); Symbols có `remove` (task chỉ xong khi symbol
+  đã mất khỏi code: `REMOVE_STILL_PRESENT`). Check mới: `AMEND_ORDER`, `AMEND_UNCOVERED` (mọi thứ amendment chạm tới
+  phải có task xử lý, hoặc ghi lý do dưới `## Unchanged` trong amend brief) — chạy trong `tasks --check` và
+  `hitl-index amend check <id>`.
+- **Một luật trạng thái** (`shared/amend-spec.md` §6): amendment không bao giờ đưa proposal/design về `draft`; chữ `Y`
+  trong amend brief chính là lần duyệt lại. "Reopen the spec/design" chỉ được khi change chưa có task nào. Gate chat:
+  Impact trước, rồi mới hỏi `Apply?`. Mini change `fix-<slug>` (amend một change đã archive) có change key riêng.
+- **Docstring chỉ nói ý định hiện tại**: không viết "trước đây", "bây giờ", "không còn", "previously", "now"… Lịch sử
+  nằm ở delta (`Changed:`/`Reason:`), Changelog của design, amend brief, `superseded:` trong tasks.md và git.
+
 ### Nâng cấp từ 0.15.0
 
 0.16.0 đổi **chính sách test**. Không cần migrate: `tasks.md` cũ (bảng test plan 5 cột, không có cột `test`) vẫn đọc
@@ -463,9 +523,9 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:overlap <change-id> [<change khác> …]` · `--with B,C` | Kiểm tra chồng lấn của một change với các change đang mở khác (không nêu = tất cả): bằng chứng chắc chắn trước (id, rule, contract, thuật ngữ, symbol, file, drift), không có → ✅ dừng; có → một subagent `spec-reviewer` chấm cả cụm, mỗi finding phải có witness Given/When/Then trích từ từng change; chỉ ghi note khi bạn chọn "both sides". Dùng cả sau khi merge nhánh | một dòng mỗi finding | bạn / Claude |
 | `/hitl:flow [task-id\|help]` | Đang ở đâu, task nào tiếp theo, lệnh gợi ý `_Next:_`; mô tả việc mới → `/hitl:go` | — | bạn / Claude |
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | nếu đã có docs | bạn / Claude |
-| `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`) trong file brief `changes/<id>/plan-brief.md`, độ phủ + `_Hot_` + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change ở câu `Q0` của brief) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt (cổng chat) | file brief, mỗi vòng (amend: cổng trong chat) | bạn / Claude |
-| `/hitl:design <change-id> [amend [N-k]]` | HOW: `design.md` (`<KEY>-D<n>`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần; phỏng vấn trong `design-brief.md` (`Y` ở dòng Accept all = nhận cả vòng, trừ câu `(needs its own Y)`) | file brief, mỗi vòng (amend: cổng trong chat) | bạn / Claude |
-| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace` | quiz | bạn / Claude |
+| `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`) trong file brief `changes/<id>/plan-brief.md`, độ phủ + `_Hot_` + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change ở câu `Q0` của brief) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt — chỉ đổi câu chữ: cổng chat; còn lại: amend brief `amend-<KEY>-A<n>-brief.md` kết thúc bằng amend task set (mục 4c) | file brief, mỗi vòng (amend: cổng chat khi chỉ đổi câu chữ) | bạn / Claude |
+| `/hitl:design <change-id> [amend [N-k]]` | HOW: `design.md` (`<KEY>-D<n>`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần; phỏng vấn trong `design-brief.md` (`Y` ở dòng Accept all = nhận cả vòng, trừ câu `(needs its own Y)`); `amend` như plan | file brief, mỗi vòng (amend: cổng chat khi chỉ đổi câu chữ) | bạn / Claude |
+| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace`. `tasks.md` đã có → luôn update theo trạng thái task (`shared/task-changes.md`; không còn overwrite) | quiz | bạn / Claude |
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | diff / conflict | bạn / Claude |
 | `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | mỗi vòng | bạn / Claude |
@@ -473,7 +533,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:skeleton <T> [--quick]` | Viết skeleton: chữ ký, docstring intent + tag, các bước `TODO(impl)`, sentinel throw; test stub cho mỗi AC | review trong editor | bạn / Claude |
 | `/hitl:approve <T> [skeleton\|tests\|done] [symbols…]` | Khoá skeleton / test RED / kết quả cuối vào `skeleton.lock.json` | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> intent [symbols…]` | Duyệt lại intent của change đã done (sau `/hitl:tidy`): chỉ ghi `intent`/`intentHash` (+ `intentApprovedAt/By`, `intentLog`); từ chối nếu task chưa done hoặc chữ ký / `TODO(impl)` / body (so với lúc done) đổi; không cần tag `@task` | chính lệnh là sự duyệt | **chỉ bạn** |
-| `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; `doneAt` chuyển vào `reopened[]`. Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
+| `/hitl:approve <change-id> reopen [N-k]` | Xác nhận ảnh hưởng của một lần amend (note `recheck`): mở lại **chỉ** test đã khoá của AC bị đổi (stage `reopened`), skeleton của symbol bị đổi contract; 0.17: chuyển test cũ của task đã xong (hoặc của change đã archive) sang task mới nhận nó (dòng `rewrite:`). Wording thì chỉ đóng note ("nothing to unlock") | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:plan <mô tả> --before <change-id>[,…]` · `/hitl:go <mô tả> --before <change-id>` | Change tiên quyết: change kia chờ tới khi change mới archive (note `source:` trong change kia) | file brief, mỗi vòng | bạn / Claude |
 | `/hitl:approve <change-id> dismiss N-k <lý do>` · `defer N-k <change khác>` · `/hitl:approve <T> <stage> --ack N-k` | Đóng note (bỏ qua có lý do / chuyển sang change khác) · cho task T đi tiếp dù note còn mở | chính lệnh là sự duyệt | **chỉ bạn** |
 | `/hitl:approve <change-id> accept [symbols…]` | Chấp nhận drift sau này trên change **đã archive** (từ `/hitl:sync`): ghi intent / `TODO(impl)` / body (`acceptedBodyHash`, `acceptedAt/By/Change`) và hash của test đã khoá; không đụng `task`/`tasks`/`lock.tasks`/done record. Từ chối nếu change chưa archive, có task mở sở hữu/tag symbol, chữ ký đổi (phải claim vào task) hoặc test phủ chưa chạy fresh + pass | chính lệnh là sự duyệt | **chỉ bạn** |
@@ -489,8 +549,11 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 
 CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|key|conflicts|merge|archive`, `hitl-index change [<id>]`
 (trạng thái/phase của change; `wait`/`blocks` khi một change chờ change khác; `brief` khi có file brief),
-`hitl-index brief <id> [--kind plan|design]` (đọc file brief: vòng, câu hỏi, câu trả lời — chỉ đọc; `brief rename <id>
---to <id mới> --key <KEY>` đổi tên change và key tới khi change có task đầu tiên), `hitl-index overlap <id> [--with B,C]`
+`hitl-index brief <id> [--kind plan|design|amend] [--amend <KEY>-A<n>]` (đọc file brief: vòng, câu hỏi, câu trả lời — chỉ đọc; `brief rename <id>
+--to <id mới> --key <KEY>` đổi tên change và key tới khi change có task đầu tiên),
+`hitl-index amend start <id> [--from N-k] [--refs …] [--impact …] [--write]` (0.17: route brief|chat, id `<KEY>-A<n>`,
+task nào ở đâu, amendment chạm gì; `--write` tạo amend brief), `hitl-index amend check <id> [--amend <KEY>-A<n>]`
+(`AMEND_ORDER`, `AMEND_UNCOVERED`), `hitl-index tasks drop <T> --reason "…" [--amend <KEY>-A<n>]` (chỉ task todo), `hitl-index overlap <id> [--with B,C]`
 (ứng viên chồng lấn với change khác đang mở: id, rule, decision, contract, symbol, file, thuật ngữ, capability, phần
 `code` — chỉ đọc; `--review` đọc phán quyết của `/hitl:overlap`),
 `hitl-index note add … --source <change khác>` (note từ change khác: chặn toàn bộ change tới khi change kia archive), `hitl-index migrate --specs` (v0.5 → 0.6),
@@ -570,9 +633,12 @@ implementer báo `specConflict`, skill đề xuất cập nhật **spec/design**
   AC, dòng Changelog, `@dec`) và hỏi `Apply? (Y/n/edit)` trong cùng gate. Quy tắc: `shared/amend-spec.md`.
 - Change còn active → sửa delta của nó (requirement living chưa đụng tới → thêm vào `## MODIFIED` nguyên block).
   Change đã archive → tạo mini change `fix-<slug>` (chỉ proposal + delta), rồi `/hitl:archive fix-<slug>`.
-- Decision không bao giờ sửa tại chỗ (chỉ supersede); thêm requirement/capability → proposal về `draft`, chạy lại `/hitl:tasks`.
+- Decision không bao giờ sửa tại chỗ (chỉ supersede). 0.17: amendment không bao giờ đưa proposal/design về `draft`;
+  ngoài đổi câu chữ, mọi amend đi qua amend brief (mục 4c) và `Y` trong đó là lần duyệt lại. Change đã archive → mini
+  change `fix-<slug>` có change key riêng.
 - Amend không duyệt gì cả: sau đó bạn vẫn gõ `/hitl:approve <T> skeleton <symbols>` như cũ.
-- 0.9: preview có thêm khối **`_Impact:_`** (mục 4c); Apply ghi `note apply`.
+- 0.9: preview có thêm khối **`_Impact:_`** (mục 4c); Apply ghi `note apply`. 0.17: khối Impact đứng trước câu
+  `Apply?`; review/sync/implement gặp thay đổi không chỉ là câu chữ thì viết amend brief rồi dừng.
 
 ### 4c. Yêu cầu đổi giữa chừng: notes và reopen (0.9)
 
@@ -583,12 +649,19 @@ Thường gặp: proposal/spec/design/tasks đã duyệt, vài task đã done, v
 - **Chặn.** Note đang mở chặn `/hitl:approve` skeleton / tests / done của task mà refs chạm tới (scenario/requirement
   của AC, <KEY>-D<n> trong **Why**, dòng `### Symbols`, `@dec` của symbol đã khoá). Note không refs chỉ cảnh báo. Routing bỏ
   qua task bị chặn nếu còn task khác làm được. Note mở cũng chặn archive.
-- **Áp dụng.** `/hitl:plan <id> amend N-k` (hoặc `/hitl:design <id> amend N-k`): preview delta + khối `_Impact:_` theo
-  từng id: `wording` (không mở gì) · `behaviour` (test đã khoá của AC đó) · `contract` (skeleton của symbol qua
-  `@dec`/covers + test của nó) · `scenario` (AC mới + test) · `requirement` (task mới qua `/hitl:tasks update`).
-  Hơn ~3 task hoặc có contract → gợi ý tách change mới. Apply ghi docs + một note `recheck` ở trạng thái
-  `reopen pending` (cả khi chỉ wording mà task đã khoá: bạn xác nhận "không ảnh hưởng").
-- **Mở lại — chỉ bạn.** `/hitl:approve <id> reopen` → test bị đổi về stage `reopened` (test-author viết lại; test viết
+- **Áp dụng.** `/hitl:plan <id> amend N-k` (hoặc `/hitl:design <id> amend N-k`). Class theo từng id: `wording`
+  (không mở gì) · `behaviour` (test đã khoá của AC đó) · `contract` (skeleton của symbol qua `@dec`/covers + test của
+  nó) · `scenario` (AC mới + test) · `requirement` (task mới). 0.17: `hitl-index amend start` chọn đường —
+  chỉ `wording` → cổng chat (preview delta, khối `_Impact:_`, `Apply?`); chỉ task/AC/symbol → `/hitl:tasks <id> update`;
+  còn lại → **amend brief** `amend-<KEY>-A<n>-brief.md`: sự thật (task nào ở đâu, amendment chạm gì), các vòng hỏi
+  (`[R]` đổi gì, chỉ ở branch / đã merge / đã release, `[X]` việc ngoài phạm vi, `[K]` task làm dở), rồi `## Close` với
+  delta, Impact và **amend task set** (`amend: <KEY>-A<n>`, `kind: prep|expand|migrate|switch|contract|revert`, thứ tự
+  bằng `blocked-by`). `Y` dưới câu duyệt mới ghi delta, design, tasks.md và note `recheck` (`reopen pending`) khi có
+  việc đã khoá. Luật theo trạng thái task: `shared/task-changes.md` (todo sửa tại chỗ hoặc `tasks drop`; đang làm mở
+  lại tại chỗ; **done không bao giờ mở lại** — task mới nhận symbol và test cũ (`rewrite:`), AC cũ ghi `superseded:`).
+  Trong lúc amend brief mở, task bị chạm đứng chờ (`_Held:_`); task khác chạy tiếp.
+- **Mở lại — chỉ bạn.** `/hitl:approve <id> reopen` → (0.17) test cũ mà task mới nhận (`rewrite:`) chuyển sang task
+  mới, stage `reopened`; test bị đổi của task đang làm về stage `reopened` (test-author viết lại; test viết
   lại phải đỏ trên code hiện tại mới khoá lại được bằng `/hitl:approve <T> tests`), symbol bị đổi contract được đánh
   dấu để `/hitl:skeleton <T>` sửa rồi `/hitl:approve <T> skeleton`. `doneAt`/`doneBodyHashes` chuyển vào
   `lock.tasks[T].reopened[]`; review cũ hết hiệu lực (report md vẫn còn). Task hiện `reopened` → `/hitl:test` hoặc
@@ -819,6 +892,7 @@ validator của upstream). Phần nối với hitl nằm riêng ở `skills/revi
 | `hitl.config.json`, `docs/*.md`, `changes/**`, `tasks/*.md` | commit | người viết / người duyệt |
 | `specs/**`, `archive/**` | commit | living spec + change đã xong (chỉ `hitl-index spec merge\|archive` ghi) |
 | `changes/<id>/plan-brief.md`, `design-brief.md` | commit | file brief (0.14): câu hỏi của plan/design và câu trả lời của bạn; đi theo change khi archive |
+| `changes/<id>/amend-<KEY>-A<n>-brief.md` | commit | amend brief (0.17): một file mỗi amendment — sự thật lúc bắt đầu, các vòng hỏi, `## Unchanged`, `## Close` với amend task set; đi theo change khi archive |
 | `changes/<id>/.scout.json`, `.spec-review.json` | ignore | file nháp của subagent `spec-scout` / `spec-reviewer` |
 | `planning/*.md` (v0.5) | commit đến khi migrate | chỉ đọc |
 | `index/skeleton.lock.json` | commit | bản ghi phê duyệt (chỉ `hitl-index approve` ghi) |

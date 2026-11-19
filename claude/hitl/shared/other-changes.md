@@ -10,6 +10,8 @@ is the user's call: never decide an order yourself, never write a note into anot
 In A's plan, design, implement or review, when the user or you spot work outside A's scope:
 - **Small** (still A's WHAT: a behaviour of A's own requirements, one task at most) → amend A
   (`/hitl:plan A amend`, `/hitl:design A amend`) or a note `N-k` (conventions.md).
+- Inside an amend brief (0.17) each candidate is an `[X]` question — accept into A's scope · own change (`--before`
+  or after) · drop — with this size rule as its `_Rec:_` (small → accept, big → own change; `amend-spec.md` §3).
 - **Big** (needs its own spec; new behaviour A's proposal does not name; more than 1 task; another capability) → print
   `_Tip:_ Out of scope for A: <X> — big enough for its own change → /hitl:go <X> --before A` and carry on with A.
   Never start it yourself. Several parents: `--before A,C` (or `--before A --before C`).

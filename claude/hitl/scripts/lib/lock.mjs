@@ -4,10 +4,10 @@
 import { promises as fsp } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { HITL_DIR } from "./paths.mjs";
-import { archivedChangeOf } from "./tasksmd.mjs";
+import { archivedChangeOf, removeStillPresent } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
 import { blockingNotes, applyCommand, changeWait, waitReasons } from "./notes.mjs";
-import { acPlan, duplicateTestNames, resolveCovered, testBudget } from "./testplan.mjs";
+import { acPlan, duplicateTestNames, resolveCovered, rewriteTargets, testBudget } from "./testplan.mjs";
 import { mutationRequiredFor } from "./config.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/2";
@@ -154,6 +154,7 @@ export function taskSymbolIds(index, taskId, task, api) {
     if (!isTest(s) && s.kind !== "suite" && (s.tags?.task || []).includes(taskId) && (CODE_KINDS.has(s.kind) || s.kind === "class")) ids.add(id);
   }
   for (const sym of task?.symbols || []) {
+    if (sym.change === "remove") continue; // 0.17: a remove row is work that deletes the symbol, not a symbol of the task
     const r = resolveWith(api, index, sym.ref, sym.file);
     if (r?.id && !isTest(index.symbols[r.id])) ids.add(r.id);
   }
@@ -569,7 +570,9 @@ function planReopenApproval(opts, lock) {
   } else pick = pending;
   if (!pick.length) { reasons.push(`no recheck note of ${changeId} waits for reopen (hitl-index note apply writes one after an amendment)`); return res(false); }
   const per = new Map();
+  const takeovers = []; // 0.17: {task, tests, refs, note, amend} — locked tests of other tasks a new task takes over
   for (const n of pick) for (const r of n.meta?.reopen || []) {
+    if (r.stage === "takeover") { takeovers.push({ ...r, note: n.id, amend: n.meta?.amend || null }); continue; }
     const e = per.get(r.task) || { task: r.task, stage: null, acs: new Set(), symbols: new Set(), newAc: new Set() };
     if (r.stage === "skeleton" || (r.stage === "tests" && e.stage !== "skeleton")) e.stage = r.stage;
     for (const a of r.acs || []) e.acs.add(a);
@@ -589,7 +592,30 @@ function planReopenApproval(opts, lock) {
       for (const a of acs) e.acs.add(a.id);
     }
   }
+  for (const x of takeovers) {
+    const t = tasks.find((y) => y.id === x.task && y.change === changeId);
+    if (!t) reasons.push(`${x.task} (takes over ${(x.tests || []).length} test(s)) is not a task of ${changeId} anymore`);
+    else if (t.archived || t.status === "dropped") reasons.push(`${x.task} is ${t.archived ? "archived" : "dropped"}: it cannot take over tests`);
+  }
   if (reasons.length) return res(false);
+  // 0.17: a take-over moves a locked test of another task (a done task of this change, or a task of an archived change)
+  // to the new task, stage reopened: the new task rewrites it to its own AC (or deletes it) and locks it at its tests
+  // stage. The old task keeps its done record; its lock entry lists what was taken over.
+  for (const x of takeovers) {
+    const moved = [];
+    for (const id of x.tests || []) {
+      const l = lock.tests[id];
+      if (!l) { warnings.push(`${id.slice(id.indexOf("#") + 1)} is not locked any more: nothing to take over`); continue; }
+      if (l.task === x.task) { warnings.push(`${id.slice(id.indexOf("#") + 1)} already belongs to ${x.task}`); continue; }
+      const from = l.task;
+      lock.tests[id] = { ...l, task: x.task, stage: "reopened", reopenedAt: now, reopenNote: x.note, lockedBodyHash: l.bodyHash ?? null,
+        takenFrom: { task: from, ac: l.ac || [], ref: (x.refs || {})[id] ?? null, at: now, note: x.note, ...(x.amend ? { amend: x.amend } : {}) } };
+      changes.tests.changed.push({ id, what: ["takeover"] });
+      if (from && lock.tasks[from]) lock.tasks[from] = { ...lock.tasks[from], takenOver: [...(lock.tasks[from].takenOver || []), { at: now, note: x.note, to: x.task, tests: [id] }] };
+      moved.push(id);
+    }
+    if (moved.length) reopened.push({ task: x.task, stage: "takeover", acs: [], tests: moved.sort(), symbols: [], from: [...new Set(moved.map((id) => lock.tests[id].takenFrom.task))].sort() });
+  }
   for (const e of [...per.values()].sort((a, b) => a.task.localeCompare(b.task, "en", { numeric: true }))) {
     const T = e.task;
     if (!e.stage) { nothing.push(T); continue; }
@@ -688,6 +714,7 @@ export function planApproval(opts) {
     const scope = new Set(allIds);
     const listed = opts.symbols?.length ? new Set(opts.symbols.flatMap((ref) => { const r = preferIn(resolveWith(api, index, ref), scope); const p = pairOf(ref); return [ref, r?.id, p?.to, p?.from]; }).filter(Boolean)) : null;
     for (const sym of task?.symbols || []) {
+      if (sym.change === "remove") continue; // 0.17: deleted by the task, never a stub of it
       const r = resolveWith(api, index, sym.ref, sym.file);
       const rn = !r && pairOf(sym.ref);
       if (listed && !listed.has(sym.ref) && !(r?.id && listed.has(r.id)) && !(rn && (listed.has(rn.to) || listed.has(rn.from)))) continue;
@@ -713,7 +740,11 @@ export function planApproval(opts) {
           reasons.push(`${ac.id} covered: ${row.detail} resolves to no indexed test (a test id file#title, a test title, or an AC id with tests)`);
       }
     }
-    if (!symIds.length) reasons.push(`no indexed symbols tagged @task ${taskId}`);
+    // 0.17: a rewrite row names the locked test(s) of another task this task takes over (no stub of its own)
+    for (const x of rewriteTargets(index, lock, task)) if (!x.ids.length)
+      reasons.push(`${x.ac} rewrite: ${x.ref} resolves to no indexed test (a test id file#title, a test title, or the old AC id)`);
+    const removes = (task?.symbols || []).some((x) => x.change === "remove");
+    if (!symIds.length && !removes) reasons.push(`no indexed symbols tagged @task ${taskId}`);
     if (reasons.length && !opts.force) return res(false);
 
     // Locked symbols of T gone from the index are pruned (all of them, or only the listed ones with --symbols).
@@ -810,7 +841,9 @@ export function planApproval(opts) {
     const relock = !!lt.testsAt;
     const active = ownTestIds.filter((id) => index.symbols[id].test?.mode === "active");
     // 0.16: a test plan with no new row (every AC none / manual / covered / shared on nothing) needs no own test
-    const planNeedsTests = !(task?.testPlan || []).length || (task.testPlan || []).some((r) => r.legacy || (r.test || "new") === "new");
+    // a rewrite row whose taken-over tests were all deleted (the old behaviour is gone) needs no test of its own
+    const liveRewrite = rewriteTargets(index, lock, task).some((x) => x.ids.some((id) => index.symbols[id]));
+    const planNeedsTests = !(task?.testPlan || []).length || (task.testPlan || []).some((r) => r.legacy || (r.test || "new") === "new") || liveRewrite;
     if (!active.length && planNeedsTests) reasons.push("no active tests cover the task (fill the stubs with /hitl:test first)");
     // 0.16 RED table: assertion-failed (the assertion ran and failed) · reached-stub (only the TODO(impl) sentinel was
     // hit: the test reaches the code, its assertion is not yet shown to work) · passes (allowed only for @kind regression
@@ -846,6 +879,14 @@ export function planApproval(opts) {
         else if ((row.test || "new") === "new" && row.author !== "human" && !active.some((id) => (index.symbols[id].tags?.ac || []).includes(ac.id)))
           warnings.push(`${ac.id} (new) has no active test yet`);
       }
+    }
+    // 0.17: a rewrite row's tests are taken over first (the human's reopen moves them to this task), then rewritten to
+    // this AC (or deleted when the AC says the old behaviour is gone)
+    for (const x of rewriteTargets(index, lock, task)) {
+      const notYet = x.ids.filter((id) => lock.tests[id]?.stage === "locked" && lock.tests[id].task !== taskId);
+      if (notYet.length) { reasons.push(`${x.ac} rewrite: ${notYet.map((id) => index.symbols[id]?.test?.titlePath?.at(-1) || id).join(", ")} is still locked by ${[...new Set(notYet.map((id) => lock.tests[id].task))].join(", ")}: it is taken over first (the human types /hitl:approve ${task?.change || "<change>"} reopen)`); continue; }
+      const live = x.ids.filter((id) => index.symbols[id]);
+      if (live.length && !live.some((id) => (index.symbols[id].tags?.ac || []).includes(x.ac))) reasons.push(`${x.ac} rewrite: the taken-over test(s) still carry the old @ac; rewrite them to @ac ${x.ac} (or delete them when the old behaviour is gone)`);
     }
     const budget = testBudget(index, lock, task, active);
     // a pre-0.16 test plan (no `test` column) keeps the old rule: extras without @catches are listed, not refused
@@ -894,9 +935,16 @@ export function planApproval(opts) {
       const okGreen = s === "green" && rv?.verdict === "PASS" && !mutationRequiredFor(config, risk);
       if (!(s === "verified" || s === "done" || okGreen)) reasons.push(`${index.symbols[id].name}: status ${s || "unknown"} (needs verified)`);
     }
-    if (!symIds.length) reasons.push("task has no symbols");
+    // 0.17: a remove row is done only when the symbol is gone from the code
+    for (const id of removeStillPresent(index, task)) reasons.push(`REMOVE_STILL_PRESENT: ${id.slice(id.indexOf("#") + 1)} (a remove row of ${taskId}) still exists in ${id.slice(0, id.indexOf("#"))}`);
+    if (!symIds.length && !(task?.symbols || []).some((x) => x.change === "remove")) reasons.push("task has no symbols");
     if (reasons.length && !opts.force) return res(false);
     lt.doneAt = now;
+    // 0.17: the symbols its remove rows deleted leave the lock (the done record of the task that built them stays)
+    for (const r of (task?.symbols || []).filter((x) => x.change === "remove")) {
+      const id = `${r.file}#${r.ref}`;
+      if (!index.symbols[id] && lock.symbols[id]) { delete lock.symbols[id]; changes.symbols.removed.push(id); }
+    }
     if (reo) lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, closedAt: now }];
     lt.doneBodyHashes = {};
     for (const id of symIds) { lt.doneBodyHashes[id] = index.symbols[id].bodyHash; changes.symbols.unchanged.push(id); }

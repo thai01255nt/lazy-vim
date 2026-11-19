@@ -78,7 +78,10 @@ export async function computeDriftFrom(root, index, opts = {}) {
     }
     if (!s) {
       const moved = bySigIntent.get(`${l.sigHash}:${l.intentHash}`);
+      // 0.17: a `remove` row of a task of an active change names it: the deletion is planned work, not drift
+      const remover = tasks.find((t) => !t.archived && t.status !== "dropped" && (t.symbols || []).some((r) => r.change === "remove" && `${r.file}#${r.ref}` === id));
       if (moved) add("info", "MOVED", id, `${nameOfId(id)} (locked ${l.task}) moved to ${moved}`, { affected: [moved] });
+      else if (remover) add("info", "REMOVED_BY_TASK", id, `${nameOfId(id)} (locked ${l.task}) was removed by ${remover.id} (remove row)`, { task: remover.id });
       else add("warn", "DELETED_LOCKED", id, `${nameOfId(id)} (locked ${l.task}) no longer exists`);
       continue;
     }

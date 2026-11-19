@@ -12,7 +12,7 @@ import { BRIEF_KINDS, briefFileName, briefSummary, pickBrief, readBriefs } from 
 import { isChangeId } from "../lib/specids.mjs";
 import { readText, writeTextAtomic } from "../lib/fsutil.mjs";
 
-const USAGE = `usage: hitl-index brief <change-id> [--kind plan|design] [--json]
+const USAGE = `usage: hitl-index brief <change-id> [--kind plan|design|amend] [--amend <KEY>-A<n>] [--json]
        hitl-index brief rename <change-id> [--to <new-change-id>] [--key <KEY>] [--json]`;
 const usage = (msg) => Object.assign(new Error(msg ? `${msg}\n${USAGE}` : USAGE), { usage: true });
 /** Text files of a change folder whose ids and meta lines a rename rewrites. */
@@ -21,27 +21,29 @@ const TEXT_FILE = /\.(md|json|ya?ml|txt)$/i;
 export async function run(argv, ctx) {
   if (!ctx.root) { console.error("hitl: not initialized here — run /hitl:setup (hitl-index init)"); return 3; }
   if (argv[0] === "rename") return rename(argv.slice(1), ctx);
-  const a = parseArgv(argv, { flags: ["json"], values: ["kind"] });
+  const a = parseArgv(argv, { flags: ["json"], values: ["kind", "amend"] });
   const json = ctx.json || a.json;
   if (a._.length !== 1) throw usage("brief needs one change id");
+  if (a.amend !== undefined) a.kind = "amend";
   if (a.kind !== undefined && !BRIEF_KINDS.includes(a.kind)) throw usage(`--kind must be ${BRIEF_KINDS.join("|")}`);
   const entry = await findChange(ctx.root, a._[0]);
   if (!entry) { console.error(`change ${a._[0]} not found`); return 1; }
   const briefs = await readBriefs(ctx.root, entry.dir);
-  let b = a.kind ? briefs[a.kind] : null;
+  // an amend brief: the one named by --amend, else the open one, else the latest
+  let b = a.kind === "amend" ? (a.amend ? briefs.amends.find((x) => x.amend === a.amend) : briefs.amend || briefs.amends.at(-1)) || null : a.kind ? briefs[a.kind] : null;
   if (!a.kind) {
     const info = await changeInfo(ctx.root, ctx.config, await readChange(ctx.root, entry));
     b = pickBrief(info.phase, briefs);
   }
   if (!b) {
-    const msg = `no ${a.kind ? briefFileName(a.kind) : "brief file"} in ${entry.dir}`;
+    const msg = `no ${a.kind ? briefFileName(a.kind, a.amend) : "brief file"} in ${entry.dir}`;
     if (json) console.log(JSON.stringify({ schema: "hitl.brief/1", change: entry.id, brief: null, message: msg }));
     else console.error(msg);
     return 1;
   }
   if (json) { console.log(JSON.stringify({ ...b, change: b.change || entry.id, summary: briefSummary(b) }, null, 2)); return 0; }
   const s = briefSummary(b);
-  console.log(`_Brief:_ ${entry.id} — ${b.kind} brief round ${b.round} (${b.status}): ${b.counts.pending} pending, ${s.unanswered} unanswered · ${b.file}`);
+  console.log(`_Brief:_ ${entry.id} — ${b.kind} brief${b.amend ? ` ${b.amend}` : ""} round ${b.round} (${b.status}): ${b.counts.pending} pending, ${s.unanswered} unanswered · ${b.file}`);
   for (const q of b.questions.filter((x) => x.pending))
     console.log(`  ${q.id}${q.tag ? ` [${q.tag}]` : ""}${q.hot ? " _Hot_" : ""} ${q.title}${q.ownY ? " (needs its own Y)" : ""} — ${q.answered ? (q.acceptedByRound ? "accepted (round)" : q.kind) : "unanswered"}`);
   for (const n of [...b.rounds.map((r) => r.notes), b.close?.notes].filter((x) => x?.pending))

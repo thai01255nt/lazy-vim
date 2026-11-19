@@ -63,9 +63,12 @@ Low-risk tasks may use the fast lane (auto skeleton/tests approval). Never lower
   Quick tasks: no spec refs.
 
 ## 6. Symbols and owners
-- Row: `` n. [ ] `Ref` | new|modify | `path/file.ext` | impl: agent|manual | purpose ``. Row order = the tie-break of the implement order (`@prio` = row number); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`).
+- Row: `` n. [ ] `Ref` | new|modify|remove | `path/file.ext` | impl: agent|manual | purpose ``. Row order = the tie-break of the implement order (`@prio` = row number); the order itself is callees first over `@calls` (`hitl-index status <T> --work-order`).
 - `Ref` is `Name` or `Class.method` (no path; the file column carries it).
 - `modify` only if the symbol exists now (`hitl-index context <ref> --json` or Grep); `new` only if it does not.
+- `remove` (0.17, `shared/task-changes.md` §4): the task deletes the symbol and every use of it; only a symbol that
+  exists now (evidence, never invented dead code). Not a stub, not a symbol of the task: the task is finished when the
+  symbol is gone (`REMOVE_STILL_PRESENT` at done).
 - File follows PATTERNS-CONVENTIONS (layer dir, naming). A `new` symbol in a file that does not exist yet → note
   `creates file` in purpose.
 - Owner default `agent`. Recommend `manual` when the user said they will write it, or for core domain logic in a high-risk task.
@@ -80,6 +83,7 @@ The `test` cell (checked by `hitl-index tasks --check`):
 | `new: <defect>` | a new test at `seam`; `<defect>` = the production defect that would make it fail and no other planned or existing test catches | a stub with its `@ac` at the skeleton lock (`TEST_PLAN_NO_DEFECT` without a defect) |
 | `shared: <ACk>` | the test of ACk (a `new` row of this task) proves this AC too | one stub carrying both `@ac` ids |
 | `covered: <test>` | an existing test already proves it: its title, `file#title`, or an AC id (another task's AC whose tests prove it) | resolves to an indexed test at the lock; it runs with `hitl-index test --task`; an AC id must exist |
+| `rewrite: <test>` | 0.17 (an amend task, `shared/task-changes.md` §2): a locked test of another task (a done task, or an archived change) asserts the old behaviour; this task takes it over and rewrites it to this AC, or deletes it when the AC says the old behaviour is gone | resolves to an indexed test; the human's `/hitl:approve <change> reopen` moves it first; at the tests lock it carries this AC's `@ac` and fails on the current code |
 | `none: <reason>` | no automated test: type-checked, pure wiring with no independent oracle, config, behaviour a library guarantees | reason; refused on a task whose risk reasons include `security`, `concurrency` or `data` (`TEST_PLAN_NONE_RISK`) |
 | `manual: <check>` | a human check (UI look, external system) | the check; `/hitl:approve <T> done` lists it; refused like `none` on a `security`, `concurrency` or `data` task (`TEST_PLAN_NONE_RISK`) |
 Non-`new` rows may leave kind, oracle, seam and author as `—`. A table without the `test` column (before 0.16) reads

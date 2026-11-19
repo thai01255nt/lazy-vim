@@ -60,6 +60,13 @@ const SIG_RE = /(^|\s)(function\s+\w+\s*\(|(async\s+)?\w+\s*\([^()\n]*:\s*[\w<>\
 
 /** Parsed brief file of a change (`hitl-index brief <id> --kind <kind> --json`), or null. */
 const briefOf = (proj, ch, kind) => (ch ? json(cli(proj, "brief", ch, "--kind", kind, "--json").out) : null);
+/** The newest amend brief of any change (0.17): {file, text, parsed}, else null. */
+const amendBriefOf = (proj) => {
+  const f = walk(path.join(proj, ".hitl/changes")).filter((x) => /\/amend-[A-Z]{2,5}-A\d+-brief\.md$/.test(x)).sort().at(-1);
+  if (!f) return null;
+  const ch = path.basename(path.dirname(f));
+  return { file: f, text: read(f) ?? "", parsed: json(cli(proj, "brief", ch, "--kind", "amend", "--json").out) || { questions: [], refs: [] } };
+};
 /** The description part of a /hitl:plan prompt (without the command, the change id and --before …). */
 const promptDescription = (c) => String(c?.prompt ?? "").replace(/^\/hitl:plan\s+/, "").replace(/^(?:feat|fix|refactor|perf|docs|test|chore)-[a-z0-9-]+\s+/, "").replace(/\s+--before\s+\S+/g, "").trim();
 /** The chat reply of a brief run is short and never repeats the questions. */
@@ -217,10 +224,21 @@ const CHECKS = {
   grilling_loaded: (S) => ok(skillCalls(S).some((s) => /grilling/.test(s)) || S.tools.some((t) => t.name === "Read" && /grilling\/SKILL\.md/.test(t.input.file_path || "")), "grilling not loaded"),
   scout_spawned: (S) => ok(S.tools.some((t) => t.name === "Agent" && /spec-scout/.test(JSON.stringify(t.input))), "no spec-scout"),
   no_main_source_reads: (S) => ok(!S.tools.some((t) => t.main && t.name === "Read" && /\/src\/|\/tests\//.test(t.input.file_path || "")), "main thread read source"),
-  // ---- amend (gate only, nothing written)
+  // ---- amend: wording only → one chat gate, nothing written (0.9); else an amend brief, nothing else written (0.17)
   amend_gate: (S) => ok(/_Delta:_|📐/.test(S.text) && /Apply\?|Áp dụng\?/.test(S.text), "no _Delta:_ preview + Apply? gate"),
+  amend_impact_first: (S) => { const i = S.text.search(/_Impact:_/), a = S.text.search(/Apply\?|Áp dụng\?/); return ok(i >= 0 && a > i, "the _Impact:_ block does not come before Apply?"); },
   amend_no_write: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs"]); return ok(d === "", `files changed before the gate: ${d}`); },
-  amend_mentions_rule: (S, P) => { const id = specIdOf(P, "Reset link validity"); return ok(id && S.text.includes(id), `${id ?? "the reset-link rule"} not named`); },
+  amend_mentions_rule: (S, P) => { const id = specIdOf(P, "Reset link validity"); const b = amendBriefOf(P); return ok(id && (S.text.includes(id) || (b?.text || "").includes(id)), `${id ?? "the reset-link rule"} not named in the reply or the amend brief`); },
+  amend_brief_written: (S, P) => {
+    const b = amendBriefOf(P);
+    const qs = (b?.parsed?.questions ?? []).filter((q) => q.round === 1);
+    return ok(b && b.parsed.kind === "amend" && /^[A-Z]{2,5}-A\d+$/.test(b.parsed.amend || "") && b.parsed.status === "open" && b.parsed.refs.length > 0
+      && /^## Where the change stands$/m.test(b.text) && /^## Affected$/m.test(b.text) && qs.length >= 2 && qs.some((q) => /transition|branch|merged|released/i.test(q.title)),
+      b ? `amend brief: kind ${b.parsed.kind}, amend ${b.parsed.amend}, status ${b.parsed.status}, refs ${b.parsed.refs.length}, round-1 questions ${qs.length}` : "no .hitl/changes/<id>/amend-<KEY>-A<n>-brief.md");
+  },
+  amend_brief_only: (S, P) => { const d = gitDirty(P, [".hitl/changes", ".hitl/specs"]).split("\n").filter((l) => l.trim() && !/amend-[A-Z]{2,5}-A\d+-brief\.md|notes\.md$/.test(l)); return ok(!d.length, `written before the amend brief's approval: ${d.join(", ")}`); },
+  amend_brief_chat: (S, P) => { const b = amendBriefOf(P); return b ? briefChat(S, path.basename(b.file)) : ok(false, "no amend brief"); },
+  amend_keeps_done: (S, P) => { const b = amendBriefOf(P); return ok(b && /^\| FEE-T1 \|.*\| done: never reopened; a new task takes over +\|$/m.test(b.text), "the amend brief does not show FEE-T1 as done: never reopened"); },
   // ---- churn (0.9): capture → note gate, impact block, blocked approval, reopen
   note_capture_gate: (S) => ok(/_Note[ _]|📌/.test(S.text) && /\(Y\/n\)/.test(S.text) && /feat-fee/.test(S.text), "no `_Note_ for feat-fee …? (Y/n)` gate"),
   note_capture_refs: (S) => ok(/FEE-R1\.S2|FEE-R1\b/.test(S.text), "the note question names no FEE-R1 ref"),

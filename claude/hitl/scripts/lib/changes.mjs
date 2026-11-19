@@ -259,6 +259,7 @@ export async function taskCounts(root, config, tasksDoc) {
   for (const t of tasks) {
     const s = st[t.id]?.status || "todo";
     out.byStatus[s] = (out.byStatus[s] || 0) + 1;
+    if (s === "dropped") { out.total--; continue; } // 0.17: a dropped task is history, not work left
     if (s === "done") out.done++;
     else { out.notDone.push(t.id); if (!out.next) out.next = st[t.id]?.next || `/hitl:implement ${t.id}`; }
   }
@@ -304,7 +305,7 @@ export async function changeInfo(root, config, ch, { activeNotes = null } = {}) 
     .filter((x) => x.notes.length);
   const waitNext = w.amend.length ? applyCommand(ch.id, w.amend[0]) : w.waits.length && ["implement", "archive-ready"].includes(phase) ? `/hitl:flow ${w.waits[0].source}` : null;
   // 0.14: the brief file of the phase (plan-brief.md, design-brief.md), when there is one
-  const brief = briefSummary(pickBrief(phase, await readBriefs(root, ch.dir).catch(() => ({ plan: null, design: null }))));
+  const brief = briefSummary(pickBrief(phase, await readBriefs(root, ch.dir).catch(() => ({ plan: null, design: null, amend: null, amends: [] }))));
   // an open note blocks archive: an archive-ready change routes to resolving it first; an open brief round waits for answers
   const next = waitNext ? waitNext
     : phase === "archive-ready" && open.length ? applyCommand(ch.id, open[0])
@@ -622,6 +623,10 @@ export async function runMerge(root, config, id, { archive = false, dryRun = fal
     const w = changeWait(notes);
     notesPre = { open: open.map((n) => ({ id: n.id, title: n.title, status: n.status, kind: n.kind, ...(n.source ? { source: n.source, sourceState: n.sourceState } : {}), apply: applyCommand(id, n) })),
       ...(w.blocked ? { wait: waitReasons(id, w) } : {}) };
+    // 0.17: an amend brief that is still open blocks archive too (its amendment is not decided yet), even with --force
+    const { readAmendBriefs, openAmendBrief } = await import("./brief.mjs");
+    const ob = openAmendBrief(await readAmendBriefs(root, ch.dir).catch(() => []));
+    if (ob) notesPre.open.push({ id: ob.amend, title: `amend brief ${ob.amend} is open`, status: ob.status, kind: "amend", apply: `${ob.skill === "design" ? "/hitl:design" : "/hitl:plan"} ${id} amend` });
   }
   const archiveTo = `${ARCHIVE_REL}/${archiveDirName(date, id)}`;
   const conflicts = [...m.conflicts];

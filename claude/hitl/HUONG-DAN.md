@@ -162,10 +162,24 @@ _Note_ for feat-password-reset, refs PWR-R5.S2 (Unknown email reveals nothing)? 
 ```
 `y` → ghi note; task bị đụng tới sẽ không duyệt được cho tới khi note được xử lý. Áp dụng khi bạn sẵn sàng:
 ```
-/hitl:plan feat-password-reset amend N-1      (xem delta + _Impact:_ mở lại test/skeleton nào)
-/hitl:approve feat-password-reset reopen      (chỉ bạn gõ; wording thì chỉ xác nhận "không ảnh hưởng")
-/hitl:test PWR-T12                               (test viết lại phải đỏ) → /hitl:approve PWR-T12 tests → implement → review → done
+/hitl:plan feat-password-reset amend N-1      (chỉ đổi câu chữ → một gate trong chat: delta + _Impact:_ + Apply?)
+                                              (đổi hành vi/thiết kế → mở amend brief .hitl/changes/<id>/amend-PWR-A1-brief.md)
 ```
+Với amend brief (0.17): mở file trong editor. Đầu file là sự thật: task nào xong, task nào đang làm, cái gì bị chạm. Trả
+lời các câu hỏi trên dòng `>` (đổi gì; hành vi cũ chỉ ở branch này / đã merge / đã release; việc ngoài phạm vi `[X]`;
+task làm dở `[K]`), rồi chạy lại `/hitl:plan feat-password-reset amend`. Cuối cùng phần `## Close` cho xem **amend task
+set**, ví dụ:
+```
+PWR-T5 switch   Link hết hạn sau 15 phút     modify ResetService.request (done in PWR-T1) · rewrite: PWR-T1.AC2
+PWR-T6 contract Bỏ job quét link cũ          remove ResetJob.sweep · blocked-by PWR-T5
+```
+Gõ `Y` dưới `Approve the amendment?` → Claude ghi delta, design, tasks.md. Task đã xong không bao giờ bị mở lại: task
+mới nhận code và test cũ của nó, AC cũ được ghi `superseded:`. Trong lúc brief còn mở, task bị chạm đứng chờ (`_Held:_`).
+```
+/hitl:approve feat-password-reset reopen      (chỉ bạn gõ: mở test của task đang làm, chuyển test cũ sang task mới)
+/hitl:test PWR-T5                                (test viết lại phải đỏ) → /hitl:approve PWR-T5 tests → implement → review → done
+```
+Task chưa làm mà không cần nữa: `hitl-index tasks drop <T> --reason "…"` (Claude chạy sau khi bạn `Y` ở gate).
 Không muốn áp dụng: `/hitl:approve <change> dismiss N-1 <lý do>`, `/hitl:approve <change> defer N-1 <change khác>`,
 hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`.
 

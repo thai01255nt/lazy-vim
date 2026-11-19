@@ -101,7 +101,8 @@ export async function buildContext(root, target, { contract = false, budget = 12
     if (hit.scenario) return `${r} ${hit.scenario.title}: ${hit.scenario.steps.map((x) => `${x.kw} ${x.text}`).join(" ")}`;
     return `${r} ${hit.block.title}: ${hit.block.statement || ""}`.trim();
   };
-  const acLine = (a) => !(a.reqs || []).length ? `- ${a.id} ${a.text}`
+  const acLine = (a) => a.superseded ? `- ${a.id} (superseded by ${a.superseded.by}${a.superseded.amend ? `, ${a.superseded.amend}` : ""}: history, do not build or test it) ${a.text}`
+    : !(a.reqs || []).length ? `- ${a.id} ${a.text}`
     : changeCtx ? `- ${a.id} (${a.reqs.map(specText).join("; ")}) ${a.text}`
     : `- ${a.id} (${a.reqs.map((r) => `${r}: ${reqOf(r)?.text ?? "unknown"}`).join("; ")}) ${a.text}`;
 
@@ -130,6 +131,19 @@ export async function buildContext(root, target, { contract = false, budget = 12
         ...reo.tests.filter((id) => !(lock.tests?.[id]?.ac || []).some((a) => reo.acs.includes(a))).map((id) => `- covers a reopened symbol: ${tname(id)}`),
         "A rewritten test must FAIL against the current code (it shows the new behaviour). Leave every other locked test unchanged.");
     }
+    // 0.17: an amend task (shared/task-changes.md): its work kind, the symbols it removes, the tests it took over
+    const tn = (id) => S[id]?.test?.titlePath?.join(" > ") || id.slice(id.indexOf("#") + 1);
+    if (task.amend) head.push("", `## Amendment ${task.amend}${task.kind ? ` — ${task.kind}` : ""}`,
+      { prep: "Make the change easy: restructure without a behaviour change; every existing test stays green.", expand: "Add the new form beside the old one; the old callers keep working.",
+        migrate: "Move callers (or stored data) from the old form to the new one.", switch: "The new behaviour: change the logic to the current ACs.",
+        contract: "Remove what the amendment made dead (old branch, helper, flag, tests of removed scenarios); existing tests stay green.", revert: "Restore the code to the base for the half-done work the human chose not to keep." }[task.kind]
+        || "Changed by this amendment.", "Docstrings and step comments state the current intent only: no history words (previously, now, no longer, changed).");
+    const removes = (task.symbols || []).filter((x) => x.change === "remove");
+    if (removes.length) head.push("", "## Remove", ...removes.map((r) => `- ${r.ref} in ${r.file}: delete it and every use of it; the task is done only when it is gone`));
+    const taken = Object.entries(lock.tests || {}).filter(([, x]) => x.task === task.id && x.takenFrom);
+    if (taken.length) head.push("", "## Taken over", "These locked tests of another task assert the OLD behaviour; this task took them over.",
+      ...taken.map(([id, x]) => `- ${tn(id)} (from ${x.takenFrom.task}${(x.takenFrom.ac || []).length ? `, ${x.takenFrom.ac.join(", ")}` : ""}): rewrite it to the @ac of its rewrite: row, or delete it when that AC says the old behaviour is gone`),
+      "A rewritten test must FAIL against the current code (it shows the new behaviour).");
     // 0.16: the test decision per row (`new: <defect>` rows are the ones to write; shared → one test with both @ac;
     // covered / none / manual → no test to write)
     const testCell = (r) => (r.legacy ? "new" : `${r.test || "?"}${r.detail ? `: ${r.detail}` : ""}`).replace(/\|/g, "\\|");

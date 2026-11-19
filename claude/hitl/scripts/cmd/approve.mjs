@@ -109,9 +109,9 @@ export async function run(argv, ctx) {
   let next = nextCmd;
   if (!next) {
     const st = computeStatuses(g.index, plan.lock, g.state, ctx.config, g.tasks);
-    const { notesInfo } = await import("./status.mjs");
+    const { notesInfo, blocksForNext } = await import("./status.mjs");
     const ni = await notesInfo(ctx.root, { ...g, lock: plan.lock }).catch(() => ({}));
-    next = computeNext({ tasks: g.tasks, statuses: st, lock: plan.lock, notes: ni }).command;
+    next = computeNext({ tasks: g.tasks, statuses: st, lock: plan.lock, notes: blocksForNext(ni) }).command;
   }
   let specLinks = null;
   if (plan.stage === "skeleton" && plan.changes.symbols.changed.length) {
@@ -212,7 +212,8 @@ async function runChange(v, positionals, ctx, json) {
 async function reopenOut(plan, out, { C, v, ctx, json, entry, nm, warn }) {
   const ids = plan.notes.join(", ");
   const body = { ...out, notes: plan.notes, reopened: plan.reopened, nothing: plan.nothing, empty: plan.empty };
-  const summary = (r) => `${r.task} ${r.stage}: ${r.tests.length} test(s)${r.acs.length ? ` (${r.acs.join(", ")})` : ""}${r.symbols.length ? `, ${r.symbols.length} skeleton symbol(s) (${r.symbols.map(nm).join(", ")})` : ""}`;
+  const summary = (r) => r.stage === "takeover" ? `${r.task} takes over ${r.tests.length} test(s) from ${(r.from || []).join(", ")} (${r.tests.map(nm).join(", ")}): rewrite them to its AC`
+    : `${r.task} ${r.stage}: ${r.tests.length} test(s)${r.acs.length ? ` (${r.acs.join(", ")})` : ""}${r.symbols.length ? `, ${r.symbols.length} skeleton symbol(s) (${r.symbols.map(nm).join(", ")})` : ""}`;
   if (v["dry-run"]) {
     if (json) console.log(JSON.stringify(body, null, 2));
     else {
@@ -231,7 +232,9 @@ async function reopenOut(plan, out, { C, v, ctx, json, entry, nm, warn }) {
   });
   let sync = null;
   try { sync = await synctags(ctx.root, { config: ctx.config }); } catch (e) { sync = { error: e.message }; }
-  const next = plan.reopened.length ? (plan.reopened[0].stage === "skeleton" ? `/hitl:skeleton ${plan.reopened[0].task}` : `/hitl:test ${plan.reopened[0].task}`) : null;
+  // a take-over goes on through the new task's normal path (it is todo or has a skeleton): its status' next step
+  const first = plan.reopened.find((r) => r.stage !== "takeover") || plan.reopened[0];
+  const next = !first ? null : first.stage === "skeleton" ? `/hitl:skeleton ${first.task}` : first.stage === "takeover" ? `/hitl:flow ${first.task}` : `/hitl:test ${first.task}`;
   if (json) { console.log(JSON.stringify({ ...body, next, syncTags: sync && !sync.error ? { files: sync.files, tasksFiles: sync.tasksFiles } : sync }, null, 2)); return 0; }
   if (plan.empty) console.log(`✅ ${ids} closed: wording only, nothing to unlock (confirmed by human)`);
   else {

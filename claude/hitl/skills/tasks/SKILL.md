@@ -9,7 +9,8 @@ allowed-tools: Read Glob Grep Write Edit Agent Skill Bash(hitl-index *) Bash(nod
 
 Follow `${CLAUDE_PLUGIN_ROOT}/shared/conventions.md` + `${CLAUDE_PLUGIN_ROOT}/shared/conventions-spec.md`. Rules for slicing, priority, risk, ACs, owners and the test plan:
 read `${CLAUDE_SKILL_DIR}/references/slicing-and-risk.md` before drafting. Format: `${CLAUDE_PLUGIN_ROOT}/shared/templates/tasks.md`
-(exact; parsed by `hitl-index tasks`).
+(exact; parsed by `hitl-index tasks`). An existing tasks.md (an update): also `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md`
+(what may happen to a task per its state).
 
 Arguments: `$ARGUMENTS`
 
@@ -23,14 +24,20 @@ Arguments: `$ARGUMENTS`
   (/hitl:plan offers it, or hitl-index migrate --specs).` Stop.
 - Proposal `status: draft` → `⚠️ Spec is still draft (open questions: <n>).` Design `draft` → `⚠️ Design is still draft.`
   Design `missing` and not skipped → `⚠️ No design yet (_Tip:_ /hitl:design <id>).` Continue; all repeated at the gate.
-- Target = `.hitl/changes/<id>/tasks.md`. It exists → GATE `` `tasks.md` exists. (update/overwrite) — _Rec:_ update`` END THE TURN.
-  `<change-id> update [<what>]` (from `/hitl:go` or a note's apply command) → update without the update/overwrite question (the quiz gate of §6 still runs); `<what>` is the work to add.
-  - update: keep existing task ids, statuses and checkboxes; edit or add tasks; a new scenario on a done or
-    tests-locked task's requirement gets a new AC on that task (next AC number), never a rewrite of an old AC (its
-    tests reopen through `/hitl:approve <id> reopen`); remove tasks only if the
-    user agrees at the quiz gate. overwrite: only for tasks with status `todo`.
-    A test-plan table without the `test` column (before 0.16) stays as it is; when you add a row to it, add the column
-    to that table and give each old row its decision (`new: <defect>` for the tests it already has).
+- Target = `.hitl/changes/<id>/tasks.md`. It exists → **update** (no question; there is no overwrite).
+  `<change-id> update [<what>]` (from `/hitl:go`, a note's apply command or an amend route) is the same; `<what>` is the
+  work to add. Update rules (`shared/task-changes.md`):
+  - keep existing task ids, statuses and checkboxes; never renumber or reuse an id;
+  - per task state: a `todo` task is edited in place, or dropped (`hitl-index tasks drop`, after Y at the quiz gate);
+    an in-progress task is edited in place (a new scenario on its requirement → a new AC, next AC number; its locked
+    tests reopen only through `/hitl:approve <id> reopen`); a **done** task is never edited: new work on its code or
+    behaviour is a new task (it names the symbols `modify`/`remove`, takes over old-behaviour tests with `rewrite:`
+    rows, and the done task's stale ACs get `superseded:` lines, task-changes.md §2);
+  - a change of approved behaviour or design is not an update: `/hitl:plan <id> amend` (`shared/amend-spec.md`);
+  - a full re-slice while every task is still `todo`: drop the old tasks and add new ones — the quiz gate lists both,
+    the drops run after Y (task-changes.md §6).
+  A test-plan table without the `test` column (before 0.16) stays as it is; when you add a row to it, add the column
+  to that table and give each old row its decision (`new: <defect>` for the tests it already has).
 
 ## 2. Load (no questions)
 - `hitl-index spec show --change <id> --json` (effective view: requirements, scenarios with GIVEN/WHEN/THEN, rules,
@@ -63,10 +70,14 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
 1. Write the file: header (`# <Title> Tasks`, `← Change: <id>` — quick: `← Change: none | key: <key>` — `> status: draft`), then tasks sorted by prio.
    Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
    (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
+   An amend task (amend-spec.md §4.4) adds `| amend: PWR-A1 | kind: switch` before `| status:` (task-changes.md §3).
+   Update: write only the new and edited tasks; a task you plan to drop stays as it is until Y (its check errors are expected).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
    `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK`,
    bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
-   `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids) and re-run.
+   `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids; 0.17:
+   `TASK_KIND_BAD`, `AMEND_KEY_MISMATCH`, `TASK_DROPPED_*`, `SUPERSEDED_UNKNOWN`, `REMOVE_STILL_PRESENT`, `AMEND_ORDER`,
+   `AMEND_UNCOVERED`, task-changes.md §5) and re-run.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.
@@ -87,13 +98,15 @@ _Test plan:_ <n> new tests (budget <n+2 per task>) · <s> shared · <c> covered 
 | PWR-T12 | AC1 | new: a duplicate in another case is saved   | UserService.createUser |
 | PWR-T12 | AC2 | shared: AC1                                 | —                      |
 
+<update only: new: <ids> · edited: <ids (what)> · drop after Y: <ids (reason)> · superseded: <AC → AC>>
 <consistency lines: trace warn/info (one line per code: ids) + semantic checks from slicing-and-risk.md §8, if any>
 1. Granularity ok?  2. Blocking edges right?  3. Merge/split?  4. Owners (agent/manual) ok?
 5. Test plan ok? (new tests and the defect each catches, shared/covered/none/manual, seams)
 — reply changes, or Y
 ```
-END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: set the header `> status: approved`
-(this header line only; never task `status:` fields or boxes) and print:
+END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: run `hitl-index tasks drop <T> --reason
+"<reason>"` for each listed drop and re-run step 5; set the header `> status: approved` (this header line only; never
+task `status:` fields or boxes) and print:
 - `✅ Tasks approved.`
 - `_Next:_` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (_Fast_ lane).
 - Ticket tracker (optional, fail-open): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onTasksApproved`

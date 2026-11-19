@@ -6,11 +6,13 @@ import { join } from "node:path";
 import { readText } from "./fsutil.mjs";
 
 export const BRIEF_SCHEMA = "hitl.brief/1";
-export const BRIEF_KINDS = ["plan", "design"];
-/** File name of a brief kind: plan-brief.md | design-brief.md. */
-export const briefFileName = (kind) => `${kind}-brief.md`;
-/** The skill that processes a brief kind. */
-export const briefSkill = (kind) => (kind === "design" ? "/hitl:design" : "/hitl:plan");
+export const BRIEF_KINDS = ["plan", "design", "amend"];
+/** 0.17: one amend brief per amendment `<KEY>-A<n>` (shared/amend-spec.md): `amend-<KEY>-A<n>-brief.md`. */
+export const AMEND_FILE_RE = /^amend-([A-Z]{2,5}-A\d+)-brief\.md$/;
+/** File name of a brief kind: plan-brief.md | design-brief.md | amend-<KEY>-A<n>-brief.md (needs the amendment id). */
+export const briefFileName = (kind, amend = null) => (kind === "amend" ? `amend-${amend || "<KEY>-A<n>"}-brief.md` : `${kind}-brief.md`);
+/** The skill that processes a brief kind (an amend brief: the skill it was opened from, header `skill:`; plan by default). */
+export const briefSkill = (kind, b = null) => (kind === "design" || (kind === "amend" && b?.skill === "design") ? "/hitl:design" : "/hitl:plan");
 
 // ---------------------------------------------------------------- answer grammar (English + Vietnamese)
 const ACCEPT = new Set(["y", "yes", "ok", "okay", "accept", "agree", "được", "đồng ý", "ừ", "ừ đúng", "có", "chốt"]);
@@ -108,6 +110,8 @@ export function parseBrief(text, file = null) {
   const out = { schema: BRIEF_SCHEMA, file, kind: null, change: null, key: null, status: null, round: 0, updated: null, title: null,
     description: "", rounds: [], questions: [], close: null, openQuestions: [], counts: null, items: [] };
   const fromFile = /(?:^|\/)(plan|design)-brief\.md$/.exec(file || "");
+  const amendFile = AMEND_FILE_RE.exec(String(file || "").split("/").pop() || "");
+  const list = (v) => String(v || "").split(/[,\s]+/).map((x) => x.trim()).filter((x) => x && x !== "none" && x !== "—");
   let section = "head"; let round = null; let q = null; let mode = null; // mode: body | answer | discussion | after
   const desc = [];
   let acceptTarget = null; // round whose accept-all answer continues on `>` lines
@@ -117,9 +121,9 @@ export function parseBrief(text, file = null) {
     const line = lines[i]; const ln = i + 1;
     if (/^#\s/.test(line) && out.title === null) {
       out.title = line.replace(/^#\s+/, "").trim();
-      const k = /^(plan|design)\s+brief\b/i.exec(out.title);
+      const k = /^(plan|design|amend)\s+brief\b/i.exec(out.title);
       if (k) out.kind = k[1].toLowerCase();
-      const c = /[—-]\s*([a-z]+-[a-z0-9-]+)\s*$/.exec(out.title);
+      const c = /[—-]\s*([a-z]+-[a-z0-9-]+)\s*(?:·.*)?$/.exec(out.title);
       if (c) out.change = c[1];
       continue;
     }
@@ -128,6 +132,12 @@ export function parseBrief(text, file = null) {
       if (m.change) out.change = m.change;
       if (m.key) out.key = m.key;
       if (m.kind) out.kind = m.kind.toLowerCase();
+      // 0.17 amend brief meta: the amendment id, its source notes, the ids it changes, the transition answer, the skill
+      if (m.amend) out.amend = m.amend;
+      if (m.from !== undefined) out.from = list(m.from).filter((x) => /^N-\d+$/.test(x));
+      if (m.refs !== undefined) out.refs = list(m.refs);
+      if (m.transition !== undefined) out.transition = /^(?:—|-|none|\?)?$/.test(m.transition.trim()) ? null : m.transition.trim().toLowerCase();
+      if (m.skill) out.skill = m.skill.trim().toLowerCase();
       if (m.status) out.status = m.status.toLowerCase();
       if (m.round && /^\d+$/.test(m.round)) out.round = Number(m.round);
       if (m.updated) out.updated = m.updated;
@@ -150,10 +160,13 @@ export function parseBrief(text, file = null) {
         out.rounds.push(round);
       } else if (/^Close\b/i.test(head)) { section = "close"; round = null; out.close = { line: ln, question: null, answer: "", kind: "empty", items: [], gaps: [], resolved: null, notes: null }; }
       else if (/^Open questions\b/i.test(head)) { section = "open"; round = null; }
+      else if (/^Unchanged\b/i.test(head)) { section = "unchanged"; round = null; out.unchanged = out.unchanged || []; }
       else { section = "other"; round = null; }
       continue;
     }
     if (section === "description") { desc.push(line); continue; }
+    // `- <id or test title> — <reason>` (a title may sit in backticks)
+    if (section === "unchanged") { const m = /^\s*-\s+(?:`([^`]+)`|(.+?))(?:\s+[—–]\s+(.*))?\s*$/.exec(line); if (m) out.unchanged.push({ id: (m[1] ?? m[2]).trim(), reason: (m[3] || "").trim() }); continue; }
     if (section === "open") { const m = /^\s*-\s*(?:\[[ x]\]\s*)?(Q\d+)\b\s*(.*)$/.exec(line); if (m) out.openQuestions.push({ id: m[1], text: m[2].trim() }); continue; }
     if (section === "close") {
       // `### <question>` items (overlap findings `O1…`, then the approve / gap question last), each with `>` lines;
@@ -244,9 +257,11 @@ export function parseBrief(text, file = null) {
   }
   out.description = desc.join("\n").trim();
   if (!out.kind && fromFile) out.kind = fromFile[1];
+  if (amendFile) { out.kind = out.kind || "amend"; out.amend = out.amend || amendFile[1]; }
+  if (out.kind === "amend") { out.amend = out.amend || null; out.from = out.from || []; out.refs = out.refs || []; out.transition = out.transition ?? null; out.skill = out.skill || "plan"; out.unchanged = out.unchanged || []; }
   if (!out.round && out.rounds.length) out.round = Math.max(...out.rounds.map((r) => r.n));
   if (!out.status) out.status = out.close ? "closing" : "open";
-  if (!out.title) out.items.push({ level: "warn", code: "BRIEF_NO_HEADER", line: 1, message: "no `# Plan brief — <id>` / `# Design brief — <id>` title" });
+  if (!out.title) out.items.push({ level: "warn", code: "BRIEF_NO_HEADER", line: 1, message: "no `# Plan brief — <id>` / `# Design brief — <id>` / `# Amend brief — <id> · <KEY>-A<n>` title" });
   for (const r of out.rounds) r.acceptAll = answerKind(r.acceptAllAnswer) === "accept";
   const roundOf = new Map(out.rounds.map((r) => [r.n, r]));
   for (const x of out.questions) {
@@ -297,23 +312,42 @@ export function parseBrief(text, file = null) {
 export function briefSummary(b) {
   if (!b) return null;
   return { kind: b.kind, file: b.file, status: b.status, round: b.round, open: b.status !== "done",
-    unanswered: b.counts.unanswered, pending: b.counts.pending, notes: b.counts.notes };
+    unanswered: b.counts.unanswered, pending: b.counts.pending, notes: b.counts.notes,
+    ...(b.kind === "amend" ? { amend: b.amend, skill: b.skill, refs: b.refs, from: b.from, transition: b.transition } : {}) };
 }
 
 /** Parsed brief of a change folder (root-relative dir), or null when the file does not exist. */
-export async function readBrief(root, changeDir, kind) {
-  const rel = `${changeDir}/${briefFileName(kind)}`;
+export async function readBrief(root, changeDir, kind, amend = null) {
+  const rel = `${changeDir}/${briefFileName(kind, amend)}`;
   const text = await readText(join(root, rel), null);
   return text === null ? null : parseBrief(text, rel);
 }
 
-/** Both briefs of a change folder: {plan, design} (null when missing). */
-export async function readBriefs(root, changeDir) {
-  return { plan: await readBrief(root, changeDir, "plan"), design: await readBrief(root, changeDir, "design") };
+/** Every amend brief of a change folder (0.17), oldest amendment first. */
+export async function readAmendBriefs(root, changeDir) {
+  const { promises: fs } = await import("node:fs");
+  const names = (await fs.readdir(join(root, changeDir)).catch(() => [])).filter((n) => AMEND_FILE_RE.test(n));
+  const num = (n) => Number(/-A(\d+)-brief/.exec(n)?.[1] ?? 0);
+  const out = [];
+  for (const n of names.sort((a, b) => num(a) - num(b))) {
+    const text = await readText(join(root, changeDir, n), null);
+    if (text !== null) out.push(parseBrief(text, `${changeDir}/${n}`));
+  }
+  return out;
 }
 
-/** The brief that belongs to the change's phase: spec → plan; design → design (else plan); later → design, else plan. */
-export function pickBrief(phase, { plan, design }) {
+/** The amend brief still open (header status open or closing), or null. One per change (shared/amend-spec.md). */
+export const openAmendBrief = (amends) => (amends || []).find((b) => b.status !== "done") || null;
+
+/** The briefs of a change folder: {plan, design, amend (the open amend brief, else null), amends (all)}. */
+export async function readBriefs(root, changeDir) {
+  const amends = await readAmendBriefs(root, changeDir);
+  return { plan: await readBrief(root, changeDir, "plan"), design: await readBrief(root, changeDir, "design"), amend: openAmendBrief(amends), amends };
+}
+
+/** The brief that belongs to the change's phase: an open amend brief first (0.17); spec → plan; design → design (else plan); later → design, else plan. */
+export function pickBrief(phase, { plan, design, amend = null }) {
+  if (amend && amend.status !== "done") return amend;
   if (phase === "spec") return plan || null;
   if (phase === "design") return design || plan || null;
   return design || plan || null;
@@ -321,9 +355,14 @@ export function pickBrief(phase, { plan, design }) {
 
 /**
  * Next step for a change whose phase brief waits for the user's answers, else null:
- * `answer .hitl/changes/<id>/<kind>-brief.md, then /hitl:<plan|design> <id>`.
+ * `answer .hitl/changes/<id>/<kind>-brief.md, then /hitl:<plan|design> <id>`. An open amend brief (0.17) in any phase:
+ * `answer <file>, then /hitl:<skill> <id> amend`, or the command alone once every question has an answer.
  */
 export function briefNext(changeId, phase, brief) {
+  if (brief?.kind === "amend" && brief.open) {
+    const cmd = `${briefSkill("amend", brief)} ${changeId} amend`;
+    return brief.unanswered > 0 ? `answer ${brief.file}, then ${cmd}` : cmd;
+  }
   if (!brief || !brief.open || !(brief.unanswered > 0)) return null;
   const want = phase === "spec" ? "plan" : phase === "design" ? "design" : null;
   if (!want || brief.kind !== want) return null;

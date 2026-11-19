@@ -20,7 +20,8 @@ grammar, recording) + `${CLAUDE_SKILL_DIR}/references/elicitation.md` (coverage,
   error whose fix is not clear from its message, or for a MODIFIED/REMOVED block of a living spec.
 - `${CLAUDE_SKILL_DIR}/references/deep.md` — when an answer in the brief says `deep` / `deep <ID|topic>`.
 - `${CLAUDE_SKILL_DIR}/references/migrate.md` — only when `.hitl/planning/*.md` (v0.5 legacy) exists.
-- `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` — amend mode (§7) only.
+- `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` — amend mode (§7)
+  and an open amend brief only.
 - `${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` — when `--before` is given, when the scout or `hitl-index overlap`
   finds another active change, when a behaviour belongs to another change (owner check), or when this change holds
   notes from another change (`source:`).
@@ -35,8 +36,8 @@ change id followed by new information (`/hitl:go` sends that for a draft change)
 user writes and answers in the editor, then runs `/hitl:plan <id>` again (or says "continue", "next", "xong" in this
 conversation). Each run reads the answers, records them, appends the next round and ends the turn with ≤ 3 chat lines.
 The only chat gates left: the empty-arguments question above, `Continue with existing change? (1/2/new)` (§1.1), the
-approved-spec gate (§1.1), the v0.5 migration block (§1.2) and amend mode (§7) — they come before a brief exists or
-outside the interview.
+approved-spec gate (§1.1), the v0.5 migration block (§1.2) and the wording-only amend gate (§7) — they come before a
+brief exists or outside the interview. An amendment that changes meaning has its own brief file too (§7).
 
 **Audience rule.** Everything this skill writes is business-readable (b): a BA or PO must understand it. No code names,
 file paths, class/function/library names, SQL, HTTP verbs or field names, and nothing in backticks (`BIZ_CODE_TOKEN`;
@@ -48,11 +49,16 @@ keywords (`SHALL`, `GIVEN/WHEN/THEN`, `Requirement:`, `Scenario:`) and the brief
 Not initialized → per conventions (`/hitl:setup`), stop.
 1. Glob `.hitl/changes/*/proposal.md`; match the arguments on change id, `#` title and capability names.
    - The argument is an existing change id → resume it (§4). Text after the id is new information for §4. A proposal
-     with `status: approved` and no `amend` argument → GATE (chat):
-     `Spec is approved. 1. small edit: /hitl:plan <id> amend · 2. reopen the spec: proposal back to draft, a new round in the plan brief`
-     END THE TURN. Reply `1` → section 7 (amend mode). Reply `2` → proposal `status: draft`, `updated:` today; the
-     plan brief gets a new `## Round <n>` after its last section (header `status: open`, the text after the id, if
-     any, in its Notes) and §4 runs on it.
+     with `status: approved` and no `amend` argument:
+     - an amend brief of the change is open (`hitl-index brief <id> --kind amend --json`, status `open` or `closing`)
+       → §7 continues it (the text after the id goes into its open round's Notes);
+     - the change has a task in tasks.md → §7 (amend mode) with the text after the id as the amendment, no gate:
+       reopening an approved spec is allowed only before the first task (`shared/amend-spec.md` §6);
+     - no task yet → GATE (chat):
+       `Spec is approved. 1. amend it: /hitl:plan <id> amend · 2. reopen the spec: proposal back to draft, a new round in the plan brief`
+       END THE TURN. Reply `1` → section 7 (amend mode). Reply `2` → proposal `status: draft`, `updated:` today; the
+       plan brief gets a new `## Round <n>` after its last section (header `status: open`, the text after the id, if
+       any, in its Notes) and §4 runs on it.
    - The argument starts with a valid **new** change id (`feat-…`, `fix-…`, …; ≤ 48 chars, kebab case) → create that
      id.
    - Partial matches → GATE (chat, short): `Continue with existing change? 1. <id> (<title>) · 2. … · new` END THE
@@ -249,24 +255,31 @@ own steps in that order:
   text as answers (§4.5–4.6) and append the next round (§4.8). A bare `n` and an empty answer: interview.md §9.
 
 ## 7. Amend mode (`/hitl:plan <change-id> amend [N-k]`)
-Unchanged by the brief file: amend stays one chat gate with the delta preview and the Impact block.
-A small change to an approved or archived spec, through `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md`. With `N-k`, the
-change is that note from the inbox (`hitl-index note show --change <id> N-k --json`); no `N-k` and open spec notes exist
-(`hitl-index note list --change <id> --json`) → list them in one line and ask which, in the gate. A note from another change
-(`source: <other>`) is amended the same way; after `note apply` the change still waits until `<other>` is archived
-(other-changes.md §5) — say so in the `_Next:_` line.
-1. Load the change, `hitl-index spec show --change <id> --json` and `hitl-index trace <id> --json`. Proposal still
-   draft → `_Info:_ Spec is draft; editing normally.` and use the brief (§4).
-2. One GATE: the user's change as questions (which ids to modify, remove or add), each with `_Rec:_`,
-   then the `_Delta:_` preview and the `_Impact:_` block (amend-spec.md §2) and `Apply? (Y/n/edit)`. END THE TURN.
-3. On Y apply per amend-spec.md (active change → its delta; archived → a mini change `fix-<slug>`). New behaviour or a
-   new capability → proposal `status: draft` and `_Next:_ /hitl:tasks <id> (update)`; else `✅ Amended (<n> changes).`
-   and the next step from amend-spec.md §5 (`note apply` records the impact; a recheck → `/hitl:approve <id> reopen`).
+A change to the approved spec (or design) of an active change: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (route,
+chat gate, amend brief, the status rule) and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` (the amend task set).
+1. Load the change, `hitl-index spec show --change <id> --json`, `hitl-index trace <id> --json`. Proposal still draft →
+   `_Info:_ Spec is draft; editing normally.` and use the plan brief (§4). An open amend brief
+   (`hitl-index brief <id> --kind amend --json`) → continue it (amend-spec.md §4.2–§4.4): text after `amend` and a
+   new `N-k` go into the Notes of its open round.
+2. The amendment: with `N-k`, that note (`hitl-index note show --change <id> N-k --json`); no `N-k` → the text after
+   `amend`, else the open spec notes (`hitl-index note list --change <id> --json`): all of them as `--from` when they
+   belong together, else ask which in one chat line (GATE, END THE TURN). A note from another change
+   (`source: <other>`) is amended the same way; after its approval the change still waits until `<other>` is archived
+   (other-changes.md §5) — say so in the `_Next:_` line.
+3. Route (amend-spec.md §1): propose the classes, then `hitl-index amend start <id> [--from N-k,…] [--refs …]
+   [--impact …] --json`:
+   - `chat · gate` → the chat gate of amend-spec.md §2 (delta preview, Impact block, `Apply? (Y/n/edit)`).
+   - `chat · tasks-update` → `_Info:_ only tasks change` and invoke the Skill `hitl:tasks` with `<id> update <what>`.
+   - `chat · mini-change` (archived change) → amend-spec.md §6.
+   - `brief` → amend-spec.md §4.1 with `--skill plan` (the amend brief, round 1). END THE TURN.
+4. Later runs (`/hitl:plan <id> amend`, or `/hitl:plan <id>` while the amend brief is open): amend-spec.md §4.2–§4.4
+   (rounds, Close with the amend task set, the approval and its `_Next:_` lines).
 
 ## Rules
-- Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, `plan-brief.md` (Claude's
-  parts: rounds, marks, `_Disc:_`, Close — never the user's `>` lines or Description text), and design.md
-  `## Parked from planning` (parking only). Never `.hitl/specs/**` or `.hitl/archive/**` (only `hitl-index spec
+- Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, `plan-brief.md` and
+  `amend-<KEY>-A<n>-brief.md` (Claude's parts: rounds, marks, `_Disc:_`, `## Unchanged`, Close — never the user's `>`
+  lines or Description text), design.md `## Parked from planning` (parking only), and — at an amend brief's approval
+  only — design.md, tasks.md and `@dec` lines per amend-spec.md §4.4. Never `.hitl/specs/**` or `.hitl/archive/**` (only `hitl-index spec
   merge|archive` writes them), never code, never a v0.5 `.hitl/planning/` file.
 - Another change's files are never edited: its share of an overlap goes in as a note there (`hitl-index note add
   --change <other> --source <id>`, after the user's `--before` or Y; other-changes.md §2–§4).

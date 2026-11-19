@@ -68,7 +68,7 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
   const waitOf = new Map(waits.filter((x) => x.for?.length).map((x) => [x.change, x]));
   const st = statuses?.tasks || {};
   const all = tasks.length ? tasks : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
-  const isDone = (id) => st[id]?.status === "done";
+  const isDone = (id) => ["done", "dropped"].includes(st[id]?.status); // 0.17: a dropped task never blocks
   const frontier = all.filter((t) => !isDone(t.id) && (t.blockedBy || []).every(isDone))
     .sort((a, b) => prioNum(a.prio) - prioNum(b.prio) || idNum(a.id) - idNum(b.id));
   // tasks touched by an open note are skipped while another frontier task can go on; all blocked → apply the first note

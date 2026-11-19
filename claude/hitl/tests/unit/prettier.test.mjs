@@ -123,13 +123,15 @@ test("tidyMarkdown (the CLI writers' style) prints what prettier prints", { skip
   for (const r of rels) assert.equal(fs.readFileSync(path.join(tmp, r), "utf8").replace(/\n+$/, ""), tidy[r].replace(/\n+$/, ""), `${r}: prettier changes tidyMarkdown output`);
 });
 
-test("files the CLI writes (living spec + glossary after merge, notes.md) are prettier-clean", { skip }, () => {
+test("files the CLI writes (living spec + glossary after merge, notes.md, the amend brief) are prettier-clean", { skip }, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-prettier-"));
   fs.cpSync(path.join(ROOT, "tests/fixtures/spec-app"), root, { recursive: true });
   const cli = (...a) => execFileSync(process.execPath, [CLI, ...a], { cwd: root, encoding: "utf8" });
   cli("spec", "merge", "feat-password-reset", "--json");
   cli("note", "add", "--change", "feat-password-reset", "--kind", "spec", "--refs", "PWR-R1", "--text", "The link lasts 15 minutes.\n\nSecond paragraph.", "--json");
-  const files = [".hitl/specs/accounts/spec.md", ".hitl/specs/GLOSSARY.md", ".hitl/changes/feat-password-reset/notes.md"];
+  // 0.17: the amend brief `amend start --write` creates (header, facts table, Affected list)
+  cli("amend", "start", "feat-password-reset", "--from", "N-1", "--write", "--json");
+  const files = [".hitl/specs/accounts/spec.md", ".hitl/specs/GLOSSARY.md", ".hitl/changes/feat-password-reset/notes.md", ".hitl/changes/feat-password-reset/amend-PWR-A1-brief.md"];
   const r = spawnSync(PRETTIER, ["--check", "--no-config", "--ignore-path", "", ...files], { cwd: root, encoding: "utf8" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });

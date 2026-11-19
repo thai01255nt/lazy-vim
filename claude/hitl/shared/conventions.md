@@ -55,11 +55,12 @@ requirement, scenario, number, rule or decision), do not amend it now:
   --from "user, during /hitl:<skill> <arg>"`, print its `_Note N-k_` line, then continue the skill where it was.
   n → continue without a note.
 - The note blocks the approvals of the tasks it touches until it is applied (`/hitl:plan <id> amend N-k`,
-  `/hitl:design <id> amend N-k`), or the human acks, dismisses or defers it (`/hitl:approve …`).
+  `/hitl:design <id> amend N-k`: a chat gate when wording only, else an amend brief, `amend-spec.md` §1), or the human
+  acks, dismisses or defers it (`/hitl:approve …`).
 - Not a note: a question (discuss it; nothing is recorded), a draft proposal or design being written in plan/design
   (edit it as usual), or an explicit "amend/apply it now" (go straight to `amend-spec.md`).
-- While a plan or design brief of the change is open (header `status: open` or `closing`), a statement in chat is not
-  a note: write it as a new `>` line into the Notes of the open round (as for text after the change id,
+- While a plan, design or amend brief of the change is open (header `status: open` or `closing`), a statement in chat
+  is not a note: write it as a new `>` line into the Notes of the open round (as for text after the change id,
   `interview.md` §6) and process it in this run.
 - Too big for the change (needs its own spec; new behaviour the change's proposal does not name; more than 1 task;
   another capability — definition: `other-changes.md` §1) → not a note: print

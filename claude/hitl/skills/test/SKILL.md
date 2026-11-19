@@ -42,6 +42,11 @@ with `--by human-override`. Never add it yourself.
   `fail` against the current code (pass → bounce: it does not show the new behaviour); an unchanged one may pass.
   Lock as in step 5 (the CLI refuses a rewritten test that passes, and any other locked test that changed).
   `reopen.stage: skeleton` → _Stop:_ `Run /hitl:skeleton <T> first (its skeleton is reopened).`
+- a task with `rewrite:` test-plan rows (0.17, an amend task): the contract pack's `## Taken over` lists the locked
+  tests of another task it took over. In step 2 add to the prompt: `Taken over: rewrite these tests to the AC of their
+  rewrite: row (@ac <that AC>), or delete one when that AC says the old behaviour is gone.` A test not yet taken over
+  (still locked by its old task) → _Stop:_ `<test> is still locked by <T-old>: the human types /hitl:approve <change> reopen`.
+  RED check as for a reopen fill: a rewritten test must fail against the current code.
 
 ## Mode `fill`
 

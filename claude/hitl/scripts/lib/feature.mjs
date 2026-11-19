@@ -80,7 +80,7 @@ export const laneOf = (risk, laneFast) => (risk === "low" ? "fast" : laneFast ? 
  * skip = already implemented; blocked = waits for a task outside the feature.
  */
 export function actionFor(status, lane, testsLocked, reopenStage = null) {
-  if (IMPLEMENTED.has(status)) return "skip";
+  if (IMPLEMENTED.has(status) || status === "dropped") return "skip"; // 0.17: a dropped task is history
   // 0.9: a reopened task always goes back through its skill and gate (the human confirmed the reopen; no lane skips it)
   if (status === "reopened") return reopenStage === "skeleton" ? "skeleton" : "test";
   if (lane !== "normal") return "implement";
@@ -109,11 +109,13 @@ export function planFeature(o) {
     const risk = t.risk || s.risk || "high";
     const lane = laneOf(risk, !!o.laneFast);
     const dItems = (drift?.items || []).filter((i) => i.task === t.id);
-    const external = (t.blockedBy || []).filter((d) => !ids.has(d) && st[d]?.status !== "done");
+    const external = (t.blockedBy || []).filter((d) => !ids.has(d) && !["done", "dropped"].includes(st[d]?.status));
     let action = actionFor(s.status, lane, s.testsLocked, s.reopen?.stage);
     if (action !== "skip" && external.length) action = "blocked";
+    const hold = (o.holds || {})[t.id]; // 0.17: an open amend brief touches it
+    if (action !== "skip" && hold) action = "held";
     return { id: t.id, title: t.title || "", prio: t.prio || null, risk, riskReasons: t.riskReasons || [], status: s.status, lane,
-      override: !!s.override, testsLocked: !!s.testsLocked, action, blockedBy: t.blockedBy || [], waitsFor: external,
+      override: !!s.override, testsLocked: !!s.testsLocked, action, blockedBy: t.blockedBy || [], waitsFor: external, ...(hold ? { hold } : {}),
       drift: { block: dItems.filter((i) => i.level === "block").length, warn: dItems.filter((i) => i.level === "warn").length } };
   });
   const current = items.find((i) => i.action !== "skip") || null;
@@ -121,6 +123,7 @@ export function planFeature(o) {
   const blockDrift = items.find((i) => i.drift.block > 0);
   if (blockDrift) stop = `${blockDrift.id} has ${blockDrift.drift.block} block-level drift item(s): /hitl:sync, then rerun`;
   else if (current?.action === "blocked") stop = `${current.id} waits for ${current.waitsFor.join(", ")} (outside this feature)`;
+  else if (current?.action === "held") stop = `${current.id} waits for the open amend brief ${current.hold.amend}: ${current.hold.apply}`;
   else if (current?.action === "approve") stop = `${current.id} skeleton waits for the human: /hitl:approve ${current.id}`;
   else if (current?.action === "approve-tests") stop = `${current.id} tests wait for the human: /hitl:approve ${current.id} tests`;
   const phase = !current ? "review" : stop ? "blocked" : "implement";

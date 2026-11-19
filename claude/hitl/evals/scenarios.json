@@ -78,9 +78,21 @@
    "runs": 2,
    "prompt": "/hitl:plan feat-password-reset amend — the reset link must stay valid for 60 minutes instead of 30.",
    "checks": [
-    "amend_gate",
-    "amend_no_write",
+    "amend_brief_written",
+    "amend_brief_only",
+    "amend_brief_chat",
     "amend_mentions_rule"
+   ]
+  },
+  {
+   "id": "plan-amend-wording",
+   "fixture": "plan",
+   "runs": 1,
+   "prompt": "/hitl:plan feat-password-reset amend — only reword the reset-link validity scenario so it reads more clearly; the behaviour stays exactly the same.",
+   "checks": [
+    "amend_gate",
+    "amend_impact_first",
+    "amend_no_write"
    ]
   },
   {
@@ -267,9 +279,9 @@
    "runs": 2,
    "prompt": "/hitl:plan feat-fee amend N-1",
    "checks": [
-    "amend_gate",
-    "impact_block",
-    "churn_no_writes"
+    "amend_brief_written",
+    "amend_keeps_done",
+    "amend_brief_only"
    ]
   },
   {

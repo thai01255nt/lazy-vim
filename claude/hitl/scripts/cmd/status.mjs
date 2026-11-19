@@ -32,7 +32,22 @@ export async function notesInfo(root, g) {
   const waits = cn.map((c) => ({ change: c.change, w: changeWait(c.notes) })).filter((x) => x.w.blocked).map(({ change, w }) => ({ change,
     for: w.waits.map((x) => ({ change: x.source, state: x.state, notes: x.notes })),
     amend: w.amend.map((n) => ({ id: n.id, title: n.title, source: n.source, kind: n.kind, apply: applyCommand(change, n) })), reasons: waitReasons(change, w) }));
-  return { changes, byTask, pending, waits };
+  // 0.17: an open amend brief holds the tasks it touches (implement stops, the frontier skips them)
+  let holds = {};
+  try {
+    const [{ listChanges }, am] = await Promise.all([import("../lib/changes.mjs"), import("../lib/amend.mjs")]);
+    const open = await am.readOpenAmends(root, await listChanges(root, { archived: false }));
+    holds = am.amendHolds(open.map((x) => ({ change: x.change, brief: x.brief })), g.tasks, g.index, g.lock, g.api, (T) => g.statuses?.tasks?.[T]?.status ?? null);
+  } catch { holds = {}; }
+  return { changes, byTask, pending, waits, holds };
+}
+
+/** Notes blocks and amend holds per task, for computeNext: a held task is skipped like a task a note blocks. */
+export function blocksForNext(ni) {
+  const byTask = { ...(ni.byTask || {}) };
+  // the hold first: the open amend brief is where the touched task's notes are taken in
+  for (const [T, h] of Object.entries(ni.holds || {})) byTask[T] = [{ id: h.amend, title: `amend brief ${h.amend} is open`, kind: "amend", status: "open", change: h.change, via: h.via, apply: h.apply }, ...(byTask[T] || [])];
+  return { ...ni, byTask };
 }
 
 /** `status --brief` lines for changes that wait for another change (0.12): `_Waits:_` waits, `_Take in:_` notes to take in. */
@@ -50,7 +65,13 @@ export function briefLines(changes) {
   const out = [];
   for (const c of changes || []) {
     const b = c.brief;
-    if (!b || !b.open || !(b.pending > 0)) continue;
+    if (!b || !b.open) continue;
+    if (b.kind === "amend") { // 0.17: an open amend brief, in any phase (touched tasks wait for it)
+      const cmd = `${b.skill === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id} amend`;
+      out.push(`_Brief:_ ${c.id} — amend brief ${b.amend} round ${b.round} (${b.status}): ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
+      continue;
+    }
+    if (!(b.pending > 0)) continue;
     const want = c.phase === "spec" ? "plan" : c.phase === "design" ? "design" : null;
     if (b.kind !== want) continue;
     const cmd = `${b.kind === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id}`;
@@ -114,7 +135,7 @@ export async function changesInfo(root, statuses) {
     const tasksSkipped = artifactDecision(c.proposal, "tasks") === "skipped" || (!!c.proposal?.noBehaviourChange && !c.deltas.length);
     const phase = ch.changePhase({ archived: false, proposal, design, tasks, tasksSkipped, taskCounts: { total: ts.length, done } });
     const b = await import("../lib/brief.mjs");
-    const brief = b.briefSummary(b.pickBrief(phase, await b.readBriefs(root, c.dir).catch(() => ({ plan: null, design: null }))));
+    const brief = b.briefSummary(b.pickBrief(phase, await b.readBriefs(root, c.dir).catch(() => ({ plan: null, design: null, amend: null, amends: [] }))));
     out.push({ id: c.id, title: c.proposal?.title ?? null, proposal, design, phase, tasks: { total: ts.length, done }, ...(brief ? { brief } : {}) });
   }
   return out;
@@ -191,7 +212,7 @@ export async function run(argv, ctx) {
     const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
     const ni = await notesInfo(ctx.root, g);
-    let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: ni });
+    let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: blocksForNext(ni) });
     // 0.13: pre-0.13 ids (T-n, D-n, keyless changes, a hitl.lock/1 with T-n) route to /hitl:migrate first; 0.13.2: so
     // do legacy QT-T<n> quick ids in a keyed project
     const legacy = await (await import("../lib/migrateids.mjs")).legacyIdState(ctx.root).catch(() => ({ legacy: false, reasons: [] }));
@@ -215,6 +236,8 @@ export async function run(argv, ctx) {
         return { ...st, workOrder: taskWorkOrder(st.targets || st.symbols || [], index, m, api), title: m.title || null, prio: m.prio || null, file: m.file || null, blockedBy: m.blockedBy || [],
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
           trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via }) => ({ id: n, title, status, kind, via, apply })),
+          amend: m.amend || null, kind: m.kind || null, ...(m.dropped ? { dropped: m.dropped } : {}), ...(m.superseded?.length ? { superseded: m.superseded } : {}),
+          ...(ni.holds?.[id] ? { amendHold: ni.holds[id] } : {}),
           ...(waitOf(id) ? { wait: waitOf(id) } : {}) }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
       console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc, brief }) => ({ id, phase, tasks: tc, ...(brief ? { brief } : {}), notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
@@ -245,7 +268,7 @@ export async function run(argv, ctx) {
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; const h = ni.holds?.[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${m.amend ? ` (${m.amend}${m.kind ? ` ${m.kind}` : ""})` : ""}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${h ? ` _Held:_ ${h.amend}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${h ? h.apply : s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;

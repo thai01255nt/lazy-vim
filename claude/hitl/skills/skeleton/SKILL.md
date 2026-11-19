@@ -29,6 +29,11 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 - `reopened` with `reopen.stage: skeleton` (the human reopened it after a contract change) → **reopen mode**: change only
   the `reopen.symbols` (signature, intent, TODO steps) to the amended spec/design; keep everything else, keep the tests
   (they are reopened; `/hitl:test <T>` rewrites them after the approval). Gate: `/hitl:approve <T> skeleton <symbols>`.
+  An in-progress task an amendment changed (`amend: <KEY>-A<n>` in its meta, `shared/task-changes.md` §1) also gets its
+  `TODO(impl)` steps refreshed to the new ACs, so the implementer gets steps, not only red tests.
+- An amend task (0.17): `remove` rows get no stub (the implement step deletes them); a `rewrite:` test-plan row gets no
+  stub either (the taken-over test is the stub; `/hitl:test` rewrites it). Kind `prep` changes structure only: its
+  intents stay as they are.
 
 ## 2. Load (no questions)
 - The task section (ACs, Symbols, Test plan, Notes) and the design decisions its `**Why**` cites (`<KEY>-D<n>` in the change's
@@ -40,7 +45,8 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 ## 3. Write stubs, in `### Symbols` order
 For each row (`@prio` = row number; it only breaks ties — implement order is callees first over `@calls`):
 - **modify** → edit the symbol in place: rewrite the whole intent as one current contract (never append a sentence
-  per task), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
+  per task; after an amendment no history words such as "previously", "now", "no longer", `tag-grammar.md` §2
+  "Intent-only after an amendment"), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
   only when the body will be fully rewritten.
   Already tagged by an earlier task → append yours (`@task PWR-T2, PWR-T3`), set `@status skeleton` and this task's `@prio`.
   If another not-done task also has `TODO(impl)` lines in it, scope yours: `TODO(impl <T>): n. …`.

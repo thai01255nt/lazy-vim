@@ -441,9 +441,35 @@ async function main(input) {
     }
     const why = await changeWaitOf(root, lock, [...owners]);
     if (why) deny(why);
+    // 0.17: never builds a task an open amend brief touches (it waits until the amendment is approved)
+    const held = await amendHoldOf(root, lock, [...owners].filter((T) => !lock?.tasks?.[T]?.doneAt), a);
+    if (held) deny(held);
   }
   // R = main with sig/intent change on a locked symbol → allowed (PostToolUse warns)
   silent();
+}
+
+/** First task of Ts an open amend brief of its change touches, as a deny reason, or null. Best effort: any error → null. */
+async function amendHoldOf(root, lock, Ts, a) {
+  if (!Ts.length) return null;
+  try {
+    const [tm, am, bm] = await Promise.all([optionalLib("tasksmd.mjs"), optionalLib("amend.mjs"), optionalLib("brief.mjs")]);
+    if (!tm || !am || !bm) return null;
+    const briefs = new Map();
+    let tasks = null, index = null;
+    for (const T of Ts) {
+      const loc = tm.changeOfFile(lock?.tasks?.[T]?.file || "");
+      if (!loc.change || loc.archived) continue;
+      if (!briefs.has(loc.change)) briefs.set(loc.change, bm.openAmendBrief(await bm.readAmendBriefs(root, loc.dir)));
+      const brief = briefs.get(loc.change);
+      if (!brief || !brief.refs.length) continue;
+      tasks = tasks || await tm.readTasks(root);
+      index = index || (await a.readIndex(root).catch(() => null)) || { symbols: {} };
+      const hit = am.touchedTasks(brief.refs, tasks.filter((t) => t.id === T && t.change === loc.change), index, lock);
+      if (hit[T]) return `${T} is touched by the open amend brief ${brief.amend} (${brief.file}, via ${hit[T].join(", ")}): it waits until the amendment is approved (${brief.skill === "design" ? "/hitl:design" : "/hitl:plan"} ${loc.change} amend); untouched tasks go on`;
+    }
+  } catch { return null; }
+  return null;
 }
 
 /** First wait reason of the (active) changes owning tasks Ts, or null. Best effort: any error → null. */

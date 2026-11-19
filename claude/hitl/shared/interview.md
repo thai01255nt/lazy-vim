@@ -8,7 +8,8 @@ round happens — in a brief file, never in chat — and **when** facts are gath
 design for Explore before writing round 1). Own text, except § Shared language:
 <!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (<KEY>-D<n> rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
 
-Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`) and `/hitl:design` (tags `[D]`, `[A]`).
+Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`), `/hitl:design` (tags `[D]`, `[A]`) and the amend brief of
+either (0.17; tags `[R]`, `[D]`, `[X]`, `[K]`; format and runs in `shared/amend-spec.md` §3–§4).
 
 ## Contents
 1. Loading
@@ -36,6 +37,8 @@ There is **no design tree of components and no levels**. The frontier is a set o
 | `[A]` | plan, design | whether to add an optional artifact (`shared/artifacts.md`); max 2 per round | proposal / design `## Artifacts` row |
 | `[D]` | design | how: components (module level), data, contracts, errors, test strategy, risks, rollout | `<KEY>-D<n>` row in design.md |
 | `[T]` | plan (design: `_Needs term:_`) | a term: the canonical word, what it IS, its boundary with a neighbour term; max 2 per round | `### Term:` block in glossary.md with `_Avoid_` (§10) |
+| `[X]` | amend brief | an out-of-scope candidate: accept into this change's scope · own change (`--before` or after) · drop | part of the amendment, a `--before` hint, or an `## Out of scope` line |
+| `[K]` | amend brief | a half-done task: keep and adapt · revert to the base and redo | an edit in place, or a `revert` task (`shared/task-changes.md`) |
 - Plan never asks `[D]`. Design never asks `[R]`: a design answer that needs new behaviour becomes `_Needs spec:_ …`
   (a question of the next round with the `_Delta:_` preview, §8).
 - `[S]` questions need the spec-scout result (`.scout.json`); the scout runs before the plan brief is written, so they
@@ -53,8 +56,8 @@ Mechanics in `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/elicitation.md` (plan
 
 ## 4. The brief file and the round format
 Rounds are written into a **brief file** in the change folder and answered there, in the user's editor. There is no
-chat round mode. Files: `.hitl/changes/<id>/plan-brief.md` (`/hitl:plan`) and `design-brief.md` (`/hitl:design`),
-from `${CLAUDE_PLUGIN_ROOT}/shared/templates/{plan,design}-brief.md`. They move with the change at archive. The user
+chat round mode. Files: `.hitl/changes/<id>/plan-brief.md` (`/hitl:plan`), `design-brief.md` (`/hitl:design`) and
+one `amend-<KEY>-A<n>-brief.md` per amendment (0.17), from `${CLAUDE_PLUGIN_ROOT}/shared/templates/{plan,design,amend}-brief.md`. They move with the change at archive. The user
 edits them too; Claude never deletes or rewrites the user's text (`## Description`, `>` lines, Notes).
 ```
 # Plan brief — feat-export-csv

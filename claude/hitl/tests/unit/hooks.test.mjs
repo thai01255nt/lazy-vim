@@ -233,7 +233,7 @@ before(() => {
   for (const f of fs.readdirSync(path.join(PLUGIN, "scripts/hooks"))) fs.copyFileSync(path.join(PLUGIN, "scripts/hooks", f), path.join(HOOKS, f));
   fs.writeFileSync(path.join(LIB, "api.mjs"), STUB_API);
   // Real P2 libs plus everything they import (static `from "./x.mjs"`), so their imports resolve; api.mjs stays the stub.
-  const queue = ["status.mjs", "lock.mjs", "nextstep.mjs", "paths.mjs"], seen = new Set(["api.mjs"]);
+  const queue = ["status.mjs", "lock.mjs", "nextstep.mjs", "paths.mjs", "amend.mjs", "brief.mjs"], seen = new Set(["api.mjs"]);
   while (queue.length) {
     const f = queue.shift(); if (seen.has(f)) continue; seen.add(f);
     const src = path.join(PLUGIN, "scripts/lib", f);
@@ -411,6 +411,28 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     fs.mkdirSync(path.join(root, ".hitl/archive"), { recursive: true });
     fs.renameSync(path.join(root, ".hitl/changes/feat-b"), path.join(root, ".hitl/archive/2026-11-06-feat-b"));
     assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"));
+  });
+
+  test("0.17: implementer body edits are denied while an open amend brief touches the task; untouched or approved → allowed", async () => {
+    const { root } = await mkProject();
+    const lf = path.join(root, ".hitl/index/skeleton.lock.json");
+    const L = JSON.parse(fs.readFileSync(lf, "utf8"));
+    L.tasks["QT-T1"].file = ".hitl/changes/feat-x/tasks.md";
+    fs.writeFileSync(lf, JSON.stringify(L, null, 2) + "\n");
+    const dir = path.join(root, ".hitl/changes/feat-x");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "proposal.md"), "# X\n> change: feat-x | key: QT | status: approved | created: 2026-11-20 | updated: 2026-11-20\n\n## Why\nx\n");
+    fs.writeFileSync(path.join(dir, "tasks.md"), "# X Tasks\n\n← Change: feat-x\n\n> status: approved\n\n## QT-T1 Register\n\n- prio: P1 | risk: high | impl: agent | blocked-by: none | status: red\n\n### Acceptance criteria\n\n- [ ] QT-T1.AC1 Given x When y Then z\n");
+    const brief = (refs, status) => `# Amend brief — feat-x · QT-A1\n\n> change: feat-x | key: QT | kind: amend | amend: QT-A1 | from: none | refs: ${refs} | transition: — | skill: plan | status: ${status} | round: 1 | updated: 2026-11-20\n`;
+    const bf = path.join(dir, "amend-QT-A1-brief.md");
+    const f = path.join(root, "src/svc.ts");
+    fs.writeFileSync(bf, brief("QT-T1.AC1", "open"));
+    assertDeny(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), /QT-T1 is touched by the open amend brief QT-A1 .*via QT-T1\.AC1.*\/hitl:plan feat-x amend/);
+    assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }), "main is not the implementer");
+    fs.writeFileSync(bf, brief("QT-T9", "open"));
+    assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), "untouched task goes on");
+    fs.writeFileSync(bf, brief("QT-T1.AC1", "done"));
+    assertSilent(pre(root, "Write", { file_path: f, content: IMPLEMENTED }, "hitl:implementer"), "approved amendment: no hold");
   });
 
   test("test-author isolation: reads, grep, writes", async () => {

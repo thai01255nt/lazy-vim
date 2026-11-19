@@ -52,6 +52,10 @@ Arguments: `$ARGUMENTS`
    - Waits (0.12): each `.changes[].wait` → its `for[]` as `_Waits:_ <id> waits for <change> (<notes>)` (` — gone: the human
      dismisses its notes` when `state` is `gone`) and its `amend[]` as `_Take in:_ <id> must take in <N-k> from <source> → <apply>`.
      Tasks with `tasks[T].wait` get ` _Waits:_ <change>` in the status cell: no approval or implement until the wait ends.
+   - Amendments (0.17): `.changes[].brief.kind` `amend` → `_Brief:_ <id> — amend brief <amend> round <n> (<status>) → <next>`.
+     Every task with `tasks[T].amendHold` → ` _Held:_ <amendHold.amend>` in the status cell and its `next` cell =
+     `amendHold.apply` (no implement until the amendment is approved; untouched tasks go on). `tasks[T].amend` → append
+     ` (<amend> <kind>)` to the title cell; status `dropped` → listed only with a task id or `all`.
    - `tasks[T].status` `reopened` → status cell `_Reopen_ (<reopen.stage>)` and one line
      `_Reopen_ PWR-T12 reopened by <reopen.note> — <tests to rewrite for reopen.acs | skeleton of reopen.symbols> → <next>`.
    - Several unfinished tasks in one change → mention once `_Tip:_ build then review: /hitl:implement --feature <change-id>`.

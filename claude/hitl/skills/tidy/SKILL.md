@@ -43,7 +43,10 @@ Spawn one `general-purpose` subagent with: the kept symbols from the report (JSO
 >    (`@task`, `@dec`, `@calls`, `@concurrency`, …) nor LuaLS/JSDoc annotations (`@class`, `@field`, `@param`, `@return`).
 > 4. steps: inside a function body reword a pseudo-code step into a short intent label (≤ 8 words, keep `n.`); delete
 >    numbered comments inside a class/enum body.
-> 5. Never edit code lines, signatures, tags, tests, other symbols or other files. No new comments. Use Edit only.
+> 5. No history words in a docstring or step comment ("previously", "now", "no longer", "changed", "instead of",
+>    "used to", "legacy", "trước đây", "bây giờ", "không còn"): state the current intent only. The history is in the
+>    spec delta, design.md Changelog, the amend brief, tasks.md and git.
+> 6. Never edit code lines, signatures, tags, tests, other symbols or other files. No new comments. Use Edit only.
 > Report per symbol: `name — what you changed` (one line).
 
 The PreToolUse hook still applies: a `@impl manual` locked symbol is refused (you excluded those); any other edit to a

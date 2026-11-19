@@ -12,16 +12,24 @@ import { checkCoveredAcRefs, checkTestPlan, parseTestCell } from "./testplan.mjs
 import { AC_ID_RE, AC_ID_SRC, ARCHIVE_DIR_RE, CHANGE_KEY_RE, DEC_ID_RE, LEGACY_DEC_RE, QUICK_KEY, SPECREF_SRC, TASK_ID_SRC, formatTaskId, isChangeId, parseId, parseTaskId } from "./specids.mjs";
 
 const REF = `(?:${SPECREF_SRC}|R-\\d+)`;
+/** 0.17 amendments: `<KEY>-A<n>` (shared/task-changes.md); the work kinds of an amend task set, in their order. */
+export const AMEND_ID_SRC = "[A-Z]{2,5}-A\\d+";
+export const AMEND_ID_RE = new RegExp(`^${AMEND_ID_SRC}$`);
+export const TASK_KINDS = ["prep", "expand", "migrate", "switch", "contract", "revert"];
+/** Task statuses the CLI writes into the meta line; `dropped` is written only by `hitl-index tasks drop`. */
+export const DROPPED = "dropped";
 const CHANGE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}changes/([^/]+)/tasks\\.md$`);
 const ARCHIVE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}archive/([^/]+)/tasks\\.md$`);
 
 const RXN = {
   heading: new RegExp(`^## (${TASK_ID_SRC}) (.+)$`),
   legacyHeading: /^## (T-\d+) (.+)$/,
-  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${TASK_ID_SRC}(?:, ?${TASK_ID_SRC})*) \\| status: ([a-z-]+)$`),
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${TASK_ID_SRC}(?:, ?${TASK_ID_SRC})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))? \\| status: ([a-z-]+)$`),
   ac: new RegExp(`^- \\[( |x)\\] (${AC_ID_SRC})(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`),
   why: /^\*\*Why\*\*: ?(.*)$/,
-  symbol: /^(\d+)\. \[( |x)\] `([^`]+)` \| (new|modify) \| `([^`]+)` \| impl: (agent|manual) \| (.+)$/,
+  dropped: /^\*\*Dropped\*\*: ?(.*)$/,
+  superseded: new RegExp(`^- superseded: (${AC_ID_SRC}) → (none|${TASK_ID_SRC}(?:\\.AC\\d+)?)(?: \\((${AMEND_ID_SRC})\\))?$`),
+  symbol: /^(\d+)\. \[( |x)\] `([^`]+)` \| (new|modify|remove) \| `([^`]+)` \| impl: (agent|manual) \| (.+)$/,
   planning: /^← Planning: (\S+)$/,
   change: /^← Change: (\S+)(?: \| key: (\S+))?$/,
   status: /^> status: (draft|approved)/,
@@ -31,7 +39,7 @@ const SYMREF = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)?$/;
 const LT = `(?:${TASK_ID_SRC}|T-\\d+)`;
 const RX_LEGACY = { ...RXN,
   heading: new RegExp(`^## (${LT}) (.+)$`), legacyHeading: /^\0$/,
-  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${LT}(?:, ?${LT})*) \\| status: ([a-z-]+)$`),
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${LT}(?:, ?${LT})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))? \\| status: ([a-z-]+)$`),
   ac: new RegExp(`^- \\[( |x)\\] (${LT}\\.AC\\d+)(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`) };
 
 /** Change id and archived flag implied by a tasks file location; {change:null} for `.hitl/tasks/*.md`. */
@@ -82,6 +90,7 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     let m;
     if ((m = line.match(RX.heading))) {
       task = { id: m[1], title: m[2].trim(), file, planning: doc.planning, prio: null, risk: null, riskReasons: [], impl: null, blockedBy: [], status: null,
+        amend: null, kind: null, dropped: null, superseded: [],
         why: null, decisions: [], acs: [], symbols: [], testPlan: [], parseErrors: [], _meta: false };
       doc.tasks.push(task);
       section = null;
@@ -108,10 +117,11 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       task.decisions = [...new Set(task.why.match(/\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g) || [])];
       continue;
     }
+    if (!section && task.dropped === null && (m = line.trimStart().match(RX.dropped))) { task.dropped = m[1].trim() || ""; continue; }
     if (!section && /^- prio:/.test(line)) {
       if ((m = line.match(RX.meta))) {
         Object.assign(task, { prio: m[1], risk: m[2], riskReasons: m[3] ? m[3].split(",").map((s) => s.trim()).filter(Boolean) : [], impl: m[4],
-          blockedBy: m[5] === "none" ? [] : m[5].split(",").map((s) => s.trim()), status: m[6], _meta: true });
+          blockedBy: m[5] === "none" ? [] : m[5].split(",").map((s) => s.trim()), amend: m[6] || null, kind: m[7] || null, status: m[8], _meta: true });
       } else task.parseErrors.push(`malformed meta line: ${line}`);
       continue;
     }
@@ -121,6 +131,8 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       task.acs.push({ id: m[2], reqs: m[3] ? m[3].split(/, ?/) : [], text: m[4].trim(), done: m[1] === "x" });
     }
     else if (section === "acceptance criteria" && /^- \[/.test(line)) task.parseErrors.push(`malformed AC line: ${line}`);
+    else if (section === "acceptance criteria" && (m = line.match(RX.superseded))) task.superseded.push({ ac: m[1], by: m[2], amend: m[3] || null });
+    else if (section === "acceptance criteria" && /^- superseded:/.test(line)) task.parseErrors.push(`malformed superseded line (want "- superseded: <AC id> → <new AC or task id | none> (<KEY>-A<n>)"): ${line}`);
     else if (section === "symbols" && (m = line.match(RX.symbol)))
       task.symbols.push({ order: Number(m[1]), ref: m[3], change: m[4], file: m[5], impl: m[6], purpose: m[7].trim(), done: m[2] === "x" });
     else if (section === "symbols" && /^\d+\. /.test(line)) task.parseErrors.push(`malformed symbol line: ${line}`);
@@ -144,6 +156,8 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     t.archived = doc.archived;
     t.changeDir = doc.changeDir;
     if (!t._meta && !t.parseErrors.some((e) => e.startsWith("malformed meta"))) t.parseErrors.push("meta line missing");
+    // 0.17: a superseded AC (a done task's AC an amendment replaced) carries its successor on the AC itself
+    for (const x of t.superseded) { const ac = t.acs.find((a) => a.id === x.ac); if (ac) ac.superseded = { by: x.by, amend: x.amend }; }
     delete t._meta;
     delete t._cols;
   }
@@ -242,9 +256,13 @@ export async function checkTasks(root, tasks, index) {
   }
   for (const [id, n] of ids) if (n > 1) err(tasks.find((t) => t.id === id), `duplicate task id ${id} (${n}×)`);
   const allAcIds = new Set(tasks.flatMap((t) => t.acs.map((a) => a.id)));
+  const lock = await readJson(paths(root).lock, null);
   for (const t of tasks) {
     for (const e of t.parseErrors) err(t, e);
     for (const b of t.blockedBy) if (!ids.has(b)) err(t, `blocked-by ${b} is not a known task`);
+    // 0.17 (shared/task-changes.md): amend / kind meta, dropped tasks, superseded ACs, remove rows
+    for (const e of checkTaskChanges(t, { lock, index, ids, allAcIds })) err(t, e);
+    if (t.status === DROPPED) continue; // a dropped task is history: its refs, symbols and test plan are not checked
     for (const s of t.symbols) {
       if (!SYMREF.test(s.ref)) err(t, `symbol ref \`${s.ref}\` must be Name or Class.method`);
       if (s.change === "modify" && !(await exists(join(root, s.file)))) err(t, `modify target file ${s.file} does not exist`);
@@ -267,6 +285,7 @@ export async function checkTasks(root, tasks, index) {
       if (!c) { err(t, `change ${t.change ?? "?"} not found (needed for spec/D- refs)`); continue; }
       const id = c.change.id;
       for (const ac of t.acs) for (const r of ac.reqs || []) {
+        if (ac.superseded) continue; // 0.17: a superseded AC keeps the ref it had; an amendment may have removed it
         if (!isSpecRef(r)) { err(t, `${ac.id} references legacy ${r} (a change task refs spec ids such as PWR-R1.S1)`); continue; }
         const x = m.resolveSpecRef(c.view, r, c.change);
         if (x.status === "removed") err(t, `${ac.id} references ${r} which ${id} removes`);
@@ -293,6 +312,40 @@ export async function checkTasks(root, tasks, index) {
     for (const d of t.decisions || []) if (!D.has(d)) err(t, `**Why** references unknown ${d} (not in ${p})`);
   }
   return errors;
+}
+
+/** True when the lock holds work of task T (an approved skeleton, locked tests or a done record). */
+export const hasLockedTaskWork = (lock, T) => { const lt = lock?.tasks?.[T]; return !!(lt?.skeletonAt || lt?.testsAt || lt?.doneAt || Object.values(lock?.tests || {}).some((x) => x.task === T && x.stage === "locked")); };
+
+/** Index ids of a task's `remove` rows that still exist ([] once every one is gone). */
+export function removeStillPresent(index, t) {
+  return (t?.symbols || []).filter((s) => s.change === "remove").map((s) => `${s.file}#${s.ref}`).filter((id) => index?.symbols?.[id]);
+}
+
+/**
+ * 0.17 checks of one task (shared/task-changes.md): `amend:` carries the task's key, `kind:` is a known work kind,
+ * a dropped task gives its reason and holds no locked work, a `superseded:` line names an AC of the task and a known
+ * successor, a done task's `remove` rows are gone from the index (REMOVE_STILL_PRESENT). Returns messages.
+ */
+export function checkTaskChanges(t, { lock = null, index = null, ids = new Map(), allAcIds = new Set() } = {}) {
+  const out = [];
+  const key = parseTaskId(t.id)?.key;
+  if (t.amend && key && t.amend.split("-")[0] !== key) out.push(`AMEND_KEY_MISMATCH: ${t.id} amend: ${t.amend} does not use the key ${key}`);
+  if (t.kind && !TASK_KINDS.includes(t.kind)) out.push(`TASK_KIND_BAD: ${t.id} kind: ${t.kind} (want ${TASK_KINDS.join("|")})`);
+  if (t.kind && !t.amend) out.push(`TASK_KIND_BAD: ${t.id} kind: ${t.kind} needs amend: <KEY>-A<n> (kinds order an amend task set)`);
+  if (t.status === DROPPED) {
+    if (!t.dropped) out.push(`TASK_DROPPED_NO_REASON: ${t.id} is dropped without a "**Dropped**: <reason>" line (hitl-index tasks drop writes both)`);
+    if (hasLockedTaskWork(lock, t.id)) out.push(`TASK_DROPPED_LOCKED: ${t.id} is dropped but has locked work (skeleton, tests or a done record): only a todo task is dropped; replace started work through a new task`);
+  } else if (t.dropped !== null) out.push(`TASK_DROPPED_NO_REASON: ${t.id} has a **Dropped** line but status ${t.status} (hitl-index tasks drop sets both)`);
+  const acIds = new Set(t.acs.map((a) => a.id));
+  for (const x of t.superseded || []) {
+    if (!acIds.has(x.ac)) out.push(`SUPERSEDED_UNKNOWN: ${t.id} superseded: ${x.ac} is not an AC of ${t.id}`);
+    else if (x.by !== "none" && !allAcIds.has(x.by) && !ids.has(x.by)) out.push(`SUPERSEDED_UNKNOWN: ${x.ac} superseded by ${x.by}, which is not a known task or AC`);
+    if (x.amend && key && x.amend.split("-")[0] !== key) out.push(`AMEND_KEY_MISMATCH: ${x.ac} superseded (${x.amend}) does not use the key ${key}`);
+  }
+  if (lock?.tasks?.[t.id]?.doneAt && index?.symbols) for (const id of removeStillPresent(index, t))
+    out.push(`REMOVE_STILL_PRESENT: ${t.id} is done but its remove row ${id.slice(id.indexOf("#") + 1)} still exists in ${id.slice(0, id.indexOf("#"))}`);
+  return out;
 }
 
 /**

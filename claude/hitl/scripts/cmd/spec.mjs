@@ -8,7 +8,7 @@ const USAGE = `usage: hitl-index spec <sub> [args] [--json]
   validate [<change-id> | --living | --all] [--strict]
   list
   show [<capability> | <ID>] [--change <change-id>]
-  next-id <change-id> [--kind R|BR|UC|D] [--count n] | next-id --scenario <REQ-ID> [--count n]
+  next-id <change-id> [--kind R|BR|UC|D|A] [--count n] | next-id --scenario <REQ-ID> [--count n]
   key <change-id> [--title "<title>"] | key --check <KEY> [--change <change-id>]
   conflicts
   merge <change-id> [--dry-run] [--renumber] [--accept-base <ID,…>]
@@ -117,10 +117,24 @@ async function cmdNextId(argv, ctx) {
   else {
     if (a._.length !== 1) throw usage("next-id needs one change id (0.13: ids are scoped by the change key, not the capability)");
     if (!isChangeId(a._[0])) throw usage(`not a change id: ${a._[0]}${CAP_RE.test(a._[0]) ? " (0.13: next-id takes the change id; the capability is the folder the delta sits in)" : ""}`);
-    ids = nextSpecIds(living, active, a._[0], a.kind || "R", count);
+    if (a.kind === "A") ids = await nextAmendIds(ctx.root, active, a._[0], count); // 0.17: amendment ids <KEY>-A<n>
+    else ids = nextSpecIds(living, active, a._[0], a.kind || "R", count);
   }
   console.log(ctx.json || a.count !== undefined ? JSON.stringify(ids) : ids[0]);
   return 0;
+}
+
+/** Next amendment ids of an active change (0.17): `<KEY>-A<n>` over its amend brief files and its tasks' amend ids. */
+async function nextAmendIds(root, active, changeId, count) {
+  const ch = active.find((c) => c.id === changeId);
+  if (!ch) throw Object.assign(new Error(`no active change ${changeId}`), { code: 1 });
+  const key = ch.proposal?.key;
+  if (!key) throw Object.assign(new Error(`change ${changeId} has no key yet (proposal meta "| key: <KEY>"; a pre-0.13 project: run /hitl:migrate)`), { code: 1 });
+  const [{ readAmendBriefs }, { nextAmendId }, { readTasks }] = await Promise.all([import("../lib/brief.mjs"), import("../lib/amend.mjs"), import("../lib/tasksmd.mjs")]);
+  const briefs = await readAmendBriefs(root, ch.dir);
+  const tasks = (await readTasks(root)).filter((t) => t.change === changeId);
+  const first = Number(nextAmendId(key, briefs, tasks).split("-A")[1]);
+  return Array.from({ length: count }, (_, i) => `${key}-A${first + i}`);
 }
 
 /** `spec key <change-id> [--title …]` suggests a free change key; `spec key --check KEY [--change id]` checks one. */
@@ -179,7 +193,8 @@ async function cmdMerge(argv, ctx, archive) {
   for (const w of r.warnings || []) console.log(`⚠️ ${w.code} ${w.ref} — ${w.message}`);
   if (r.preconditions.tasks?.notDone.length) console.log(`${r.ok ? "⚠️" : "❌"} tasks not done: ${r.preconditions.tasks.notDone.join(", ")}${r.ok ? " (--force)" : " (finish them, or --force at a human gate)"}`);
   for (const x of r.preconditions.notes?.wait || []) console.log(`❌ ${x} (--force does not skip it)`);
-  for (const n of r.preconditions.notes?.open || []) if (!n.source) console.log(`❌ _Note ${n.id}_ (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
+  for (const n of r.preconditions.notes?.open || []) if (n.kind === "amend") console.log(`❌ ${n.title} (${n.status}): ${n.apply} (--force does not skip it)`);
+  else if (!n.source) console.log(`❌ _Note ${n.id}_ (${n.title}) is ${n.status}: ${n.apply}, or /hitl:approve ${r.change} dismiss|defer ${n.id} (--force does not skip notes)`);
   if (!r.ok) console.log(`❌ spec ${verb} ${r.change}: nothing written`);
   else if (r.dryRun) console.log(`_Dry run:_ spec ${verb} ${r.change} would apply cleanly${r.archive ? ` and move to ${r.archive.to}` : ""}`);
   else {

@@ -13,12 +13,12 @@
 // A row without a `test` cell (tables written before 0.16, 5 columns) reads as `new` with no defect named.
 import { AC_ID_RE } from "./specids.mjs";
 
-export const TEST_DECISIONS = ["new", "shared", "covered", "none", "manual"];
+export const TEST_DECISIONS = ["new", "rewrite", "shared", "covered", "none", "manual"];
 /** Risk reasons whose tasks may not use `none:` (decision 5): the task meta line's reasons. */
 export const NONE_BLOCK = ["security", "concurrency", "data"];
 /** Soft budget per task: active own tests ≤ `new` rows + BUDGET_EXTRA (a warning at the tests lock, never a block). */
 export const BUDGET_EXTRA = 2;
-const STRENGTH = { new: 0, shared: 1, covered: 2, manual: 3, none: 4 };
+const STRENGTH = { new: 0, rewrite: 1, shared: 2, covered: 3, manual: 4, none: 5 };
 const DASH = /^(?:—|-+|–|n\/a)?$/i;
 
 /** `"new: dup email saved"` → {test:"new", detail:"dup email saved"}; "" → {test:null}; unknown → {test:null, bad:true}. */
@@ -48,7 +48,7 @@ export const rowsOf = (t, acId) => (t?.testPlan || []).filter((r) => acKey(t.id,
  */
 export function acPlan(t, acId) {
   const rows = rowsOf(t, acId);
-  const out = { test: "new", rows, detail: null, sharedWith: null, covered: [], manual: [], none: [] };
+  const out = { test: "new", rows, detail: null, sharedWith: null, covered: [], rewrite: [], manual: [], none: [] };
   if (!rows.length) return out;
   let best = null;
   for (const r of rows) {
@@ -56,6 +56,7 @@ export function acPlan(t, acId) {
     if (best === null || STRENGTH[d] < STRENGTH[best]) best = d;
     if (d === "shared" && r.detail && !out.sharedWith) out.sharedWith = acKey(t.id, r.detail);
     if (d === "covered" && r.detail) out.covered.push(r.detail);
+    if (d === "rewrite" && r.detail) out.rewrite.push(r.detail);
     if (d === "manual" && r.detail) out.manual.push(r.detail);
     if (d === "none" && r.detail) out.none.push(r.detail);
     if (d === "new" && r.detail && !out.detail) out.detail = r.detail;
@@ -64,12 +65,13 @@ export function acPlan(t, acId) {
   if (best === "none") out.detail = out.none.join("; ") || null;
   if (best === "manual") out.detail = out.manual.join("; ") || null;
   if (best === "covered") out.detail = out.covered.join("; ") || null;
+  if (best === "rewrite") out.detail = out.rewrite.join("; ") || null;
   if (best === "shared") out.detail = out.sharedWith;
   return out;
 }
 
-/** Number of `new` rows of a task (rows without a test cell count as new). */
-export const newRowCount = (t) => (t?.testPlan || []).filter((r) => (r.test || "new") === "new").length;
+/** Number of `new` rows of a task (rows without a test cell count as new; a `rewrite` row is a test of the task too). */
+export const newRowCount = (t) => (t?.testPlan || []).filter((r) => ["new", "rewrite"].includes(r.test || "new")).length;
 /** True when the task's risk reasons forbid `none:`; returns the hit reasons. */
 export const noneBlockedBy = (t) => (t?.riskReasons || []).filter((r) => NONE_BLOCK.includes(String(r).toLowerCase()));
 
@@ -80,12 +82,12 @@ export function checkTestPlan(t) {
   const blocked = noneBlockedBy(t);
   for (const r of t.testPlan || []) {
     const ac = acKey(t.id, r.ac);
-    if (r.bad) { errors.push(`TEST_PLAN_BAD: ${ac} test "${r.raw}" (want new: <defect it catches> | shared: <ACk> | covered: <test or AC id> | none: <reason> | manual: <check>)`); continue; }
+    if (r.bad) { errors.push(`TEST_PLAN_BAD: ${ac} test "${r.raw}" (want new: <defect it catches> | shared: <ACk> | covered: <test or AC id> | none: <reason> | manual: <check> | rewrite: <test or AC id>)`); continue; }
     if (r.legacy) continue;
     const d = r.test;
     if (!d) { errors.push(`TEST_PLAN_BAD: ${ac} has an empty test cell (want new: <defect it catches> | shared: <ACk> | covered: <test or AC id> | none: <reason> | manual: <check>)`); continue; }
     if (d === "new" && !r.detail) errors.push(`TEST_PLAN_NO_DEFECT: ${ac} new test names no defect (write "new: <the defect it catches>")`);
-    if (d !== "new" && !r.detail) errors.push(`TEST_PLAN_EMPTY: ${ac} "${d}:" needs ${{ shared: "the AC whose test it shares", covered: "the test (id, title or AC id)", none: "a reason", manual: "the check" }[d]}`);
+    if (d !== "new" && !r.detail) errors.push(`TEST_PLAN_EMPTY: ${ac} "${d}:" needs ${{ shared: "the AC whose test it shares", covered: "the test (id, title or AC id)", rewrite: "the locked test it takes over (id, title or the old AC id)", none: "a reason", manual: "the check" }[d]}`);
     if (d === "shared" && r.detail) {
       const k = acKey(t.id, r.detail);
       if (k === ac) errors.push(`TEST_PLAN_SHARED: ${ac} shares its own test`);
@@ -122,6 +124,20 @@ export function resolveCovered(index, ref) {
   if (isTestSym(S[x])) return [x];
   const strip = x.replace(/^["'`]|["'`]$/g, "");
   return Object.values(S).filter((s) => isTestSym(s) && (titleOf(s) === strip || (s.test?.titlePath || []).join(" > ") === strip || s.name === strip)).map((s) => s.id).sort();
+}
+
+/**
+ * Tests a task's `rewrite:` rows take over (0.17): what each row resolves to in the index, plus the tests the lock
+ * already moved to the task (`takenFrom`, after the human's reopen; their @ac may already name the new AC).
+ * @returns [{ac, ref, ids}]
+ */
+export function rewriteTargets(index, lock, t) {
+  const moved = Object.entries(lock?.tests || {}).filter(([, x]) => x.task === t?.id && x.takenFrom).map(([id]) => id);
+  return (t?.testPlan || []).filter((r) => r.test === "rewrite" && r.detail).map((r) => {
+    const ids = new Set(resolveCovered(index, r.detail));
+    for (const id of moved) if (lock.tests[id].takenFrom?.ref === r.detail) ids.add(id);
+    return { ac: acKey(t.id, r.ac), ref: r.detail, ids: [...ids].sort() };
+  });
 }
 
 /** Every test id the `covered:` rows of task t resolve to (for `hitl-index test --task`). */
