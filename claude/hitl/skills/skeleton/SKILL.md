@@ -45,8 +45,9 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 ## 3. Write stubs, in `### Symbols` order
 For each row (`@prio` = row number; it only breaks ties — implement order is callees first over `@calls`):
 - **modify** → edit the symbol in place: rewrite the whole intent as one current contract (never append a sentence
-  per task; after an amendment no history words such as "previously", "now", "no longer", `tag-grammar.md` §2
-  "Intent-only after an amendment"), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
+  per task; after an amendment no history words such as "previously", "now returns", "no longer", `tag-grammar.md` §2
+  "Intent-only after an amendment"; drift and the review warn `INTENT_HISTORY`, opt-out `hitl: history-ok` only when
+  the compatibility is the contract), add tags, add `TODO(impl): n. …` lines where the new steps belong. Keep working code. Add the sentinel
   only when the body will be fully rewritten.
   Already tagged by an earlier task → append yours (`@task PWR-T2, PWR-T3`), set `@status skeleton` and this task's `@prio`.
   If another not-done task also has `TODO(impl)` lines in it, scope yours: `TODO(impl <T>): n. …`.

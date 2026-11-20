@@ -26,7 +26,8 @@ review finding to fix.
    - turn each `// TODO(impl): n. text` or `// TODO(impl <T>): n. text` into `// n. text` (Python: `# n. text`) and put the
      code for that step below it; leave lines scoped to another task (e.g. `TODO(impl FEE-T2)`) as they are;
      keep the step a short intent label (≤8 words, what the block does, no ids like `<KEY>-T<n>`/`<KEY>-D<n>`, no history
-     words like "previously", "now", "no longer", "changed": the current intent only); reword pseudo-code
+     words like "previously", "now returns", "no longer", "changed from … to": the current intent only, drift
+     `INTENT_HISTORY`); reword pseudo-code
      steps; never add comments that restate the code line; inside a class/enum body delete numbered step comments
      instead (function bodies keep them);
    - remove the sentinel (`throw new Error("TODO(impl)…")` / `raise NotImplementedError("TODO(impl)…")`);

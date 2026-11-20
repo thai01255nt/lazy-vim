@@ -137,9 +137,14 @@ export async function buildContext(root, target, { contract = false, budget = 12
       { prep: "Make the change easy: restructure without a behaviour change; every existing test stays green.", expand: "Add the new form beside the old one; the old callers keep working.",
         migrate: "Move callers (or stored data) from the old form to the new one.", switch: "The new behaviour: change the logic to the current ACs.",
         contract: "Remove what the amendment made dead (old branch, helper, flag, tests of removed scenarios); existing tests stay green.", revert: "Restore the code to the base for the half-done work the human chose not to keep." }[task.kind]
-        || "Changed by this amendment.", "Docstrings and step comments state the current intent only: no history words (previously, now, no longer, changed).");
+        || "Changed by this amendment.", "Docstrings and step comments state the current intent only: no history words (previously, now returns, no longer, changed from … to; drift INTENT_HISTORY).");
+    // 0.18 (shared/formats/parallel-change.md): deploy group, temporary items this task adds, temporary items it removes
+    if (task.amend && task.deploy != null) head.push(`Deploy group ${task.deploy}: ship only this group's work; a drop of data, an API or an event format waits for its own later deploy.`);
+    if ((task.temps || []).length) head.push("", "## Temporary items", "This task adds them so the old and the new form live side by side; a contract task of the amendment removes them. Keep both forms working.",
+      ...task.temps.map((x) => `- ${x.name} (${x.type})${x.what ? `: ${x.what}` : ""}`));
     const removes = (task.symbols || []).filter((x) => x.change === "remove");
-    if (removes.length) head.push("", "## Remove", ...removes.map((r) => `- ${r.ref} in ${r.file}: delete it and every use of it; the task is done only when it is gone`));
+    if (removes.length || (task.removes || []).length) head.push("", "## Remove", ...removes.map((r) => `- ${r.ref} in ${r.file}: delete it and every use of it; the task is done only when it is gone`),
+      ...(task.removes || []).map((n) => `- temporary item ${n}: delete it and every use of it (code, config key, schema object through a migration)`));
     const taken = Object.entries(lock.tests || {}).filter(([, x]) => x.task === task.id && x.takenFrom);
     if (taken.length) head.push("", "## Taken over", "These locked tests of another task assert the OLD behaviour; this task took them over.",
       ...taken.map(([id, x]) => `- ${tn(id)} (from ${x.takenFrom.task}${(x.takenFrom.ac || []).length ? `, ${x.takenFrom.ac.join(", ")}` : ""}): rewrite it to the @ac of its rewrite: row, or delete it when that AC says the old behaviour is gone`),

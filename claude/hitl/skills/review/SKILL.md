@@ -51,6 +51,10 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    `l0.trace.spec[<symbol>]` gives each symbol's spec block (`change`, `archived`, `capability`, `design`, decisions,
    requirements with `scenario`) — the reviewers and `amend F-n` use it.
    The `terms` gate is `warn` when a task intent uses a glossary `_Avoid_` word (`TERM_AVOIDED`, with the term to use); never blocks.
+   The `history` gate (0.18) is `warn` when an intent or step comment of the task uses history wording (`l0.history.items`,
+   `INTENT_HISTORY`: "previously", "now returns", "no longer", "trước đây", …); never blocks. List it in the report
+   with the fix: keep the current contract, move the history to the delta `Changed:`/`Reason:`, the Changelog, the
+   amend brief or the commit message.
 3. **Lens selection**: `hitl-index risk <T> --json` (`lenses`, per-symbol reasons) and the task risk.
    - always `contract`, `tests`
    - `concurrency` if any symbol has `@concurrency` ≠ none or features ∩ {async, lock, thread, timer} or a task risk reason starts with `concurrency`

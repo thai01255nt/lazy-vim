@@ -41,12 +41,27 @@ catches    := free text: the production defect that makes the test fail (tests o
   `<KEY>-T<n>.AC<k>`, `<KEY>-D<n>`, spec and change ids) live only in tags (`@task`, `@dec`, tests' `@ac`), never in prose; drift reports
   `INTENT_TASK_REF` (text in backticks is ignored).
 - **Intent-only after an amendment** (0.17): a docstring or step comment states the current intent only, also on a
-  symbol an amendment changed. No history words: "previously", "now", "no longer", "changed", "instead of", "used to",
-  "legacy", "new behaviour", "trước đây", "bây giờ", "không còn". The history has its own places: why the behaviour
-  changed → the spec delta `Changed:` / `Reason:` (and `## Change History` at archive); why the design changed → the
-  superseded `<KEY>-D<n>` row and design.md `## Changelog`; the discussion → the amend brief; which work changed →
-  tasks.md (`amend:`, `superseded:` lines, dropped tasks); the old contract text → the lock (`intentLog`); the code
-  diff → git. (A deterministic lint for these words comes later.)
+  symbol an amendment changed. No history words: "previously", "now returns", "no longer", "changed from … to",
+  "used to", "old behaviour", "trước đây", "bây giờ trả về", "không còn". The history has its own places: why the
+  behaviour changed → the spec delta `Changed:` / `Reason:` (and `## Change History` at archive); why the design
+  changed → the superseded `<KEY>-D<n>` row and design.md `## Changelog`; the discussion → the amend brief; which work
+  changed → tasks.md (`amend:`, `superseded:` lines, dropped tasks); the old contract text → the lock (`intentLog`);
+  the code diff → git (the commit message).
+- **`INTENT_HISTORY`** (0.18, `scripts/lib/history.mjs`): the deterministic lint for those words, in the intent, the
+  `TODO(impl)` steps and the numbered step comments of every symbol with `@task` or a lock entry. Phrase patterns in
+  English and Vietnamese, never a single word, so domain words pass ("now" as a timestamp, `now()`, "old password",
+  "a session no longer active", "the key used to sign", "the previously selected item", "mật khẩu cũ", "thời điểm bây
+  giờ", "token không còn hiệu lực"); text in backticks is ignored. A warning, never a block: `hitl-index intents`,
+  drift (warn on a draft intent, info once locked and unchanged; config `intent.history`: `warn` | `info` | `off`),
+  review L0 gate `history`, `hitl-index amend check`.
+- **Opt-out marker** `hitl: history-ok`: on a line of its own in a docstring it silences `INTENT_HISTORY` for the whole
+  docstring; inside a line, or in a step comment, for that line only. Use it only when the compatibility is the current
+  contract (e.g. "Accepts the v1 payload for clients that have not moved yet"). It is plain prose (in the intent hash),
+  not a tag.
+- **Temporary code** (0.18): a symbol an amend task adds only so the old and the new form live side by side (a dual
+  write, a compatibility shim) is named in its task's `**Temp**: <name> (<type>) — <what>` line in tasks.md
+  (`shared/formats/parallel-change.md`), never in a tag; its docstring states what it does now ("Writes the expiry in
+  both columns."), and a contract task removes it.
 - Invalid value → index warning `BAD_TAG` (a pre-0.13 `T-n`/`D-n` item says to run `/hitl:migrate`). Repeated list tags merge; a repeated scalar keeps the last value.
 - `@status` is written by tooling only (`hitl-index status --sync-tags`). Skeletons start at `skeleton`.
 - One symbol, several tasks (a later task's `modify` row appends its id: `@task PWR-T2, PWR-T3`): status is computed per task.

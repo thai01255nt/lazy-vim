@@ -111,8 +111,9 @@ const SPEC_PLAN = `# U - Planning
 
 test("AC (R-n) groups, (edge) stays text, **Why** D refs", () => {
   const t = parseTasksMd(SPEC_MD, "t.md").tasks[0];
-  assert.deepEqual(t.acs[0], { id: "QT-T1.AC1", reqs: ["R-1", "R-2"], text: "Given dup When createUser Then throws", done: false });
-  assert.deepEqual(t.acs[1], { id: "QT-T1.AC2", reqs: [], text: "(edge) Given new When createUser Then returns", done: true });
+  assert.deepEqual(t.acs[0], { id: "QT-T1.AC1", reqs: ["R-1", "R-2"], text: "Given dup When createUser Then throws", done: false, line: 10 });
+  assert.equal(t.line, 5, "a task and its ACs carry their 1-based line");
+  assert.deepEqual(t.acs[1], { id: "QT-T1.AC2", reqs: [], text: "(edge) Given new When createUser Then returns", done: true, line: 11 });
   assert.equal(t.why, "implements (D-1, D-2) and again D-1");
   assert.deepEqual(t.decisions, ["D-1", "D-2"]);
   const legacy = parseTasksMd(MD, "x.md").tasks;

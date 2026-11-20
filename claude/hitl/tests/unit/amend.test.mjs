@@ -413,5 +413,5 @@ test("overwrite is gone; docs: task-changes.md is the one per-state rule set, am
   const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.16.0"), readme.indexOf("### Nâng cấp từ 0.15.0"));
   for (const w of ["amend brief", "PWR-A1", "superseded:", "tasks drop", "/hitl:approve", "overwrite"]) assert.ok(note.includes(w), `README 0.17 note: ${w}`);
   assert.match(read("HUONG-DAN.md"), /amend brief/);
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.17.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(1[7-9]|[2-9]\d)\.\d+$/, "version ≥ 0.17.0");
 });

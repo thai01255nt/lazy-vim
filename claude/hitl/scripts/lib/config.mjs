@@ -38,7 +38,8 @@ export const DEFAULTS = Object.freeze({
   // intent hygiene drift lint: idRefs → INTENT_TASK_REF (T-n/D-n/spec/change ids in prose); "warn" = warn on a draft
   // intent, info once locked; "info" = always info; "off". idAllow: regex strings that whitelist matched ids.
   // restateOverlap: `hitl-index intents` RESTATES threshold (Jaccard of content words between a sentence and a collaborator's)
-  intent: { idRefs: "warn", idAllow: [], restateOverlap: 0.3 },
+  // history (0.18): INTENT_HISTORY (history wording, lib/history.mjs), same levels as idRefs: "warn" | "info" | "off"
+  intent: { idRefs: "warn", idAllow: [], restateOverlap: 0.3, history: "warn" },
   // tickets mirror (design v4): provider = linear | jira | github; its section below holds the provider's settings
   tickets: { provider: "linear" },
   linear: {

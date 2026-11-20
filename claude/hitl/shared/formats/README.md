@@ -13,6 +13,7 @@ references only (no text copied) — see NOTICE.md §2. Every check below is a `
 | decision `<KEY>-D<n>` | design `## Decisions` | a | Nygard ADR (2011) · MADR 4.0.0 | [decisions.md](decisions.md) |
 | contract | `contracts/*` | a | OpenAPI 3.1.1 (3.2 accepted) · AsyncAPI 3.0 · JSON Schema 2020-12 · CLI (md) | [contracts.md](contracts.md) |
 | architecture diagram | design `## Architecture (C4)` | a | C4 model (Context, Container) via Mermaid `C4Context` | [architecture-c4.md](architecture-c4.md) |
+| amend task set of merged or released behaviour (0.18) | tasks.md `**Temp**:` / `**Removes**:` / `deploy:` | a | Fowler Parallel Change · expand–contract migrations (Stripe, Prisma) · Hodgson feature toggles · RFC 8594 / RFC 9745 | [parallel-change.md](parallel-change.md) (its checks are `tasks --check` errors) |
 
 Keywords and markers stay English in every language (`SHALL`, `Hit policy:`, `(in)`/`(out)`, `from | event | guard |
 action | to`, `Primary actor:`, `**Decision outcome**`); prose may be any language.

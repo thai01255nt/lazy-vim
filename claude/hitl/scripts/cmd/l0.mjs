@@ -9,6 +9,7 @@ import { readState } from "../lib/state.mjs";
 import { buildTrace, loadTraceInputs, specLinksFor } from "../lib/trace.mjs";
 import { taskGlossary } from "../lib/changes.mjs";
 import { avoidList, avoidedInIntents, effectiveTerms } from "../lib/glossary.mjs";
+import { historyItems } from "../lib/history.mjs";
 
 const OPTS = { json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 const lastLine = (s) => (String(s || "").trim().split("\n").filter(Boolean).pop() || "").slice(0, 200);
@@ -65,6 +66,10 @@ export async function computeL0(root, config, T) {
   const terms = { items: avoidedInIntents(index, symIds, eff) };
   gates.push(!avoidList(eff).length ? { name: "terms", result: "skip", detail: "no _Avoid_ words in the glossary" }
     : { name: "terms", result: terms.items.length ? "warn" : "pass", detail: terms.items.slice(0, 3).map((i) => i.message).join("; ") });
+  // 0.18 INTENT_HISTORY: history wording in the task's intents and step comments (warn, never blocks)
+  const history = { items: config?.intent?.history === "off" ? [] : historyItems(index, symIds) };
+  gates.push(config?.intent?.history === "off" ? { name: "history", result: "skip", detail: "intent.history is off" }
+    : { name: "history", result: history.items.length ? "warn" : "pass", detail: history.items.slice(0, 3).map((i) => i.message).join("; ") });
   const configured = Object.values(config?.commands?.mutation || {}).some(Boolean);
   const perSymbol = {}; let missing = 0; let low = 0; const thr = config?.mutationThreshold ?? 0.8;
   for (const id of symIds) {
@@ -91,7 +96,7 @@ export async function computeL0(root, config, T) {
     budget = { newRows: b.newRows, limit: b.limit, tests: b.tests, over: b.over };
   }
   if (trace) trace.budget = budget;
-  return { schema: "hitl.l0/1", task: T, gates, tests, drift, trace, terms, mutation: { configured, perSymbol } };
+  return { schema: "hitl.l0/1", task: T, gates, tests, drift, trace, terms, history, mutation: { configured, perSymbol } };
 }
 
 export async function run(argv, ctx) {

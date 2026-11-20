@@ -35,6 +35,15 @@ Notes of the open round.}
 - Symbol: ResetService.request — @dec PWR-D2
 - Test: issues a link valid for one hour — locked by PWR-T12 (done); PWR-T12.AC2
 
+### Reached through calls (1 hop)
+
+Code index call graph, from the symbols the amendment changes or removes. It sees static calls the code index resolves (plus @calls tags); not dynamic calls (callbacks, injected objects, string dispatch), reflection, calls from other services, or files of languages the indexer does not parse.
+
+- Changed: ResetService.request — @dec PWR-D2
+- Caller: ResetController.post — calls ResetService.request; 1 test(s)
+- Caller test: posts a reset request — covers ResetController.post; locked by PWR-T12
+- Data: ResetToken (data-model.md) — named in ResetService.request (signature)
+
 ## Round 1
 
 Accept all recommendations of this round: >
@@ -62,6 +71,20 @@ _Rec:_ 2 — {new capability or more than one task: big}
 one [K] question per half-done task (skeleton or tests locked, or code, not done):
 ### Q{n} [K] {T} ({title}) is half done: keep and adapt it, or revert it to the base and redo?
 _Rec:_ keep — {why}
+>
+
+only when the transition answer is merged or released (shared/formats/parallel-change.md §4), in the round after it:
+### Q{n} [D] Who depends on the old form?
+Consumers of the API or events, stored data, other services, scheduled jobs, reports.
+_Rec:_ {the callers of "Reached through calls"} and {what the code cannot show: other services, stored rows}
+>
+
+### Q{n} [D] How long does the old form keep working (deprecation window), and who is told?
+_Rec:_ {one release for in-house callers; the window the consumers' contract states for external ones}
+>
+
+### Q{n} [D] Does the switch go behind a feature flag?
+_Rec:_ {yes — risky behaviour or a gradual rollout; no — a rename or an additive field}
 >
 -->
 

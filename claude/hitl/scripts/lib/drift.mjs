@@ -243,6 +243,19 @@ export function proseIds(text, { changeIds = [], allow = [] } = {}) {
 
 async function intentLints(root, S, L, cfg, add, ref) {
   const idRefs = cfg.idRefs ?? "warn";
+  // 0.18 INTENT_HISTORY (lib/history.mjs): history wording in a docstring or step comment; same levels as idRefs
+  const hist = cfg.history ?? "warn";
+  if (hist !== "off") {
+    const { symbolHistory, historyMessage } = await import("./history.mjs");
+    for (const [id, s] of Object.entries(S)) {
+      if (s.test || s.kind === "test" || s.kind === "suite" || !(s.tags?.task?.length || L.symbols[id])) continue;
+      const hits = symbolHistory(s);
+      if (!hits.length) continue;
+      const l = L.symbols[id];
+      const draft = !l || l.intentHash !== s.intentHash;
+      add(hist === "info" || !draft ? "info" : "warn", "INTENT_HISTORY", id, historyMessage(ref(id), hits), { hits });
+    }
+  }
   if (idRefs === "off") return;
   let changeIds = [];
   try { changeIds = [...new Set((await (await import("./changes.mjs")).listChanges(root)).map((c) => c.id))]; } catch { /* no change ids */ }

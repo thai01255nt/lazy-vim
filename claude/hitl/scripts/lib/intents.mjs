@@ -1,12 +1,14 @@
 // `hitl-index intents`: read-only intent hygiene report for the symbols of a change or task ("one current contract per
 // symbol"). Per symbol: ids in prose (drift proseIds), sentences that restate a collaborator's contract (token overlap),
-// growth across tasks/approvals (lock intentLog, else task count) and pseudo-code / dead step comments. Writes nothing.
+// growth across tasks/approvals (lock intentLog, else task count), pseudo-code / dead step comments and (0.18) history
+// wording (INTENT_HISTORY, lib/history.mjs). Writes nothing.
 import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 import { proseIds } from "./drift.mjs";
 import { collaboratorsOf } from "./context.mjs";
 import { DEC_ID_SRC, SPECREF_SRC, TASK_ID_RE, TASK_REF_SRC } from "./specids.mjs";
 import { taskSymbolIds, lockedTasks, resolveWith, isTest, intentLines, loadApi, readLock } from "./lock.mjs";
+import { symbolHistory } from "./history.mjs";
 
 export const SCHEMA = "hitl.intents/1";
 export const DEFAULT_RESTATE_OVERLAP = 0.3;
@@ -112,8 +114,9 @@ function touchingTasks(index, lock, allTasks, id, api) {
 
 /**
  * Pure report. inputs: {index, lock, tasks (all), scopeTasks, changeIds, allow:[RegExp], overlap, api, files:{[rel]: text}}.
- * Returns [{id, name, kind, file, line, task, ids, restates, growth, steps, signals}] ranked: most signal kinds first,
- * then most hits, then id. Only symbols with ids, restates or steps are listed (growth alone is data, not a finding).
+ * Returns [{id, name, kind, file, line, task, ids, restates, growth, steps, history, signals}] ranked: most signal kinds
+ * first, then most hits, then id. Only symbols with ids, restates, steps or history are listed (growth alone is data,
+ * not a finding). history (0.18): INTENT_HISTORY phrases of the intent, TODO steps and step comments (lib/history.mjs).
  */
 export function intentReport({ index, lock = {}, tasks = [], scopeTasks = tasks, changeIds = [], allow = [], overlap = DEFAULT_RESTATE_OVERLAP, api = null, files = {} }) {
   const S = index.symbols;
@@ -158,14 +161,16 @@ export function intentReport({ index, lock = {}, tasks = [], scopeTasks = tasks,
     const children = (byFile.get(s.file) || []).filter((c) => c.id !== id && c.span && s.span && c.span.start >= s.span.start && c.span.end <= s.span.end && (c.span.start > s.span.start || c.span.end < s.span.end)).map((c) => c.span);
     const steps = stepFindings(s, fileLines(s.file), children);
 
-    if (!idHits.length && !restates.length && !steps.length) continue;
+    const history = symbolHistory(s);
+
+    if (!idHits.length && !restates.length && !steps.length && !history.length) continue;
     const grew = growth.tasks >= 2 || (growth.linesFirst != null && growth.linesNow > growth.linesFirst);
-    const signals = [idHits.length > 0, restates.length > 0, steps.length > 0, grew].filter(Boolean).length;
+    const signals = [idHits.length > 0, restates.length > 0, steps.length > 0, history.length > 0, grew].filter(Boolean).length;
     out.push({ id, name: s.name, kind: s.kind, file: s.file, line: s.docSpan?.start ?? s.span?.start ?? null, task: l?.task ?? touched.at(-1) ?? null,
       locked: !!l, intentChanged: !!l && l.intentHash !== s.intentHash, openTasks: touched.filter((t) => !lock?.tasks?.[t]?.doneAt),
-      impl: l?.impl ?? s.tags?.impl ?? null, ids: idHits, restates, growth, steps, signals });
+      impl: l?.impl ?? s.tags?.impl ?? null, ids: idHits, restates, growth, steps, history, signals });
   }
-  const hits = (r) => r.ids.length + r.restates.length + r.steps.length;
+  const hits = (r) => r.ids.length + r.restates.length + r.steps.length + r.history.length;
   return out.sort((a, b) => b.signals - a.signals || hits(b) - hits(a) || a.id.localeCompare(b.id));
 }
 
@@ -185,7 +190,7 @@ export async function intents(root, { target, config } = {}) {
   const cfg = config.intent || {};
   const overlap = Number.isFinite(cfg.restateOverlap) ? cfg.restateOverlap : DEFAULT_RESTATE_OVERLAP;
   const base = { schema: SCHEMA, target, kind, overlap, tasks: scopeTasks.map((t) => t.id) };
-  if (!scopeTasks.length) return { ...base, ok: false, error: `no ${kind} "${target}" in the tasks files`, symbols: [], summary: { symbols: 0, ids: 0, restates: 0, steps: 0 } };
+  if (!scopeTasks.length) return { ...base, ok: false, error: `no ${kind} "${target}" in the tasks files`, symbols: [], summary: { symbols: 0, ids: 0, restates: 0, steps: 0, history: 0 } };
   let changeIds = [];
   try { changeIds = [...new Set((await (await import("./changes.mjs")).listChanges(root)).map((c) => c.id))]; } catch { /* none */ }
   const allow = [];
@@ -195,5 +200,5 @@ export async function intents(root, { target, config } = {}) {
   for (const f of new Set(ids.map((id) => index.symbols[id].file))) { try { files[f] = await fsp.readFile(join(root, f), "utf8"); } catch { /* unreadable: no steps */ } }
   const symbols = intentReport({ index, lock, tasks, scopeTasks, changeIds, allow, overlap, api, files });
   const sum = (k) => symbols.reduce((n, s) => n + s[k].length, 0);
-  return { ...base, ok: true, scanned: ids.length, symbols, summary: { symbols: symbols.length, ids: sum("ids"), restates: sum("restates"), steps: sum("steps") } };
+  return { ...base, ok: true, scanned: ids.length, symbols, summary: { symbols: symbols.length, ids: sum("ids"), restates: sum("restates"), steps: sum("steps"), history: sum("history") } };
 }

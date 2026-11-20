@@ -71,13 +71,19 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
    Meta line exactly: `- prio: P1 | risk: high (security, public-api) | impl: mixed | blocked-by: PWR-T11 | status: todo`
    (`blocked-by: none` when empty; a task of another change is named by its own id, e.g. `FEE-T2`; new tasks start `status: todo`; boxes `[ ]`).
    An amend task (amend-spec.md §4.4) adds `| amend: PWR-A1 | kind: switch` before `| status:` (task-changes.md §3).
+   Merged or released old behaviour (0.18): write the set with the patterns of
+   `${CLAUDE_PLUGIN_ROOT}/shared/formats/parallel-change.md` (schema or stored data, API, feature flag, event format):
+   `| deploy: <n>` after `kind:`, a `**Temp**: <name> (data|api|event|flag|shim) — <what>` line per temporary item under
+   the meta line of the task that adds it, `**Removes**: <name>, …` on the contract task that removes them; migrate tasks
+   test on a copy of real-shaped data, contract tasks have `remove` rows and a test that the old path is gone.
    Update: write only the new and edited tasks; a task you plan to drop stays as it is until Y (its check errors are expected).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
    `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK`,
    bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
    `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids; 0.17:
    `TASK_KIND_BAD`, `AMEND_KEY_MISMATCH`, `TASK_DROPPED_*`, `SUPERSEDED_UNKNOWN`, `REMOVE_STILL_PRESENT`, `AMEND_ORDER`,
-   `AMEND_UNCOVERED`, task-changes.md §5) and re-run.
+   `AMEND_UNCOVERED` (0.18: also each caller of a changed symbol), `AMEND_TEMP_NO_REMOVAL`, `AMEND_CONTRACT_SAME_DEPLOY`,
+   task-changes.md §5) and re-run.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.

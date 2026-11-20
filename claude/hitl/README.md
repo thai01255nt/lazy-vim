@@ -90,6 +90,84 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.18.0
+
+0.19.0 thêm **nhảy tới id**: `hitl-index where <id>` liệt kê mọi chỗ một id xuất hiện (nơi định nghĩa, test có `@ac`
+chứa nó, symbol của task, dòng brief, mọi chỗ nhắc khác), để editor nhảy từ id dưới con trỏ (xem mục 3a). Không cần
+migrate: lệnh chỉ đọc, không đổi file nào. Thay đổi nhỏ cho ai dùng `tasks --json` hay đọc kết quả parser: mỗi task và
+mỗi AC giờ có thêm `line` (dòng 1-based của heading `## <id>` / dòng `- [ ] <id>`).
+
+### Nâng cấp từ 0.17.0
+
+0.18.0 là bước 2 của amend: amendment giờ thấy cả **code gọi tới** thứ bị đổi, docstring có lint chống **chữ kể lịch sử**,
+và hành vi cũ **đã merge/release** có hướng dẫn cùng check cho việc chuyển đổi nhiều bước. Không cần migrate: `tasks.md`
+cũ (không có `**Temp**:`, `**Removes**:`, `deploy:`) vẫn đọc như trước; amendment trong branch không đổi gì.
+
+**1. Dependency pass trong impact.** Trước 0.18, `amend start` chỉ đi theo link truy vết (spec → AC → test `@ac`,
+`@dec`). Giờ nó đi thêm call graph của code index: với mỗi symbol amendment đổi hoặc xoá (`@dec` của decision bị đổi,
+symbol ref, symbol mà test của AC class `contract` cover, dòng `modify`/`remove` của task trong amend set), nó liệt kê
+**caller** trực tiếp (`--depth n` để đi xa hơn, mặc định 1 bước, tối đa 200 caller), test cover các caller đó, và
+entity của `data-model.md` mà tên/chữ ký/intent của symbol nhắc tới. Mỗi mục ghi đường đi (`calls saveReset`). Kết quả
+nằm trong amend brief, nhóm `### Reached through calls` của `## Affected`, trong khối Impact (`note apply --dry-run`)
+và `amend start|check --json` (`affected.calls` / `calls`). `AMEND_UNCOVERED` giờ đòi **mỗi caller** có task xử lý
+(dòng Symbols của một task trong set) hoặc một dòng lý do dưới `## Unchanged`. Giới hạn: chỉ thấy lời gọi tĩnh mà
+indexer resolve được (cộng tag `@calls`); không thấy lời gọi động (callback, object inject, dispatch bằng chuỗi),
+reflection, service khác, file của ngôn ngữ indexer không parse — những thứ đó hỏi trong brief.
+```
+### Reached through calls (1 hop)
+
+- Changed: saveReset — @dec TTL-D1
+- Caller: postReset — calls saveReset; 1 test(s)
+- Caller: resendAll — calls saveReset; no test covers it
+
+## Unchanged
+
+- postReset — signature-compatible: it reads only the email
+```
+
+**2. Lint `INTENT_HISTORY`.** Docstring và step comment (`n.`, `TODO(impl)`) của symbol có `@task` hoặc đã khoá không
+được kể lịch sử. Lint tất định, theo **cụm từ** (không theo một từ đơn) cả tiếng Anh lẫn tiếng Việt: `previously`,
+`used to` (sau chủ ngữ là code), `no longer sends|returns|…`, `now returns|now also|from now on`, `changed from … to`,
+`was renamed`, `old/legacy behaviour`, `as of v2.3`, `not … anymore`, `after this change`; `trước đây`, `trước kia`,
+`giờ đây`, `từ nay`, `bây giờ trả về|gửi|…`, `không còn gửi|trả về|…`, `đổi từ … sang`, `đã đổi tên`,
+`hành vi cũ|cách xử lý cũ|…`, `như cũ`, `kể từ phiên bản 2.3`. Từ nghiệp vụ không bị bắt: `now()`, "old password",
+"a session no longer active", "the key used to sign", "mật khẩu cũ", "thời điểm bây giờ", "token không còn hiệu lực";
+chữ trong backtick được bỏ qua. Chỉ là **cảnh báo**, không bao giờ chặn: `hitl-index intents` (cột `history`), drift
+(`warn` khi intent còn là bản nháp, `info` khi đã khoá và không đổi; config `"intent": { "history": "warn" | "info" |
+"off" }`), gate `history` của review L0, `hitl-index amend check` (`warnings`). Cách sửa: chỉ giữ contract hiện tại, đưa
+lịch sử vào delta `Changed:`/`Reason:`, D superseded + Changelog, amend brief hoặc commit message. Khi tương thích
+ngược **chính là** contract, ghi `hitl: history-ok` (một dòng riêng trong docstring = cả docstring; trong một dòng =
+dòng đó).
+```
+Stores a reset request. No longer stores the lifetime in hours.   → ⚠️ INTENT_HISTORY intent: "No longer stores"
+Stores a reset request with its expiry time.                        → không cảnh báo
+```
+
+**3. Hành vi cũ đã merge/release: expand → migrate → switch → contract.** Khi câu transition của amend brief là
+`merged` hoặc `released`, brief hỏi thêm ba câu `[D]` (mỗi câu có `_Rec:_`): ai phụ thuộc dạng cũ (consumer, dữ liệu
+đã lưu, service khác), thời hạn deprecation, có cần feature flag. Task set viết theo mẫu của
+`shared/formats/parallel-change.md` (đổi schema/dữ liệu, đổi API, hành vi sau feature flag, đổi format event), với
+marker mới trong `tasks.md`:
+- `**Temp**: <tên> (data|api|event|flag|shim) — <mô tả>` dưới dòng meta của task thêm thứ tạm (dual write, flag,
+  shim, API version cũ); mỗi `expand` phải có ít nhất một;
+- `**Removes**: <tên>, …` trên task `contract` gỡ chúng (dòng `remove` của cùng symbol cũng tính);
+- `| deploy: <n>` sau `kind:` — nhóm deploy (không ghi = 1).
+
+Check mới (chỉ cho set merged/released; set in-branch không bị ảnh hưởng): `AMEND_TEMP_NO_REMOVAL` (thứ tạm không có
+contract nào gỡ, `expand` không khai thứ tạm), `AMEND_CONTRACT_SAME_DEPLOY` (contract xoá thứ tạm loại `data`/`api`/
+`event` cùng hoặc sớm hơn deploy đã thêm nó; `released` mà contract không ghi `deploy:`), `AMEND_ORDER` mở rộng
+(contract của hành vi đã merge/release không được `blocked-by: none`; `deploy:` không được sớm hơn task nó chờ). Chạy
+trong `tasks --check` và `amend check`.
+```
+## TTL-T2 Store the expiry timestamp beside the hours
+- prio: P1 | risk: high (data) | impl: agent | blocked-by: none | amend: TTL-A1 | kind: expand | deploy: 1 | status: todo
+**Temp**: dual-write-expiry (data) — saveReset writes expiresAt and ttlHours both
+
+## TTL-T5 Drop the hour field
+- prio: P2 | risk: high (data) | impl: agent | blocked-by: TTL-T4 | amend: TTL-A1 | kind: contract | deploy: 3 | status: todo
+**Removes**: dual-write-expiry
+```
+
 ### Nâng cấp từ 0.16.0
 
 0.17.0 đổi cách xử lý **yêu cầu thay đổi giữa chừng** (spec hoặc design đã duyệt, vài task đã xong, vài task đang làm).
@@ -551,9 +629,9 @@ CLI (gọi trực tiếp được): `hitl-index spec validate|list|show|next-id|
 (trạng thái/phase của change; `wait`/`blocks` khi một change chờ change khác; `brief` khi có file brief),
 `hitl-index brief <id> [--kind plan|design|amend] [--amend <KEY>-A<n>]` (đọc file brief: vòng, câu hỏi, câu trả lời — chỉ đọc; `brief rename <id>
 --to <id mới> --key <KEY>` đổi tên change và key tới khi change có task đầu tiên),
-`hitl-index amend start <id> [--from N-k] [--refs …] [--impact …] [--write]` (0.17: route brief|chat, id `<KEY>-A<n>`,
-task nào ở đâu, amendment chạm gì; `--write` tạo amend brief), `hitl-index amend check <id> [--amend <KEY>-A<n>]`
-(`AMEND_ORDER`, `AMEND_UNCOVERED`), `hitl-index tasks drop <T> --reason "…" [--amend <KEY>-A<n>]` (chỉ task todo), `hitl-index overlap <id> [--with B,C]`
+`hitl-index amend start <id> [--from N-k] [--refs …] [--impact …] [--depth n] [--write]` (0.17: route brief|chat, id `<KEY>-A<n>`,
+task nào ở đâu, amendment chạm gì; 0.18: caller qua call graph, `--depth` bước; `--write` tạo amend brief), `hitl-index amend check <id> [--amend <KEY>-A<n>] [--depth n]`
+(`AMEND_ORDER`, `AMEND_UNCOVERED`, 0.18: `AMEND_TEMP_NO_REMOVAL`, `AMEND_CONTRACT_SAME_DEPLOY`, cảnh báo `INTENT_HISTORY`), `hitl-index tasks drop <T> --reason "…" [--amend <KEY>-A<n>]` (chỉ task todo), `hitl-index overlap <id> [--with B,C]`
 (ứng viên chồng lấn với change khác đang mở: id, rule, decision, contract, symbol, file, thuật ngữ, capability, phần
 `code` — chỉ đọc; `--review` đọc phán quyết của `/hitl:overlap`),
 `hitl-index note add … --source <change khác>` (note từ change khác: chặn toàn bộ change tới khi change kia archive), `hitl-index migrate --specs` (v0.5 → 0.6),
@@ -565,7 +643,8 @@ code, giữ mô tả + `@calls`/`@concurrency`, không đụng test; index lại
 `hitl-index approve --change <change-id> --stage intent|accept [--symbols a,b] --by human [--dry-run]` (do `/hitl:approve <id> intent|accept` gọi),
 `hitl-index trace [task-id|change-id] [--capability <cap>] [--check] [--md] [--json]` (ma trận truy vết),
 `hitl-index tickets status|plan|record|diff|verify|server` (do `/hitl:tickets` dùng),
-`hitl-index feature <change-id> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit).
+`hitl-index feature <change-id> [--lane fast] [--report [--security-audit <dir>]] [--json]` (kế hoạch chạy feature / report gộp; `--security-audit` ghi link REPORT.md của audit),
+`hitl-index where <id> [--json]` (0.19: mọi chỗ của một id, cho editor nhảy tới; xem 3a).
 
 "Chỉ bạn" = skill có `disable-model-invocation: true`; Claude không tự gọi được.
 
@@ -588,6 +667,35 @@ trên symbol/test chỉ thuộc task đã archive (`ARCHIVED_BODY_CHANGED`, `SIG
 `TEST_CHANGED`, …) có `task: null`, `change` và `fix`: **claim** (thêm dòng `modify` + `@task <T>` vào một task mở, rồi
 `/hitl:approve <T> skeleton <sym>`) hoặc **accept** (`/hitl:approve <change-id> accept`; không áp dụng cho đổi chữ ký).
 
+### 3a. Nhảy tới id: `hitl-index where` (0.19)
+
+Đọc markdown thô mà gặp `PWR-R1.S2`, `PWR-T3.AC2` hay `PWR-D1`: `hitl-index where <id>` cho biết id đó được định nghĩa
+ở đâu và được dùng ở đâu. Không cần link markdown trong file (anchor hay gãy, rối mắt, team dùng nhiều editor khác nhau).
+
+```sh
+hitl-index where PWR-T1.AC2          # chữ thường cũng được: pwr-t1.ac2
+.hitl/changes/feat-password-reset/tasks.md:11:7: def: - [x] PWR-T1.AC2 (PWR-R1.S2) Given an unknown email …
+tests/reset.test.ts:2:50: test: /** @covers ResetService.sendLink @ac PWR-T1.AC1,PWR-T1.AC2 … */
+```
+
+- Id nhận được: `<KEY>-R<n>`, `<KEY>-R<n>.S<k>`, `<KEY>-BR<n>`, `<KEY>-UC<n>`, `<KEY>-T<n>` (cả key của quick file như
+  `QFLT-T1`), `<KEY>-T<n>.AC<k>`, `<KEY>-D<n>`, `<KEY>-A<n>`. Khớp đúng biên id: `PWR-R1` không khớp `PWR-R10`,
+  `PWR-R1.S2` hay `XPWR-R1`. Note `N-k` và finding `F-n` chỉ duy nhất trong một change nên không nhận.
+- Mỗi dòng một chỗ, dạng quickfix/grep `file:line:col: role: text` (`:cexpr system('hitl-index where PWR-R1')`, errorformat
+  `%f:%l:%c:%m`). `role` theo thứ tự: `def` (heading của spec/spec delta, heading task và dòng AC trong `tasks.md`, dòng
+  D và `### <KEY>-D<n>` trong `design.md`, tiêu đề amend brief), `test` (dòng `@ac`/`@task` của test chứa id), `symbol`
+  (symbol code của task: dòng `### Symbols` và tag `@task`, qua code index), `brief` (dòng trong plan/design/amend brief,
+  vd. `→ recorded:`), `ref` (mọi chỗ nhắc khác). Change đang mở đứng trước archive; chỗ trong `.hitl/archive/` ghi
+  `(archived)`.
+- `--json`: `{ schema, id, kind, locations: [{ file, line, col, colUtf16, role, text, archived, symbol? }] }`; `col` đếm
+  byte UTF-8 (như grep, Vim), `colUtf16` đếm theo UTF-16 (như VS Code, LSP). Exit 0 có kết quả, 1 không thấy id, 2 không
+  phải id.
+- Tìm trong file `.md` dưới `.hitl/` (trừ `index/`) và file code/test mà index biết (git ls-files, bỏ `exclude` của
+  config); không đi vào `node_modules`, thư mục build. Không reindex: symbol lấy theo `index.json` hiện có.
+- Neovim (config này): `<leader>hh` nhảy từ id dưới con trỏ (một chỗ: nhảy luôn; nhiều chỗ: picker có preview),
+  `<leader>hq` đổ mọi chỗ vào quickfix, `:HitlWhere [id]` (`:HitlWhere!` = quickfix). Code ở `~/.config/nvim/lua/hitl.lua`
+  và `lua/plugins/hitl.lua`.
+
 ## 4. Đồng bộ khi code thay đổi (sync model)
 
 | Nguồn thay đổi | Cách được bắt |
@@ -608,8 +716,10 @@ Vệ sinh intent (một contract hiện hành cho mỗi symbol; chỉ symbol kh�
   change id đang có/đã archive). Text trong backtick được bỏ qua. Id sống trong tag (`@task`, `@dec`, `@ac` của test).
 - Mức: `warn` khi intent còn là bản nháp (chưa khoá hoặc `intentHash` khác bản khoá), `info` khi đã khoá. `strip` không
   xoá id trong prose (prose nằm trong `intentHash`): sửa tay rồi duyệt lại.
-- Cấu hình `hitl.config.json`: `"intent": { "idRefs": "warn", "idAllow": [], "restateOverlap": 0.3 }`
-  (`"off"` tắt lint, `"info"` luôn info; `idAllow` = regex string cho phép id khớp).
+- `INTENT_HISTORY` (0.18): docstring hoặc step comment kể lịch sử ("previously", "no longer sends", "trước đây",
+  "không còn gửi"…; xem "Nâng cấp từ 0.17.0"). Cùng mức như trên; opt-out `hitl: history-ok`.
+- Cấu hình `hitl.config.json`: `"intent": { "idRefs": "warn", "idAllow": [], "restateOverlap": 0.3, "history": "warn" }`
+  (`"off"` tắt lint, `"info"` luôn info; `idAllow` = regex string cho phép id khớp; `history` cho `INTENT_HISTORY`).
 - `hitl-index intents <change-id|task-id> [--json]` (chỉ đọc, không reindex): mỗi symbol không phải test của change/task,
   xếp theo số tín hiệu, không cắt bớt:
   - **ids**: như `INTENT_TASK_REF`;
@@ -618,6 +728,7 @@ Vệ sinh intent (một contract hiện hành cho mỗi symbol; chỉ symbol kh�
     cần ≥ một nửa ngưỡng và ≥ 3 từ chung ngoài tên) — in cả hai câu;
   - **growth**: số task đã sửa symbol, số dòng intent lần duyệt đầu → hiện tại (từ `intentLog` trong lock; entry cũ chỉ có
     số task). Chỉ là dữ liệu, không có giới hạn cố định;
+  - **history** (0.18): cụm từ kể lịch sử trong intent, `TODO(impl)` và step `n.` (`INTENT_HISTORY`);
   - **steps**: step comment `n.` trong thân hàm trông như pseudo-code (gán, so sánh, cú pháp gọi hàm, > 10 từ; chỉ xét nhãn, phần lý do trong ngoặc được bỏ qua), và mọi
     comment `n.` trong thân class/enum (chết sau khi implement).
 - Lock `hitl.lock/1` có thêm (additive) `intentLog: [{task, stage, lines, at}]` cho mỗi lần duyệt skeleton/intent làm đổi

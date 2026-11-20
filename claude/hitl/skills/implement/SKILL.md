@@ -29,8 +29,8 @@ No task id → take the first frontier task from `hitl-index status --json` (`.n
   "Implementer said green" is a claim, not evidence. Re-run.
 - One function at a time. Each function ends with a fresh test result printed to the user.
 - Step comments the implementer writes state the current intent only, also on a symbol an amendment changed: no history
-  words ("previously", "now", "no longer", "changed"); the history lives in the spec delta, design.md Changelog, the
-  amend brief, tasks.md and git (`${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md` §2).
+  words ("previously", "now returns", "no longer", "changed from … to"; drift `INTENT_HISTORY`); the history lives in
+  the spec delta, design.md Changelog, the amend brief, tasks.md and git (`${CLAUDE_PLUGIN_ROOT}/shared/tag-grammar.md` §2).
 - **`--lane fast` is the user's decision, never yours.** Use it only when the user typed it in `$ARGUMENTS`; never suggest
   it to get past a gate, never add it on a resume the user did not type.
 
@@ -101,6 +101,12 @@ symbol of the list is green, you (main thread) delete each listed symbol and its
 (a `DELETED_REFERENCED` item → a caller still uses it: stop and show it). Deleting is not writing a body; a remove row of
 an `@impl manual` symbol goes to the human like a manual function. The task is not finished while `removePending` lists
 one (`REMOVE_STILL_PRESENT` at done).
+**Temporary items** (0.18, merged or released amendments, `shared/formats/parallel-change.md`): a task with
+`**Temp**: <name> (<type>) — <what>` lines adds those items (a dual write, a flag, a shim, an old API version kept) and
+keeps them working; a `contract` task with `**Removes**: <name>, …` deletes each named item and every use of it (code,
+config key, schema object through a migration file) the same way as a remove row. A task's `deploy: <n>` is the deploy
+group it ships in: never fold the work of a later group into this task (a drop of data, an API or an event format
+waits for its own deploy).
 
 Print it in the v2 style, then start the first item without asking (the `/hitl:implement` call is the go-ahead):
 ```

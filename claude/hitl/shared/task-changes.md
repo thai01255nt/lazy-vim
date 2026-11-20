@@ -1,4 +1,4 @@
-# Changing tasks that exist (per-state rules, 0.17)
+# Changing tasks that exist (per-state rules, 0.17; parallel change 0.18)
 
 Used by `/hitl:tasks <id> update` (every update of an existing tasks.md) and by the **amend task set** of an amend
 brief (`shared/amend-spec.md` §4). One rule set for both: what may happen to a task depends only on how far its work
@@ -63,11 +63,26 @@ contract | status: todo` (`amend:` and `kind:` before `status:`; tasks without t
 
 The transition answer of the amend brief picks the shape (`transition:` in its header):
 - **in this branch only** (`branch`): `prep` (if needed) → `switch` → `contract`. No `expand` or `migrate`.
-- **merged** or **released**: `prep` → `expand` → `migrate` → `switch` → `contract`. (0.17 checks the kinds and their
-  order only; guidance for data migration of released behaviour comes later.)
+- **merged** or **released**: `prep` → `expand` → `migrate` → `switch` → `contract`, written with the patterns of
+  `shared/formats/parallel-change.md` (schema or stored data, API, feature flag, event format): what each task's ACs
+  and test decisions look like, the temporary items and the deploy groups.
 
 Order lives in `blocked-by`: a task of a later kind is blocked (directly or through other tasks) by every task of an
 earlier kind of the same amendment. An `expand` needs a `contract` in the same set (the old form must go).
+
+**Temporary items and deploy groups** (0.18, merged or released only; `shared/formats/parallel-change.md` §1):
+```
+- prio: P1 | risk: high (data) | impl: agent | blocked-by: none | amend: PWR-A2 | kind: expand | deploy: 1 | status: todo
+
+**Temp**: dual-write-expiry (data) — writes expires_at and ttl_hours both
+```
+- `**Temp**: <name> (data|api|event|flag|shim) — <what>` — one line per item an amend task adds only so the old and
+  the new form can live side by side (the old form kept, a dual write, a flag, a shim, an old API version). Every
+  `expand` names at least one.
+- `**Removes**: <name>, …` — on the `contract` task that removes them (a `remove` row of the same symbol counts too).
+- `deploy: <n>` — the deploy group (meta line, after `kind:`; none = 1). A contract that removes a `data`, `api` or
+  `event` item ships in a later group than the task that added it; with `released` it must name its group.
+- An in-branch set (`branch`) has no temporary items and no deploy groups (prep → switch → contract).
 
 ## 4. Symbols rows `remove`
 
@@ -86,14 +101,16 @@ earlier kind of the same amendment. An `expand` needs a `contract` in the same s
 
 | code | meaning |
 | --- | --- |
-| `TASK_KIND_BAD` | `kind:` is not one of the six, or has no `amend:` |
+| `TASK_KIND_BAD` | `kind:` is not one of the six, or has no `amend:`; `deploy:` without `amend:` and `kind:`; `**Temp**:` without `amend:`; `**Removes**:` on a task that is not a `contract` |
 | `AMEND_KEY_MISMATCH` | `amend:` or a superseded line's amendment does not carry the task's key |
 | `TASK_DROPPED_NO_REASON` | `status: dropped` without a `**Dropped**:` line, or the reverse |
 | `TASK_DROPPED_LOCKED` | a dropped task holds locked work |
 | `SUPERSEDED_UNKNOWN` | a superseded line names an AC the task does not have, or an unknown successor |
 | `REMOVE_STILL_PRESENT` | a done task's remove row still exists in the index |
-| `AMEND_ORDER` | a later kind is not blocked by an earlier kind of the same amendment; a kind the transition answer does not allow; an `expand` without a `contract` |
-| `AMEND_UNCOVERED` | an item the amendment touches (by traceability: AC, task, spec id, symbol, locked test) is handled by no task of its set and is not listed under `## Unchanged` in its amend brief |
+| `AMEND_ORDER` | a later kind is not blocked by an earlier kind of the same amendment; a kind the transition answer does not allow; an `expand` without a `contract`; (0.18, merged or released) a `contract` with `blocked-by: none`; a task in an earlier `deploy:` group than a task it is blocked by |
+| `AMEND_UNCOVERED` | an item the amendment touches is handled by no task of its set and is not listed under `## Unchanged` in its amend brief: by traceability (AC, task, spec id, symbol, locked test) and, 0.18, by the dependency pass (a caller of a symbol the amendment changes or removes: a task of the set names it in `### Symbols` or owns it, or `## Unchanged` gives the reason, e.g. "signature-compatible") |
+| `AMEND_TEMP_NO_REMOVAL` | (0.18, merged or released) an `expand` names no `**Temp**:` item; a temporary item no `contract` of the set removes; a `**Removes**:` name no task declares |
+| `AMEND_CONTRACT_SAME_DEPLOY` | (0.18, merged or released) a contract removes a `data`, `api` or `event` item in the same or an earlier deploy group than the task that added it; `released` and no `deploy:` on that contract |
 
 ## 6. A full re-slice
 

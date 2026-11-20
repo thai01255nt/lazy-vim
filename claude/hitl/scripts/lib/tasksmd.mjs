@@ -16,6 +16,10 @@ const REF = `(?:${SPECREF_SRC}|R-\\d+)`;
 export const AMEND_ID_SRC = "[A-Z]{2,5}-A\\d+";
 export const AMEND_ID_RE = new RegExp(`^${AMEND_ID_SRC}$`);
 export const TASK_KINDS = ["prep", "expand", "migrate", "switch", "contract", "revert"];
+/** 0.18: kinds of a temporary item (`**Temp**: <name> (<type>) — <what>`); removing a data, api or event item needs a
+ *  deploy boundary (`deploy:` later than the deploy of the task that added it) when the old behaviour is released. */
+export const TEMP_TYPES = ["data", "api", "event", "flag", "shim"];
+export const TEMP_NEEDS_DEPLOY = ["data", "api", "event"];
 /** Task statuses the CLI writes into the meta line; `dropped` is written only by `hitl-index tasks drop`. */
 export const DROPPED = "dropped";
 const CHANGE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}changes/([^/]+)/tasks\\.md$`);
@@ -24,10 +28,13 @@ const ARCHIVE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}archive/(
 const RXN = {
   heading: new RegExp(`^## (${TASK_ID_SRC}) (.+)$`),
   legacyHeading: /^## (T-\d+) (.+)$/,
-  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${TASK_ID_SRC}(?:, ?${TASK_ID_SRC})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))? \\| status: ([a-z-]+)$`),
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${TASK_ID_SRC}(?:, ?${TASK_ID_SRC})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))?(?: \\| deploy: (\\d+))? \\| status: ([a-z-]+)$`),
   ac: new RegExp(`^- \\[( |x)\\] (${AC_ID_SRC})(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`),
   why: /^\*\*Why\*\*: ?(.*)$/,
   dropped: /^\*\*Dropped\*\*: ?(.*)$/,
+  // 0.18 (shared/formats/parallel-change.md): a temporary item an amend task introduces, and the items a contract removes
+  temp: /^\*\*Temp\*\*: ?`?([\w.$:/#-]+)`? \((data|api|event|flag|shim)\)(?: [—–-] (.*))?$/,
+  removes: /^\*\*Removes\*\*: ?(.+)$/,
   superseded: new RegExp(`^- superseded: (${AC_ID_SRC}) → (none|${TASK_ID_SRC}(?:\\.AC\\d+)?)(?: \\((${AMEND_ID_SRC})\\))?$`),
   symbol: /^(\d+)\. \[( |x)\] `([^`]+)` \| (new|modify|remove) \| `([^`]+)` \| impl: (agent|manual) \| (.+)$/,
   planning: /^← Planning: (\S+)$/,
@@ -39,7 +46,7 @@ const SYMREF = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)?$/;
 const LT = `(?:${TASK_ID_SRC}|T-\\d+)`;
 const RX_LEGACY = { ...RXN,
   heading: new RegExp(`^## (${LT}) (.+)$`), legacyHeading: /^\0$/,
-  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${LT}(?:, ?${LT})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))? \\| status: ([a-z-]+)$`),
+  meta: new RegExp(`^- prio: (P[0-3]) \\| risk: (low|high)(?: \\(([^)]*)\\))? \\| impl: (agent|manual|mixed) \\| blocked-by: (none|${LT}(?:, ?${LT})*)(?: \\| amend: (${AMEND_ID_SRC}))?(?: \\| kind: ([a-z]+))?(?: \\| deploy: (\\d+))? \\| status: ([a-z-]+)$`),
   ac: new RegExp(`^- \\[( |x)\\] (${LT}\\.AC\\d+)(?: \\((${REF}(?:, ?${REF})*)\\))? (.+)$`) };
 
 /** Change id and archived flag implied by a tasks file location; {change:null} for `.hitl/tasks/*.md`. */
@@ -77,20 +84,22 @@ export const isArchivedTask = (lock, tasks, T) => !!archivedChangeOf(lock, tasks
  * `change` comes from `← Change: <id>` (else from the file location); `planning` only from the legacy `← Planning:`.
  * `key`: a quick file's own key (`← Change: none | key: QFLT`), also on each task as `quickKey`; `quick`: a tasks file
  * under `.hitl/tasks/` with no change and no planning link.
- * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them.
+ * AC refs: `(ACC-R5.S1, ACC-BR1)` spec refs and legacy `(R-1)`; `ac.reqs` holds all of them. `line` (1-based) on a task
+ * (its `## <id>` heading) and on an AC (its `- [ ]` line).
  */
 export function parseTasksMd(text, file, { legacy = false } = {}) {
   const RX = legacy ? RX_LEGACY : RXN;
   const loc = changeOfFile(file);
   const doc = { file, planning: null, change: null, key: null, staleKey: null, quick: false, archived: loc.archived, changeDir: loc.dir, status: null, tasks: [], legacyIds: [] };
   let keyError = null;
-  let task = null, section = null;
+  let task = null, section = null, n = 0;
   for (const raw of text.split(/\r?\n/)) {
+    n++;
     const line = raw.replace(/\s+$/, "");
     let m;
     if ((m = line.match(RX.heading))) {
-      task = { id: m[1], title: m[2].trim(), file, planning: doc.planning, prio: null, risk: null, riskReasons: [], impl: null, blockedBy: [], status: null,
-        amend: null, kind: null, dropped: null, superseded: [],
+      task = { id: m[1], title: m[2].trim(), file, line: n, planning: doc.planning, prio: null, risk: null, riskReasons: [], impl: null, blockedBy: [], status: null,
+        amend: null, kind: null, deploy: null, dropped: null, superseded: [], temps: [], removes: [],
         why: null, decisions: [], acs: [], symbols: [], testPlan: [], parseErrors: [], _meta: false };
       doc.tasks.push(task);
       section = null;
@@ -118,17 +127,20 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       continue;
     }
     if (!section && task.dropped === null && (m = line.trimStart().match(RX.dropped))) { task.dropped = m[1].trim() || ""; continue; }
+    if (!section && (m = line.trimStart().match(RX.temp))) { task.temps.push({ name: m[1], type: m[2], what: (m[3] || "").trim() }); continue; }
+    if (!section && /^\*\*Temp\*\*:/.test(line.trimStart())) { task.parseErrors.push(`malformed Temp line (want "**Temp**: <name> (${TEMP_TYPES.join("|")}) — <what>"): ${line.trim()}`); continue; }
+    if (!section && (m = line.trimStart().match(RX.removes))) { task.removes.push(...m[1].split(",").map((x) => x.trim().replace(/^`|`$/g, "")).filter(Boolean)); continue; }
     if (!section && /^- prio:/.test(line)) {
       if ((m = line.match(RX.meta))) {
         Object.assign(task, { prio: m[1], risk: m[2], riskReasons: m[3] ? m[3].split(",").map((s) => s.trim()).filter(Boolean) : [], impl: m[4],
-          blockedBy: m[5] === "none" ? [] : m[5].split(",").map((s) => s.trim()), amend: m[6] || null, kind: m[7] || null, status: m[8], _meta: true });
+          blockedBy: m[5] === "none" ? [] : m[5].split(",").map((s) => s.trim()), amend: m[6] || null, kind: m[7] || null, deploy: m[8] ? Number(m[8]) : null, status: m[9], _meta: true });
       } else task.parseErrors.push(`malformed meta line: ${line}`);
       continue;
     }
     if (section === "acceptance criteria" && (m = line.match(RX.ac))) {
       const bad = !m[3] && /^\(([A-Za-z]\w*-[A-Za-z]*\d[\w.]*(?:, ?[A-Za-z]\w*-[A-Za-z]*\d[\w.]*)*)\) /.exec(m[4]);
       if (bad) task.parseErrors.push(`malformed AC ref (${bad[1]}) in ${m[2]}: use spec ids like PWR-R1.S1 (or legacy R-n)`);
-      task.acs.push({ id: m[2], reqs: m[3] ? m[3].split(/, ?/) : [], text: m[4].trim(), done: m[1] === "x" });
+      task.acs.push({ id: m[2], reqs: m[3] ? m[3].split(/, ?/) : [], text: m[4].trim(), done: m[1] === "x", line: n });
     }
     else if (section === "acceptance criteria" && /^- \[/.test(line)) task.parseErrors.push(`malformed AC line: ${line}`);
     else if (section === "acceptance criteria" && (m = line.match(RX.superseded))) task.superseded.push({ ac: m[1], by: m[2], amend: m[3] || null });
@@ -333,6 +345,10 @@ export function checkTaskChanges(t, { lock = null, index = null, ids = new Map()
   if (t.amend && key && t.amend.split("-")[0] !== key) out.push(`AMEND_KEY_MISMATCH: ${t.id} amend: ${t.amend} does not use the key ${key}`);
   if (t.kind && !TASK_KINDS.includes(t.kind)) out.push(`TASK_KIND_BAD: ${t.id} kind: ${t.kind} (want ${TASK_KINDS.join("|")})`);
   if (t.kind && !t.amend) out.push(`TASK_KIND_BAD: ${t.id} kind: ${t.kind} needs amend: <KEY>-A<n> (kinds order an amend task set)`);
+  if (t.deploy != null && !(t.amend && t.kind)) out.push(`TASK_KIND_BAD: ${t.id} deploy: ${t.deploy} needs amend: and kind: (a deploy group orders an amend task set)`);
+  if (t.deploy === 0) out.push(`TASK_KIND_BAD: ${t.id} deploy: 0 (deploy groups count from 1)`);
+  if ((t.temps || []).length && !t.amend) out.push(`TASK_KIND_BAD: ${t.id} **Temp**: needs amend: <KEY>-A<n> (temporary items belong to an amend task set)`);
+  if ((t.removes || []).length && t.kind !== "contract") out.push(`TASK_KIND_BAD: ${t.id} **Removes**: is for a contract task (kind: ${t.kind || "none"})`);
   if (t.status === DROPPED) {
     if (!t.dropped) out.push(`TASK_DROPPED_NO_REASON: ${t.id} is dropped without a "**Dropped**: <reason>" line (hitl-index tasks drop writes both)`);
     if (hasLockedTaskWork(lock, t.id)) out.push(`TASK_DROPPED_LOCKED: ${t.id} is dropped but has locked work (skeleton, tests or a done record): only a todo task is dropped; replace started work through a new task`);

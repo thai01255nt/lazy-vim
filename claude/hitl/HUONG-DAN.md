@@ -175,6 +175,23 @@ PWR-T6 contract Bỏ job quét link cũ          remove ResetJob.sweep · blocke
 ```
 Gõ `Y` dưới `Approve the amendment?` → Claude ghi delta, design, tasks.md. Task đã xong không bao giờ bị mở lại: task
 mới nhận code và test cũ của nó, AC cũ được ghi `superseded:`. Trong lúc brief còn mở, task bị chạm đứng chờ (`_Held:_`).
+
+Từ 0.18, phần `## Affected` của brief còn có nhóm `### Reached through calls`: các hàm **gọi tới** symbol bị đổi (lấy từ
+call graph của code index, 1 bước; `--depth 2` để đi xa hơn), test của chúng và entity trong `data-model.md`. Mỗi caller
+phải có task xử lý, hoặc một dòng lý do dưới `## Unchanged` (vd. `- postReset — signature-compatible`); nếu không,
+`amend check` báo `AMEND_UNCOVERED`. Call graph không thấy lời gọi động, reflection hay service khác: những thứ đó hãy
+nói trong brief.
+
+Nếu hành vi cũ **đã merge hoặc đã release**, brief hỏi thêm: ai đang dùng dạng cũ, thời hạn deprecation, có cần feature
+flag. Task set khi đó theo thứ tự expand → migrate → switch → contract (mẫu trong `shared/formats/parallel-change.md`):
+task thêm thứ tạm ghi `**Temp**: dual-write-expiry (data) — …`, task contract ghi `**Removes**: dual-write-expiry`, và
+`deploy: <n>` trong dòng meta để việc xoá dữ liệu nằm ở lần deploy sau. Thiếu task gỡ thứ tạm → `AMEND_TEMP_NO_REMOVAL`;
+xoá dữ liệu cùng lần deploy → `AMEND_CONTRACT_SAME_DEPLOY`.
+
+Docstring chỉ nói contract hiện tại. Viết "No longer sends…", "previously…", "trước đây…", "không còn gửi…" sẽ có cảnh
+báo `INTENT_HISTORY` (drift, review, `hitl-index intents`, `amend check`; không bao giờ chặn). Lịch sử để ở delta
+(`Changed:`/`Reason:`), Changelog của design, amend brief hoặc commit message. Khi tương thích ngược chính là contract,
+thêm dòng `hitl: history-ok` vào docstring.
 ```
 /hitl:approve feat-password-reset reopen      (chỉ bạn gõ: mở test của task đang làm, chuyển test cũ sang task mới)
 /hitl:test PWR-T5                                (test viết lại phải đỏ) → /hitl:approve PWR-T5 tests → implement → review → done
@@ -210,6 +227,20 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
   Không có bằng chứng → `✅` rồi dừng. Có → một subagent chấm cả cụm, mỗi finding một dòng
   `⚠️ … → 1. adjust <một bên> · 2. both sides · 3. not an overlap`; trả lời kiểu `1 2, 2 3`. "both sides" ghi note
   `source:` vào change bị ảnh hưởng (change đó chờ tới khi change kia archive); "adjust" chỉ in `_Next:_ /hitl:plan <id> amend`.
+
+## 5c. Nhảy tới id (0.19)
+
+Đọc file markdown thô mà gặp `PWR-R1.S2`, `PWR-T3.AC2`, `PWR-D1`: đặt con trỏ lên id rồi
+
+```
+<leader>hh          nhảy tới chỗ định nghĩa (chỉ một chỗ: nhảy luôn; nhiều chỗ: picker có preview)
+<leader>hq          mọi chỗ của id vào quickfix
+:HitlWhere PWR-R1   gõ id (:HitlWhere! = quickfix)
+```
+
+- Thứ tự: `def` (nơi định nghĩa) → `test` (test có `@ac` chứa id) → `symbol` (code của task) → `brief` (dòng trong
+  file brief, vd. `→ recorded:`) → `ref` (chỗ nhắc khác). Chỗ trong archive có dấu `*`.
+- Ngoài nvim (terminal, editor khác): `hitl-index where <id>` in dạng `file:line:col: role: text`, `--json` cho editor.
 
 ## 6. Trả lời ở các cổng (gate)
 

@@ -35,7 +35,12 @@ released, what to do with out-of-scope work (`[X]`) and with half-done tasks (`[
 Impact and the **amend task set** (new tasks marked `amend: <KEY>-A<n>`, `kind: prep|expand|migrate|switch|contract|revert`).
 Its own `Y` applies it. While it is open, the tasks it touches are held (`_Held:_`); the others go on. A done task is
 never reopened: a new task takes over its code and its old-behaviour tests (`rewrite:`), its old ACs get
-`superseded:` lines. Only you unlock locked work: `/hitl:approve <id> reopen`. Escape hatches, also yours only:
+`superseded:` lines. 0.18: the brief also lists the **callers** of every symbol the amendment changes or removes
+(`### Reached through calls`, from the code index call graph; each one gets a task or a reason under `## Unchanged`);
+when the old behaviour is merged or released, the set follows `shared/formats/parallel-change.md` (expand → migrate →
+switch → contract, `**Temp**:` items each removed by a contract task, `deploy:` groups so a drop ships in a later
+deploy). Docstrings state the current contract only: history wording ("previously", "no longer sends", "trước đây")
+is the warning `INTENT_HISTORY` (opt-out `hitl: history-ok`). Only you unlock locked work: `/hitl:approve <id> reopen`. Escape hatches, also yours only:
 `/hitl:approve <KEY>-T<n> <stage> --ack N-k`, `… <id> dismiss N-k <reason>`, `… <id> defer N-k <other-change>`.
 **Two changes at once** (0.12): work that is too big for change A becomes its own change, created *before* A:
 `/hitl:go <X> --before A` (several: `--before A,C`). A then waits: no task approval, implement or archive of A until the
@@ -55,6 +60,8 @@ suggestions** (duplication, names off the glossary, pass-through functions, deep
 with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `PWR-D1`, tasks `PWR-T3`, ACs `PWR-T3.AC2`
 (a quick file has its own key, `QFLT-T1`). Upgrading from 0.12, or from 0.13.0–0.13.1 with `QT-T<n>` quick tasks: run
 `/hitl:migrate` once.
+**Id jump** (0.19): `hitl-index where <id>` lists where an id is defined and used — `def`, `test` (`@ac`), `symbol`,
+`brief`, `ref`, one `file:line:col: role: text` line each (`--json` for editors). In Neovim: `<leader>hh` on the id.
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
 turn — a note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,

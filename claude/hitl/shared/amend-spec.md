@@ -1,4 +1,4 @@
-# Amend an approved spec or design (shared procedure, v4 — 0.17)
+# Amend an approved spec or design (shared procedure, v5 — 0.18)
 
 Used by `/hitl:plan <change-id> amend [N-k]`, `/hitl:design <change-id> amend [N-k]` (and `_Needs spec:_` in a design
 brief, §3), `/hitl:sync` (option 4), `/hitl:review` (`amend F-n`) and `/hitl:implement` (spec change proposal, option
@@ -81,8 +81,18 @@ Notes as in `shared/interview.md` §4–§6. Header:
   every task with its status, locks, the per-state rule that applies, and the refs that touch it; the specs,
   decisions, ACs, symbols and locked tests the refs reach by the traceability links (AC refs, `**Why**`, `@dec`,
   locked tests and what they cover) — also tests a task of an archived change locked — and the open notes.
+- `### Reached through calls` (0.18, the dependency pass, inside `## Affected`): from every symbol the amendment changes
+  or removes — `@dec` of a changed decision, a symbol ref, a symbol a `contract`-class AC's locked test covers, and the
+  `modify`/`remove` rows of the amendment's own tasks once they exist — the callers over the code index call graph
+  (index callers plus `@calls` tags; `--depth n` hops, default 1; at most 200 callers), each with how it was reached
+  (`calls ResetService.request`), the tests that cover those callers (`@covers`, locked tests' covers, else `@ac` of the
+  caller's own task; code in a test file that calls a changed symbol is listed with the tests), and the entities of
+  the change's `data-model.md` whose name the symbols carry in their name, signature or intent. Limits: it sees static calls the indexer resolves; not dynamic calls (callbacks, injected
+  objects, string dispatch), reflection, calls from other services, or files of languages the indexer does not parse —
+  ask about those in the brief. `amend start|check --json` give it as `affected.calls` / `calls`.
 - `## Unchanged` — written by Claude at Close: one line per affected item the amendment does not change,
-  `- <id or test title> — <reason>`. It is the only way to leave an affected item without a task.
+  `- <id, symbol name or test title> — <reason>` (a caller: `- ResetController.post — signature-compatible`). It is the
+  only way to leave an affected item without a task.
 
 Question tags: `[R]` (what changes, business words), `[D]` (how, may name code; the transition question), and two
 amend tags:
@@ -103,6 +113,12 @@ amend tags:
    question `[D]`; one `[X]` per out-of-scope candidate; one `[K]` per half-done task. Part 2 **How** (`[D]` per hit
    decision: supersede or keep; contracts, data) starts in round 1 only for a pure design amendment, else once Part 1's
    questions are settled. ≤ 7 questions per round (interview.md §4 caps), every one with `_Rec:_`, the Notes block last.
+   **Merged or released** (0.18): once the transition answer is `merged` or `released` (round 1 when the description
+   already says so, else the next round), three `[D]` questions, each with `_Rec:_` (`shared/formats/parallel-change.md`
+   §4): who depends on the old form (consumers, stored data, other services; the callers of `### Reached through
+   calls` and what the code cannot show), the deprecation window (a release count or a date, and who is told), and
+   whether the switch goes behind a feature flag. The answers fill the temporary items, the deploy groups and the
+   contract task's window.
 3. Chat ≤ 3 lines: `Amend brief ready: <file> — answer in the file, then /hitl:<skill> <id> amend`. END THE TURN.
 
 ### 4.2 Later runs
@@ -142,7 +158,11 @@ dropped: none · superseded: PWR-T12.AC2 → PWR-T15.AC1 · out of scope: "limit
 - The Impact line comes from `note apply --change <id> --impact … --dry-run --json` (done tasks are kept once the
   task set carries the amendment; the take-overs are the `rewrite:` rows of the drafted set).
 - The amend set follows task-changes.md: the rule per task state, the kinds and their order for the transition answer,
-  `remove` rows with evidence (a symbol that exists now), `superseded:` lines, dropped tasks with a reason.
+  `remove` rows with evidence (a symbol that exists now), `superseded:` lines, dropped tasks with a reason. Merged or
+  released: the patterns of `shared/formats/parallel-change.md`, a `**Temp**:` line per temporary item, the contract
+  task's `**Removes**:` and `deploy:` groups; the `what` column names them (`temp: dual-write-expiry · deploy 1`).
+- Every caller of `### Reached through calls` is in a task of the set (a Symbols row) or under `## Unchanged` with a
+  reason; the Impact line says how many are handled (`note apply --dry-run`: `reached through calls: …`).
 - Chat: `<file>: ready to approve — answer the Close section, then /hitl:<skill> <id> amend`. END THE TURN.
 - Next run, in the order of interview.md §9: pending Close Notes (a change → `→ superseded` and a new Close), then the
   last question. Only a `Y` under it approves (the round's accept-all line never does).
@@ -157,7 +177,9 @@ In one run, in this order:
    for each dropped task. The tasks header keeps `status: approved` (this Y approves the set).
 3. Validate: `hitl-index spec validate <id> --json`, `hitl-index tasks --check --json`, `hitl-index trace <id> --json`,
    `hitl-index amend check <id> --amend <KEY>-A<n> --json`. Fix every error and `block` item in the same run (max 3
-   loops; an uncovered item → a task edit, or a `## Unchanged` line only when the human's answers said so).
+   loops; an uncovered item → a task edit, or a `## Unchanged` line only when the human's answers said so). Its
+   `INTENT_HISTORY` warnings (history wording in a docstring of the set's symbols) are fixed when the skeleton is
+   written; they never stop the approval.
 4. Record: `hitl-index note apply --change <id> --amend <KEY>-A<n> --impact "<the confirmed classes>" --json`. It marks
    the brief's `from:` notes applied, keeps done tasks (never reopened), and, when an in-progress task has locked work
    or a `rewrite:` row names another task's locked test, writes a `recheck` note (`reopen pending`).

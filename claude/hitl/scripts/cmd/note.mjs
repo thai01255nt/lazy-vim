@@ -9,6 +9,7 @@
 //              --amend (0.17): the approved amend brief; its `from:` notes are applied, done tasks are kept (never
 //              reopened), and the `rewrite:` rows of its tasks become take-overs in the recheck note
 // Releasing a block (ack, dismiss, defer, reopen) is not here: it is a human /hitl:approve form (hitl-index approve).
+import { join } from "node:path";
 import { parseArgv } from "../lib/project.mjs";
 import { TASK_ID_RE } from "../lib/specids.mjs";
 import { findChange, readChange, readLiving, effectiveView, resolveSpecRef, findInView } from "../lib/changes.mjs";
@@ -213,9 +214,22 @@ async function apply(a, ctx, json) {
       if (Object.keys(refs).length) takeovers.push({ task: t.id, stage: "takeover", tests: Object.keys(refs).sort(), refs, from: [...new Set(Object.keys(refs).map((tid) => c.g.lock.tests[tid].task))] });
     }
   }
-  const line = impactLine(imp) + (takeovers.length ? ` · takes over ${takeovers.reduce((n, x) => n + x.tests.length, 0)} locked test(s): ${takeovers.map((x) => `${x.task} ← ${x.from.join(", ")}`).join("; ")}` : "");
+  // 0.18: the dependency pass of the amendment (callers of the symbols it changes or removes) and which callers no
+  // task of the set and no `## Unchanged` line handles yet
+  let calls = null;
+  if (brief) {
+    const { amendAffected, checkAmendCoverage, dataModelEntities } = await import("../lib/amend.mjs");
+    const { promises: fsp } = await import("node:fs");
+    const entities = dataModelEntities(await fsp.readFile(join(ctx.root, c.entry.dir, "data-model.md"), "utf8").catch(() => ""));
+    const affected = amendAffected({ refs: brief.refs, tasks: c.g.tasks, change: c.entry.id, design: c.ch.design, index: c.g.index, lock: c.g.lock, resolve: c.resolve, amend: brief.amend, impact: pi.entries, entities });
+    const open = checkAmendCoverage({ amend: brief.amend, brief, affected: { calls: affected.calls }, tasks: c.tasks, index: c.g.index, lock: c.g.lock, change: c.entry.id }).map((e) => e.ref);
+    calls = { ...affected.calls, open };
+  }
+  const callsLine = calls?.callers.length ? ` · reached through calls: ${calls.callers.length} caller(s) of ${calls.seeds.length} changed symbol(s)${calls.open.length ? ` (not handled yet: ${calls.open.join(", ")})` : " (each handled by a task or ## Unchanged)"}` : "";
+  const lockLine = impactLine(imp) + (takeovers.length ? ` · takes over ${takeovers.reduce((n, x) => n + x.tests.length, 0)} locked test(s): ${takeovers.map((x) => `${x.task} ← ${x.from.join(", ")}`).join("; ")}` : "");
+  const line = lockLine + callsLine;
   const out = { ok: true, change: c.entry.id, note: id, notes: live.map((n) => n.id), amend: brief?.amend ?? null, dryRun: !!a["dry-run"], impact: pi.entries, tasks: imp.tasks, counts: imp.counts, suggestFollowUp: imp.suggestFollowUp,
-    tasksUpdate: imp.tasksUpdate, takeovers, line, recheck: null };
+    tasksUpdate: imp.tasksUpdate, takeovers, calls, line, recheck: null };
   if (!a["dry-run"]) {
     const at = todayIso();
     const titles = Object.assign({}, ...live.map((n) => n.refTitles || {}), v.titles);
@@ -229,7 +243,7 @@ async function apply(a, ctx, json) {
         refTitles: Object.fromEntries(pi.entries.map((e) => [e.ref, titles[e.ref]]).filter(([, t]) => t)), status: "reopen pending", deferredTo: null,
         from: a.from ? String(a.from) : what ? `amend of ${what}` : "amend", at, acks: [], reason: null, resolved: null,
         text: imp.counts.tests || imp.counts.skeletons || imp.tasks.some((x) => x.newAc.length) || takeovers.length
-          ? `${line.replace(/^r/, "R")}. The human confirms with /hitl:approve ${c.entry.id} reopen.`
+          ? `${lockLine.replace(/^r/, "R")}. The human confirms with /hitl:approve ${c.entry.id} reopen.`
           : `Wording only on locked work: nothing to unlock. The human confirms with /hitl:approve ${c.entry.id} reopen.`,
         meta: { impact: pi.entries, ...(brief ? { amend: brief.amend } : {}),
           reopen: [...imp.tasks.filter((x) => x.locked).map((x) => ({ task: x.task, stage: x.reopen, acs: x.acs, symbols: x.symbols, ...(x.newAc.length ? { newAc: x.newAc } : {}) })), ...takeovers] } };

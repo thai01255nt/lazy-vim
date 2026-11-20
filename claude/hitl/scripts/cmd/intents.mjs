@@ -2,6 +2,7 @@
 // (no reindex: run `hitl-index index` first when the code changed). Exit 0 with or without findings; 1 unknown target.
 import { parseArgs } from "node:util";
 import { intents } from "../lib/intents.mjs";
+import { HISTORY_FIX } from "../lib/history.mjs";
 
 const OPTS = { json: { type: "boolean" }, root: { type: "string" }, quiet: { type: "boolean" }, soft: { type: "boolean" } };
 
@@ -15,7 +16,7 @@ export async function run(argv, ctx) {
   if (!r.ok) { console.log(`_Stop:_ intents ${target}: ${r.error}`); return 1; }
   if (!r.symbols.length) { console.log(`✅ intents tidy: ${target} (${r.scanned} symbol(s), tasks ${r.tasks.join(", ")})`); return 0; }
   const s = r.summary;
-  console.log(`intents ${target}: ${s.symbols} of ${r.scanned} symbol(s) · ids ${s.ids} · restates ${s.restates} · steps ${s.steps} (overlap ≥ ${r.overlap})`);
+  console.log(`intents ${target}: ${s.symbols} of ${r.scanned} symbol(s) · ids ${s.ids} · restates ${s.restates} · steps ${s.steps} · history ${s.history} (overlap ≥ ${r.overlap})`);
   for (const x of r.symbols) {
     const g = x.growth;
     const lines = g.linesFirst == null ? `${g.linesNow} lines` : `lines ${g.linesFirst} → ${g.linesNow}`;
@@ -27,6 +28,8 @@ export async function run(argv, ctx) {
       console.log(`    it:   ${m.collaboratorSentence}`);
     }
     for (const st of x.steps) console.log(`  step L${st.line}: ${st.text} — ${st.why}`);
+    for (const h of x.history) console.log(`  ⚠️ INTENT_HISTORY ${h.where}: "${h.phrase}" — ${h.text}`);
   }
+  if (s.history) console.log(`\nINTENT_HISTORY (warning): ${HISTORY_FIX}`);
   return 0;
 }
