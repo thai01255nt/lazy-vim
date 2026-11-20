@@ -69,7 +69,7 @@ export async function run(argv, ctx) {
       if (stub) console.log(`_Info:_ ${stub} test(s) only reached the TODO(impl) sentinel: their assertions are first shown to work when the code turns them green (mutation testing checks them)`);
     }
     if (plan.budget) console.log(`Tests: ${plan.budget.tests} active · budget ${plan.budget.limit} (${plan.budget.newRows} new rows + 2)${plan.budget.extras.length ? ` · extras: ${plan.budget.extras.map((x) => `${x.name} (${x.catches || "no defect named"})`).join("; ")}` : ""}`);
-    if (plan.manual?.length) { console.log("Manual checks (confirm each before done):"); for (const m of plan.manual) console.log(`- ${m.ac}: ${m.check}`); }
+    if (plan.manual?.length) { console.log("Manual checks (confirm each before done):"); for (const m of plan.manual) console.log(`- ${m.ac}: ${m.check}${m.override ? ` (⚠️ manual! override: ${m.override})` : ""}`); }
   };
 
   if (!plan.ok) {

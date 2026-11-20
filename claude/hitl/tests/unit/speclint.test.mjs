@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDelta, parseDesign } from "../../scripts/lib/specmd.mjs";
 import { DEFAULT_VAGUE_TERMS, conditionsOverlap, findVagueTerms, lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines,
-  parseCondition, parseHitPolicy, vagueTermsFrom } from "../../scripts/lib/speclint.mjs";
+  isDecisionTable, parseCondition, parseHitPolicy, vagueTermsFrom } from "../../scripts/lib/speclint.mjs";
 import { findConflicts, resetStatusCache, validate } from "../../scripts/lib/changes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -81,6 +81,19 @@ test("DMN decision tables: hit policy, columns, overlap under U, conflicting out
   assert.deepEqual(codesOf(lintRule(rule("| F | a (in) | b (out) |\n|---|---|---|\n| 1 | x | y |\n| 2 | - | z |\n"))), []); // hit policy in the header cell; F allows overlap
   assert.deepEqual(codesOf(lintRule(rule("Hit policy: U\n\n| a (in) | b | c (out) |\n|---|---|---|\n| x | y |\n"))), ["DT_COLUMNS", "DT_ROW_CELLS"]);
   assert.deepEqual(codesOf(lintRule(rule("Hit policy: U\n\n| a (in) | b (out) |\n|---|---|\n"))), ["DT_NO_RULES"]);
+});
+
+test("0.20: a plain lookup/reference table in a rule is not a decision table; true decision tables stay flagged", () => {
+  const rule = (body) => ({ id: "X-BR1", line: 1, text: `### Rule: X-BR1 T\n${body}` });
+  const ref = "Fees per region:\n\n| region | currency | fee |\n|---|---|---|\n| EU | EUR | 5 |\n| Asia | USD | 7 |\n";
+  assert.deepEqual(codesOf(lintRule(rule(ref))), [], "reference table: no DT_* warning");
+  assert.equal(isDecisionTable({ header: ["code", "meaning"], rows: [{ cells: ["A1", "approved"] }], before: [] }), false);
+  // a condition cell, a marker, a rule-number column or a hit policy keeps it a decision table
+  assert.deepEqual(codesOf(lintRule(rule("| order total | member | fee |\n|---|---|---|\n| < 50 | no | 5 |\n"))), ["DT_NO_HIT_POLICY"]);
+  assert.deepEqual(codesOf(lintRule(rule("| member | tier | fee |\n|---|---|---|\n| yes | any | 0 |\n"))), ["DT_NO_HIT_POLICY"]);
+  assert.deepEqual(codesOf(lintRule(rule("| member (in) | fee (out) |\n|---|---|\n| yes | 0 |\n"))), ["DT_NO_HIT_POLICY"]);
+  assert.deepEqual(codesOf(lintRule(rule("| # | member | fee |\n|---|---|---|\n| 1 | yes | 0 |\n"))), ["DT_NO_HIT_POLICY"]);
+  assert.deepEqual(codesOf(lintRule(rule("Hit policy: U\n\n| member | fee |\n|---|---|\n| yes | 0 |\n| yes | 1 |\n"))), ["DT_OVERLAP"]);
 });
 
 test("DMN conditions: numeric intervals, sets, wildcards; unknown forms never overlap unless identical", () => {

@@ -593,6 +593,10 @@ function parseDecisionDetails(lines, add) {
 }
 
 // ---------------------------------------------------------------- business-language lint (§6.6)
+/** 0.20: UpperCamel words (proper nouns such as `WorldQuant`) in glossary term names and definitions (not code spans,
+ *  not `_Avoid_` lines), exact case. */
+export const glossaryNames = (terms) => [...new Set((terms || []).flatMap((t) => [...`${t.term ?? ""}\n${t.text ?? ""}`.replace(/^_Avoid_:.*$/gm, " ").replace(/`[^`]*`/g, " ")
+  .matchAll(/\b[A-Z][a-z]+[A-Z]\w*\b/g)].map((m) => m[0])))];
 const BIZ_RULES = [
   ["backtick", /`[^`]+`/g],
   ["call", /\b\w+\(\)/g],
@@ -601,10 +605,12 @@ const BIZ_RULES = [
   ["path", /\b[\w.-]+\/[\w./-]+\.\w{1,5}\b/g],
   ["http", /\b(GET|POST|PUT|PATCH|DELETE) \//g],
 ];
-/** bizLint(text, {terms}) -> [{line, token, rule}]. Skips fences, comments, the meta line, and tables inside `### Rule:` blocks.
- *  `terms`: glossary terms (any case) that are always allowed. */
-export function bizLint(text, { terms = [] } = {}) {
-  const allowed = new Set([...terms].map(casefold));
+/** bizLint(text, {terms, names}) -> [{line, token, rule}]. Skips fences, comments, the meta line, and tables inside `### Rule:` blocks.
+ *  `terms`: glossary terms (any case), and each word of a multi-word term, always allowed. `names` (0.20): proper nouns
+ *  the glossary text uses (glossaryNames), allowed for the camelCase rule only (`WorldQuant`, `PayPal`). */
+export function bizLint(text, { terms = [], names = [] } = {}) {
+  const allowed = new Set([...terms].flatMap((t) => [t, ...String(t).split(/\s+/)]).map(casefold));
+  const proper = new Set(names);
   const out = []; let inRule = false;
   for (const L of scanLines(text)) {
     if (L.fenced || L.comment) continue;
@@ -615,7 +621,7 @@ export function bizLint(text, { terms = [] } = {}) {
     for (const [rule, rx] of BIZ_RULES) {
       for (const m of t.matchAll(rx)) {
         const tok = m[0];
-        if (allowed.has(casefold(tok.replace(/^`|`$/g, "")))) continue;
+        if (allowed.has(casefold(tok.replace(/^`|`$/g, ""))) || (rule === "camelCase" && proper.has(tok))) continue;
         out.push({ line: L.n, token: tok, rule });
       }
     }

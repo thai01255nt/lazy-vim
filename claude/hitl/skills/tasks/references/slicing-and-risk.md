@@ -86,6 +86,12 @@ The `test` cell (checked by `hitl-index tasks --check`):
 | `rewrite: <test>` | 0.17 (an amend task, `shared/task-changes.md` §2): a locked test of another task (a done task, or an archived change) asserts the old behaviour; this task takes it over and rewrites it to this AC, or deletes it when the AC says the old behaviour is gone | resolves to an indexed test; the human's `/hitl:approve <change> reopen` moves it first; at the tests lock it carries this AC's `@ac` and fails on the current code |
 | `none: <reason>` | no automated test: type-checked, pure wiring with no independent oracle, config, behaviour a library guarantees | reason; refused on a task whose risk reasons include `security`, `concurrency` or `data` (`TEST_PLAN_NONE_RISK`) |
 | `manual: <check>` | a human check (UI look, external system) | the check; `/hitl:approve <T> done` lists it; refused like `none` on a `security`, `concurrency` or `data` task (`TEST_PLAN_NONE_RISK`) |
+| `none!: <reason>` · `manual!: <check> — <reason>` | 0.20, **human only**: the human's override of `TEST_PLAN_NONE_RISK` on a `security`, `concurrency` or `data` task | the reason (`TEST_PLAN_OVERRIDE_NO_REASON` without it); a warning `TEST_PLAN_NONE_RISK_OVERRIDE`, not an error; `status` shows `⚠️ test override`, the review report lists the AC, done lists a `manual!` check |
+Never write `!` on your own initiative, and never lower a risk reason to get past `TEST_PLAN_NONE_RISK`. When an
+automated test on such an AC looks unreasonable (or the human asks for none), keep an automated-test row in the file
+and propose the override at the gate as one brief question per AC, `_Override:_ <AC> none!: <reason>? (needs its own Y)`
+(or `manual!: <check> — <reason>`), the reason in one line; the gate's Y does not cover it, only a Y to that question
+does (then write the `!` row).
 Non-`new` rows may leave kind, oracle, seam and author as `—`. A table without the `test` column (before 0.16) reads
 every row as `new`. Choose:
 - `new` only when you can name its defect; prefer `shared` (or one table test) when two ACs are the same call with

@@ -132,6 +132,8 @@ _Rec:_ split into several files of ≤ 10 000 rows.
   - `### Q0 …` — renames the change id and/or key (§6 Rename);
   - `### Q<n> _To <P>:_ …` — writes a note into another change P (`shared/other-changes.md` §3);
   - `### Q<n> _Needs spec:_ …` — applies a spec delta and its Impact classes (§8).
+  - design: the test-strategy question when the risks name security, concurrency or data (its answer decides whether
+    `/hitl:tasks` must keep an automated test per AC, `TEST_PLAN_NONE_RISK`).
   The parser recognises them from the heading (`ownY` in `hitl-index brief --json`) and never counts the accept-all
   `Y` as their answer: an empty answer under one is carried to the next round (same number) even when the round's
   accept-all line says `Y`.

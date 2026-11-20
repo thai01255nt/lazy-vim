@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseLivingSpec, parseDelta, parseGlossary, parseProposal, parseDesign, blockHash, legacyBlockHash, hashMatches, bizLint, findClarifications, artifactDecision, usedIds } from "../../scripts/lib/specmd.mjs";
+import { parseLivingSpec, parseDelta, parseGlossary, parseProposal, parseDesign, blockHash, legacyBlockHash, hashMatches, bizLint, glossaryNames, findClarifications, artifactDecision, usedIds } from "../../scripts/lib/specmd.mjs";
 import { parseId, compareIds, allocate, rewriteIds, isChangeId, SPECREF_RE, today } from "../../scripts/lib/specids.mjs";
 
 const TPL = join(dirname(fileURLToPath(import.meta.url)), "../../shared/templates");
@@ -209,6 +209,17 @@ test("bizLint flags code tokens, skips fences/meta/rule tables and glossary term
   const hits = bizLint(text, { terms: ["resetlink"] });
   assert.deepEqual([...new Set(hits.map((h) => h.rule))].sort(), ["backtick", "call", "camelCase", "http", "path", "snake_case"]);
   assert.ok(hits.every((h) => h.line === 3));
+});
+
+test("0.20 bizLint: a proper noun the glossary uses (term name word or definition) is not a code token; code tokens still are", () => {
+  const g = parseGlossary("# Glossary\n\n### Term: Alpha\n\nA formula a researcher submits to WorldQuant BRAIN for scoring.\n_Avoid_: AlphaExpr\n\n### Term: PayPal account\n\nA payment account.\n", "G.md");
+  const names = glossaryNames(g.terms);
+  assert.deepEqual(names, ["WorldQuant", "PayPal"], "not the _Avoid_ word");
+  const text = "The WorldQuant score of an Alpha.\nPaid by PayPal.\nUse AlphaExpr, alphaId, userId and DataLoader.\n";
+  const hits = bizLint(text, { terms: g.terms.map((t) => t.term), names });
+  assert.deepEqual(hits.map((h) => h.token), ["AlphaExpr", "alphaId", "userId", "DataLoader"]);
+  assert.deepEqual(bizLint("The WorldQuant score.", {}).map((h) => h.token), ["WorldQuant"], "not in the glossary: still flagged");
+  assert.deepEqual(bizLint("`WorldQuant` is set in world_quant.", { names }).map((h) => h.rule), ["backtick", "snake_case"], "names cover the camelCase rule only");
 });
 
 test("findClarifications", () => {

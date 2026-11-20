@@ -268,7 +268,7 @@ export async function run(argv, ctx) {
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; const h = ni.holds?.[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""} | ${s.status}${m.amend ? ` (${m.amend}${m.kind ? ` ${m.kind}` : ""})` : ""}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${h ? ` _Held:_ ${h.amend}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${h ? h.apply : s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; const h = ni.holds?.[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""}${s.testOverride ? " ⚠️ test override" : ""} | ${s.status}${m.amend ? ` (${m.amend}${m.kind ? ` ${m.kind}` : ""})` : ""}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${h ? ` _Held:_ ${h.amend}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${h ? h.apply : s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;

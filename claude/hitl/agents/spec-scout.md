@@ -19,7 +19,9 @@ Change id, a one-paragraph change summary (business words), candidate capabiliti
 ## What you may do
 - Read/Grep/Glob anything in the repo (code, tests, `.hitl/specs/`, `.hitl/changes/`, `.hitl/docs/`).
 - Bash: only `hitl-index spec list --json`, `hitl-index spec show <cap|ID> [--change <id>] --json`,
-  `hitl-index change --json`, `hitl-index context <ref> --json` (no pipes, no chaining; hook-enforced).
+  `hitl-index change --json`, `hitl-index context <ref> --json`, and read-only git (`git show <branch>:<path>`, `log`,
+  `diff`, `ls-tree`, `cat-file -p`, `rev-parse`, `branch --list`) when a branch is a source of facts (no pipes, no
+  chaining; hook-enforced).
 - Write: the output path only (hook-enforced: `.hitl/changes/<id>/.scout.json`).
 
 ## Process

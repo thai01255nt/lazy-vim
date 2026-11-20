@@ -172,6 +172,20 @@ export function parseDecisionTable(t) {
   return { hitPolicy, hitPolicySource: src, ruleCol, inputs, outputs, unmarked: unmarked.map((i) => t.header[i]), rows: t.rows, header: t.header };
 }
 
+/** A comparison, range, negation or wildcard (not empty): a cell only a decision rule's input would hold. */
+const isConditionCell = (c) => { if (!String(c ?? "").trim()) return false; const x = parseCondition(c); return x.kind === "any" || (x.kind === "num" && (x.lo !== x.hi || !x.loIn || !x.hiIn)) || x.kind === "other"; };
+/**
+ * 0.20: is a table inside a `### Rule:` block a decision table? Yes with a hit policy (line or header cell), an `(in)`/
+ * `(out)` column, a rule-number column, or a condition cell in an input column (all but the last). Otherwise it is a
+ * plain lookup/reference table and is not linted.
+ */
+export function isDecisionTable(t) {
+  const d = parseDecisionTable(t);
+  if (d.hitPolicySource || d.ruleCol >= 0) return true;
+  if (t.header.some((h) => /\((in|out|input|output)\)\s*$/i.test(h))) return true;
+  return t.rows.some((r) => r.cells.slice(0, -1).some(isConditionCell));
+}
+
 function lintDecisionTable(t, ref) {
   const out = [];
   const d = parseDecisionTable(t);
@@ -259,7 +273,7 @@ export function lintStateMachines(text, { ref = null, firstLine = 1 } = {}) {
 export function lintRule(b) {
   const lines = linesOf(b.text, b.line);
   const out = [];
-  for (const t of tablesIn(lines)) if (!isTransitionHeader(t.header)) out.push(...lintDecisionTable(t, b.id));
+  for (const t of tablesIn(lines)) if (!isTransitionHeader(t.header) && isDecisionTable(t)) out.push(...lintDecisionTable(t, b.id));
   out.push(...lintStateMachines(b.text, { ref: b.id, firstLine: b.line }));
   return out;
 }

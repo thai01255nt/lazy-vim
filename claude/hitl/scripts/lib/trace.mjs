@@ -9,7 +9,7 @@ import { readTasks } from "./tasksmd.mjs";
 import { planningRel, readPlanning, statusText } from "./planningmd.mjs";
 import { parseId, compareIds } from "./specids.mjs";
 import { changeForTask, findInView, loadSpecContext, resolveSpecRef, unknownCode } from "./changes.mjs";
-import { acPlan, resolveCovered } from "./testplan.mjs";
+import { acPlan, noneBlockedBy, resolveCovered, testOverrides } from "./testplan.mjs";
 
 export const SCHEMA = "hitl.trace/2";
 const LEVEL = { block: 0, warn: 1, info: 2 };
@@ -214,6 +214,8 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
         ts = [...new Map([...own, ...ids.map((id) => S[id]).filter(Boolean)].map((x) => [x.id, x])).values()];
       }
       const exempt = plan.test === "none" || plan.test === "manual" ? plan.test : null;
+      // 0.20: a human override (`none!`/`manual!` on a security/concurrency/data task) is listed apart (review report)
+      const ovr = exempt ? testOverrides(t).filter((x) => x.ac === ac.id && x.test === exempt).map((x) => x.reason) : [];
       if (cx) for (const r of ac.reqs || []) {
         if (!parseId(r)) { add("block", "REQ_UNKNOWN", r, t.id, g, `${ac.id} references legacy ${r} (change tasks ref spec ids)`); continue; }
         const x = resolveSpecRef(cx.view, r, cx.change);
@@ -234,10 +236,11 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       else if (unresolved !== null && !ts.length) add(skeletonApproved ? "warn" : "info", "AC_COVERED_UNRESOLVED", ac.id, t.id, g, `${ac.id} covered: ${unresolved} resolves to no test`);
       else if (!ts.length) add(skeletonApproved ? "warn" : "info", "AC_NO_TEST", ac.id, t.id, g, `${ac.id} has no test with @ac ${ac.id}`);
       else if (ts.every((x) => x.test?.mode !== "active")) add(testsLocked ? "warn" : "info", "AC_ONLY_STUB", ac.id, t.id, g, `${ac.id} has only todo/skip tests`);
+      if (ovr.length) add("info", "AC_TEST_OVERRIDE", ac.id, t.id, g, `${ac.id} ${exempt}! over risk ${noneBlockedBy(t).join(", ")}: human override (${ovr.join("; ")})`);
       const proven = !exempt && ts.some((x) => testProves(c, x));
       if (late && !proven && !exempt) add("warn", "AC_NOT_PROVEN", ac.id, t.id, g, `${ac.id} has no fresh passing test (task is ${statuses.tasks[t.id].status})`);
       const symIds = [...new Set(ts.flatMap((x) => x.test?.coversResolved || []))].sort();
-      acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven, test: plan.test, testDetail: plan.detail, exempt,
+      acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven, test: plan.test, testDetail: plan.detail, exempt, ...(ovr.length ? { override: ovr.join("; ") } : {}),
         tests: ts.map((x) => ({ id: x.id, title: x.test?.titlePath?.at(-1) ?? x.name, mode: x.test?.mode ?? null, outcome: state.runs?.[x.id]?.outcome ?? null,
           fresh: testFresh(c, x), locked: lock.tests?.[x.id]?.stage === "locked" })),
         symbols: symIds.map((id) => ({ id, name: S[id]?.name || id.split("#").pop(), status: (statuses.tasks?.[t.id]?.symbolStatus?.[id] || statuses.symbols?.[id])?.status ?? null })) });
@@ -488,7 +491,7 @@ function marker(t) {
   if (t.outcome === "fail" || t.outcome === "error") return "❌";
   return "_Todo_";
 }
-const decisionNote = (a) => (a.test && a.test !== "new" ? `${a.test}: ${clip(a.testDetail || "?", 40)}` : "");
+const decisionNote = (a) => (a.test && a.test !== "new" ? `${a.test}${a.override ? "!" : ""}: ${clip(a.testDetail || "?", 40)}` : "");
 const testsCell = (a) => [a.tests.length ? a.tests.map((t) => `"${clip(t.title, 40)}" ${marker(t)}`).join(" · ") : (decisionNote(a) ? "" : "—"), decisionNote(a)]
   .filter(Boolean).join(" · ").replace(/\|/g, "\\|");
 const symsCell = (a) => (a.symbols.length ? a.symbols.map((s) => `${s.name} (${s.status || "?"})`).join(" · ") : "—");

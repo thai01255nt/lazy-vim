@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: Fresh-context, read-only reviewer of a hitl change's business spec (ambiguity, testability, completeness, consistency, terminology, business language); writes .spec-review.json. Used by /hitl:plan at close; overlap mode (/hitl:overlap) judges one change against other active changes as one cluster and writes .hitl/.inbox/overlap-review.json. Never edits specs.
+description: Fresh-context, read-only reviewer of a hitl change's business spec at /hitl:plan close (.spec-review.json), or in overlap mode of one change against other active changes as one cluster (/hitl:overlap, .hitl/.inbox/overlap-review.json). Never edits specs.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 omitClaudeMd: true
@@ -37,14 +37,14 @@ Then skip the lenses and the Process below: follow **Overlap mode** only.
 | completeness | missing failure/edge scenario for input or errors; actor, trigger or outcome missing; success criteria absent |
 | consistency | contradicts another requirement, a living requirement, a rule, or the proposal's What changes / Out of scope |
 | terminology | a concept with two names; a term not in GLOSSARY or the glossary delta; glossary `_Avoid_` words used |
-| business-language | code names, paths, libraries, SQL, HTTP verbs, UI widget internals in a business file |
+| business-language | code names, paths, libraries, SQL, HTTP verbs, UI widget internals in a business file; never a proper noun (company, product, place) or a word that `.hitl/specs/GLOSSARY.md` or the glossary delta uses in a term name or definition |
 | standards | ISO/IEC/IEEE 29148 + INCOSE characteristics the CLI cannot see: necessary, appropriate level, feasible, correct, complete set; NFR `Fit:` really measurable (ISO 25010); decision-table rules complete for every input combination (DMN); lifecycle covers cancel/expire paths; use case extensions cover each failing step (Cockburn). Formats: the plugin's `shared/formats/*.md` |
 Skip what `spec validate` already reports (structure, ids, keywords, and the warnings `REQ_VAGUE`, `REQ_COMPOUND`,
 `REQ_PASSIVE_NO_ACTOR`, `NFR_NO_FIT`, `DT_*`, `SM_*`, `UC_*`); you look at meaning.
 
 ## Process
 1. `spec validate <id> --json` (note what is already reported), `spec show --change <id> --json`, read the proposal,
-   the deltas and the glossary delta.
+   the deltas, the glossary delta and `.hitl/specs/GLOSSARY.md` (if present).
 2. Walk each lens. For each candidate, try to disprove it (is it answered elsewhere in the change?). Keep only findings
    with confidence ≥ 80. Max 10, most important first.
 3. Overlap (only with the `Overlap:` line): run it. For each candidate with `shared: true`, judge this change's

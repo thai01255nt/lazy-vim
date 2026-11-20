@@ -173,5 +173,5 @@ test("0.19 docs: README upgrade note and section, HUONG-DAN section, help line, 
   assert.match(read("HUONG-DAN.md"), /## 5c\. Nhảy tới id \(0\.19\)/);
   assert.match(read("skills/flow/references/help.md"), /\*\*Id jump\*\* \(0\.19\): `hitl-index where <id>`/);
   assert.match(read("scripts/hitl-index.mjs"), /brief amend where`/, "USAGE lists where");
-  assert.equal(JSON.parse(read(".claude-plugin/plugin.json")).version, "0.19.0");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(19|[2-9]\d)\.\d+$/, "version ≥ 0.19.0");
 });

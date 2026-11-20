@@ -90,6 +90,18 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.19.0
+
+0.20.0 thêm **ngoại lệ test do người quyết**: trên task risk security/concurrency/data, `/hitl:tasks` vẫn từ chối
+`none:`/`manual:` (`TEST_PLAN_NONE_RISK`), nhưng bạn có thể ghi `none!: <lý do>` hoặc `manual!: <cách kiểm> — <lý do>`.
+Thiếu lý do là lỗi; có lý do thì chỉ cảnh báo `TEST_PLAN_NONE_RISK_OVERRIDE`, `status` ghi `⚠️ test override`, báo cáo
+review liệt kê AC đó, `/hitl:approve <T> done` liệt kê `manual!`. Claude không tự ghi `!`, chỉ hỏi bằng câu
+`(needs its own Y)`. `/hitl:design` báo xung đột này sớm: câu hỏi chiến lược test khi risk có security/concurrency/data
+là `(needs its own Y)`. Sửa bốn báo động giả: spec-scout đọc được git chỉ-đọc (`git show <branch>:<path>`, `log`,
+`diff`, …); lint ngôn ngữ nghiệp vụ bỏ qua tên riêng có trong glossary (vd. `WorldQuant`); bảng tra cứu trong rule
+không bị coi là decision table; hook không chặn lệnh Bash chỉ nhắc đường dẫn archive trong chuỗi, comment hay commit
+message. Không cần migrate.
+
 ### Nâng cấp từ 0.18.0
 
 0.19.0 thêm **nhảy tới id**: `hitl-index where <id>` liệt kê mọi chỗ một id xuất hiện (nơi định nghĩa, test có `@ac`
@@ -692,8 +704,9 @@ tests/reset.test.ts:2:50: test: /** @covers ResetService.sendLink @ac PWR-T1.AC1
   phải id.
 - Tìm trong file `.md` dưới `.hitl/` (trừ `index/`) và file code/test mà index biết (git ls-files, bỏ `exclude` của
   config); không đi vào `node_modules`, thư mục build. Không reindex: symbol lấy theo `index.json` hiện có.
-- Neovim (config này): `<leader>hh` nhảy từ id dưới con trỏ (một chỗ: nhảy luôn; nhiều chỗ: picker có preview),
-  `<leader>hq` đổ mọi chỗ vào quickfix, `:HitlWhere [id]` (`:HitlWhere!` = quickfix). Code ở `~/.config/nvim/lua/hitl.lua`
+- Neovim (config này), như `gd`/`gr` của LSP: `<leader>hd` nhảy tới chỗ định nghĩa của id dưới con trỏ, `<leader>hr`
+  mở picker có preview với mọi chỗ, `<leader>hq` đổ mọi chỗ vào quickfix; `:HitlDef [id]`, `:HitlWhere [id]`
+  (`:HitlWhere!` = quickfix). Code ở `~/.config/nvim/lua/hitl.lua`
   và `lua/plugins/hitl.lua`.
 
 ## 4. Đồng bộ khi code thay đổi (sync model)

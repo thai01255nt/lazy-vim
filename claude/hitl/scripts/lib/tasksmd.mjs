@@ -201,7 +201,7 @@ function testPlanRow(cells, cols) {
   const base = { ac: at("ac", 0), kind: at("kind", 1), oracle: at("oracle", 2), seam: at("seam", 3), author: at("author", 4) };
   if (!hasTest) return { ...base, test: "new", detail: null, legacy: true };
   const p = parseTestCell(at("test", -1));
-  return { ...base, test: p.test, detail: p.detail, ...(p.bad ? { bad: true, raw: p.raw } : {}) };
+  return { ...base, test: p.test, detail: p.detail, ...(p.override ? { override: true, reason: p.reason } : {}), ...(p.bad ? { bad: true, raw: p.raw } : {}) };
 }
 
 const dirNames = async (dir) => (await fs.readdir(dir, { withFileTypes: true }).catch(() => []))
@@ -227,6 +227,18 @@ export async function readTasks(root) {
 }
 
 const acKey = (taskId, ac) => (AC_ID_RE.test(ac) ? ac : `${taskId}.${ac.replace(/^\./, "")}`);
+
+/** Warnings of `tasks --check` (never fail it): 0.20 `none!`/`manual!` overrides → [{task, file, message}]. */
+export function taskWarnings(tasks) {
+  const out = [];
+  for (const t of tasks) {
+    if (t.status === DROPPED || t.archived) continue;
+    const w = [];
+    checkTestPlan(t, w);
+    for (const message of w) out.push({ task: t.id, file: t.file ?? null, message });
+  }
+  return out;
+}
 
 /** checkTasks(root, tasks, index) -> errors [{task, file, message}] */
 export async function checkTasks(root, tasks, index) {

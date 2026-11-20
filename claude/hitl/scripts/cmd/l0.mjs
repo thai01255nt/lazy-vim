@@ -48,7 +48,7 @@ export async function computeL0(root, config, T) {
     inputs = await loadTraceInputs(root, config, { index: index || undefined, state, statuses: t.statuses, tasks: t.tasks });
     const tr = buildTrace(inputs, { kind: "task", id: T });
     const acs = tr.rows.flatMap((r) => r.acs).filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i)
-      .map((a) => ({ id: a.id, reqs: a.reqs, proven: a.proven, tests: a.tests.length, test: a.test || "new", ...(a.testDetail ? { testDetail: a.testDetail } : {}) }));
+      .map((a) => ({ id: a.id, reqs: a.reqs, proven: a.proven, tests: a.tests.length, test: a.test || "new", ...(a.testDetail ? { testDetail: a.testDetail } : {}), ...(a.override ? { override: a.override } : {}) }));
     const spec = {};
     for (const id of symIds) {
       const sp = specLinksFor(inputs, id);

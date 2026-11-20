@@ -130,6 +130,10 @@ Chỉ **bạn** gõ được `/hitl:approve`.
   phải TDD của Kent Beck; TDD thật (một test → đỏ → code → xanh → dọn code) là `/hitl:tdd`.
 - Ở gate `/hitl:tasks` (câu 5) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
   sẵn>`, `none: <lý do>` hoặc `manual: <cách kiểm tay>` (hai loại này không dùng cho task risk security/concurrency/data: task đó phải có test tự động cho mỗi AC).
+- Ngoại lệ do **bạn** quyết (0.20): `none!: <lý do>` hoặc `manual!: <cách kiểm tay> — <lý do>` cho phép bỏ test tự
+  động trên task security/concurrency/data. Lý do là bắt buộc; `tasks --check` chỉ cảnh báo
+  (`TEST_PLAN_NONE_RISK_OVERRIDE`), `status` ghi `⚠️ test override`, báo cáo review liệt kê AC đó. Claude không tự
+  ghi `!`: nó chỉ hỏi ở gate tasks bằng một câu riêng `(needs its own Y)`, chữ Y chung của gate không tính.
 - Mỗi test phải nêu lỗi nó bắt (`@catches`); test thêm ngoài plan cũng vậy. Mỗi task ≤ số dòng `new` + 2 test (vượt
   chỉ cảnh báo). Tên test là hành vi, không chứa id (id nằm trong `@ac`).
 - Muốn tỉa test: `hitl-index tests audit <change>` liệt kê ứng viên; bạn chọn, rồi `/hitl:approve <T> tests`.
@@ -233,9 +237,10 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 Đọc file markdown thô mà gặp `PWR-R1.S2`, `PWR-T3.AC2`, `PWR-D1`: đặt con trỏ lên id rồi
 
 ```
-<leader>hh          nhảy tới chỗ định nghĩa (chỉ một chỗ: nhảy luôn; nhiều chỗ: picker có preview)
+<leader>hd          nhảy tới chỗ định nghĩa (như gd của LSP)
+<leader>hr          mọi chỗ của id trong picker có preview (như gr)
 <leader>hq          mọi chỗ của id vào quickfix
-:HitlWhere PWR-R1   gõ id (:HitlWhere! = quickfix)
+:HitlDef PWR-R1     gõ id; :HitlWhere PWR-R1 = mọi chỗ (:HitlWhere! = quickfix)
 ```
 
 - Thứ tự: `def` (nơi định nghĩa) → `test` (test có `@ac` chứa id) → `symbol` (code của task) → `brief` (dòng trong

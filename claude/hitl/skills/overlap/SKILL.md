@@ -1,6 +1,6 @@
 ---
 name: overlap
-description: Checks whether one active hitl change overlaps (chồng lấn) other active changes — a deterministic pass first (shared ids, rules, contracts, terms, symbols, files, drift), then one fresh-context judge over the whole cluster that must quote a Given/When/Then witness from each change, then one gate per finding (adjust one side · both sides via notes · not an overlap). Use for "check overlap between feat-a and feat-b", "do these changes conflict", "kiểm tra chồng lấn", "hai change có đụng nhau không", or after merging a branch that brought in other changes. Not for new work (/hitl:go), a task id or status (/hitl:flow), or an archived change.
+description: Checks whether one active hitl change overlaps (chồng lấn) other active changes: a deterministic pass, then one fresh-context judge over the whole cluster, then one gate per finding. Use for "check overlap between feat-a and feat-b", "do these changes conflict", "kiểm tra chồng lấn", "hai change có đụng nhau không", or after merging a branch that brought in other changes. Not for new work (/hitl:go), a task id or status (/hitl:flow), or an archived change.
 argument-hint: "<change-id> [<other-id> …] | <change-id> --with <id>[,<id>…]"
 allowed-tools: Agent Bash(hitl-index *) Bash(node *hitl-index.mjs *)
 ---

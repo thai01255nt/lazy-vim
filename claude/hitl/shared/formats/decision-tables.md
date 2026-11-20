@@ -17,6 +17,8 @@ Hit policy: <U|A|P|F|R|O|C|C+|C<|C>|C#> (<name>)
 ```
 - **Input/output columns:** suffix `(in)` / `(out)`. Without any marker the last column is the output.
   The hit policy may also sit in the top-left header cell, as in DMN (`| U | age (in) | … |`).
+- **Reference tables:** a table in a rule with no hit policy, no `(in)`/`(out)` marker, no `#` rule column and no
+  condition cell (comparison, range, `-`/`any`) in its input columns is a plain lookup table: not checked as DMN.
 - **Conditions:** a value, a list `gold, silver`, a comparison `< 50`, `≥ 30 min`, a range `[1..5]` / `(5..10]`, or
   `-` / `any` for "does not matter". Anything else is text (`not gold` is allowed; the CLI does not reason about it).
 - **Hit policies** (DMN): `U` unique — rules never overlap (**default when unsure**); `A` any — overlaps must give the

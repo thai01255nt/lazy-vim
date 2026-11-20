@@ -61,7 +61,7 @@ with the key of the change that created it: `PWR-R1`, `PWR-R1.S1`, `PWR-BR1`, `P
 (a quick file has its own key, `QFLT-T1`). Upgrading from 0.12, or from 0.13.0–0.13.1 with `QT-T<n>` quick tasks: run
 `/hitl:migrate` once.
 **Id jump** (0.19): `hitl-index where <id>` lists where an id is defined and used — `def`, `test` (`@ac`), `symbol`,
-`brief`, `ref`, one `file:line:col: role: text` line each (`--json` for editors). In Neovim: `<leader>hh` on the id.
+`brief`, `ref`, one `file:line:col: role: text` line each (`--json` for editors). In Neovim: `<leader>hd` on the id jumps to its definition, `<leader>hr` lists every location.
 
 **New work starts with `/hitl:go <description>`** (0.11): a read-only router picks the route and runs it in the same
 turn — a note or `amend` when it changes an active change, `/hitl:tasks <id> update` for a missed slice,
@@ -71,7 +71,8 @@ work to the next, heavier one. Pick it yourself with `--plan`, `--quick` or `--t
 **Tests** (0.16): the full flow writes a task's acceptance tests first, from the contract, then the code (acceptance
 tests first, not Kent Beck's one-test loop; `/hitl:tdd` is that loop). At the tasks gate you decide per acceptance
 criterion: `new: <the defect it catches>`, `shared: <ACk>`, `covered: <existing test>`, `none: <reason>` (not on
-security, concurrency or data tasks) or `manual: <check>`. Extra tests need a named defect; a task's tests stay within
+security, concurrency or data tasks) or `manual: <check>`; on such a task only your own `none!: <reason>` /
+`manual!: <check> — <reason>` (0.20, its own Y) skips the automated test. Extra tests need a named defect; a task's tests stay within
 `new` rows + 2 (a warning). Review may suggest merging or deleting tests (`hitl-index tests audit`); you approve every
 deletion with `/hitl:approve <T> tests`.
 

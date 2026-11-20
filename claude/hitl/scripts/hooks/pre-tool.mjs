@@ -23,10 +23,17 @@ const REVIEWER_BASH = /^\s*(?:(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)
 
 // spec agents (design v3 §4.5): read-only CLI subcommands, one scratch output file each
 const HI = String.raw`^\s*(?:hitl-index|node\s+["']?\S*hitl-index\.mjs["']?)\s+`;
-const SPEC_SCOUT_BASH = new RegExp(HI + String.raw`(?:spec\s+(?:list|show)|change|context)\b`);
+// 0.20: the scout also reads git history (an archive branch as the source of facts): read-only git subcommands only;
+// no `-c`/`--exec-path`/`--git-dir` globals, `branch` only with --list
+const GIT_READ = String.raw`git\s+(?:-C\s+\S+\s+)?(?:--no-pager\s+)?(?:show|log|diff|ls-tree|rev-parse|cat-file\s+-p|branch\s+(?:--list|-l))(?:\s|$)`;
+const SPEC_SCOUT_BASH = new RegExp(String.raw`(?:` + HI + String.raw`(?:spec\s+(?:list|show)|change|context)\b|^\s*` + GIT_READ + ")");
+// options that make those write (diff/log/show --output, branch edits) or run an external diff program
+const GIT_WRITE_OPTS = /(?:^|\s)--(?:output|ext-diff)\b/;
+const GIT_BRANCH_EDIT = /^\s*git\s+(?:-C\s+\S+\s+)?(?:--no-pager\s+)?branch\s.*(?:\s-[a-zA-Z]*[dDmMcCfu]|\s--(?:delete|move|copy|force|set-upstream|unset-upstream|edit-description|track|create-reflog))/;
+const gitWrites = (cmd) => /^\s*git\s/.test(cmd) && (GIT_WRITE_OPTS.test(cmd) || GIT_BRANCH_EDIT.test(cmd));
 const SPEC_REVIEWER_BASH = new RegExp(HI + String.raw`(?:spec\s+(?:validate|show|list)|change|overlap)\b`);
 const SPEC_AGENT = {
-  "spec-scout": { file: ".scout.json", bash: SPEC_SCOUT_BASH, allowed: "hitl-index spec list|show, change, context" },
+  "spec-scout": { file: ".scout.json", bash: SPEC_SCOUT_BASH, allowed: "hitl-index spec list|show, change, context, git show|log|diff|ls-tree|rev-parse|cat-file -p|branch --list" },
   "spec-reviewer": { file: ".spec-review.json", bash: SPEC_REVIEWER_BASH, allowed: "hitl-index spec validate|show|list, change, overlap (no --review)" },
 };
 // 0.13.1 /hitl:overlap: the spec-reviewer's overlap mode writes its verdict to the inbox; only the skill's CLI call
@@ -88,7 +95,7 @@ function splitHeredocs(cmd) {
   }
   return { shell: shell.join("\n"), docs };
 }
-/** Split shell text on unquoted ; && || | & and newlines (keeps `2>&1`, `&>` inside a segment). */
+/** Split shell text on unquoted ; && || | & and newlines (keeps `2>&1`, `&>`, `>|` inside a segment). */
 function shellSegments(cmd) {
   const out = []; let cur = "", q = null;
   for (let i = 0; i < cmd.length; i++) {
@@ -97,7 +104,7 @@ function shellSegments(cmd) {
     if (c === "'" || c === '"') { q = c; cur += c; continue; }
     if (c === "\\") { cur += c + (cmd[++i] ?? ""); continue; }
     const amp = c === "&" && cmd[i - 1] !== ">" && cmd[i + 1] !== ">";
-    if (c === ";" || c === "\n" || c === "\r" || c === "|" || amp) { out.push(cur); cur = ""; if ((c === "|" || c === "&") && cmd[i + 1] === c) i++; continue; }
+    if (c === ";" || c === "\n" || c === "\r" || (c === "|" && cmd[i - 1] !== ">") || amp) { out.push(cur); cur = ""; if ((c === "|" || c === "&") && cmd[i + 1] === c) i++; continue; }
     cur += c;
   }
   out.push(cur);
@@ -105,7 +112,40 @@ function shellSegments(cmd) {
 }
 /** Whitespace tokens of a segment, quotes removed. */
 const words = (seg) => (seg.match(/(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g) || []).map((w) => w.replace(/['"]/g, ""));
-const REDIRECT_RE = /(?:\d|&)?>>?\|?\s*([^\s;&|<>()]+)/g;
+/**
+ * 0.20: redirects of a segment read outside quotes, up to an unquoted `# comment`: {outs: output targets, rest: the
+ * segment without redirects (input ones too) and without the comment}. A `>` inside a quoted string (a grep pattern, a
+ * commit message) is text; `>&2`, `2>&1` name no file.
+ */
+function scanRedirects(seg) {
+  const outs = []; let rest = "", q = null;
+  const word = (j) => { // a word from j, quotes removed: [text, end]
+    let w = "", qq = null;
+    for (; j < seg.length; j++) { const c = seg[j]; if (qq) { if (c === qq) qq = null; else w += c; continue; } if (c === "'" || c === '"') { qq = c; continue; } if (/[\s;&|<>()]/.test(c)) break; w += c; }
+    return [w, j];
+  };
+  for (let i = 0; i < seg.length; i++) {
+    const c = seg[i];
+    if (q) { rest += c; if (c === q) q = null; else if (c === "\\" && q === '"') rest += seg[++i] ?? ""; continue; }
+    if (c === "'" || c === '"') { q = c; rest += c; continue; }
+    if (c === "\\") { rest += c + (seg[++i] ?? ""); continue; }
+    if (c === "#" && (i === 0 || /\s/.test(seg[i - 1]))) break;
+    if (c !== ">" && c !== "<") { rest += c; continue; }
+    rest = rest.replace(/(^|\s)(?:\d+|&)$/, "$1") + " ";
+    let j = i + 1;
+    while (seg[j] === c || seg[j] === "|") j++;
+    if (seg[j] === "&" && /[\d-]/.test(seg[j + 1] ?? "")) { j += 2; while (/\d/.test(seg[j] ?? "")) j++; i = j - 1; continue; }
+    if (seg[j] === "&") j++;
+    while (seg[j] === " " || seg[j] === "\t") j++;
+    const [w, end] = word(j);
+    if (c === ">" && w) outs.push(w);
+    i = end - 1;
+  }
+  return { outs, rest };
+}
+/** Bodies of `$(…)` and backquotes (also inside double quotes, never inside single quotes): shell that runs. */
+const SUBST_RE = /\$\(([^()]*)\)|`([^`]*)`/g;
+const noSingleQuoted = (cmd) => { let o = "", q = null; for (const c of cmd) { if (q === "'") { if (c === "'") { q = null; o += c; } continue; } if (c === q) q = null; else if (!q && (c === "'" || c === '"')) q = c; o += c; } return o; };
 const HITL_CLI_RE = /^(?:\S*\/)?hitl-index(?:\.mjs)?$/;
 const INTERP_RE = /^(?:\S*\/)?(?:python[\d.]*|node|nodejs|ruby|perl|deno|bun)$/;
 const SHELL_RE = /^(?:\S*\/)?(?:ba|z|da|k)?sh$/;
@@ -120,7 +160,7 @@ const WRITE_API_RE = new RegExp([
 const codeWrite = (code) => (WRITE_API_RE.test(code) ? (code.match(HITL_PATH_RE) || []).map(protTok).find(Boolean) || null : null);
 /** The command word of a segment (after env assignments and sudo/env/…) and its arguments. */
 function commandOf(seg) {
-  const w = words(seg.replace(REDIRECT_RE, " "));
+  const w = words(scanRedirects(seg).rest);
   let i = 0;
   while (i < w.length && (/^\w+=/.test(w[i]) || PREFIX_WORDS.has(w[i]))) i++;
   return { word: w[i] || "", name: (w[i] || "").replace(/^\S*\//, ""), args: w.slice(i + 1) };
@@ -140,13 +180,11 @@ function bashProtectedWrite(cmd, depth = 0) {
     if (SHELL_RE.test(c.word)) { const r = bashProtectedWrite(d.body, depth + 1); if (r) return r; }
     else if (INTERP_RE.test(c.word) && !c.args.some((a) => /hitl-index\.mjs$/.test(a))) { const r = codeWrite(d.body); if (r) return { rel: r, op: "inline script" }; }
   }
+  // command substitutions run even inside a quoted string
+  for (const m of noSingleQuoted(shell).matchAll(SUBST_RE)) { const r = bashProtectedWrite(m[1] ?? m[2], depth + 1); if (r) return r; }
   for (const seg of shellSegments(shell)) {
     // redirects first: a write whatever the command (hitl-index included)
-    for (const m of seg.replace(HEREDOC_RE, " ").matchAll(REDIRECT_RE)) {
-      const t = m[1].replace(/['"]/g, "");
-      if (t.startsWith("&")) continue;
-      const r = protTok(t); if (r) return { rel: r, op: "redirect" };
-    }
+    for (const t of scanRedirects(seg.replace(HEREDOC_RE, " ")).outs) { const r = protTok(t); if (r) return { rel: r, op: "redirect" }; }
     const { word, name, args } = commandOf(seg.replace(HEREDOC_RE, " "));
     if (!name || HITL_CLI_RE.test(word)) continue;
     if (INTERP_RE.test(word) && args.some((a) => /hitl-index\.mjs$/.test(a))) continue;
@@ -381,7 +419,7 @@ async function main(input) {
       const ok = rel && (new RegExp(`^${HITL_RE}changes/[^/]+/${S.file.replace(/\./g, "\\.")}$`).test(rel) || (R === "spec-reviewer" && rel === CUSTOM + OVERLAP_REVIEW_REL));
       if (!ok) deny(`${R} may write only ${CUSTOM}changes/<id>/${S.file}${R === "spec-reviewer" ? ` (overlap mode: ${CUSTOM}${OVERLAP_REVIEW_REL})` : ""}`);
     }
-    if (tool === "Bash" && (!safeBash(cmd, S.bash) || (R === "spec-reviewer" && OVERLAP_REVIEW_READS.test(cmd)))) deny(`${R} may run only: ${S.allowed} (no chaining or redirection)`);
+    if (tool === "Bash" && (!safeBash(cmd, S.bash) || (R === "spec-reviewer" && OVERLAP_REVIEW_READS.test(cmd)) || (R === "spec-scout" && gitWrites(cmd)))) deny(`${R} may run only: ${S.allowed} (no chaining or redirection)`);
     if (R === "spec-reviewer" && tool === "Grep" && !(input.tool_input || {}).path) deny(`spec-reviewer reads only ${CUSTOM}: Grep needs a path inside it`);
     if (R === "spec-reviewer" && (tool === "Read" || tool === "Grep") && rel !== null && !(rel === CUSTOM.slice(0, -1) || rel.startsWith(CUSTOM)))
       deny(`spec-reviewer reads only ${CUSTOM} (the spec, not the code)`);

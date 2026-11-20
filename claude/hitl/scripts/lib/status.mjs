@@ -2,7 +2,7 @@
 import { CODE_KINDS, isTest, coversOf, taskSymbolIds, taskRisk, isOverride, lockedTasks, openReopen } from "./lock.mjs";
 import { nextForTask } from "./nextstep.mjs";
 import { mutationRequiredFor } from "./config.mjs";
-import { acPlan } from "./testplan.mjs";
+import { acPlan, testOverrides } from "./testplan.mjs";
 import { archivedChangeOf, removeStillPresent } from "./tasksmd.mjs";
 
 export const ORDER = ["skeleton", "red", "wip", "green", "verified", "done"];
@@ -190,7 +190,7 @@ function symbolStatuses(index, lock, state, config, id, cov, archivedOf, noTest)
 /**
  * A symbol several tasks work on has one status per task (`tasks[T].symbolStatus`); `symbols[id]` is the lowest of them
  * (plus `byTask` when there are several). Task status, work lists and approvals use the per-task one.
- * @returns {{symbols:{[id]:{status,stale,reasons,byTask?}}, tasks:{[T]:{status,next,symbols:[ids],targets:[ids],symbolStatus:{[id]:{status,stale,reasons,untouched?}},testsLocked:boolean,risk,override:boolean}}}}
+ * @returns {{symbols:{[id]:{status,stale,reasons,byTask?}}, tasks:{[T]:{status,next,symbols:[ids],targets:[ids],symbolStatus:{[id]:{status,stale,reasons,untouched?}},testsLocked:boolean,risk,override:boolean,testOverride?:[AC ids]}}}}
  */
 export function computeStatuses(index, lock, state, config, tasks) {
   index = index || { symbols: {} };
@@ -285,7 +285,9 @@ export function computeStatuses(index, lock, state, config, tasks) {
     const risk = taskRisk(task, lock, T);
     // targets: every task symbol with a status, classes included (display); `symbols` (code kinds) drives the task status
     const targets = perTaskSyms[T].filter((id) => symbols[id]);
+    const tov = task ? testOverrides(task).map((x) => x.ac) : [];
     out[T] = { status, next: nextForTask(T, status, { risk, testsLocked, reopenStage: pendingStage }), symbols: syms, targets, symbolStatus, testsLocked, risk, override: isOverride(lock, T),
+      ...(tov.length ? { testOverride: [...new Set(tov)] } : {}),
       ...(present.length ? { removePending: present } : {}),
       ...(reo ? { reopen: { note: reo.note, at: reo.at, stage: pendingStage, pending: reo.pending || [], acs: reo.acs || [], symbols: reo.symbols || [], tests: reo.tests || [] } } : {}) };
   }

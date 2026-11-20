@@ -4,7 +4,7 @@
 // `**Dropped**: <reason>` line. Its id is never reused. Only this command writes `dropped`.
 import { join } from "node:path";
 import { parseArgv } from "../lib/project.mjs";
-import { readTasks, checkTasks, hasLockedTaskWork, DROPPED, AMEND_ID_RE } from "../lib/tasksmd.mjs";
+import { readTasks, checkTasks, taskWarnings, hasLockedTaskWork, DROPPED, AMEND_ID_RE } from "../lib/tasksmd.mjs";
 import { readIndex } from "../lib/indexer.mjs";
 import { HITL_PREFIX } from "../lib/paths.mjs";
 import { readJson, readText, writeTextAtomic } from "../lib/fsutil.mjs";
@@ -15,6 +15,7 @@ export async function run(argv, ctx) {
   const a = parseArgv(argv, { flags: ["check"] });
   const tasks = await readTasks(ctx.root);
   const errors = [];
+  const warnings = a.check ? taskWarnings(tasks) : [];
   if (a.check) {
     const index = await readIndex(ctx.root);
     errors.push(...await checkTasks(ctx.root, tasks, index));
@@ -22,13 +23,14 @@ export async function run(argv, ctx) {
     const { amendTaskErrors } = await import("../lib/amend.mjs");
     errors.push(...await amendTaskErrors(ctx.root, ctx.config, tasks).catch((e) => [{ task: null, file: null, message: `amend checks failed: ${e.message}` }]));
   }
-  if (ctx.json) console.log(JSON.stringify({ tasks, errors }, null, 2));
+  if (ctx.json) console.log(JSON.stringify({ tasks, errors, ...(a.check ? { warnings } : {}) }, null, 2));
   else if (!ctx.quiet) {
     if (!tasks.length) console.log(`no tasks (${HITL_PREFIX}changes/*/tasks.md, ${HITL_PREFIX}tasks/*.md)`);
     else {
       console.log("| id | title | prio | risk | impl | blocked-by | status |\n|---|---|---|---|---|---|---|");
       for (const t of tasks) console.log(`| ${t.id} | ${t.title} | ${t.prio ?? "?"} | ${t.risk ?? "?"}${t.riskReasons.length ? ` (${t.riskReasons.join(", ")})` : ""} | ${t.impl ?? "?"} | ${t.blockedBy.join(", ") || "none"} | ${t.status ?? "?"}${t.amend ? ` (${t.amend}${t.kind ? ` ${t.kind}` : ""})` : ""} |`);
     }
+    if (a.check) for (const w of warnings) console.log(`⚠️ ${w.task ?? ""} ${w.message} (${w.file ?? ""})`);
     if (a.check) console.log(errors.length ? errors.map((e) => `❌ ${e.task ?? ""} ${e.message} (${e.file ?? ""})`).join("\n") : "✅ tasks check passed");
   }
   return errors.length ? 1 : 0;

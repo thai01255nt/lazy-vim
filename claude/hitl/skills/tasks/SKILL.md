@@ -56,7 +56,7 @@ write its exact path. Many unknowns → one Explore subagent (thoroughness: medi
 
 ## 4. Draft
 Per `slicing-and-risk.md`: vertical slices (prefactor first, expand–contract for wide refactors), `blocked-by` edges,
-prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), a test-plan row per AC with its test decision (`new: <defect>` · `shared: <ACk>` · `covered: <test>` · `none: <reason>` · `manual: <check>`, `slicing-and-risk.md` §7).
+prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owner (callers before or after callees is fine: implement order is computed from `@calls`, row order breaks ties), a test-plan row per AC with its test decision (`new: <defect>` · `shared: <ACk>` · `covered: <test>` · `none: <reason>` · `manual: <check>`, `slicing-and-risk.md` §7; `none!:`/`manual!:` only after the human's own Y, §6).
 - Tasks come from the **scenarios** (behaviour) sliced along the design's **components** (where it lives).
 - Each AC carries the scenario it instantiates right after its id: `- [ ] PWR-T12.AC1 (PWR-R3.S1) Given … When … Then …`.
   Only ADDED/MODIFIED (or living, for a regression AC) ids of the change's view. A requirement-level ref `(PWR-R3)` is
@@ -78,12 +78,14 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
    test on a copy of real-shaped data, contract tasks have `remove` rows and a test that the old path is gone.
    Update: write only the new and edited tasks; a task you plan to drop stays as it is until Y (its check errors are expected).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
-   `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK`,
+   `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK|OVERRIDE_NO_REASON`
+   (`NONE_RISK`: an automated test, or the human's override question at the gate, never `!` on your own, `slicing-and-risk.md` §7;
+   `OVERRIDE_NO_REASON`: ask the human for the reason, never invent it),
    bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
    `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids; 0.17:
    `TASK_KIND_BAD`, `AMEND_KEY_MISMATCH`, `TASK_DROPPED_*`, `SUPERSEDED_UNKNOWN`, `REMOVE_STILL_PRESENT`, `AMEND_ORDER`,
    `AMEND_UNCOVERED` (0.18: also each caller of a changed symbol), `AMEND_TEMP_NO_REMOVAL`, `AMEND_CONTRACT_SAME_DEPLOY`,
-   task-changes.md §5) and re-run.
+   task-changes.md §5) and re-run. `warnings` (`TEST_PLAN_NONE_RISK_OVERRIDE`) are not errors: list them at the gate.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
    `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
    (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become consistency lines at the gate.
@@ -106,12 +108,15 @@ _Test plan:_ <n> new tests (budget <n+2 per task>) · <s> shared · <c> covered 
 
 <update only: new: <ids> · edited: <ids (what)> · drop after Y: <ids (reason)> · superseded: <AC → AC>>
 <consistency lines: trace warn/info (one line per code: ids) + semantic checks from slicing-and-risk.md §8, if any>
+<⚠️ test overrides: TEST_PLAN_NONE_RISK_OVERRIDE lines, if any>
 1. Granularity ok?  2. Blocking edges right?  3. Merge/split?  4. Owners (agent/manual) ok?
 5. Test plan ok? (new tests and the defect each catches, shared/covered/none/manual, seams)
+<6. _Override:_ PWR-T12.AC3 none!: <reason>? (needs its own Y) — only for a security/concurrency/data AC where an automated test looks unreasonable, slicing-and-risk.md §7>
 — reply changes, or Y
 ```
-END THE TURN. On changes: edit, re-run step 5, show the gate again. On Y: run `hitl-index tasks drop <T> --reason
-"<reason>"` for each listed drop and re-run step 5; set the header `> status: approved` (this header line only; never
+END THE TURN. The gate's Y never answers an `_Override:_` question: only a Y to it (`6 Y`) writes the `!` row; without
+it the row keeps an automated test. On changes: edit, re-run step 5, show the gate again. On Y: run `hitl-index tasks
+drop <T> --reason "<reason>"` for each listed drop and re-run step 5; set the header `> status: approved` (this header line only; never
 task `status:` fields or boxes) and print:
 - `✅ Tasks approved.`
 - `_Next:_` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (_Fast_ lane).

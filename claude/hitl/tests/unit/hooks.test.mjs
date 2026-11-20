@@ -545,6 +545,21 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
     assertSilent(pre(root, "Grep", { pattern: "x", path: path.join(root, ".hitl/changes") }, SR));
   });
 
+  test("0.20 spec-scout reads git history (an archive branch): read-only git subcommands only", async () => {
+    const { root } = await mkProject();
+    const SC = "hitl:spec-scout";
+    for (const command of ["git show archive/feat-a:.hitl/archive/2026-01-01-feat-a/proposal.md", "git -C /repo --no-pager log --oneline archive/feat-a -- src",
+      "git diff main archive/feat-a -- src/a.ts", "git ls-tree -r --name-only archive/feat-a", "git cat-file -p archive/feat-a:README.md",
+      "git rev-parse --verify archive/feat-a", "git branch --list 'archive/*'", "git branch -l -a"])
+      assertSilent(pre(root, "Bash", { command }, SC));
+    for (const command of ["git checkout archive/feat-a", "git commit -m x", "git branch archive/new", "git branch --list -D archive/feat-a", "git branch -l -m a b",
+      "git diff --output=/tmp/x main", "git log --ext-diff -p", "git cat-file blob HEAD:x", "git -c core.pager=sh log", "git show HEAD:x > /tmp/x",
+      "git show HEAD:x | head", "git log; rm -rf src", "git stash", "git reset --hard"])
+      assertDeny(pre(root, "Bash", { command }, SC), /spec-scout may run only/);
+    // other read-only agents keep their own lists
+    assertDeny(pre(root, "Bash", { command: "git show HEAD:x" }, "hitl:spec-reviewer"), /spec-reviewer may run only/);
+  });
+
   test("work-router (0.11): writes only .hitl/.inbox/route.json, runs only read-only CLI, reads anything", async () => {
     const { root } = await mkProject();
     const WR = "hitl:work-router";
@@ -753,6 +768,16 @@ describe(`hooks (${REAL ? "real P1 lib" : "stub P1 lib"})`, () => {
       `cp .hitl/archive/2026-01-01-feat-a/tasks.md /tmp/t.md`, `python3 -c "print(open('${N}').read())"`,
     ];
     for (const c of pass) assertSilent(pre(root, "Bash", { command: c }, null, "g2"));
+    // 0.20: a protected path named only as text (a quoted string, a commit message, a comment, an input redirect) is no
+    // write; a command substitution inside double quotes still runs
+    const A = ".hitl/archive/2026-01-01-feat-a";
+    for (const c of [`grep -n "x > ${A}/proposal.md" README.md`, `git commit -m "docs: notes -> ${A}/notes.md"`, `echo "a" # > ${A}/x`,
+      `tee /tmp/log.txt < ${A}/proposal.md`, `cp src/a.ts /tmp/b # ${A}`, `git checkout main -- src/a.ts  # ${A}`, "git commit -m 'run `cat > " + A + "/x` later'",
+      `git show archive/feat-a:${A}/proposal.md | head -50`, `ls ${A} 2>/dev/null || echo none`, `wc -l < ${A}/proposal.md`])
+      assertSilent(pre(root, "Bash", { command: c }, null, "g2"));
+    for (const [c, re] of [[`echo "$(cat /tmp/x > ${A}/y)"`, /redirect/], ["echo `rm " + A + "/y`", /\(rm\)/], [`printf x >| ${A}/y`, /redirect/],
+      [`printf x &> ${A}/y`, /redirect/], [`tee -a ${A}/y < /tmp/in`, /\(tee\)/], [`echo x | tee ${A}/y # note`, /\(tee\)/]])
+      assertDeny(pre(root, "Bash", { command: c }, null, "g1"), re);
     // outside a hitl project the guard stays quiet (e.g. a plugin's own fixtures)
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), "hitl-plain-"));
     assertSilent(pre(plain, "Bash", { command: `sed -i s/a/b/ ${N}` }, null, "g3"));

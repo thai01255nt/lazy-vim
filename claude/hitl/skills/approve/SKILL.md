@@ -84,8 +84,8 @@ Tests stage (0.16): from the JSON `red` (`ac · test · kind · result`, result 
 `Guards existing behaviour:` for `passes (regression)` rows, and `Tests: <budget.tests> active · budget
 <budget.limit> (<budget.newRows> new rows + 2)` with the extras and their defects (⚠️ over budget: a warning, never a
 refusal). Deleted tests appear in `Removed from lock` (the approve path for a prune the human chose).
-Done stage: each JSON `manual` item as `- <ac>: <check>` under `Manual checks (confirm each):` — ask nothing more;
-the human typed the approval.
+Done stage: each JSON `manual` item as `- <ac>: <check>` (a `manual!` one adds ` (⚠️ override: <override>)`) under
+`Manual checks (confirm each):` — ask nothing more; the human typed the approval.
 Change form:
 ```
 ✅ Re-approved intents of <change-id> (by human): <n> symbol(s)

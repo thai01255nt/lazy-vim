@@ -1,6 +1,6 @@
 ---
 name: work-router
-description: Read-only router for /hitl:go: reads a description of new work against the active changes, specs, glossary, docs and code index, and decides the route (note, amend, tasks update, tdd, tasks quick or plan); writes .hitl/.inbox/route.json.
+description: Read-only router for /hitl:go: decides the route for a description of new work (note, amend, tasks update, tdd, tasks quick or plan); writes .hitl/.inbox/route.json.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 omitClaudeMd: true

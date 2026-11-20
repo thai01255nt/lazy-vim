@@ -10,6 +10,8 @@
 //                                   reason security, concurrency or data
 //   manual: <check>                 a human check, listed at /hitl:approve <T> done; never for a task with risk reason
 //                                   security, concurrency or data (such a task keeps an automated test per AC)
+//   none!: <reason>                 0.20 human override of that refusal (the human writes or approves it on its own Y):
+//   manual!: <check> — <reason>     a warning TEST_PLAN_NONE_RISK_OVERRIDE instead of the error; the reason is required
 // A row without a `test` cell (tables written before 0.16, 5 columns) reads as `new` with no defect named.
 import { AC_ID_RE } from "./specids.mjs";
 
@@ -21,15 +23,30 @@ export const BUDGET_EXTRA = 2;
 const STRENGTH = { new: 0, rewrite: 1, shared: 2, covered: 3, manual: 4, none: 5 };
 const DASH = /^(?:—|-+|–|n\/a)?$/i;
 
-/** `"new: dup email saved"` → {test:"new", detail:"dup email saved"}; "" → {test:null}; unknown → {test:null, bad:true}. */
+/** Override decisions (`none!:`, `manual!:`): a human-recorded exception to TEST_PLAN_NONE_RISK. */
+export const OVERRIDABLE = ["none", "manual"];
+/** Separator of `manual!: <check> — <reason>` (the last em dash with spaces around it). */
+const REASON_SEP = " — ";
+
+/**
+ * `"new: dup email saved"` → {test:"new", detail:"dup email saved"}; "" → {test:null}; unknown → {test:null, bad:true}.
+ * `none!: <reason>` / `manual!: <check> — <reason>` add {override:true, reason} (reason null when missing).
+ */
 export function parseTestCell(cell) {
   const raw = String(cell ?? "").trim();
   if (!raw) return { test: null, detail: null, bad: false };
-  const m = /^([a-z]+)\s*(?::\s*(.*))?$/i.exec(raw);
+  const m = /^([a-z]+)(!)?\s*(?::\s*(.*))?$/i.exec(raw);
   const kw = m?.[1]?.toLowerCase();
-  if (!m || !TEST_DECISIONS.includes(kw)) return { test: null, detail: null, bad: true, raw };
-  const detail = (m[2] ?? "").trim();
-  return { test: kw, detail: detail || null, bad: false };
+  if (!m || !TEST_DECISIONS.includes(kw) || (m[2] && !OVERRIDABLE.includes(kw))) return { test: null, detail: null, bad: true, raw };
+  let detail = (m[3] ?? "").trim() || null;
+  if (!m[2]) return { test: kw, detail, bad: false };
+  let reason = detail;
+  if (kw === "manual") {
+    const i = detail ? detail.lastIndexOf(REASON_SEP) : -1;
+    reason = i >= 0 ? detail.slice(i + REASON_SEP.length).trim() || null : null;
+    if (i >= 0) detail = detail.slice(0, i).trim() || null;
+  }
+  return { test: kw, detail, bad: false, override: true, reason };
 }
 
 /** Normalised cell: "—"/"-"/"" → null. */
@@ -42,13 +59,14 @@ export const acKey = (taskId, ac) => (AC_ID_RE.test(ac) ? ac : `${taskId}.${Stri
 export const rowsOf = (t, acId) => (t?.testPlan || []).filter((r) => acKey(t.id, r.ac) === acId);
 
 /**
- * The test decision of one AC: {test, rows, detail, sharedWith, covered:[refs], manual:[checks], none:[reasons]}.
+ * The test decision of one AC: {test, rows, detail, sharedWith, covered:[refs], manual:[checks], none:[reasons],
+ * override:["none!: <reason>"|"manual!: <reason>"]}.
  * No row (or no plan) → `new` (the pre-0.16 meaning). Several rows: the strongest decision wins (new > shared >
  * covered > manual > none); the manual checks and none reasons of every row are kept.
  */
 export function acPlan(t, acId) {
   const rows = rowsOf(t, acId);
-  const out = { test: "new", rows, detail: null, sharedWith: null, covered: [], rewrite: [], manual: [], none: [] };
+  const out = { test: "new", rows, detail: null, sharedWith: null, covered: [], rewrite: [], manual: [], none: [], override: [] };
   if (!rows.length) return out;
   let best = null;
   for (const r of rows) {
@@ -60,6 +78,7 @@ export function acPlan(t, acId) {
     if (d === "manual" && r.detail) out.manual.push(r.detail);
     if (d === "none" && r.detail) out.none.push(r.detail);
     if (d === "new" && r.detail && !out.detail) out.detail = r.detail;
+    if (r.override && r.reason) out.override.push(`${d}!: ${r.reason}`);
   }
   out.test = best;
   if (best === "none") out.detail = out.none.join("; ") || null;
@@ -75,8 +94,16 @@ export const newRowCount = (t) => (t?.testPlan || []).filter((r) => ["new", "rew
 /** True when the task's risk reasons forbid `none:`; returns the hit reasons. */
 export const noneBlockedBy = (t) => (t?.riskReasons || []).filter((r) => NONE_BLOCK.includes(String(r).toLowerCase()));
 
-/** Validation errors of a task's test plan (strings with a code prefix; `tasks --check`). */
-export function checkTestPlan(t) {
+/** 0.20: the human overrides that take effect (`none!`/`manual!` with a reason on a security/concurrency/data task). */
+export const testOverrides = (t) => (noneBlockedBy(t).length ? (t?.testPlan || []).filter((r) => r.override && r.reason && !r.bad)
+  .map((r) => ({ ac: acKey(t.id, r.ac), test: r.test, reason: r.reason })) : []);
+
+/**
+ * Validation errors of a task's test plan (strings with a code prefix; `tasks --check`). A `none!`/`manual!` row with
+ * its reason on a security/concurrency/data task is not an error: it goes to `warnings` (TEST_PLAN_NONE_RISK_OVERRIDE)
+ * when an array is passed; on any other task it reads as plain none/manual.
+ */
+export function checkTestPlan(t, warnings = null) {
   const errors = [];
   const acs = new Set((t.acs || []).map((a) => a.id));
   const blocked = noneBlockedBy(t);
@@ -86,6 +113,7 @@ export function checkTestPlan(t) {
     if (r.legacy) continue;
     const d = r.test;
     if (!d) { errors.push(`TEST_PLAN_BAD: ${ac} has an empty test cell (want new: <defect it catches> | shared: <ACk> | covered: <test or AC id> | none: <reason> | manual: <check>)`); continue; }
+    if (r.override && !r.reason) { errors.push(`TEST_PLAN_OVERRIDE_NO_REASON: ${ac} "${d}!:" needs the human's reason (write ${d === "manual" ? `"manual!: <check> — <reason>"` : `"none!: <reason>"`})`); continue; }
     if (d === "new" && !r.detail) errors.push(`TEST_PLAN_NO_DEFECT: ${ac} new test names no defect (write "new: <the defect it catches>")`);
     if (d !== "new" && !r.detail) errors.push(`TEST_PLAN_EMPTY: ${ac} "${d}:" needs ${{ shared: "the AC whose test it shares", covered: "the test (id, title or AC id)", rewrite: "the locked test it takes over (id, title or the old AC id)", none: "a reason", manual: "the check" }[d]}`);
     if (d === "shared" && r.detail) {
@@ -94,7 +122,8 @@ export function checkTestPlan(t) {
       else if (!acs.has(k)) errors.push(`TEST_PLAN_SHARED: ${ac} shared: ${r.detail} is not an AC of ${t.id}`);
       else if (!rowsOf(t, k).some((x) => (x.test || "new") === "new")) errors.push(`TEST_PLAN_SHARED: ${ac} shared: ${r.detail} has no new row (share a planned new test)`);
     }
-    if ((d === "none" || d === "manual") && blocked.length) errors.push(`TEST_PLAN_NONE_RISK: ${ac} "${d}:" is not allowed: ${t.id} has risk ${blocked.join(", ")} (keep an automated test: new, shared or covered)`);
+    if (r.override && blocked.length) { warnings?.push(`TEST_PLAN_NONE_RISK_OVERRIDE: ${ac} "${d}!:" over risk ${blocked.join(", ")} of ${t.id} (human override: ${r.reason})`); continue; }
+    if ((d === "none" || d === "manual") && blocked.length) errors.push(`TEST_PLAN_NONE_RISK: ${ac} "${d}:" is not allowed: ${t.id} has risk ${blocked.join(", ")} (keep an automated test: new, shared or covered; "none!:"/"manual!:" is the human's override only)`);
   }
   return errors;
 }

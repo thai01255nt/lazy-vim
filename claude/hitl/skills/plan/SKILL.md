@@ -20,8 +20,8 @@ grammar, recording) + `${CLAUDE_SKILL_DIR}/references/elicitation.md` (coverage,
   error whose fix is not clear from its message, or for a MODIFIED/REMOVED block of a living spec.
 - `${CLAUDE_SKILL_DIR}/references/deep.md` — when an answer in the brief says `deep` / `deep <ID|topic>`.
 - `${CLAUDE_SKILL_DIR}/references/migrate.md` — only when `.hitl/planning/*.md` (v0.5 legacy) exists.
-- `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` — amend mode (§7)
-  and an open amend brief only.
+- `${CLAUDE_SKILL_DIR}/references/amend.md`, `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` and
+  `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` — amend mode (§7) and an open amend brief only.
 - `${CLAUDE_PLUGIN_ROOT}/shared/other-changes.md` — when `--before` is given, when the scout or `hitl-index overlap`
   finds another active change, when a behaviour belongs to another change (owner check), or when this change holds
   notes from another change (`source:`).
@@ -255,25 +255,9 @@ own steps in that order:
   text as answers (§4.5–4.6) and append the next round (§4.8). A bare `n` and an empty answer: interview.md §9.
 
 ## 7. Amend mode (`/hitl:plan <change-id> amend [N-k]`)
-A change to the approved spec (or design) of an active change: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (route,
-chat gate, amend brief, the status rule) and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` (the amend task set).
-1. Load the change, `hitl-index spec show --change <id> --json`, `hitl-index trace <id> --json`. Proposal still draft →
-   `_Info:_ Spec is draft; editing normally.` and use the plan brief (§4). An open amend brief
-   (`hitl-index brief <id> --kind amend --json`) → continue it (amend-spec.md §4.2–§4.4): text after `amend` and a
-   new `N-k` go into the Notes of its open round.
-2. The amendment: with `N-k`, that note (`hitl-index note show --change <id> N-k --json`); no `N-k` → the text after
-   `amend`, else the open spec notes (`hitl-index note list --change <id> --json`): all of them as `--from` when they
-   belong together, else ask which in one chat line (GATE, END THE TURN). A note from another change
-   (`source: <other>`) is amended the same way; after its approval the change still waits until `<other>` is archived
-   (other-changes.md §5) — say so in the `_Next:_` line.
-3. Route (amend-spec.md §1): propose the classes, then `hitl-index amend start <id> [--from N-k,…] [--refs …]
-   [--impact …] --json`:
-   - `chat · gate` → the chat gate of amend-spec.md §2 (delta preview, Impact block, `Apply? (Y/n/edit)`).
-   - `chat · tasks-update` → `_Info:_ only tasks change` and invoke the Skill `hitl:tasks` with `<id> update <what>`.
-   - `chat · mini-change` (archived change) → amend-spec.md §6.
-   - `brief` → amend-spec.md §4.1 with `--skill plan` (the amend brief, round 1). END THE TURN.
-4. Later runs (`/hitl:plan <id> amend`, or `/hitl:plan <id>` while the amend brief is open): amend-spec.md §4.2–§4.4
-   (rounds, Close with the amend task set, the approval and its `_Next:_` lines).
+A change to the approved spec (or design) of an active change. First Read `${CLAUDE_SKILL_DIR}/references/amend.md`
+(the steps: load, which amendment, `hitl-index amend start` route, later runs) and follow it, with
+`${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md`.
 
 ## Rules
 - Write only inside `.hitl/changes/<id>/`: `proposal.md`, `specs/*/spec.md`, `glossary.md`, `plan-brief.md` and

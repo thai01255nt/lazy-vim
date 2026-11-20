@@ -61,6 +61,9 @@ _Rec:_ {answer}
 
 ### Q{n} [D] At which boundaries do we test, and which test doubles are acceptable?
 
+<!-- risks name security, concurrency or data → the heading ends "(needs its own Y)" and the _Rec:_ says that
+     /hitl:tasks refuses none:/manual: on those tasks (TEST_PLAN_NONE_RISK) -->
+
 _Rec:_ {highest seams: endpoint, CLI, module boundary; doubles}
 
 >

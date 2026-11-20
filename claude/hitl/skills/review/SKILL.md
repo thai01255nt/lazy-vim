@@ -46,6 +46,9 @@ Paths below are relative to the project: `R = .hitl/reviews/<T>`.
    Gaps (`AC_NOT_PROVEN`, `AC_COVERED_UNRESOLVED`, `SCN_NO_AC`, `REQ_NO_AC`, `AC_REQ_LEVEL`, …) make it `warn` — list
    them, never block on them. ACs with test decision `none:` or `manual:` are info (`AC_NO_TEST_BY_DECISION`,
    `AC_MANUAL_CHECK`), never "not proven"; `l0.trace.budget` = the task's active tests vs `new` rows + 2.
+   An AC with `override` in `l0.trace.acs` (0.20: the human's `none!:`/`manual!:` over a security, concurrency or data
+   risk, info `AC_TEST_OVERRIDE`) is listed in the report (`⚠️ test override <AC> — <reason>`); the security and
+   concurrency lenses still run from the task risk.
    The `mutation` gate fails for a high-risk task when a mutation command is configured and a symbol is unmutated or
    below the threshold (`mutationRequired: "high"`, the default since 0.16).
    `l0.trace.spec[<symbol>]` gives each symbol's spec block (`change`, `archived`, `capability`, `design`, decisions,

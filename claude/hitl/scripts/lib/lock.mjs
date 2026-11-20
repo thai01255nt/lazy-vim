@@ -7,7 +7,7 @@ import { HITL_DIR } from "./paths.mjs";
 import { archivedChangeOf, removeStillPresent } from "./tasksmd.mjs";
 import { testState } from "./status.mjs";
 import { blockingNotes, applyCommand, changeWait, waitReasons } from "./notes.mjs";
-import { acPlan, duplicateTestNames, resolveCovered, rewriteTargets, testBudget } from "./testplan.mjs";
+import { acPlan, duplicateTestNames, resolveCovered, rewriteTargets, rowsOf, testBudget, testOverrides } from "./testplan.mjs";
 import { mutationRequiredFor } from "./config.mjs";
 
 export const LOCK_SCHEMA = "hitl.lock/2";
@@ -922,7 +922,10 @@ export function planApproval(opts) {
     if (reo?.pending?.includes("tests")) lt.reopened = [...lt.reopened.slice(0, -1), { ...reo, pending: reo.pending.filter((x) => x !== "tests") }];
   } else if (stage === "done") {
     // 0.16: manual checks of the test plan, listed for the human's confirmation
-    extra.manual = (task?.acs || []).flatMap((a) => acPlan(task, a.id).manual.map((check) => ({ ac: a.id, check })));
+    // (a `manual!` row on a security/concurrency/data task: listed with the human's override reason, 0.20)
+    const ovr = new Map(testOverrides(task).filter((x) => x.test === "manual").map((x) => [x.ac, x.reason]));
+    extra.manual = (task?.acs || []).flatMap((a) => rowsOf(task, a.id).filter((r) => r.test === "manual" && r.detail)
+      .map((r) => ({ ac: a.id, check: r.detail, ...(r.override && ovr.has(a.id) ? { override: r.reason } : {}) })));
     const reo = openReopen(lt);
     if (reo?.pending?.length) { reasons.push(`${taskId} is reopened (${reo.note}, ${reo.pending.join(" then ")} pending): ${reo.pending[0] === "skeleton" ? `/hitl:skeleton ${taskId}` : `/hitl:test ${taskId}`} first`); return res(false); }
     const rv0 = state.reviews?.[taskId];

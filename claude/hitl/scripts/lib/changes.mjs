@@ -8,7 +8,7 @@ import { HITL_PREFIX } from "./paths.mjs";
 import { describeOwner } from "./keys.mjs";
 import { ARCHIVE_DIR_RE, CAP_RE, NO_BEHAVIOUR_TYPES, allocate, archiveDirName, changeType, formatId, isChangeId, parseId, rewriteIds, sortIds } from "./specids.mjs";
 const RX_CLAR = /\[NEEDS CLARIFICATION:/;
-import { artifactDecision, bizLint, blockHash, canonicalBlock, hashMatches, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
+import { artifactDecision, bizLint, blockHash, glossaryNames, canonicalBlock, hashMatches, findClarifications, parseDelta, parseDesign, parseGlossary, parseLivingSpec, parseProposal, usedIds } from "./specmd.mjs";
 import { lintContract, lintFlow, lintRequirement, lintRule, lintStateMachines, vagueTermsFrom } from "./speclint.mjs";
 import { GLOSSARY_REL, SPECS_REL, mergeChange, planCapability, specRel } from "./specmerge.mjs";
 import { BLOCKING, applyCommand, blocksArchive, changeWait, noteCounts, readActiveNotes, readNotes, waitReasons } from "./notes.mjs";
@@ -445,8 +445,9 @@ export function validateChange({ change: ch, living, others = [], config = {}, k
   // business-language lint
   const lint = config?.spec?.businessLint ?? "warn";
   if (lint !== "off") {
-    const terms = [...(living.glossary?.doc.terms || []).map((t) => t.term), ...(ch.glossaryDelta?.terms || []).map((t) => t.term)];
-    for (const f of bfiles) for (const x of bizLint(ch.texts.get(f) || "", { terms }))
+    const gterms = [...(living.glossary?.doc.terms || []), ...(ch.glossaryDelta?.terms || [])];
+    const terms = gterms.map((t) => t.term), names = glossaryNames(gterms);
+    for (const f of bfiles) for (const x of bizLint(ch.texts.get(f) || "", { terms, names }))
       push(lint === "error" ? "error" : "warn", "BIZ_CODE_TOKEN", f, x.token, x.line, `code-like token ${x.token} (${x.rule}) in a business file`);
     // shared language: a word the effective glossary lists under _Avoid_ (always a warning; glossary files are skipped)
     const eff = effectiveTerms(living.glossary?.doc, ch.glossaryDelta);

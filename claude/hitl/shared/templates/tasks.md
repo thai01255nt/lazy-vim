@@ -33,7 +33,8 @@
 
 <!-- one row per AC; the test cell is the test decision: new: <the defect it catches> · shared: <ACk> (one test, both
      @ac) · covered: <test title, file#title or AC id> · none: <reason> (not on security/concurrency/data tasks) ·
-     manual: <check>. Non-new rows may leave kind/oracle/seam/author as "—". -->
+     manual: <check> (same limit) · none!: <reason> / manual!: <check> — <reason> only after the human's own Y
+     (the override of that limit). Non-new rows may leave kind/oracle/seam/author as "—". -->
 
 | ac  | test                                      | kind     | oracle                                  | seam                   | author      |
 | --- | ----------------------------------------- | -------- | --------------------------------------- | ---------------------- | ----------- |

@@ -32,9 +32,9 @@ empty (then the change from this conversation, else the active change with `phas
 **The interview happens in a brief file** (`.hitl/changes/<id>/design-brief.md`, interview.md §4), never in chat: the
 developer answers in the editor, then runs `/hitl:design <id>` again (or says "continue", "next", "xong" here). Every
 question carries a `_Rec:_`; `Y` on a round's accept-all line takes them all (the build-then-review shortcut),
-except the `(needs its own Y)` questions (`_Needs spec:_`, `_To <P>:_`, a rename; interview.md §4). The approved-design
-gate (§1) and the wording-only amend gate (§7) stay chat gates; an amendment that changes meaning has its own brief
-file (§7).
+except the `(needs its own Y)` questions (`_Needs spec:_`, `_To <P>:_`, a rename, the test strategy over a
+security/concurrency/data risk; interview.md §4). The approved-design gate (§1) and the wording-only amend gate (§7)
+stay chat gates; an amendment that changes meaning has its own brief file (§7).
 
 **Granularity limit (normative).** Modules/services/components, external interfaces (contracts), entities and fields,
 component-level sequence, error strategy, test strategy and seams, risks, rollout. **Never** function signatures,
@@ -95,6 +95,10 @@ again before writing the next round.
    **Every question carries `_Rec:_`** (Suggestion Mode) or the Discussion Mode block (interview.md §5), tied
    to a requirement id or a `## Context` fact. A core question that does not apply to this change (no stored data, no
    interface) → leave it out and add the info line `_Assumed:_ no <topic> change (<why>)`.
+   **Test strategy vs risks**: when the risks (the risk question's `_Rec:_`, a `## Risks` line or a Context fact) name
+   `security`, `concurrency` or `data`, the test-seams question's `_Rec:_` says that `/hitl:tasks` refuses `none:` and
+   `manual:` on such tasks (`TEST_PLAN_NONE_RISK`; only the human's `none!:`/`manual!:` passes), and its heading ends
+   `(needs its own Y)`. This holds in every round that asks about the test strategy.
 5. Chat: `Design brief ready: .hitl/changes/<id>/design-brief.md — answer, then /hitl:design <id>`. END THE TURN.
 
 ## 4. Later runs: read the answers, record, next round `[D]`
@@ -165,6 +169,8 @@ again before writing the next round.
    _Summary:_ design feat-password-reset — D: 5 (accepted 5) · components: 3 (2 new) · contracts: 1 · data-model ✅
    risks: security (anonymous client → reset endpoint → account store) · test seams: reset endpoint, mail port
    must requirements without a serving D: none · open: 0 · validate: ✅ · spec: approved
+   <only when risks name security/concurrency/data and the test strategy skips automated tests: ⚠️ /hitl:tasks refuses
+   none:/manual: on those tasks (TEST_PLAN_NONE_RISK)>
 
    ### Notes — anything the questions missed, or a change to an earlier answer
 
@@ -188,7 +194,7 @@ under it, header stays `closing`, END THE TURN. Empty → `<path>: waits for you
 ## 7. Amend (`<change-id> amend [N-k]`)
 A change to the approved design (or spec) of an active change: `${CLAUDE_PLUGIN_ROOT}/shared/amend-spec.md` (route, chat
 gate, amend brief, the status rule) and `${CLAUDE_PLUGIN_ROOT}/shared/task-changes.md` (the amend task set). Same steps
-as `/hitl:plan` §7 with these differences:
+as `/hitl:plan` §7 (Read `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/amend.md`) with these differences:
 - the amendment is a design note (`hitl-index note show --change <id> N-k --json`, kind `design`) or the text after
   `amend`; an open amend brief of the change is continued, whichever skill opened it;
 - route `brief` → amend-spec.md §4.1 with `--skill design`: Part 2 **How** may start in round 1 (a pure design
