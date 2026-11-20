@@ -58,6 +58,24 @@ vim.g.lazyvim_picker = "telescope"
 vim.g.snacks_animate = false
 vim.g.lazyvim_cmp = "nvim-cmp"
 
+-- WSL: the auto-detected provider is xsel over WSLg, and `xsel -o -b` can hang forever, which freezes nvim on any
+-- read of the + register. Copy with OSC 52 (the terminal), paste from the Windows clipboard via powershell (UTF-8).
+if vim.fn.has("wsl") == 1 then
+  local osc52 = require("vim.ui.clipboard.osc52")
+  local paste = {
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    '[Console]::OutputEncoding=[Text.Encoding]::UTF8; [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+  }
+  vim.g.clipboard = {
+    name = "wsl-osc52-powershell",
+    copy = { ["+"] = osc52.copy("+"), ["*"] = osc52.copy("*") },
+    paste = { ["+"] = paste, ["*"] = paste },
+    cache_enabled = 0,
+  }
+end
 vim.o.clipboard = "unnamedplus"
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()

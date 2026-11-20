@@ -1,18 +1,26 @@
--- hitl id jump (lua/hitl.lua): <leader>hh jumps from the hitl id under the cursor (PWR-R1, PWR-T1.AC2, PWR-D1, …) to
--- where it is defined and used (one location: jump; several: picker), <leader>hq sends them all to quickfix.
--- :HitlWhere [id] (no id = the one under the cursor; :HitlWhere! = quickfix). Every filetype: ids live in code too.
+-- hitl id jump (lua/hitl.lua), keys like LSP gd/gr: <leader>hd jumps from the hitl id under the cursor (PWR-R1,
+-- PWR-T1.AC2, PWR-D1, …) to where it is defined, <leader>hr lists every location (def, test, symbol, brief, ref) in a
+-- picker, <leader>hq sends them all to quickfix. :HitlDef [id], :HitlWhere [id] (no id = the one under the cursor;
+-- :HitlWhere! = quickfix). Every filetype: ids live in code too.
 return {
   {
-    "hitl", -- virtual: no plugin to install, only keys and a command for lua/hitl.lua
+    "hitl", -- virtual: no plugin to install, only keys and commands for lua/hitl.lua
     virtual = true,
-    cmd = "HitlWhere",
+    cmd = { "HitlWhere", "HitlDef" },
     keys = {
       {
-        "<leader>hh",
+        "<leader>hd",
+        function()
+          require("hitl").where(nil, { def = true })
+        end,
+        desc = "hitl: go to definition of id",
+      },
+      {
+        "<leader>hr",
         function()
           require("hitl").where()
         end,
-        desc = "hitl: jump to id under cursor",
+        desc = "hitl: every location of id",
       },
       {
         "<leader>hq",

@@ -266,8 +266,20 @@ function M.pick(root, data)
   end)
 end
 
+--- The `def` locations of `data`, active ones only when any exists (an archived def is the old version).
+local function defs_of(data)
+  local active, archived = {}, {}
+  for _, l in ipairs(data.locations) do
+    if l.role == "def" then
+      table.insert(l.archived and archived or active, l)
+    end
+  end
+  return #active > 0 and active or archived
+end
+
 --- Jump to `id` (default: the id under the cursor). 0 locations: a warning; 1: jump; several: a picker.
---- opts.qf: send every location to the quickfix list instead.
+--- opts.qf: send every location to the quickfix list instead. opts.def: only where it is defined (several defs, e.g.
+--- a spec delta and the living spec: a picker over them; no def: a warning, then the picker over every location).
 function M.where(id, opts)
   opts = opts or {}
   id = (id and id ~= "") and id or M.id_under_cursor()
@@ -287,6 +299,20 @@ function M.where(id, opts)
       vim.notify((data.id or id) .. " not found", vim.log.levels.WARN, { title = "hitl" })
     elseif opts.qf then
       M.to_quickfix(root, data)
+    elseif opts.def then
+      local defs = defs_of(data)
+      if #defs == 1 then
+        M.jump(root, defs[1])
+      elseif #defs > 1 then
+        M.pick(root, { id = data.id, locations = defs })
+      else
+        vim.notify(
+          (data.id or id) .. ": no definition found, showing every location",
+          vim.log.levels.WARN,
+          { title = "hitl" }
+        )
+        M.pick(root, data)
+      end
     elseif n == 1 then
       M.jump(root, data.locations[1])
     else
@@ -299,6 +325,9 @@ function M.setup()
   vim.api.nvim_create_user_command("HitlWhere", function(c)
     M.where(c.args, { qf = c.bang })
   end, { nargs = "?", bang = true, desc = "hitl: where an id is defined and used (! = quickfix)" })
+  vim.api.nvim_create_user_command("HitlDef", function(c)
+    M.where(c.args, { def = true })
+  end, { nargs = "?", desc = "hitl: jump to where an id is defined" })
 end
 
 return M
