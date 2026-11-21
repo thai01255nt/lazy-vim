@@ -84,6 +84,8 @@ vim.api.nvim_create_autocmd("FileType", {
   pattern = { "markdown", "txt" },
   callback = function()
     vim.opt_local.spell = false
+    -- LazyVim bat wrap cho markdown (lazyvim_wrap_spell) -> vo bang; giu nowrap nhu global
+    vim.opt_local.wrap = false
   end,
 })
 
