@@ -519,13 +519,16 @@ return {
     dependencies = { "folke/snacks.nvim" },
     opts = {
       terminal = {
+        split_side = "left",
         split_width_percentage = 0.4,
+        -- <A-a> last tab page (lua/term_tabs.lua)
+        snacks_win_opts = { keys = require("term_tabs").term_keys() },
       },
     },
     init = function()
-      -- Claude Code opens at the far right; when agent-manager (<leader>aA) is
-      -- shown, move agent-manager back to the far right so the layout is
-      -- editor | Claude Code | agent-manager. Agent-manager keeps the width it
+      -- Claude Code opens at the far left; when agent-manager (<leader>aA) is
+      -- shown, move agent-manager back to the far left so the layout is
+      -- agent-manager | Claude Code | editor. Agent-manager keeps the width it
       -- opened with (w:am_width), also after a window next to it closes.
       local function agent_manager_win()
         for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -540,7 +543,7 @@ return {
           vim.api.nvim_win_set_width(am, vim.w[am].am_width)
         end
       end
-      local group = vim.api.nvim_create_augroup("claude_left_of_agent_manager", { clear = true })
+      local group = vim.api.nvim_create_augroup("claude_right_of_agent_manager", { clear = true })
       vim.api.nvim_create_autocmd("BufWinEnter", {
         group = group,
         callback = function(ev)
@@ -556,9 +559,9 @@ return {
               return
             end
             local cc_width = vim.api.nvim_win_get_width(cc)
-            if vim.api.nvim_win_get_position(am)[2] < vim.api.nvim_win_get_position(cc)[2] then
+            if vim.api.nvim_win_get_position(am)[2] > vim.api.nvim_win_get_position(cc)[2] then
               vim.api.nvim_win_call(am, function()
-                vim.cmd.wincmd("L")
+                vim.cmd.wincmd("H")
               end)
             end
             restore_am_width(am)
@@ -588,25 +591,24 @@ return {
       {
         "<leader>aA",
         function()
-          -- agent-manager in a right split (50%): same session as the tmux
+          -- agent-manager in a left split (50%): same session as the tmux
           -- window, live (one claude process).
+          local keys = require("term_tabs").term_keys()
+          -- agent-manager uses <esc> a lot: no double-esc to normal mode
+          keys.term_normal = false
           local term = Snacks.terminal.toggle("agent-manager", {
             win = {
-              position = "right",
+              position = "left",
               width = 0.5,
               -- keep its width when Claude Code opens beside it
               wo = { winfixwidth = true },
               stack = false,
-              keys = {
-                -- agent-manager uses <esc> a lot: no double-esc to normal mode
-                term_normal = false,
-                am_hide = { "<A-a>", "hide", mode = "t", desc = "Hide agent-manager" },
-              },
+              keys = keys,
             },
           })
-          -- Snacks stacks a new right split under any window tagged
-          -- position = "right" and equalizes their heights. Retag this one so
-          -- Claude Code opens as its own column at the far right instead.
+          -- Snacks stacks a new left split under any window tagged
+          -- position = "left" and equalizes their heights. Retag this one so
+          -- Claude Code opens as its own column at the far left instead.
           if term and term.win and vim.api.nvim_win_is_valid(term.win) then
             local tag = vim.w[term.win].snacks_win
             if tag then
@@ -623,7 +625,14 @@ return {
             end
           end)
         end,
-        desc = "Agent Manager (right split)",
+        desc = "Agent Manager (left split)",
+      },
+      {
+        "<A-a>",
+        function()
+          require("term_tabs").last_tab()
+        end,
+        desc = "Last tab page",
       },
       { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
       { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
