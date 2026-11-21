@@ -30,6 +30,18 @@ export async function run(argv, ctx) {
       target = nid;
     }
   } else if (/^T-\d+$/.test(target)) throw Object.assign(new Error(`${target} is a pre-0.13 task id and there is no id map: run /hitl:migrate (ids are now <KEY>-T<n>)`), { code: 1 });
+  // 0.21: no context pack of a task whose set is not approved (skeleton and /hitl:test start here): TASKS_NOT_APPROVED
+  if (/^[A-Z]{2,5}-T\d+$/.test(target)) {
+    const [{ readTasks }, TB, { readJson }, { paths }] = await Promise.all([import("../lib/tasksmd.mjs"), import("../lib/tasksbrief.mjs"), import("../lib/fsutil.mjs"), import("../lib/project.mjs")]);
+    const t = (await readTasks(ctx.root)).filter((x) => x.id === target);
+    const hd = t.length ? (await TB.tasksHolds(ctx.root, t, await readJson(paths(ctx.root).lock, null)))[target] : null;
+    if (hd) {
+      const message = TB.holdMessage(target, hd);
+      if (ctx.json) console.log(JSON.stringify({ ok: false, task: target, code: TB.NOT_APPROVED, reason: hd.reason, message, next: hd.apply }));
+      else console.error(`_Stop:_ ${message}`);
+      return 1;
+    }
+  }
   const res = await buildContext(ctx.root, target, { contract: !!a.contract, budget: a.budget ? Number(a.budget) : 12000 });
   let written = null;
   if (a.out) { written = outPath(ctx.root, a.out); await writeTextAtomic(written, res.markdown); }

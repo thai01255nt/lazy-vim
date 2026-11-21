@@ -690,6 +690,9 @@ export function planApproval(opts) {
     reasons.push(...r.reasons); warnings.push(...r.warnings); noteAcks = r.acks; blockedBy = r.blockedBy;
     if (reasons.length) return res(false);
   } else if (opts.ack?.length) { reasons.push("--ack needs the task in a tasks file"); return res(false); }
+  // 0.21: a task of a draft set (or new/edited in an open tasks brief update) is not built: no skeleton or tests lock,
+  // even with --force (opts.tasksHold = {message}, from lib/tasksbrief.mjs tasksHolds)
+  if (opts.tasksHold && (stage === "skeleton" || stage === "tests")) { reasons.push(opts.tasksHold.message); extra.code = "TASKS_NOT_APPROVED"; return res(false); }
 
   const risk = taskRisk(task, lock, taskId);
   if (!APPROVERS.includes(by)) { reasons.push(`--by must be one of ${APPROVERS.join("|")}`); return res(false); }

@@ -37,7 +37,10 @@ export async function loadTraceInputs(root, config, given = {}) {
     if (p && !plannings.has(p)) plannings.set(p, await readPlanning(root, p));
   }
   const spec = given.spec || (await loadSpecContext(root).catch(EMPTY_SPEC));
-  return { index, lock, state, tasks, statuses, plannings, spec };
+  // 0.21: the tasks-brief question behind each `!` row (TEST_OVERRIDE_UNRECORDED when none)
+  let overrides = given.overrides;
+  if (!overrides) { try { overrides = await (await import("./tasksbrief.mjs")).overrideRecords(root); } catch { overrides = null; } }
+  return { index, lock, state, tasks, statuses, plannings, spec, overrides };
 }
 
 function ctxOf(inputs) {
@@ -237,10 +240,13 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       else if (!ts.length) add(skeletonApproved ? "warn" : "info", "AC_NO_TEST", ac.id, t.id, g, `${ac.id} has no test with @ac ${ac.id}`);
       else if (ts.every((x) => x.test?.mode !== "active")) add(testsLocked ? "warn" : "info", "AC_ONLY_STUB", ac.id, t.id, g, `${ac.id} has only todo/skip tests`);
       if (ovr.length) add("info", "AC_TEST_OVERRIDE", ac.id, t.id, g, `${ac.id} ${exempt}! over risk ${noneBlockedBy(t).join(", ")}: human override (${ovr.join("; ")})`);
+      const orec = ovr.length && inputs.overrides instanceof Map ? inputs.overrides.get(ac.id) || null : undefined;
+      if (orec === null) add("info", "TEST_OVERRIDE_UNRECORDED", ac.id, t.id, g, `${ac.id} ${exempt}! has no "_Override:_ ${ac.id} …" question answered Y in a tasks brief (no brief record)`);
       const proven = !exempt && ts.some((x) => testProves(c, x));
       if (late && !proven && !exempt) add("warn", "AC_NOT_PROVEN", ac.id, t.id, g, `${ac.id} has no fresh passing test (task is ${statuses.tasks[t.id].status})`);
       const symIds = [...new Set(ts.flatMap((x) => x.test?.coversResolved || []))].sort();
       acRows.set(ac.id, { id: ac.id, task: t.id, text: ac.text, reqs: ac.reqs || [], proven, test: plan.test, testDetail: plan.detail, exempt, ...(ovr.length ? { override: ovr.join("; ") } : {}),
+        ...(orec !== undefined ? { overrideSource: orec ? `${orec.file.split("/").pop()} ${orec.q}` : null } : {}),
         tests: ts.map((x) => ({ id: x.id, title: x.test?.titlePath?.at(-1) ?? x.name, mode: x.test?.mode ?? null, outcome: state.runs?.[x.id]?.outcome ?? null,
           fresh: testFresh(c, x), locked: lock.tests?.[x.id]?.stage === "locked" })),
         symbols: symIds.map((id) => ({ id, name: S[id]?.name || id.split("#").pop(), status: (statuses.tasks?.[t.id]?.symbolStatus?.[id] || statuses.symbols?.[id])?.status ?? null })) });

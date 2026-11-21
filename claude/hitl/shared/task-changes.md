@@ -115,5 +115,6 @@ earlier kind of the same amendment. An `expand` needs a `contract` in the same s
 ## 6. A full re-slice
 
 `/hitl:tasks <id>` on an existing tasks.md is always an update (there is no overwrite). When every task is still
-`todo`, a different slicing is an update that drops the old tasks and adds new ones: the quiz gate lists the ids it
-will drop and the new ids, and the drops (`hitl-index tasks drop`) run only after the human's Y.
+`todo`, a different slicing is an update that drops the old tasks and adds new ones: the round of the tasks brief lists
+the ids it will drop (`drop after Y`) and the new ids, and the drops (`hitl-index tasks drop`) run only after the
+human's Y under its approve question, right before `hitl-index tasks approve`.

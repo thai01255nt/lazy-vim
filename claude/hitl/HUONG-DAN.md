@@ -85,6 +85,26 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
   (scenario), `PWR-D1` (quyết định thiết kế), `PWR-T1` (task), `PWR-T1.AC2` (tiêu chí nghiệm thu).
 - Kết quả nằm trong `.hitl/changes/feat-password-reset/` (proposal, spec, design, tasks).
 
+### Duyệt task trong file brief (0.21)
+- `/hitl:tasks feat-password-reset` viết `tasks.md` (còn `draft`) rồi mở `tasks-brief.md` cùng thư mục. Không có bảng
+  hay câu hỏi trong chat nữa; chat chỉ trỏ tới file.
+- Đầu file là `## Current set`: CLI sinh từ `tasks.md` mỗi vòng (bảng task có cột **wave** = task phải chờ mấy lớp task
+  khác, bảng test plan). Đừng sửa mục này; muốn đổi thì sửa `tasks.md` hoặc viết vào Notes.
+- Vòng hỏi: Q1 chia task (gộp/tách), Q2 task nào phải chờ task nào, Q3 ai viết hàm nào (agent hay bạn), Q4 test plan.
+  Mỗi câu có phần Claude tự kiểm và `_Rec:_`. Thêm một câu `[C]` cho mỗi loại cảnh báo (sửa hay chấp nhận), một câu
+  `_Override:_` cho mỗi AC muốn bỏ test tự động, khối Notes, và câu cuối **`Approve the task set?`**.
+- Nhanh nhất: `Y` ở dòng accept-all **và** `Y` dưới câu `Approve the task set?`, lưu, chạy lại `/hitl:tasks
+  feat-password-reset`. Nếu không có gì đổi, Claude duyệt luôn (`✅ Tasks approved.` + lệnh tiếp theo). Nếu một gợi ý
+  hay chỗ bạn sửa làm đổi bộ task, câu duyệt thành `→ superseded` và có vòng mới mở đầu bằng `_Changed since Round n:_`.
+- `Y` ở dòng accept-all không duyệt bộ task, cũng không trả lời câu `_Override:_`; gõ `Y` trong chat cũng không tính.
+- Sửa thẳng `tasks.md` cũng được (đổi tiêu đề, owner…): lần chạy sau coi đó là câu trả lời của bạn.
+- Chưa duyệt thì `/hitl:skeleton`, `/hitl:implement`, `/hitl:test` từ chối task đó (`TASKS_NOT_APPROVED`). Chỉ lệnh
+  `hitl-index tasks approve` (Claude gọi sau `Y` của bạn) đổi `tasks.md` sang `approved`.
+- Task nhanh: `/hitl:tasks quick <mô tả>` → `.hitl/tasks/quick-<slug>.md` + `quick-<slug>-brief.md` cạnh nó, cùng mẫu
+  câu hỏi (câu không áp dụng cho một task được ghi sẵn `— (1 task)`). Chạy tiếp bằng `/hitl:tasks <KEY>` (vd. `QDEM`).
+- Thêm việc vào change đã duyệt (`/hitl:tasks <id> update …`): vòng mới trong cùng `tasks-brief.md`; chỉ task mới/sửa
+  phải chờ `Y`, task khác vẫn làm tiếp.
+
 ### Plan hỏi rộng và hỏi sâu
 - **Độ phủ**: từ vòng 2, tiêu đề vòng có dòng `Coverage: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
 - **`_Hot_`** đánh dấu chỗ quan trọng mà còn mơ hồ: Claude hỏi sâu chỗ đó trước.
@@ -128,12 +148,14 @@ Chỉ **bạn** gõ được `/hitl:approve`.
 ### Test: bao nhiêu và vì sao (0.16)
 - Luồng change là **test chấp nhận viết trước** (cả loạt test của task viết từ mô tả hàm, khoá, rồi mới code), không
   phải TDD của Kent Beck; TDD thật (một test → đỏ → code → xanh → dọn code) là `/hitl:tdd`.
-- Ở gate `/hitl:tasks` (câu 5) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
+- Trong tasks brief (câu Q4) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
   sẵn>`, `none: <lý do>` hoặc `manual: <cách kiểm tay>` (hai loại này không dùng cho task risk security/concurrency/data: task đó phải có test tự động cho mỗi AC).
 - Ngoại lệ do **bạn** quyết (0.20): `none!: <lý do>` hoặc `manual!: <cách kiểm tay> — <lý do>` cho phép bỏ test tự
   động trên task security/concurrency/data. Lý do là bắt buộc; `tasks --check` chỉ cảnh báo
   (`TEST_PLAN_NONE_RISK_OVERRIDE`), `status` ghi `⚠️ test override`, báo cáo review liệt kê AC đó. Claude không tự
-  ghi `!`: nó chỉ hỏi ở gate tasks bằng một câu riêng `(needs its own Y)`, chữ Y chung của gate không tính.
+  ghi `!`: nó chỉ hỏi trong tasks brief bằng một câu `_Override:_` riêng `(needs its own Y)`; `Y` ở dòng accept-all
+  không tính. Câu trả lời đó là bằng chứng: dòng `!` không có câu trả lời `Y` thì `status` và báo cáo review ghi
+  `(no brief record)` (info `TEST_OVERRIDE_UNRECORDED`).
 - Mỗi test phải nêu lỗi nó bắt (`@catches`); test thêm ngoài plan cũng vậy. Mỗi task ≤ số dòng `new` + 2 test (vượt
   chỉ cảnh báo). Tên test là hành vi, không chứa id (id nằm trong `@ac`).
 - Muốn tỉa test: `hitl-index tests audit <change>` liệt kê ứng viên; bạn chọn, rồi `/hitl:approve <T> tests`.
@@ -251,7 +273,7 @@ hoặc cho riêng một task đi tiếp: `/hitl:approve PWR-T12 tests --ack N-1`
 
 - `y` / `ok` = chọn gợi ý · `2` = chọn phương án 2 · hoặc gõ ý của bạn.
 - `?` / `wait` / `hả` = giải thích lại rồi hỏi lại (không phải câu trả lời).
-- Trong file brief của plan/design thì khác: `?` / `không biết` = Claude gợi ý và hỏi lại ở vòng sau; muốn được giải
+- Trong file brief của plan/design/tasks thì khác: `?` / `không biết` = Claude gợi ý và hỏi lại ở vòng sau; muốn được giải
   thích thì viết câu hỏi của bạn ở dòng `>` (Claude trả lời bằng `_Disc:_` ngay dưới đó).
 - Nhãn chữ nghiêng đầu dòng (`_Rec:_` gợi ý, `_Next:_` lệnh tiếp, `_Stop:_` bị chặn, …): quên nghĩa thì gõ
   `/hitl:flow help` (mục Labels).

@@ -23,7 +23,8 @@ A step marked `GATE` is a real stop:
 - A bare "y", "yes", "ok", "được", "ừ", "có" accepts the recommended option. "n"/"không" declines.
 - Missing required input at a gate (file, task id) → show the error and stop; do not guess.
 - A gate question must be answerable without scrolling: restate the options in plain words.
-- Not a chat gate: the interview rounds of `/hitl:plan` and `/hitl:design`. They live in a brief file the user answers
+- Not a chat gate: the interview rounds of `/hitl:plan` and `/hitl:design`, and the review of a task set by
+  `/hitl:tasks` (0.21, the tasks brief). They live in a brief file the user answers
   in the editor (format: `shared/interview.md` §4; answer grammar: §6, where `?` means "don't know", not "explain
   again"). A run that writes a round ends with ≤ 3 chat lines.
 
@@ -59,7 +60,7 @@ requirement, scenario, number, rule or decision), do not amend it now:
   acks, dismisses or defers it (`/hitl:approve …`).
 - Not a note: a question (discuss it; nothing is recorded), a draft proposal or design being written in plan/design
   (edit it as usual), or an explicit "amend/apply it now" (go straight to `amend-spec.md`).
-- While a plan, design or amend brief of the change is open (header `status: open` or `closing`), a statement in chat
+- While a plan, design, tasks or amend brief of the change is open (header `status: open` or `closing`), a statement in chat
   is not a note: write it as a new `>` line into the Notes of the open round (as for text after the change id,
   `interview.md` §6) and process it in this run.
 - Too big for the change (needs its own spec; new behaviour the change's proposal does not name; more than 1 task;

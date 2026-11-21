@@ -22,6 +22,8 @@ Arguments: `$ARGUMENTS`
    starts with its change key, e.g. `PWR-T3`). Stop: other commands refuse until it is migrated.
 2. `help` (or the user asks how the workflow works) → Read `${CLAUDE_SKILL_DIR}/references/help.md` and print its
    Help block (the lanes, the diagram and the command table); stop.
+2b. A bare quick key (`QFLT`, 2–5 capitals, a quick file's key in `hitl-index status --json` `.quick[]`) → its set:
+   `_Next:_ /hitl:tasks <key>` while `.quick[].tasks` is draft or its brief is open, else its task's `next`. Stop.
 3. The user described a **new piece of work** (not a task id, not a status question) → `_Next:_ /hitl:go <description>`
    and one line why (it picks the route: a note or amend of an active change, `/hitl:tdd`, `/hitl:tasks quick` or
    `/hitl:plan`). Stop. A change to an active change's approved behaviour stated in chat gets the note gate of
@@ -46,12 +48,19 @@ Arguments: `$ARGUMENTS`
      `synced` is false; `—` for unmapped tasks. All null → no column.
    - With a task id: also list its symbols (`symbol | impl | status | reasons`) from the same JSON.
    - `tasks[T].override` true → append ` ⚠️ override` to its risk cell (the user forced the fast lane; review goes to the human).
+   - `tasks[T].testOverride` → ` ⚠️ test override` in its risk cell, plus ` (no brief record)` when a
+     `tasks[T].testOverrideSource` value is null (TEST_OVERRIDE_UNRECORDED).
    - Notes (0.9): `.changes[].notes` with `open` or `reopenPending` > 0 → one line per change
      `_Note_ feat-x — 2 open notes, 1 reopen pending`. Then every task with `tasks[T].notes` non-empty, even when not in the
      table: `_Note_ PWR-T14 blocked by N-3 (<title>) → <apply>` (routing skips it while another task can go on).
    - Waits (0.12): each `.changes[].wait` → its `for[]` as `_Waits:_ <id> waits for <change> (<notes>)` (` — gone: the human
      dismisses its notes` when `state` is `gone`) and its `amend[]` as `_Take in:_ <id> must take in <N-k> from <source> → <apply>`.
      Tasks with `tasks[T].wait` get ` _Waits:_ <change>` in the status cell: no approval or implement until the wait ends.
+   - Tasks briefs (0.21): `.changes[].brief.kind` `tasks` (phase tasks, or an update round in any phase) →
+     `_Brief:_ <id> — tasks brief round <n>: <unanswered> unanswered → <next>`; each `.quick[]` with an open brief or a
+     draft set → `_Brief:_ quick <key> — tasks brief round <n> (<tasks>) → answer <file>, then /hitl:tasks <key>`. Every
+     task with `tasks[T].tasksHold` → ` _Held:_ draft task set` / ` _Held:_ tasks brief` in the status cell and its
+     `next` cell = `tasksHold.apply` (TASKS_NOT_APPROVED: nothing is built before the approve Y).
    - Amendments (0.17): `.changes[].brief.kind` `amend` → `_Brief:_ <id> — amend brief <amend> round <n> (<status>) → <next>`.
      Every task with `tasks[T].amendHold` → ` _Held:_ <amendHold.amend>` in the status cell and its `next` cell =
      `amendHold.apply` (no implement until the amendment is approved; untouched tasks go on). `tasks[T].amend` → append

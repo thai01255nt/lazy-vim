@@ -14,8 +14,8 @@ Seam rules (§5 tracer AC, §7 seam column) from `skills/engineering/{to-spec,td
 5. Acceptance criteria
 6. Symbols and owners
 7. Test plan
-8. Consistency check (before the gate)
-9. Quiz
+8. Consistency check (before the round)
+9. Review questions (the tasks brief)
 
 ## 1. Vertical slices
 - Each task cuts a narrow but COMPLETE path through the layers it needs (types, service, API, tests): vertical, not one layer.
@@ -89,9 +89,11 @@ The `test` cell (checked by `hitl-index tasks --check`):
 | `none!: <reason>` · `manual!: <check> — <reason>` | 0.20, **human only**: the human's override of `TEST_PLAN_NONE_RISK` on a `security`, `concurrency` or `data` task | the reason (`TEST_PLAN_OVERRIDE_NO_REASON` without it); a warning `TEST_PLAN_NONE_RISK_OVERRIDE`, not an error; `status` shows `⚠️ test override`, the review report lists the AC, done lists a `manual!` check |
 Never write `!` on your own initiative, and never lower a risk reason to get past `TEST_PLAN_NONE_RISK`. When an
 automated test on such an AC looks unreasonable (or the human asks for none), keep an automated-test row in the file
-and propose the override at the gate as one brief question per AC, `_Override:_ <AC> none!: <reason>? (needs its own Y)`
-(or `manual!: <check> — <reason>`), the reason in one line; the gate's Y does not cover it, only a Y to that question
-does (then write the `!` row).
+and propose the override in the tasks brief as one question per AC, `### Q<n> _Override:_ <AC> none!: <reason>? (needs
+its own Y)` (or `manual!: <check> — <reason>`), the reason in one line, the body naming the task's risk reasons; the
+round's accept-all Y does not cover it, only a Y under that question does (then write the `!` row). The answered
+question is the record of the override: a `!` row without one is info `TEST_OVERRIDE_UNRECORDED` (status and the review
+report show `(no brief record)`).
 Non-`new` rows may leave kind, oracle, seam and author as `—`. A table without the `test` column (before 0.16) reads
 every row as `new`. Choose:
 - `new` only when you can name its defect; prefer `shared` (or one table test) when two ACs are the same call with
@@ -110,22 +112,28 @@ every row as `new`. Choose:
   needs a reason in the cell; no independent oracle (pure wiring) → `none:` with the reason, or `author: human` (test-patterns §5).
 - author: `test-author` (default) or `human`.
 
-## 8. Consistency check (before the gate)
+## 8. Consistency check (before the round)
 Structural checks (unknown/removed scenario, requirement, rule or <KEY>-D<n>; scenario without AC; AC without ref; unused D;
 requirement without a serving D) come from `hitl-index trace <change-id> --json`; block items are fixed before the
-gate, warn/info items are listed there. Add these semantic checks yourself, one line each, only when non-empty:
+round, warn/info items become `[C]` questions: **one question per code**, its ids grouped, `_Rec:_ fix: <edit>
+(changes the set)` or `accept: <reason>`. Add these semantic checks yourself, one `[C]` question per kind, only when
+non-empty:
 - design.md `## Risks` items with no high-risk task covering them
 - tasks touching items listed in the proposal `## Out of scope` or `## Deferred`
 - proposal `## Unchanged behaviour` items with no regression AC (fix/refactor/perf changes)
 - symbols listed in two tasks (choose one owner task; the other is blocked-by it)
 
-## 9. Quiz (the gate)
-Present the task table and the test-plan table (`task · AC · test · seam`, one line per row, the defect or reason in
-plain words), then ask:
-1. Granularity ok? (too coarse / too fine)
-2. Blocking edges right? Does each task depend only on tasks that genuinely gate it?
-3. Merge or split any task?
-4. Owners (agent/manual) ok?
-5. Test plan ok? (which ACs get a new test and the defect each catches, shared/covered/none/manual, seams, count)
-This gate is where the human decides whether and how many tests; it is the one human gate a low-risk (fast-lane) task
-passes. Iterate until the user replies Y.
+## 9. Review questions (the tasks brief)
+The gate is a round of the tasks brief (`skills/tasks/SKILL.md` §6), above it the generated `## Current set` (task
+table with the wave column, test-plan table `task · AC · test · seam`). Four `[Q]` questions, each with your own check
+as evidence and a `_Rec:_`, so the accept-all Y means "keep what you checked":
+1. **Slices** (granularity, merge, split): sizes over ≤ 6 symbols / ≤ 3 files, AC counts outside 2–6, layer-only tasks.
+   One task (quick): merge does not apply (`— (1 task)`); split is the "too big for quick" check (→ `/hitl:plan`).
+2. **Blocking edges**: does each task wait only for tasks that genuinely gate it? Evidence: the waves (a task one wave
+   too late shows a wrong edge), cross-change edges, symbols listed in two tasks. One task: settled `n/a (1 task)`.
+3. **Owners** (agent/manual): high-risk core logic owned by agent, the user's own "I will write it".
+4. **Test plan**: which ACs get a new test and the defect each catches, the shared/covered/none/manual rows with their
+   reason, seams, the budget.
+Then the `[C]` findings (§8), the `_Override:_` questions (§7), Notes, and `Approve the task set? (Y/n) (needs its own
+Y)`. This is where the human decides whether and how many tests; it is the one human gate a low-risk (fast-lane) task
+passes. Rounds repeat until the approve Y meets an unchanged set; only `hitl-index tasks approve` approves it.

@@ -112,7 +112,8 @@ export function buildReport(o) {
     if (acs.length > 10) L.push(`… +${acs.length - 10} more`);
     if (!acs.length) L.push("- no acceptance criteria");
     // 0.20: none!/manual! overrides of TEST_PLAN_NONE_RISK, every one (not cut at 10)
-    for (const a of acs.filter((x) => x.override)) L.push(`⚠️ test override ${a.id} — ${a.test}! on a security/concurrency/data task: ${a.override}`);
+    // 0.21: with its source, the tasks-brief question answered Y, or "(no brief record)"
+    for (const a of acs.filter((x) => x.override)) L.push(`⚠️ test override ${a.id} — ${a.test}! on a security/concurrency/data task: ${a.override}${a.overrideSource !== undefined ? ` (${a.overrideSource || "no brief record"})` : ""}`);
     for (const i of (tr.items || []).filter((x) => x.level !== "info").slice(0, 5)) L.push(`${i.level === "block" ? "_Block:_" : "⚠️"} ${i.code} ${i.ref} — ${i.message}`);
     const b = tr.budget;
     if (b) L.push(`${b.over ? "⚠️" : "-"} tests: ${b.tests} active · budget ${b.limit} (${b.newRows} new rows + 2)${b.over ? " — over budget: the tests lens checks for redundant tests" : ""}`);

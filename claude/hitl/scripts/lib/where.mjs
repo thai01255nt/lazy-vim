@@ -10,7 +10,7 @@ import { listFiles } from "./project.mjs";
 import { HITL_DIR, HITL_PREFIX } from "./paths.mjs";
 import { isTestFile } from "./config.mjs";
 import { AC_ID_RE, BR_ID_RE, DEC_ID_RE, LEGACY_AC_RE, LEGACY_DEC_RE, LEGACY_HINT, LEGACY_TASK_RE, REQ_ID_RE, SCN_ID_RE, TASK_ID_RE, UC_ID_RE } from "./specids.mjs";
-import { AMEND_ID_RE, parseTasksMd } from "./tasksmd.mjs";
+import { AMEND_ID_RE, isTasksDocName, parseTasksMd } from "./tasksmd.mjs";
 import { parseDelta, parseDesign, parseLivingSpec } from "./specmd.mjs";
 import { AMEND_FILE_RE } from "./brief.mjs";
 
@@ -24,7 +24,7 @@ const KINDS = [
 ];
 export const ID_GRAMMAR = "<KEY>-R<n>, <KEY>-R<n>.S<k>, <KEY>-BR<n>, <KEY>-UC<n>, <KEY>-T<n>, <KEY>-T<n>.AC<k>, <KEY>-D<n>, <KEY>-A<n>";
 const TEXT_MAX = 160;
-const BRIEF_FILE = /(?:^|\/)(?:plan-brief|design-brief|amend-[A-Z]{2,5}-A\d+-brief)\.md$/;
+const BRIEF_FILE = /(?:^|\/)(?:plan-brief|design-brief|tasks-brief|amend-[A-Z]{2,5}-A\d+-brief|quick-[\w.-]+-brief)\.md$/;
 const SPEC_FILE = /(?:^|\/)spec\.md$/;
 const ARCHIVED = `${HITL_PREFIX}archive/`;
 /** Tags whose value names an id in a test or a symbol's docstring (tags.mjs). */
@@ -91,7 +91,7 @@ export function defLines(file, text, id, kind) {
       if (b.id === id) lines.add(b.line);
       for (const s of b.scenarios || []) if (s.id === id) lines.add(s.line);
     }
-  } else if ((kind === "task" || kind === "ac") && base.endsWith(".md") && (base === "tasks.md" || file.startsWith(`${HITL_PREFIX}tasks/`))) {
+  } else if ((kind === "task" || kind === "ac") && base.endsWith(".md") && (base === "tasks.md" || (file.startsWith(`${HITL_PREFIX}tasks/`) && isTasksDocName(base)))) {
     for (const t of parseTasksMd(text, file).tasks) {
       if (kind === "task" && t.id === id) { lines.add(t.line); task ||= t; }
       if (kind === "ac") for (const a of t.acs) if (a.id === id) lines.add(a.line);

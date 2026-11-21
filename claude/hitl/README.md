@@ -90,6 +90,32 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.20.0
+
+0.21.0 chuyển **gate của `/hitl:tasks` từ chat sang file brief**, như plan và design. `/hitl:tasks` viết `tasks.md`
+(`> status: draft`) rồi mở `changes/<id>/tasks-brief.md` (quick file: `.hitl/tasks/quick-<slug>-brief.md` nằm cạnh nó,
+chạy tiếp bằng `/hitl:tasks <QKEY>`). Mỗi vòng: mục `## Current set` do CLI sinh từ `tasks.md` (bảng task có thêm cột
+**wave** = độ sâu phụ thuộc, bảng test plan), bốn câu `[Q]` (slice, blocking edge, owner, test plan) kèm phần Claude tự
+kiểm và `_Rec:_`, một câu `[C]` cho mỗi mã cảnh báo (fix hay accept), một câu `_Override:_` cho mỗi AC, Notes, và câu cuối
+`Approve the task set? (needs its own Y)`. Chữ `Y` gõ trong chat không còn là câu trả lời; `Y` ở dòng accept-all không
+duyệt bộ task. Bạn có thể sửa thẳng `tasks.md`: lần chạy sau đọc chỗ sửa như câu trả lời (`_Changed since Round n:_`,
+tính từ snapshot `.tasks-round.json` của vòng). `Y` duyệt chỉ có hiệu lực khi bộ task vẫn đúng như vòng đó đã cho xem;
+khác thì câu duyệt thành `→ superseded` và có vòng mới. Chỉ `hitl-index tasks approve <id|QKEY>` đặt
+`> status: approved` (hook chặn Claude tự sửa dòng đó).
+
+**Có cần migrate không:** không có lệnh migrate, nhưng có một thay đổi chặn: `TASKS_NOT_APPROVED`.
+- `tasks.md` (hoặc quick file) đã `approved`: không ảnh hưởng gì.
+- `tasks.md` còn `draft`: từ 0.21 `/hitl:skeleton`, `/hitl:implement` (cả fast lane và `--feature`) và `/hitl:test`
+  từ chối task của nó; CLI từ chối `approve <T> --stage skeleton|tests` và `context <T>`. Để duyệt: chạy
+  `/hitl:tasks <change-id>` (quick: `/hitl:tasks <QKEY>`); Claude viết vòng 1 của brief cho bộ task hiện có (không viết
+  lại task), bạn trả lời `Y` dưới câu `Approve the task set?`, chạy lại lệnh đó, CLI duyệt.
+- Update (`/hitl:tasks <id> update …`): `tasks.md` giữ `approved`; chỉ task mới hoặc vừa sửa bị giữ đến khi `Y` của vòng
+  update. Đang có amend brief mở thì update ghi vào Notes của amend brief (một change không có hai brief cùng ghi `tasks.md`).
+- `!` trong test plan (`none!:`/`manual!:`) không có câu `_Override:_` trả lời `Y` trong brief → info
+  `TEST_OVERRIDE_UNRECORDED`; `status` và báo cáo review ghi `(no brief record)`. Các dòng `!` của 0.20 vẫn hợp lệ.
+- `next-id --quick` từ chối slug kết thúc bằng `-brief` (`QUICK_SLUG_RESERVED`). Quick brief bỏ dở không bị xoá, `status`
+  liệt kê nó là draft.
+
 ### Nâng cấp từ 0.19.0
 
 0.20.0 thêm **ngoại lệ test do người quyết**: trên task risk security/concurrency/data, `/hitl:tasks` vẫn từ chối
@@ -527,7 +553,7 @@ một dòng `⚠️ HITL: legacy dir .claude/custom/ — run hitl-index migrate`
 ## 2. Luồng làm việc
 
 ```
- /hitl:setup ─► /hitl:overview ─► /hitl:plan (WHAT/WHY) ─► /hitl:design (HOW, bỏ qua được) ─► /hitl:tasks [gate]
+ /hitl:setup ─► /hitl:overview ─► /hitl:plan (WHAT/WHY) ─► /hitl:design (HOW, bỏ qua được) ─► /hitl:tasks [brief]
                                                                                         │
                      risk: low (fast lane) ◄────────────────────────────────────────────┤────────► risk: high
                      /hitl:implement                                                    │  /hitl:skeleton [gate] (bạn sửa skeleton trong editor)
@@ -576,6 +602,16 @@ strategy, risks, rollout), tuỳ chọn `data-model.md`, `contracts/`. Không ba
 skeleton). Design được bỏ qua khi change nhỏ (không dependency
 mới, không đổi dữ liệu lưu, không đổi interface public, ≤ 2 task, không risk cao).
 
+**Tasks = chia việc, duyệt trong file brief (0.21).** `/hitl:tasks <change-id>` viết `tasks.md` (draft) rồi
+`tasks-brief.md`: trên cùng là `## Current set` do `hitl-index tasks gate <id> --write` sinh từ `tasks.md` (tóm tắt, bảng
+task có cột `wave`, bảng test plan; không chép tay, không sửa tay), rồi vòng hỏi: Q1 slice, Q2 blocking edge, Q3 owner,
+Q4 test plan (mỗi câu có phần Claude tự kiểm và `_Rec:_`), `[C]` theo mã cảnh báo, `_Override:_` theo AC, Notes, và
+cuối cùng `Approve the task set? (needs its own Y)`. Trả lời trong file (hoặc sửa thẳng `tasks.md`), chạy lại
+`/hitl:tasks <id>`. Không đổi gì thêm → Claude gọi `hitl-index tasks approve <id>` và in `_Next:_`; có đổi → vòng mới mở
+đầu bằng `_Changed since Round n:_`. Task của bộ chưa duyệt không được skeleton, test hay implement (`TASKS_NOT_APPROVED`).
+Quick (`/hitl:tasks quick <mô tả>`) dùng cùng template và cùng số câu: câu không áp dụng cho một task (Q2, phần gộp của
+Q1) được ghi sẵn `— (1 task)` và đánh dấu đã ghi n/a; phần tách của Q1 vẫn kiểm "quá to → `/hitl:plan`".
+
 **Ngôn ngữ chung (0.8).** Một glossary duy nhất: `.hitl/specs/GLOSSARY.md` (living, chỉ CLI ghi) + `glossary.md` của
 change (delta). Tên thuật ngữ giữ tiếng Anh (khớp tên code và test), định nghĩa có thể viết tiếng Việt; câu trả lời tiếng
 Việt dùng nguyên thuật ngữ tiếng Anh. Khi bạn dùng một từ mâu thuẫn với glossary, từ nằm trong `_Avoid_`, hoặc một danh từ
@@ -615,7 +651,7 @@ task đã duyệt hàm (`tasks`), file lock cũ vẫn dùng được, không c�
 | `/hitl:overview [mô tả\|refresh]` | Viết docs BUSINESS-CONTEXT / ARCHITECTURE / PATTERNS-CONVENTIONS (3 mapper song song) + CODEBASE-MAP sinh từ index | nếu đã có docs | bạn / Claude |
 | `/hitl:plan [mô tả\|change-id [amend [N-k]]]` | WHAT/WHY: phỏng vấn grill (tự nạp `hitl:grilling`) trong file brief `changes/<id>/plan-brief.md`, độ phủ + `_Hot_` + `deep <ID>` → `changes/<id>/proposal.md` + spec delta (`PWR-R1`, scenario `PWR-R1.S1`; key của change ở câu `Q0` của brief) + glossary; lần đầu đề nghị migrate planning v0.5. `<id> amend`: sửa spec đã duyệt — chỉ đổi câu chữ: cổng chat; còn lại: amend brief `amend-<KEY>-A<n>-brief.md` kết thúc bằng amend task set (mục 4c) | file brief, mỗi vòng (amend: cổng chat khi chỉ đổi câu chữ) | bạn / Claude |
 | `/hitl:design <change-id> [amend [N-k]]` | HOW: `design.md` (`<KEY>-D<n>`, component mức module, test strategy, risks) + `data-model.md`, `contracts/` khi cần; phỏng vấn trong `design-brief.md` (`Y` ở dòng Accept all = nhận cả vòng, trừ câu `(needs its own Y)`); `amend` như plan | file brief, mỗi vòng (amend: cổng chat khi chỉ đổi câu chữ) | bạn / Claude |
-| `/hitl:tasks [change-id [update …]\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace`. `tasks.md` đã có → luôn update theo trạng thái task (`shared/task-changes.md`; không còn overwrite) | quiz | bạn / Claude |
+| `/hitl:tasks [change-id [update …]\|QKEY\|quick …]` | Chia task dọc (vertical slice), prio P0–P3, risk + lý do, AC Given/When/Then gắn scenario `(PWR-R1.S1)`, Why trích `<KEY>-D<n>`, symbol đích, test plan → `changes/<id>/tasks.md`; kiểm tra bằng `hitl-index trace`. `tasks.md` đã có → luôn update theo trạng thái task (`shared/task-changes.md`; không còn overwrite). Duyệt trong file brief `tasks-brief.md` (0.21; quick: `quick-<slug>-brief.md`, chạy tiếp bằng `/hitl:tasks <QKEY>`) | brief file, mỗi vòng (duyệt: `Y` riêng; chỉ `hitl-index tasks approve` đặt `approved`) | bạn / Claude |
 | `/hitl:archive <change-id>` | Xem trước rồi merge delta vào living spec `.hitl/specs/`, chuyển change sang `.hitl/archive/` | diff / conflict | bạn / Claude |
 | `/hitl:tidy <change-id>` | Change đã done: `hitl-index intents` → một subagent viết lại **chỉ** docstring intent + step comment (bỏ id khỏi prose, nêu tên callee/enum thay vì kể lại, bỏ step pseudo-code / step chết trong class); kiểm tra bằng drift + `approve --dry-run` (chỉ `INTENT_CHANGED` được đổi, không thì revert). Chạy trước `hitl-index strip` | diff intent → `/hitl:approve <id> intent` | bạn / Claude |
 | `/hitl:grilling` | Skill grill-me nguyên bản (mattpocock): hỏi dồn từng vòng; plan/design tự dùng, gọi riêng khi muốn "grill" một ý tưởng | mỗi vòng | bạn / Claude |
@@ -984,7 +1020,7 @@ việc vượt ngoài task → `defer F-n` và một change `refactor-<slug>`.
 chạy test); `--capability` in RTM của cả capability (task active + archive). **Chỉ chặn khi tham chiếu gãy**
 (`CHANGE_MISSING`, `REQ_UNKNOWN`, `SCN_UNKNOWN`, `RULE_UNKNOWN`, `REQ_INACTIVE`, `SPEC_STALE` với task chưa done,
 `DEC_UNKNOWN`, `AC_UNKNOWN`, `COVERS_UNRESOLVED`); khoảng trống (`SCN_NO_AC`, `REQ_NO_AC`, `AC_NOT_PROVEN`, …) là
-warn/info. Hiện ở gate `/hitl:tasks`, `/hitl:flow`, review L0 + mục `## Trace` trong report, `/hitl:sync`, `/hitl:archive`.
+warn/info. Hiện ở tasks brief của `/hitl:tasks` (câu `[C]`), `/hitl:flow`, review L0 + mục `## Trace` trong report, `/hitl:sync`, `/hitl:archive`.
 Pre-commit chặn theo trace chỉ khi `trace.precommit: true`. Planning v0.5 vẫn được trace như trước (mã `R-n`, `PLANNING_*`).
 
 ### 6a. Bảo mật: Cloudflare `security-audit`
@@ -1016,6 +1052,7 @@ validator của upstream). Phần nối với hitl nằm riêng ở `skills/revi
 | `hitl.config.json`, `docs/*.md`, `changes/**`, `tasks/*.md` | commit | người viết / người duyệt |
 | `specs/**`, `archive/**` | commit | living spec + change đã xong (chỉ `hitl-index spec merge\|archive` ghi) |
 | `changes/<id>/plan-brief.md`, `design-brief.md` | commit | file brief (0.14): câu hỏi của plan/design và câu trả lời của bạn; đi theo change khi archive |
+| `changes/<id>/tasks-brief.md`, `.tasks-round.json`; `tasks/quick-<slug>-brief.md`, `tasks/.quick-<slug>-round.json` | commit | tasks brief (0.21): vòng duyệt bộ task và câu trả lời của bạn; snapshot của vòng (so `_Changed since…_`, kiểm duyệt, bộ đã duyệt cho update) |
 | `changes/<id>/amend-<KEY>-A<n>-brief.md` | commit | amend brief (0.17): một file mỗi amendment — sự thật lúc bắt đầu, các vòng hỏi, `## Unchanged`, `## Close` với amend task set; đi theo change khi archive |
 | `changes/<id>/.scout.json`, `.spec-review.json` | ignore | file nháp của subagent `spec-scout` / `spec-reviewer` |
 | `planning/*.md` (v0.5) | commit đến khi migrate | chỉ đọc |

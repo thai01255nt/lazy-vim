@@ -58,6 +58,17 @@ const skillName = (t) => { const x = String(t.input.skill || t.input.command || 
 // a function signature or code-body line in a design doc (module level only is allowed)
 const SIG_RE = /(^|\s)(function\s+\w+\s*\(|(async\s+)?\w+\s*\([^()\n]*:\s*[\w<>\[\]|]+[^()\n]*\)\s*:\s*[\w<>\[\]|]+|def\s+\w+\s*\(|\bclass\s+\w+\s*\{)/m;
 
+/** 0.21: quick files (tasks docs, not briefs) under .hitl/tasks/. */
+const quickDocs = (P) => { const d = path.join(P, ".hitl/tasks"); return fs.existsSync(d) ? fs.readdirSync(d).filter((n) => n.endsWith(".md") && !n.endsWith("-brief.md")).sort().map((n) => `.hitl/tasks/${n}`) : []; };
+/** The task set a tasks case works on: feat-password-reset (fixture tasks) or the one quick file. */
+const tasksTarget = (P, c) => {
+  if (c?.fixture === "tasks") { const d = ".hitl/changes/feat-password-reset"; return { arg: "feat-password-reset", tasksFile: `${d}/tasks.md`, briefFile: `${d}/tasks-brief.md`, snapFile: `${d}/.tasks-round.json` }; }
+  const q = quickDocs(P); if (q.length !== 1) return null;
+  const base = path.basename(q[0], ".md"); const key = /^← Change: none \| key: ([A-Z]{2,5})$/m.exec(read(path.join(P, q[0])) ?? "")?.[1] ?? base;
+  return { arg: key, slug: base.replace(/^quick-/, ""), tasksFile: q[0], briefFile: `.hitl/tasks/${base}-brief.md`, snapFile: `.hitl/tasks/.${base}-round.json` };
+};
+const tasksBrief = (P, tg) => (tg && fs.existsSync(path.join(P, tg.briefFile)) ? json(cli(P, "brief", tg.arg, "--kind", "tasks", "--json").out) : null);
+
 /** Parsed brief file of a change (`hitl-index brief <id> --kind <kind> --json`), or null. */
 const briefOf = (proj, ch, kind) => (ch ? json(cli(proj, "brief", ch, "--kind", kind, "--json").out) : null);
 /** The newest amend brief of any change (0.17): {file, text, parsed}, else null. */
@@ -314,14 +325,63 @@ const CHECKS = {
   tasks_all_scenarios: (S, P) => { const r = json(cli(P, "trace", "feat-password-reset", "--json").out); const n = (r?.items ?? []).filter((i) => i.code === "SCN_NO_AC").length; return ok(r && n === 0, `SCN_NO_AC: ${n}`); },
   tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(new RegExp(`\\*\\*Why\\*\\*.*\\(${K}-D\\d+`).test(t), "Why does not cite a decision <KEY>-D<n>"); },
   tasks_quiz_gate: (S) => ok(new RegExp(`\\| *${K}-T\\d+`).test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
-  // 0.16: the test plan has a test decision per row (new rows name a defect) and the gate asks question 5 (test plan)
-  tasks_test_decisions: (S, P) => {
-    const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? "";
+  // 0.16: the test plan has a test decision per row (new rows name a defect); 0.21: the tasks brief asks it ([Q] Test plan)
+  tasks_test_decisions: (S, P, c) => {
+    const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : "";
     const rows = t.split("\n").filter((l) => /^\|\s*AC\d+\s*\|/.test(l));
     const decided = rows.filter((l) => /\|\s*(new:\s*\S|shared:\s*\S|covered:\s*\S|none:\s*\S|manual:\s*\S)/.test(l));
-    return ok(rows.length > 0 && decided.length === rows.length && /Test plan ok/i.test(S.text), `rows ${rows.length}, with a decision ${decided.length}, gate Q5 ${/Test plan ok/i.test(S.text)}`);
+    const q = (tasksBrief(P, tg)?.questions ?? []).some((x) => x.tag === "Q" && /test plan/i.test(x.title));
+    return ok(rows.length > 0 && decided.length === rows.length && q, `rows ${rows.length}, with a decision ${decided.length}, brief [Q] test plan ${q}`);
   },
-  tasks_not_approved: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(!/> status: approved/.test(t), "self-approved tasks"); },
+  tasks_not_approved: (S, P, c) => { const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : ""; return ok(tg && !/^> status: approved/m.test(t), tg ? "self-approved tasks" : "no tasks file"); },
+  // ---- 0.21 tasks brief: the gate is a round in tasks-brief.md (quick: quick-<slug>-brief.md), never a chat gate
+  tasks_brief_written: (S, P, c) => {
+    const tg = tasksTarget(P, c); const b = tasksBrief(P, tg); if (!b) return ok(false, "no tasks brief");
+    const r = Math.max(...b.rounds.map((x) => x.n)); const qs = b.questions.filter((q) => q.round === r);
+    const four = ["Slices", "Blocking edges", "Owners", "Test plan"].every((w, i) => qs.some((q) => q.n === i + 1 && q.tag === "Q" && q.title.startsWith(w)));
+    const last = qs.at(-1); const view = read(path.join(P, tg.briefFile)) ?? "";
+    const sec = view.split(/^## /m).find((x) => x.startsWith("Current set")) ?? "";
+    const ids = ((read(path.join(P, tg.tasksFile)) ?? "").match(new RegExp(`^## ${K}-T\\d+ `, "gm")) ?? []).map((x) => x.slice(3).trim());
+    const shown = ids.every((id) => new RegExp(`^\\| ${id} +\\|`, "m").test(sec)) && /\| wave \|/.test(sec);
+    const set = json(cli(P, "tasks", "gate", tg.arg, "--json").out)?.set;
+    const round = b.rounds.find((x) => x.n === r);
+    return ok(b.kind === "tasks" && round?.acceptAllLine && four && last?.ownY === "approve" && round?.notes && shown && b.set === set,
+      `kind ${b.kind}; four [Q] ${four}; last ${last?.id} ownY ${last?.ownY}; Current set shows ${ids.length} ids + wave: ${shown}; set ${b.set} vs ${set}`);
+  },
+  tasks_snapshot_written: (S, P, c) => {
+    const tg = tasksTarget(P, c); const snap = tg ? json(read(path.join(P, tg.snapFile)) ?? "") : null; const b = tasksBrief(P, tg);
+    const d = tg ? json(cli(P, "tasks", "diff", tg.arg, "--json").out) : null;
+    return ok(snap && b && snap.round === b.round && d && !d.changed, tg ? `snapshot ${tg.snapFile}: round ${snap?.round} vs brief ${b?.round}; changed since ${d?.changed}` : "no tasks file");
+  },
+  tasks_brief_chat: (S, P, c) => { const tg = tasksTarget(P, c); return tg ? briefChat(S, path.basename(tg.briefFile)) : ok(false, "no tasks file"); },
+  tasks_no_chat_gate: (S) => ok(!/reply changes, or Y|Granularity ok\?|Test plan ok\?/i.test(S.text) && !new RegExp(`^\\s*\\| *${K}-T\\d+ *\\|`, "m").test(S.text), "a chat gate (task table, quiz questions or 'reply … Y') in the reply"),
+  tasks_quick_file: (S, P) => {
+    const q = quickDocs(P);
+    const t = q.length === 1 ? read(path.join(P, q[0])) ?? "" : "";
+    return ok(q.length === 1 && /^← Change: none \| key: [A-Z]{2,5}$/m.test(t) && /^> status: draft$/m.test(t) && (t.match(new RegExp(`^## ${K}-T\\d+ `, "gm")) ?? []).length === 1, `quick files: ${q.join(", ") || "none"}`);
+  },
+  tasks_quick_brief: (S, P, c) => {
+    const tg = tasksTarget(P, c); const b = tasksBrief(P, tg); if (!b) return ok(false, `no ${tg?.briefFile ?? "quick brief"}`);
+    const q2 = b.questions.find((q) => q.n === 2);
+    const nums = b.questions.filter((q) => q.tag === "Q").map((q) => q.n).join(",");
+    return ok(b.kind === "tasks" && b.change === null && b.quick?.slug === tg.slug && b.quick?.key === tg.arg && nums.startsWith("1,2,3,4") && q2?.settled && /n\/a/.test(q2.recorded.join(" ")) && b.questions.at(-1)?.ownY === "approve",
+      `quick ${JSON.stringify(b.quick)} change ${b.change}; [Q] ${nums}; Q2 ${q2?.recorded?.join(" ")}; last ${b.questions.at(-1)?.ownY}`);
+  },
+  tasks_quick_key_once: (S, P) => {
+    const docs = (json(cli(P, "tasks", "--json").out)?.tasks ?? []).filter((t) => t.quick);
+    const files = [...new Set(docs.map((t) => t.file))];
+    const errs = (json(cli(P, "tasks", "--check", "--json").out)?.errors ?? []).filter((e) => /QUICK_KEY_TAKEN/.test(e.message));
+    return ok(files.length === 1 && !errs.length, `quick docs ${files.join(", ")}; QUICK_KEY_TAKEN ${errs.length}`);
+  },
+  tasks_approved_by_cli: (S, P, c) => {
+    const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : "";
+    const cliCall = bashCalls(S).some((x) => /hitl-index(?:\.mjs)?\s+(?:--json\s+)?tasks\s+approve\b/.test(x));
+    const self = S.tools.find((x) => ["Edit", "Write", "MultiEdit"].includes(x.name) && /status: approved/.test(JSON.stringify(x.input)) && /tasks/.test(String(x.input.file_path || "")));
+    return ok(/^> status: approved$/m.test(t) && cliCall && !self, `header approved ${/^> status: approved$/m.test(t)}; tasks approve called ${cliCall}; own edit ${!!self}`);
+  },
+  tasks_brief_done: (S, P, c) => { const b = tasksBrief(P, tasksTarget(P, c)); const ap = b?.questions.filter((q) => q.ownY === "approve").at(-1); return ok(b?.status === "done" && /^approved\b/.test(ap?.recorded?.[0] ?? ""), `brief ${b?.status}; approve mark ${ap?.recorded?.join(" ")}`); },
+  tasks_set_unchanged: (S, P, c) => { const tg = tasksTarget(P, c); const d = tg ? json(cli(P, "tasks", "diff", tg.arg, "--json").out) : null; return ok(d && !d.changed, `changed since the round: ${d?.lines?.join(" · ")}`); },
+  tasks_next_line: (S, P, c) => { const tg = tasksTarget(P, c); return ok(new RegExp(`_Next:_\\s*\`?\\/hitl:(?:implement|skeleton) ${tg?.arg ?? "QDEM"}-T1\\b`).test(S.text) && /Tasks approved/i.test(S.text), "no ✅ Tasks approved + _Next:_ /hitl:implement|skeleton <KEY>-T1"); },
   // ---- review
   review_l0: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/QT-T1/l0.json")), "no l0.json"),
   review_report: (S, P) => ok(fs.existsSync(path.join(P, ".hitl/reviews/QT-T1.review.md")), "no QT-T1.review.md"),

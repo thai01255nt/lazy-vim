@@ -126,9 +126,9 @@
    ]
   },
   {
-   "id": "tasks",
+   "id": "tasks-brief",
    "fixture": "tasks",
-   "runs": 2,
+   "runs": 1,
    "prompt": "/hitl:tasks feat-password-reset",
    "checks": [
     "tasks_written",
@@ -137,10 +137,42 @@
     "tasks_ac_scenarios",
     "tasks_all_scenarios",
     "tasks_why_decisions",
-    "tasks_quiz_gate",
     "tasks_test_decisions",
     "tasks_not_approved",
+    "tasks_brief_written",
+    "tasks_snapshot_written",
+    "tasks_brief_chat",
+    "tasks_no_chat_gate",
     "reply_ids_glossed"
+   ]
+  },
+  {
+   "id": "tasks-quick",
+   "fixture": "plan",
+   "runs": 1,
+   "prompt": "/hitl:tasks quick change the duplicate sign-up error message from \"duplicate email\" to \"email already registered\"",
+   "checks": [
+    "tasks_quick_file",
+    "tasks_quick_brief",
+    "tasks_quick_key_once",
+    "tasks_snapshot_written",
+    "tasks_not_approved",
+    "tasks_brief_chat",
+    "tasks_no_chat_gate",
+    "tasks_check"
+   ]
+  },
+  {
+   "id": "tasks-quick-accept",
+   "fixture": "tasks-quick-answered",
+   "runs": 1,
+   "prompt": "/hitl:tasks QDEM",
+   "checks": [
+    "tasks_approved_by_cli",
+    "tasks_brief_done",
+    "tasks_set_unchanged",
+    "tasks_next_line",
+    "tasks_check"
    ]
   },
   {

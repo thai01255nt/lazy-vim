@@ -52,7 +52,8 @@ export async function readKeyRegistry(root) {
       if (!byKey.has(k)) add(k, { change: null, archived: true, source: `specs/${cap}` });
     }
   }
-  for (const n of (await fs.readdir(P.tasks).catch(() => [])).filter((x) => x.endsWith(".md")).sort()) {
+  const { isTasksDocName } = await import("./tasksmd.mjs");
+  for (const n of (await fs.readdir(P.tasks).catch(() => [])).filter(isTasksDocName).sort()) {
     const k = quickFileKey(await readText(join(P.tasks, n), null));
     if (k) add(k, { change: null, archived: false, source: `tasks/${n}`, quick: true });
   }

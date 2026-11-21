@@ -44,13 +44,18 @@ export async function run(argv, ctx) {
   const task = g.tasks.find((t) => t.id === T);
   const noteDir = task?.change && !task.archived ? (await findChange(ctx.root, task.change))?.dir ?? null : null;
   const notes = noteDir ? await readNotes(ctx.root, noteDir) : [];
+  // 0.21: TASKS_NOT_APPROVED — the task's set is draft, or the task is new/edited in an open tasks brief update
+  let tasksHold = null;
+  if (task && !task.archived) {
+    try { const TB = await import("../lib/tasksbrief.mjs"); const hd = (await TB.tasksHolds(ctx.root, [task], g.lock))[T]; if (hd) tasksHold = { ...hd, message: TB.holdMessage(T, hd) }; } catch { tasksHold = null; }
+  }
   const plan = planApproval({ taskId: T, stage: v.stage, symbols: v.symbols ? v.symbols.split(",").map((s) => s.trim()).filter(Boolean) : null,
-    by, force: !!v.force, index: g.index, lock: g.lock, state: g.state, config: ctx.config, task, tasks: g.tasks, statuses: g.statuses, api: g.api, notes, ack });
+    by, force: !!v.force, index: g.index, lock: g.lock, state: g.state, config: ctx.config, task, tasks: g.tasks, statuses: g.statuses, api: g.api, notes, ack, tasksHold });
   const counts = (l) => ({ symbols: Object.values(l.symbols).filter((s) => lockedTasks(s).includes(T)).length, tests: Object.values(l.tests).filter((t) => t.task === T).length,
     testsLocked: Object.values(l.tests).filter((t) => t.task === T && t.stage === "locked").length });
   const nextCmd = plan.stage === "skeleton" ? `/hitl:test ${T}` : plan.stage === "tests" ? `/hitl:implement ${T}` : null;
   const out = { ok: plan.ok, task: T, stage: plan.stage, by, ...(by === "human-override" ? { override: true } : {}), dryRun: !!v["dry-run"], reasons: plan.reasons,
-    warnings: plan.warnings || [], ...(plan.blockedBy?.length ? { blockedBy: plan.blockedBy } : {}), ...(plan.noteAcks?.length ? { acked: plan.noteAcks } : {}), changes: plan.changes,
+    warnings: plan.warnings || [], ...(plan.code ? { code: plan.code } : {}), ...(plan.blockedBy?.length ? { blockedBy: plan.blockedBy } : {}), ...(plan.noteAcks?.length ? { acked: plan.noteAcks } : {}), changes: plan.changes,
     ...(plan.red ? { red: plan.red } : {}), ...(plan.budget ? { budget: plan.budget } : {}), ...(plan.manual?.length ? { manual: plan.manual } : {}) };
   const warn = () => { if (!json) for (const w of out.warnings) console.log(`⚠️ ${w}`); };
   // 0.16: the RED table (regression tests that pass listed apart), the test budget, the manual checks at done
@@ -73,7 +78,7 @@ export async function run(argv, ctx) {
   };
 
   if (!plan.ok) {
-    const suggest = plan.blockedBy?.length ? plan.blockedBy[0].apply
+    const suggest = plan.code === "TASKS_NOT_APPROVED" && tasksHold ? tasksHold.apply : plan.blockedBy?.length ? plan.blockedBy[0].apply
       : plan.stage === "skeleton" ? `fix the skeleton/tags then rerun; check with: hitl-index drift --task ${T}`
       : plan.stage === "tests" ? `hitl-index test --task ${T}` : `/hitl:review ${T}`;
     if (json) console.log(JSON.stringify({ ...out, suggest }, null, 2));

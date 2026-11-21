@@ -21,7 +21,7 @@ const ACTION_TEXT = {
   approve: (i) => `human: /hitl:approve ${i.id}`,
   "approve-tests": (i) => `human: /hitl:approve ${i.id} tests`,
   blocked: (i) => `waits for ${i.waitsFor.join(", ")}`,
-  held: (i) => `_Held:_ amend brief ${i.hold.amend} (${i.hold.apply})`,
+  held: (i) => `_Held:_ ${i.hold.amend ? `amend brief ${i.hold.amend}` : `${i.hold.code}: ${i.hold.what}`} (${i.hold.apply})`,
   skip: () => "implemented (review at the end)",
 };
 
@@ -62,7 +62,11 @@ export async function run(argv, ctx) {
   }
   // 0.17: tasks an open amend brief touches are held
   let holds = {};
-  try { const { notesInfo } = await import("./status.mjs"); holds = (await notesInfo(ctx.root, g)).holds || {}; } catch { holds = {}; }
+  try {
+    const ni = await (await import("./status.mjs")).notesInfo(ctx.root, g);
+    // 0.21: a task of a draft set or held by an open tasks brief update stops the run like an amend hold
+    holds = { ...Object.fromEntries(Object.entries(ni.tasksHolds || {}).map(([T, h]) => [T, { ...h, amend: null, what: h.reason === "draft" ? "draft task set" : "tasks brief update" }])), ...(ni.holds || {}) };
+  } catch { holds = {}; }
   const plan = planFeature({ feature, allTasks: g.tasks, statuses: g.statuses, drift: g.drift, laneFast: v.lane === "fast", holds });
   if (v.report) {
     const r = await featureReport(ctx.root, ctx.config, plan, g.state, v["security-audit"]);

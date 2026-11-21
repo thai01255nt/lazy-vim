@@ -20,6 +20,9 @@ export const TASK_KINDS = ["prep", "expand", "migrate", "switch", "contract", "r
  *  deploy boundary (`deploy:` later than the deploy of the task that added it) when the old behaviour is released. */
 export const TEMP_TYPES = ["data", "api", "event", "flag", "shim"];
 export const TEMP_NEEDS_DEPLOY = ["data", "api", "event"];
+/** 0.21: a file under `.hitl/tasks/` that is a tasks doc (a quick file or a v0.5 file), not a quick file's tasks brief
+ *  (`quick-<slug>-brief.md`). Every reader of `.hitl/tasks/*.md` filters with it. */
+export const isTasksDocName = (n) => String(n).endsWith(".md") && !String(n).endsWith("-brief.md");
 /** Task statuses the CLI writes into the meta line; `dropped` is written only by `hitl-index tasks drop`. */
 export const DROPPED = "dropped";
 const CHANGE_FILE_RE = new RegExp(`^${HITL_PREFIX.replace(".", "\\.")}changes/([^/]+)/tasks\\.md$`);
@@ -164,6 +167,7 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     t.change = doc.change;
     t.quick = doc.quick;
     t.quickKey = doc.key;
+    t.docStatus = doc.status; // 0.21: the file header (`> status: draft|approved`); only `hitl-index tasks approve` sets approved
     if (keyError) t.parseErrors.push(keyError);
     t.archived = doc.archived;
     t.changeDir = doc.changeDir;
@@ -214,7 +218,7 @@ export async function readTaskDocs(root) {
   const add = async (abs, rel) => { const t = await fs.readFile(abs, "utf8").catch(() => null); if (t !== null) docs.push(parseTasksMd(t, rel)); };
   for (const d of await dirNames(P.changes)) await add(join(P.changes, d, "tasks.md"), `${HITL_PREFIX}changes/${d}/tasks.md`);
   for (const d of await dirNames(P.archive)) await add(join(P.archive, d, "tasks.md"), `${HITL_PREFIX}archive/${d}/tasks.md`);
-  const names = (await fs.readdir(P.tasks).catch(() => [])).filter((n) => n.endsWith(".md")).sort();
+  const names = (await fs.readdir(P.tasks).catch(() => [])).filter(isTasksDocName).sort();
   for (const n of names) await add(join(P.tasks, n), `${HITL_PREFIX}tasks/${n}`);
   return docs;
 }

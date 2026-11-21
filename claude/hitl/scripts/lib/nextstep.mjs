@@ -55,7 +55,7 @@ const CHANGE_REASON = { "archive-ready": "all tasks done; merge its spec deltas"
  * @param {{tasks:Task[], statuses:{tasks}, drift?, lock?, planning?:[{file,status,hasTasks}], changes?:[{id,phase}]}} o
  * @returns {{task:string|null, command:string, reason:string, change?:string}}
  */
-export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [], notes = {} }) {
+export function computeNext({ tasks = [], statuses, drift, lock, planning = [], changes = [], quick = [], notes = {} }) {
   const ld = lockedDrift(drift, lock);
   if (ld.length) return { task: ld[0].task || null, command: "/hitl:sync", reason: `${ld.length} drift item(s) on locked symbols (e.g. ${ld[0].code} ${ld[0].symbol})` };
   // 0.9: a recheck note waits for the human's reopen decision (/hitl:approve <change> reopen)
@@ -67,7 +67,9 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
   if (am) return { task: null, command: am.amend[0].apply, reason: `${am.change} must take in ${am.amend[0].id} (${am.amend[0].title}) from ${am.amend[0].source}, which is archived`, change: am.change };
   const waitOf = new Map(waits.filter((x) => x.for?.length).map((x) => [x.change, x]));
   const st = statuses?.tasks || {};
-  const all = tasks.length ? tasks : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
+  // 0.21: a task of a draft set (change or quick file) is not on the frontier: its tasks brief comes first
+  const draft = (t) => !t.archived && (t.change || t.quick) && t.docStatus !== undefined && t.docStatus !== "approved";
+  const all = tasks.length ? tasks.filter((t) => !draft(t)) : Object.keys(st).map((id) => ({ id, prio: "P9", blockedBy: [] }));
   const isDone = (id) => ["done", "dropped"].includes(st[id]?.status); // 0.17: a dropped task never blocks
   const frontier = all.filter((t) => !isDone(t.id) && (t.blockedBy || []).every(isDone))
     .sort((a, b) => prioNum(a.prio) - prioNum(b.prio) || idNum(a.id) - idNum(b.id));
@@ -93,12 +95,14 @@ export function computeNext({ tasks = [], statuses, drift, lock, planning = [], 
     const n = byTask[t.id][0];
     return { task: t.id, command: n.apply, reason: `${t.id} is blocked by ${n.id} (${n.title})`, ...(n.change ? { change: n.change } : {}) };
   }
-  const waiting = changes.filter((c) => c.phase in CHANGE_ORDER && !(c.phase === "archive-ready" && waitOf.has(c.id)))
+  // 0.21: a quick file whose set is draft waits like a change in phase tasks (its tasks brief, or /hitl:tasks <KEY>)
+  const quickWaiting = (quick || []).filter((q) => q.tasks !== "approved" || q.brief?.open).map((q) => ({ id: q.key || q.id, phase: "tasks", brief: q.brief, quick: true }));
+  const waiting = [...changes, ...quickWaiting].filter((c) => c.phase in CHANGE_ORDER && !(c.phase === "archive-ready" && waitOf.has(c.id)))
     .sort((a, b) => CHANGE_ORDER[a.phase] - CHANGE_ORDER[b.phase] || String(a.id).localeCompare(String(b.id)))[0];
   if (waiting) {
     const b = briefNext(waiting.id, waiting.phase, waiting.brief) ? waiting.brief : null;
-    const reason = b ? `${b.kind} brief round ${b.round} has ${b.unanswered} unanswered question(s)` : CHANGE_REASON[waiting.phase];
-    return { task: null, command: nextForChange(waiting), reason: `change ${waiting.id}: ${reason}`, change: waiting.id };
+    const reason = b ? `${b.kind} brief round ${b.round} has ${b.unanswered} unanswered question(s)` : waiting.quick ? "quick task set not approved yet" : CHANGE_REASON[waiting.phase];
+    return { task: null, command: nextForChange(waiting), reason: `${waiting.quick ? "quick" : "change"} ${waiting.id}: ${reason}`, ...(waiting.quick ? { quick: waiting.id } : { change: waiting.id }) };
   }
   if (all.length && !all.every((t) => isDone(t.id))) return { task: null, command: "/hitl:flow", reason: "no unblocked task (check blocked-by edges)" };
   const p = planning.find((x) => x.status === "approved" && !x.hasTasks);

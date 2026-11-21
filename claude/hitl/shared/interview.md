@@ -8,8 +8,10 @@ round happens — in a brief file, never in chat — and **when** facts are gath
 design for Explore before writing round 1). Own text, except § Shared language:
 <!-- Adapted from mattpocock/skills (MIT) — see NOTICE.md. Source: skills/engineering/domain-modeling/SKILL.md @ 4ae2317 (§ During the session). Changes: writes the change's glossary.md delta, not GLOSSARY.md; no ADR files (<KEY>-D<n> rows); term questions are a [T] tag with a cap; code checks go through spec-scout / Explore. -->
 
-Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`), `/hitl:design` (tags `[D]`, `[A]`) and the amend brief of
-either (0.17; tags `[R]`, `[D]`, `[X]`, `[K]`; format and runs in `shared/amend-spec.md` §3–§4).
+Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`), `/hitl:design` (tags `[D]`, `[A]`), the amend brief of
+either (0.17; tags `[R]`, `[D]`, `[X]`, `[K]`; format and runs in `shared/amend-spec.md` §3–§4) and the tasks brief of
+`/hitl:tasks` (0.21; tags `[Q]`, `[C]`; a review of a set already written to tasks.md: format and runs in
+`skills/tasks/SKILL.md` §6, `skills/tasks/references/slicing-and-risk.md` §9).
 
 ## Contents
 1. Loading
@@ -39,6 +41,8 @@ There is **no design tree of components and no levels**. The frontier is a set o
 | `[T]` | plan (design: `_Needs term:_`) | a term: the canonical word, what it IS, its boundary with a neighbour term; max 2 per round | `### Term:` block in glossary.md with `_Avoid_` (§10) |
 | `[X]` | amend brief | an out-of-scope candidate: accept into this change's scope · own change (`--before` or after) · drop | part of the amendment, a `--before` hint, or an `## Out of scope` line |
 | `[K]` | amend brief | a half-done task: keep and adapt · revert to the base and redo | an edit in place, or a `revert` task (`shared/task-changes.md`) |
+| `[Q]` | tasks brief | one review area of the set: slices, blocking edges, owners, test plan (with Claude's own check as evidence) | an edit of tasks.md, or kept |
+| `[C]` | tasks brief | one finding code (trace warn/info, a semantic check), its ids grouped: fix or accept | an edit of tasks.md, or `→ recorded: accepted` |
 - Plan never asks `[D]`. Design never asks `[R]`: a design answer that needs new behaviour becomes `_Needs spec:_ …`
   (a question of the next round with the `_Delta:_` preview, §8).
 - `[S]` questions need the spec-scout result (`.scout.json`); the scout runs before the plan brief is written, so they
@@ -56,8 +60,9 @@ Mechanics in `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/elicitation.md` (plan
 
 ## 4. The brief file and the round format
 Rounds are written into a **brief file** in the change folder and answered there, in the user's editor. There is no
-chat round mode. Files: `.hitl/changes/<id>/plan-brief.md` (`/hitl:plan`), `design-brief.md` (`/hitl:design`) and
-one `amend-<KEY>-A<n>-brief.md` per amendment (0.17), from `${CLAUDE_PLUGIN_ROOT}/shared/templates/{plan,design,amend}-brief.md`. They move with the change at archive. The user
+chat round mode. Files: `.hitl/changes/<id>/plan-brief.md` (`/hitl:plan`), `design-brief.md` (`/hitl:design`),
+one `amend-<KEY>-A<n>-brief.md` per amendment (0.17) and `tasks-brief.md` (0.21, `/hitl:tasks`; a quick file's:
+`.hitl/tasks/quick-<slug>-brief.md`), from `${CLAUDE_PLUGIN_ROOT}/shared/templates/{plan,design,amend,tasks}-brief.md`. They move with the change at archive. The user
 edits them too; Claude never deletes or rewrites the user's text (`## Description`, `>` lines, Notes).
 ```
 # Plan brief — feat-export-csv
@@ -133,7 +138,10 @@ _Rec:_ split into several files of ≤ 10 000 rows.
   - `### Q<n> _To <P>:_ …` — writes a note into another change P (`shared/other-changes.md` §3);
   - `### Q<n> _Needs spec:_ …` — applies a spec delta and its Impact classes (§8).
   - design: the test-strategy question when the risks name security, concurrency or data (its answer decides whether
-    `/hitl:tasks` must keep an automated test per AC, `TEST_PLAN_NONE_RISK`).
+    `/hitl:tasks` must keep an automated test per AC, `TEST_PLAN_NONE_RISK`);
+  - tasks brief (0.21): `### Q<n> _Override:_ <AC> none!: …` (writes a `!` test-plan row; parser `ownY: override`)
+    and `### Q<n> Approve the task set? (Y/n)` (`ownY: approve`), the last question of every round, after the Notes
+    block: the approval lives inside the round (no `## Close`), and only `hitl-index tasks approve` acts on its Y.
   The parser recognises them from the heading (`ownY` in `hitl-index brief --json`) and never counts the accept-all
   `Y` as their answer: an empty answer under one is carried to the next round (same number) even when the round's
   accept-all line says `Y`.

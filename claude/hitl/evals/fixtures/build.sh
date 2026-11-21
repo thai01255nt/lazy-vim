@@ -9,6 +9,9 @@
 #         plan-answered   = plan + a new change feat-deactivate-account whose plan brief round 1 is answered (0.14)
 #         design-answered = design + a draft design.md (Context facts) and a design brief whose round 1 is accepted
 #                   with Y on the accept-all line (0.14; replaces the old design --auto case)
+#         tasks-quick-answered = plan + a draft quick file .hitl/tasks/quick-duplicate-email-message.md (key QDEM) and its
+#                   tasks brief, round 1 answered: accept-all Y + Y under "Approve the task set?" (0.21); the round
+#                   snapshot is written by `tasks gate QDEM --write`, so the next /hitl:tasks QDEM approves it
 #         review    ts-app (v0.5 tasks file) driven to "QT-T1 implemented, tests green, skeleton+tests locked"
 #         lua       lua-app (pure Lua + LuaLS annotations, busted) with approved change feat-burst-credit, BURST-T1 todo
 #         churn     churn-app (node:test) with approved change feat-fee: FEE-T1 settle done (2 locked tests), FEE-T2 todo
@@ -30,7 +33,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 gitc() { git -C "$dest" init -q; git -C "$dest" add -A; git -C "$dest" -c user.email=e@x -c user.name=eval commit -qm fixture; }
 
 case "$kind" in
-  spec|plan|design|tasks|flow|plan-answered|design-answered)
+  spec|plan|design|tasks|flow|plan-answered|design-answered|tasks-quick-answered)
     cp -R "$FIX/ts-app/src" "$FIX/ts-app/tests" "$FIX/ts-app/package.json" "$dest/"
     cp "$FIX/ts-app/variants/src/services/userService.ts.green" "$dest/src/services/userService.ts"
     cp "$FIX/ts-app/variants/src/repo/userRepo.ts.manual" "$dest/src/repo/userRepo.ts"
@@ -47,6 +50,12 @@ case "$kind" in
       design-answered) rm -f "$C/design.md" "$C/tasks.md"; cp "$HERE"/briefs/feat-password-reset/* "$C/" ;;
       plan-answered) cp -R "$HERE/briefs/feat-deactivate-account" "$dest/.hitl/changes/" ;;
       tasks) rm -f "$C/tasks.md" ;;
+      tasks-quick-answered)
+        K=$(cd "$dest" && CLI --json next-id --quick duplicate-email-message | sed -E 's/.*"key":"([A-Z]+)".*/\1/')
+        [ "$K" = QDEM ] || { echo "quick key $K, want QDEM (scenarios.json names it)" >&2; exit 1; }
+        mkdir -p "$dest/.hitl/tasks"
+        for f in "$HERE"/briefs/quick/*.md; do sed "s/{KEY}/$K/g" "$f" > "$dest/.hitl/tasks/$(basename "$f")"; done
+        (cd "$dest" && CLI tasks gate "$K" --write >/dev/null && CLI tasks --check >/dev/null) ;;
     esac
     gitc ;;
   review)

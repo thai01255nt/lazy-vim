@@ -14,7 +14,7 @@ import { readJson, readText, writeTextAtomic } from "./fsutil.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
 import { CHANGE_KEY_RE, QUICK_KEY, SPECREF_G, compareIds, compareTaskIds, parseId, parseTaskId, rewriteIds, today } from "./specids.mjs";
 import { listChanges, readChange, readLiving } from "./changes.mjs";
-import { parseTasksMd } from "./tasksmd.mjs";
+import { isTasksDocName, parseTasksMd } from "./tasksmd.mjs";
 import { ID_MAP_SCHEMA, idMapPath, legacyKeyFor, makeQuickKey, proposalKey, quickSlug, readKeyRegistry, setQuickFileKey, suggestKey } from "./keys.mjs";
 import { LOCK_SCHEMA, stableStringify } from "./lock.mjs";
 
@@ -142,7 +142,7 @@ export async function planMigrateIds(root, config, { keys = {} } = {}) {
   for (const e of entries) changes.push({ entry: e, ch: await readChange(root, e) });
   const living = await readLiving(root);
   const quick = [];
-  for (const n of (await fs.readdir(P.tasks).catch(() => [])).filter((n) => n.endsWith(".md")).sort()) {
+  for (const n of (await fs.readdir(P.tasks).catch(() => [])).filter(isTasksDocName).sort()) {
     const rel = `${HITL_PREFIX}tasks/${n}`;
     const text = await readText(join(P.tasks, n), null);
     if (text !== null) quick.push({ file: rel, text, doc: parseTasksMd(text, rel) });

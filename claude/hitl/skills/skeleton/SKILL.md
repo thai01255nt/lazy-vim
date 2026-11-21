@@ -23,6 +23,9 @@ Never write business logic here. Bodies are TODO(impl) steps + the sentinel (or 
 ## 1. Select the task
 - `hitl-index tasks --json`. No task id given → use the first frontier task from `hitl-index status --json` and say `_Assumed:_ <T>`.
 - Unknown id → ❌ list valid ids, stop.
+- `hitl-index status <T> --json` `tasks[T].tasksHold` set, or `hitl-index context <T>` exits 1 with `TASKS_NOT_APPROVED`
+  (0.21: the task set is draft, or T is new or edited in an open tasks brief update) → `_Stop:_ <T> is in a task set the
+  human has not approved yet.` `_Next:_ <tasksHold.apply>`. Stop: never write stubs for it.
 - `--quick` on a high-risk task without `--override` → `_Stop:_ Fast lane is for low-risk tasks only (<T> is high: <reasons>).` Drop `--quick` and continue normally.
 - Blocked by unfinished tasks → GATE `⚠️ <T> is blocked by PWR-T11 (status wip), PWR-T9 (todo). Continue anyway? (y/N)` END THE TURN.
 - Already locked (`hitl-index status <T> --json` shows approved or later) → `⚠️ <T> skeleton is locked. Signature/intent changes will need /hitl:approve <T> again.` and continue.

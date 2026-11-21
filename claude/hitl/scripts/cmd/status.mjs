@@ -39,7 +39,10 @@ export async function notesInfo(root, g) {
     const open = await am.readOpenAmends(root, await listChanges(root, { archived: false }));
     holds = am.amendHolds(open.map((x) => ({ change: x.change, brief: x.brief })), g.tasks, g.index, g.lock, g.api, (T) => g.statuses?.tasks?.[T]?.status ?? null);
   } catch { holds = {}; }
-  return { changes, byTask, pending, waits, holds };
+  // 0.21: a task of a draft set, or new/edited in an open tasks brief update round, is held (TASKS_NOT_APPROVED)
+  let tasksHolds = {};
+  try { tasksHolds = await (await import("../lib/tasksbrief.mjs")).tasksHolds(root, g.tasks, g.lock); } catch { tasksHolds = {}; }
+  return { changes, byTask, pending, waits, holds, tasksHolds };
 }
 
 /** Notes blocks and amend holds per task, for computeNext: a held task is skipped like a task a note blocks. */
@@ -47,6 +50,8 @@ export function blocksForNext(ni) {
   const byTask = { ...(ni.byTask || {}) };
   // the hold first: the open amend brief is where the touched task's notes are taken in
   for (const [T, h] of Object.entries(ni.holds || {})) byTask[T] = [{ id: h.amend, title: `amend brief ${h.amend} is open`, kind: "amend", status: "open", change: h.change, via: h.via, apply: h.apply }, ...(byTask[T] || [])];
+  // 0.21: an update hold of the tasks brief (a draft set is not on the frontier at all: computeNext skips it)
+  for (const [T, h] of Object.entries(ni.tasksHolds || {})) if (h.reason === "update") byTask[T] = [{ id: "tasks brief", title: `tasks brief update round is open (${h.brief})`, kind: "tasks", status: "open", apply: h.apply }, ...(byTask[T] || [])];
   return { ...ni, byTask };
 }
 
@@ -60,12 +65,19 @@ export function waitLines(ni) {
   return out;
 }
 
-/** One line per change whose phase brief file waits for answers (0.14): `_Brief:_ <id> — <kind> brief round <n>: <k> unanswered → …`. */
-export function briefLines(changes) {
+/** One line per change whose phase brief file waits for answers (0.14): `_Brief:_ <id> — <kind> brief round <n>: <k> unanswered → …`.
+ *  0.21: an open tasks brief in any phase (an update round), and every open quick brief (`_Brief:_ quick <KEY> …`, also
+ *  one never approved: it stays listed as draft until approved). */
+export function briefLines(changes, quick = []) {
   const out = [];
   for (const c of changes || []) {
     const b = c.brief;
     if (!b || !b.open) continue;
+    if (b.kind === "tasks") {
+      const cmd = `/hitl:tasks ${c.id}`;
+      out.push(`_Brief:_ ${c.id} — tasks brief round ${b.round}${c.phase === "tasks" ? "" : " (update)"}: ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
+      continue;
+    }
     if (b.kind === "amend") { // 0.17: an open amend brief, in any phase (touched tasks wait for it)
       const cmd = `${b.skill === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id} amend`;
       out.push(`_Brief:_ ${c.id} — amend brief ${b.amend} round ${b.round} (${b.status}): ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
@@ -77,6 +89,28 @@ export function briefLines(changes) {
     const cmd = `${b.kind === "design" ? "/hitl:design" : "/hitl:plan"} ${c.id}`;
     out.push(`_Brief:_ ${c.id} — ${b.kind} brief round ${b.round}: ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
   }
+  for (const q of quick || []) {
+    const b = q.brief;
+    const cmd = `/hitl:tasks ${q.key || q.id}`;
+    if (b && b.open) out.push(`_Brief:_ quick ${q.key || q.id} — tasks brief round ${b.round} (${q.tasks}): ${b.unanswered} unanswered → ${b.unanswered ? `answer ${b.file}, then ${cmd}` : cmd}`);
+    else if (!b && q.tasks !== "approved") out.push(`_Brief:_ quick ${q.key || q.id} — ${q.file} is draft, no tasks brief yet → ${cmd}`);
+  }
+  return out;
+}
+
+/** 0.21: quick files with their tasks brief: [{id, key, file, tasks: draft|approved, brief}] (a summary, or null). */
+export async function quickInfo(root) {
+  const out = [];
+  try {
+    const TB = await import("../lib/tasksbrief.mjs");
+    const { briefSummary } = await import("../lib/brief.mjs");
+    for (const t of await TB.tasksTargets(root)) {
+      if (t.kind !== "quick") continue;
+      const cur = await TB.readTarget(root, t);
+      const b = await TB.readTasksBrief(root, t).catch(() => null);
+      out.push({ id: t.id, key: t.key, file: t.tasksFile, tasks: cur?.doc.status || "draft", brief: briefSummary(b) });
+    }
+  } catch { /* fail-open */ }
   return out;
 }
 
@@ -212,7 +246,8 @@ export async function run(argv, ctx) {
     const byWork = v["work-order"] || v["by-prio"];
     const changes = await changesInfo(ctx.root, statuses);
     const ni = await notesInfo(ctx.root, g);
-    let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, notes: blocksForNext(ni) });
+    const quick = await quickInfo(ctx.root);
+    let next = computeNext({ tasks, statuses, drift, lock, planning: await planningInfo(ctx.root), changes, quick, notes: blocksForNext(ni) });
     // 0.13: pre-0.13 ids (T-n, D-n, keyless changes, a hitl.lock/1 with T-n) route to /hitl:migrate first; 0.13.2: so
     // do legacy QT-T<n> quick ids in a keyed project
     const legacy = await (await import("../lib/migrateids.mjs")).legacyIdState(ctx.root).catch(() => ({ legacy: false, reasons: [] }));
@@ -227,6 +262,10 @@ export async function run(argv, ctx) {
       return soft ? 0 : 1;
     }
     const tmeta = (id) => tasks.find((t) => t.id === id) || {};
+    // 0.21: where each test override was recorded (the tasks brief question), for ⚠️ test override (no brief record)
+    const TB = await import("../lib/tasksbrief.mjs");
+    const recordText = TB.recordText;
+    const orec = Object.values(statuses.tasks).some((x) => x.testOverride?.length) ? await TB.overrideRecords(ctx.root).catch(() => new Map()) : new Map();
     const { trace, linear } = json || v.brief ? await traceAndTickets(ctx, g) : { trace: null, linear: null };
     const tickets = linear ? (({ perTask, ...rest }) => rest)(linear) : null;
     if (json) {
@@ -237,13 +276,14 @@ export async function run(argv, ctx) {
           drift: { block: items.filter((i) => i.level === "block").length, warn: items.filter((i) => i.level === "warn").length, info: items.filter((i) => i.level === "info").length },
           trace: taskTrace(trace, id), linear: linear?.perTask?.[id] ?? null, notes: (ni.byTask[id] || []).map(({ id: n, title, status, kind, apply, via }) => ({ id: n, title, status, kind, via, apply })),
           amend: m.amend || null, kind: m.kind || null, ...(m.dropped ? { dropped: m.dropped } : {}), ...(m.superseded?.length ? { superseded: m.superseded } : {}),
-          ...(ni.holds?.[id] ? { amendHold: ni.holds[id] } : {}),
+          ...(ni.holds?.[id] ? { amendHold: ni.holds[id] } : {}), ...(ni.tasksHolds?.[id] ? { tasksHold: ni.tasksHolds[id] } : {}),
+          ...(st.testOverride?.length ? { testOverrideSource: Object.fromEntries(st.testOverride.map((ac) => [ac, recordText(orec.get(ac))])) } : {}),
           ...(waitOf(id) ? { wait: waitOf(id) } : {}) }; };
       const taskOut = Object.fromEntries(Object.entries(statuses.tasks).filter(([id]) => !T || id === T).map(([id, st]) => [id, enrich(id, st)]));
       console.log(JSON.stringify({ symbols: pick, tasks: taskOut, next, changes: changes.map(({ id, phase, tasks: tc, brief }) => ({ id, phase, tasks: tc, ...(brief ? { brief } : {}), notes: ni.changes.find((c) => c.change === id)?.counts ?? null,
         wait: (({ change, ...w }) => w)((ni.waits || []).find((x) => x.change === id) || { change: null }) })).map((c) => (Object.keys(c.wait).length ? c : (({ wait, ...r }) => r)(c))), drift: drift ? drift.summary : null, lockedDrift: ld.length,
         trace: trace ? { block: trace.counts.block, warn: trace.counts.warn, info: trace.counts.info, reqs: trace.summary.reqs, acs: { total: trace.summary.acs.total, tested: trace.summary.acs.tested, proven: trace.summary.acs.proven }, scenarios: trace.summary.scenarios, plannings: trace.plannings.length, changes: (trace.changes || []).length } : null,
-        tickets, ...(idsLegacy ? { idsLegacy } : {}),
+        tickets, ...(idsLegacy ? { idsLegacy } : {}), ...(quick.length ? { quick } : {}),
         ...(sync ? { syncTags: { files: sync.files, tags: sync.tags, tasksFiles: sync.tasksFiles } } : {}) }, null, 2));
       return 0;
     }
@@ -262,13 +302,15 @@ export async function run(argv, ctx) {
       const nl = notesLine(ni);
       if (nl) console.log(nl);
       for (const l of waitLines(ni)) console.log(l);
-      for (const l of briefLines(changes)) console.log(l);
+      for (const l of briefLines(changes, quick)) console.log(l);
       return 0;
     }
     const ids = sortTaskIds(Object.keys(statuses.tasks).filter((id) => !T || id === T), byWork ? (id) => tmeta(id).prio : null);
     const rows = ids.map((id) => [id, statuses.tasks[id]]);
     console.log("| task | title | prio | risk | status | next |\n|---|---|---|---|---|---|");
-    for (const [id, s] of rows) { const m = tmeta(id); const nb = ni.byTask[id]; const h = ni.holds?.[id]; console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""}${s.testOverride ? " ⚠️ test override" : ""} | ${s.status}${m.amend ? ` (${m.amend}${m.kind ? ` ${m.kind}` : ""})` : ""}${nb ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${h ? ` _Held:_ ${h.amend}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${h ? h.apply : s.next || "—"} |`); }
+    for (const [id, s] of rows) { const m = tmeta(id); const nb = (ni.byTask[id] || []).filter((x) => x.kind !== "tasks"); const h = ni.holds?.[id]; const th = ni.tasksHolds?.[id];
+      const unrec = (s.testOverride || []).some((ac) => !orec.has(ac));
+      console.log(`| ${id} | ${m.title || ""} | ${m.prio || ""} | ${s.risk}${s.override ? " ⚠️ override" : ""}${s.testOverride ? ` ⚠️ test override${unrec ? " (no brief record)" : ""}` : ""} | ${s.status}${m.amend ? ` (${m.amend}${m.kind ? ` ${m.kind}` : ""})` : ""}${nb.length ? ` ${nb.map((x) => `_Note ${x.id}_`).join(" ")}` : ""}${h ? ` _Held:_ ${h.amend}` : ""}${th ? ` _Held:_ ${th.reason === "draft" ? "draft task set" : "tasks brief"}` : ""}${waitOf(id) ? ` _Waits:_ ${waitOf(id).for.map((f) => f.change).join(",") || "amend"}` : ""} | ${h ? h.apply : th ? th.apply : s.next || "—"} |`); }
     if (byWork) {
       for (const [id] of rows) {
         const syms = statuses.tasks[id].targets || statuses.tasks[id].symbols;
@@ -284,7 +326,7 @@ export async function run(argv, ctx) {
     const nl = notesLine(ni);
     if (nl) console.log(`\n${nl}`);
     for (const l of waitLines(ni)) console.log(l);
-    for (const l of briefLines(changes)) console.log(l);
+    for (const l of briefLines(changes, quick)) console.log(l);
     console.log(`\n_Next:_ ${next.command} (${next.reason})`);
     return 0;
   } catch (e) {

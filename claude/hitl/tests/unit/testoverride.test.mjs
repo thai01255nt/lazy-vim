@@ -111,7 +111,26 @@ test("tasks --check: override is a warning (exit 0); status shows ⚠️ test ov
   const s = cli(root, "status", "--json").json();
   assert.deepEqual(s.tasks["PWR-T2"].testOverride, ["PWR-T2.AC1"]);
   assert.equal(s.tasks["PWR-T1"].testOverride, undefined);
-  assert.match(cli(root, "status").out, /\| PWR-T2 \| [^\n]*\| high ⚠️ test override \|/);
+  // 0.21: no "_Override:_ PWR-T2.AC1 …" question answered Y in a tasks brief → info TEST_OVERRIDE_UNRECORDED, source shown
+  assert.match(cli(root, "status").out, /\| PWR-T2 \| [^\n]*\| high ⚠️ test override \(no brief record\) \|/);
+  assert.deepEqual(s.tasks["PWR-T2"].testOverrideSource, { "PWR-T2.AC1": null });
+  assert.deepEqual(j.info.map((i) => i.code), ["TEST_OVERRIDE_UNRECORDED"]);
+  assert.match(cli(root, "tasks", "--check").out, /_Info:_ PWR-T2 TEST_OVERRIDE_UNRECORDED: PWR-T2\.AC1 "none!:" has no/);
   const tr = cli(root, "trace", "feat-password-reset", "--json").json();
   assert.ok(JSON.stringify(tr).includes("AC_TEST_OVERRIDE"), "trace info item");
+  assert.ok(tr.items.some((i) => i.code === "TEST_OVERRIDE_UNRECORDED" && i.ref === "PWR-T2.AC1"), "trace info TEST_OVERRIDE_UNRECORDED");
+  // the brief record: an `_Override:_` question answered Y in tasks-brief.md → recorded, the source is shown
+  fs.writeFileSync(path.join(root, ".hitl/changes/feat-password-reset/tasks-brief.md"), "# Tasks brief — feat-password-reset\n\n> change: feat-password-reset | key: PWR | kind: tasks | status: done | round: 1 | updated: 2026-11-21\n\n## Round 1 ✅\n\n### Q5 _Override:_ PWR-T2.AC1 none!: identity provider sets the password — no sandbox? (needs its own Y)\n\n> Y\n\n→ recorded: PWR-T2.AC1 none!\n");
+  assert.deepEqual(cli(root, "status", "--json").json().tasks["PWR-T2"].testOverrideSource, { "PWR-T2.AC1": "tasks-brief.md Q5" });
+  assert.deepEqual(cli(root, "tasks", "--check", "--json").json().info, []);
+  assert.match(cli(root, "status").out, /\| PWR-T2 \| [^\n]*\| high ⚠️ test override \|/);
+  const tr2 = cli(root, "trace", "feat-password-reset", "--json").json();
+  assert.ok(!tr2.items.some((i) => i.code === "TEST_OVERRIDE_UNRECORDED"));
+  assert.ok(JSON.stringify(tr2).includes('"overrideSource":"tasks-brief.md Q5"'), "the AC row carries its source");
+});
+
+test("review report: a test override shows its source, or (no brief record)", () => {
+  const l0 = (src) => ({ gates: [], tests: { pass: 1 }, drift: { summary: {} }, trace: { counts: {}, items: [], acs: [{ id: "QT-T1.AC2", reqs: [], proven: false, tests: 0, test: "none", testDetail: "SDK signs", override: "SDK signs", overrideSource: src }] } });
+  assert.match(buildReport({ taskId: "QT-T1", l0: l0(null), findings: { findings: [] }, config: {} }).markdown, /⚠️ test override QT-T1\.AC2 — none! on a security\/concurrency\/data task: SDK signs \(no brief record\)/);
+  assert.match(buildReport({ taskId: "QT-T1", l0: l0("quick-users-brief.md Q4"), findings: { findings: [] }, config: {} }).markdown, /SDK signs \(quick-users-brief\.md Q4\)/);
 });

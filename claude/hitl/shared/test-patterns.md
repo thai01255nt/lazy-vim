@@ -73,7 +73,7 @@ Asserting on a call is allowed **only** at a true-external port when the call *i
   reason. Never a tautology.
 
 ## 6. The double loop
-- **Outer loop** (`/hitl:test`): the `new` tests of one task's test plan (approved at the tasks gate), written from the
+- **Outer loop** (`/hitl:test`): the `new` tests of one task's test plan (approved in the tasks brief), written from the
   contract and locked RED together: acceptance tests first, not Beck's one-test cycle. A batch for a ≤ 6-symbol slice
   with human-approved oracles; not upstream's "horizontal slicing" of a whole feature.
 - **Inner loop** (implementer, `/hitl:tdd`): one failing test at a time in file order, AC1 first. Write only the code

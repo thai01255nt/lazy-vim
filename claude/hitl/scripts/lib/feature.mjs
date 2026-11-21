@@ -123,7 +123,8 @@ export function planFeature(o) {
   const blockDrift = items.find((i) => i.drift.block > 0);
   if (blockDrift) stop = `${blockDrift.id} has ${blockDrift.drift.block} block-level drift item(s): /hitl:sync, then rerun`;
   else if (current?.action === "blocked") stop = `${current.id} waits for ${current.waitsFor.join(", ")} (outside this feature)`;
-  else if (current?.action === "held") stop = `${current.id} waits for the open amend brief ${current.hold.amend}: ${current.hold.apply}`;
+  else if (current?.action === "held") stop = current.hold.amend ? `${current.id} waits for the open amend brief ${current.hold.amend}: ${current.hold.apply}`
+    : `${current.hold.code || "TASKS_NOT_APPROVED"}: ${current.id} is in a ${current.hold.what || "task set not approved yet"}: ${current.hold.apply}`;
   else if (current?.action === "approve") stop = `${current.id} skeleton waits for the human: /hitl:approve ${current.id}`;
   else if (current?.action === "approve-tests") stop = `${current.id} tests wait for the human: /hitl:approve ${current.id} tests`;
   const phase = !current ? "review" : stop ? "blocked" : "implement";

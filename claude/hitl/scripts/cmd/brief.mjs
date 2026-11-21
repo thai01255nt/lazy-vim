@@ -1,5 +1,7 @@
 // `hitl-index brief <change-id> [--kind plan|design] [--json]` — the parsed brief file of a change (0.14): rounds,
 // questions with their answers (answered, accepted by the round's accept-all line, recorded, carried), the close answer.
+// 0.21: `hitl-index brief <change-id|QKEY|quick-<slug>> --kind tasks` — the tasks brief; the argument resolves a change
+// id first, then a quick key, then a quick file name (`.hitl/tasks/quick-<slug>-brief.md`).
 // `hitl-index brief rename <change-id> [--to <new-change-id>] [--key <KEY>] [--json]` — renames a change and/or its key
 // while it has no task yet (0.14.1: during the whole plan and design brainstorm, not only plan round 1): the folder,
 // the meta lines, every id with the old key in the change's own files, and the `source:` of notes other changes hold.
@@ -12,7 +14,7 @@ import { BRIEF_KINDS, briefFileName, briefSummary, pickBrief, readBriefs } from 
 import { isChangeId } from "../lib/specids.mjs";
 import { readText, writeTextAtomic } from "../lib/fsutil.mjs";
 
-const USAGE = `usage: hitl-index brief <change-id> [--kind plan|design|amend] [--amend <KEY>-A<n>] [--json]
+const USAGE = `usage: hitl-index brief <change-id|QKEY|quick-<slug>> [--kind plan|design|tasks|amend] [--amend <KEY>-A<n>] [--json]
        hitl-index brief rename <change-id> [--to <new-change-id>] [--key <KEY>] [--json]`;
 const usage = (msg) => Object.assign(new Error(msg ? `${msg}\n${USAGE}` : USAGE), { usage: true });
 /** Text files of a change folder whose ids and meta lines a rename rewrites. */
@@ -27,7 +29,7 @@ export async function run(argv, ctx) {
   if (a.amend !== undefined) a.kind = "amend";
   if (a.kind !== undefined && !BRIEF_KINDS.includes(a.kind)) throw usage(`--kind must be ${BRIEF_KINDS.join("|")}`);
   const entry = await findChange(ctx.root, a._[0]);
-  if (!entry) { console.error(`change ${a._[0]} not found`); return 1; }
+  if (!entry || (entry.archived && a.kind === "tasks")) return quickBrief(a, ctx, json);
   const briefs = await readBriefs(ctx.root, entry.dir);
   // an amend brief: the one named by --amend, else the open one, else the latest
   let b = a.kind === "amend" ? (a.amend ? briefs.amends.find((x) => x.amend === a.amend) : briefs.amend || briefs.amends.at(-1)) || null : a.kind ? briefs[a.kind] : null;
@@ -49,6 +51,26 @@ export async function run(argv, ctx) {
   for (const n of [...b.rounds.map((r) => r.notes), b.close?.notes].filter((x) => x?.pending))
     console.log(`  Notes${n.round ? ` (Round ${n.round})` : " (Close)"} — to process: ${n.text.split("\n")[0].slice(0, 80)}`);
   if (b.close) console.log(`  close: ${b.close.question || "?"} — ${b.close.kind}`);
+  return 0;
+}
+
+/** A quick file's tasks brief (0.21): resolved by quick key or file name. */
+async function quickBrief(a, ctx, json) {
+  if (a.kind && a.kind !== "tasks") { console.error(`change ${a._[0]} not found`); return 1; }
+  const { resolveTasksTarget, readTasksBrief } = await import("../lib/tasksbrief.mjs");
+  const t = await resolveTasksTarget(ctx.root, a._[0]);
+  if (!t || t.kind !== "quick") { console.error(`no change or quick file ${a._[0]}`); return 1; }
+  const b = await readTasksBrief(ctx.root, t);
+  if (!b) {
+    const msg = `no ${t.briefFile}`;
+    if (json) console.log(JSON.stringify({ schema: "hitl.brief/1", change: null, quick: { slug: t.slug, key: t.key }, brief: null, message: msg }));
+    else console.error(msg);
+    return 1;
+  }
+  if (json) { console.log(JSON.stringify({ ...b, quick: { ...(b.quick || {}), slug: b.quick?.slug || t.slug, key: b.quick?.key || t.key }, summary: briefSummary(b) }, null, 2)); return 0; }
+  console.log(`_Brief:_ quick ${t.key || t.base} — tasks brief round ${b.round} (${b.status}): ${b.counts.pending} pending, ${b.counts.unanswered} unanswered · ${b.file}`);
+  for (const q of b.questions.filter((x) => x.pending))
+    console.log(`  ${q.id}${q.tag ? ` [${q.tag}]` : ""} ${q.title}${q.ownY ? " (needs its own Y)" : ""} — ${q.answered ? (q.acceptedByRound ? "accepted (round)" : q.kind) : "unanswered"}`);
   return 0;
 }
 

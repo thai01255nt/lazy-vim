@@ -46,6 +46,10 @@ const WORK_ROUTER_BASH = new RegExp(HI + String.raw`(?:change|status|context|spe
 const WORK_ROUTER_WRITES = /(?:^|\s)--(?:sync-tags|out)\b/;
 
 const CUSTOM = HITL_PREFIX; // ".hitl/"
+// 0.21: a tasks file (a change's tasks.md or a quick file); its header `> status: approved` is set only by the CLI
+const TASKS_DOC_RE = new RegExp(`^${HITL_RE}(?:changes/[^/]+/tasks\\.md|tasks/[^/]+\\.md)$`);
+const headerApproved = (text) => /^> status: approved\b/m.test(String(text ?? "").split(/^## /m)[0]);
+const TASKS_APPROVE_REASON = "TASKS_NOT_APPROVED: only `hitl-index tasks approve <change-id|QKEY>` sets `> status: approved`, after the human's own Y under \"Approve the task set?\" in the tasks brief; keep the header draft and run /hitl:tasks <change-id|QKEY>";
 const REVIEW_MD_RE = new RegExp(`^${HITL_RE}reviews/[^/]+\\.review\\.md$`);
 const FEATURE_SUMMARY_RE = new RegExp(`^${HITL_RE}reviews/feature-[^/]+\\.(?:md|security\\.json)$`);
 const MAPPER_DOC_RE = new RegExp(`^${HITL_RE}docs/[^/]+\\.md$`);
@@ -157,7 +161,9 @@ const WRITE_API_RE = new RegExp([
   String.raw`\bFile\.(?:write|delete|rename)\b`,
 ].join("|"));
 /** Inline code that names a protected path and calls a write API: the path, or null. */
-const codeWrite = (code) => (WRITE_API_RE.test(code) ? (code.match(HITL_PATH_RE) || []).map(protTok).find(Boolean) || null : null);
+const codeWrite = (code, tok = protTok) => (WRITE_API_RE.test(code) ? (code.match(HITL_PATH_RE) || []).map(tok).find(Boolean) || null : null);
+/** A tasks file path token (`.hitl/changes/<id>/tasks.md`, `.hitl/tasks/<name>.md`), or null. */
+const tasksDocTok = (tok) => { const r = hitlRel(String(tok || "").replace(/^\w+=/, "")); return r && TASKS_DOC_RE.test(r) && !r.endsWith("-brief.md") ? r : null; };
 /** The command word of a segment (after env assignments and sudo/env/…) and its arguments. */
 function commandOf(seg) {
   const w = words(scanRedirects(seg).rest);
@@ -172,39 +178,45 @@ function commandOf(seg) {
  * git checkout|restore|rm|mv; inline python/node/ruby/perl code (-c/-e/-p or a heredoc) that names a protected path and
  * calls a write API; a heredoc fed to sh/bash is judged as shell.
  */
-function bashProtectedWrite(cmd, depth = 0) {
+function bashProtectedWrite(cmd, depth = 0, tok = protTok) {
   if (typeof cmd !== "string" || !cmd.includes(".hitl") || depth > 2) return null;
   const { shell, docs } = splitHeredocs(cmd);
   for (const d of docs) {
     const c = commandOf(shellSegments(d.line).find((s) => HEREDOC_RE.test(s)) || d.line);
-    if (SHELL_RE.test(c.word)) { const r = bashProtectedWrite(d.body, depth + 1); if (r) return r; }
-    else if (INTERP_RE.test(c.word) && !c.args.some((a) => /hitl-index\.mjs$/.test(a))) { const r = codeWrite(d.body); if (r) return { rel: r, op: "inline script" }; }
+    if (SHELL_RE.test(c.word)) { const r = bashProtectedWrite(d.body, depth + 1, tok); if (r) return r; }
+    else if (INTERP_RE.test(c.word) && !c.args.some((a) => /hitl-index\.mjs$/.test(a))) { const r = codeWrite(d.body, tok); if (r) return { rel: r, op: "inline script" }; }
   }
   // command substitutions run even inside a quoted string
-  for (const m of noSingleQuoted(shell).matchAll(SUBST_RE)) { const r = bashProtectedWrite(m[1] ?? m[2], depth + 1); if (r) return r; }
+  for (const m of noSingleQuoted(shell).matchAll(SUBST_RE)) { const r = bashProtectedWrite(m[1] ?? m[2], depth + 1, tok); if (r) return r; }
   for (const seg of shellSegments(shell)) {
     // redirects first: a write whatever the command (hitl-index included)
-    for (const t of scanRedirects(seg.replace(HEREDOC_RE, " ")).outs) { const r = protTok(t); if (r) return { rel: r, op: "redirect" }; }
+    for (const t of scanRedirects(seg.replace(HEREDOC_RE, " ")).outs) { const r = tok(t); if (r) return { rel: r, op: "redirect" }; }
     const { word, name, args } = commandOf(seg.replace(HEREDOC_RE, " "));
     if (!name || HITL_CLI_RE.test(word)) continue;
     if (INTERP_RE.test(word) && args.some((a) => /hitl-index\.mjs$/.test(a))) continue;
     const opts = args.filter((a) => a.startsWith("-")), files = args.filter((a) => !a.startsWith("-"));
-    const any = (list) => list.map(protTok).find(Boolean) || null;
+    const any = (list) => list.map(tok).find(Boolean) || null;
     let r = null, op = name;
     if (name === "tee") r = any(files);
     else if (name === "sed" || name === "gsed") { if (opts.some((o) => /^-[a-zA-Z]*i|^--in-place/.test(o))) { r = any(files); op = "sed -i"; } }
     else if (name === "perl" && opts.some((o) => /^-[a-zA-Z]*i/.test(o))) { r = any(files); op = "perl -i"; }
     else if (name === "awk" || name === "gawk") { if (args.join(" ").includes("-i inplace")) { r = any(files); op = "awk -i inplace"; } }
-    else if (["cp", "install", "rsync", "ln"].includes(name)) r = opts.some((o) => o === "-t" || o.startsWith("--target-directory")) ? any(files) : protTok(files.at(-1));
+    else if (["cp", "install", "rsync", "ln"].includes(name)) r = opts.some((o) => o === "-t" || o.startsWith("--target-directory")) ? any(files) : tok(files.at(-1));
     else if (["mv", "rm", "unlink", "truncate", "shred", "rmdir"].includes(name)) r = any(files);
     else if (name === "dd") r = any(args.filter((a) => a.startsWith("of=")).map((a) => a.slice(3)));
     else if (name === "git" && ["checkout", "restore", "rm", "mv"].includes(files[0])) { r = any(files.slice(1)); op = `git ${files[0]}`; }
-    else if (INTERP_RE.test(word) && opts.some((o) => /^-[a-zA-Z]*[ceEp]$/.test(o) || o === "--eval" || o === "--print")) { r = codeWrite(seg); op = "inline script"; }
+    else if (INTERP_RE.test(word) && opts.some((o) => /^-[a-zA-Z]*[ceEp]$/.test(o) || o === "--eval" || o === "--print")) { r = codeWrite(seg, tok); op = "inline script"; }
     if (r) return { rel: r, op };
   }
   return null;
 }
 function bashGuard(cmd, cwd) {
+  // 0.21: a shell write into a tasks file that names `status: approved` (sed -i, a redirect, inline code): refused
+  if (/status:\s*approved/.test(cmd)) {
+    const t = bashProtectedWrite(cmd, 0, tasksDocTok);
+    const abs = t && (cmd.match(HITL_PATH_RE) || []).find((x) => x.startsWith("/") && tasksDocTok(x));
+    if (t && (findRootSync(cwd) || (abs && findRootSync(abs.slice(0, abs.indexOf(".hitl")) || "/")))) deny(`Bash would write ${t.rel} (${t.op}). ${TASKS_APPROVE_REASON}`);
+  }
   const hit = bashProtectedWrite(cmd);
   if (!hit) return;
   // only in a hitl project: the cwd's, or the one an absolute protected path lives in
@@ -376,6 +388,15 @@ async function main(input) {
   if (EDIT_TOOLS.has(tool) && rel) {
     if (isGenerated(rel)) deny(generatedReason(rel));
     if (rel === CONFIG_REL && R !== "main") deny("Generated by hitl-index; use the CLI (see /hitl:sync)");
+  }
+
+  // 1b. 0.21: only `hitl-index tasks approve` sets a tasks file header to `> status: approved` (after the human's own Y
+  // under the tasks brief's approve question); an Edit/Write by Claude (any role) that makes it approved is refused
+  if ((tool === "Edit" || tool === "Write" || tool === "MultiEdit") && rel && TASKS_DOC_RE.test(rel) && !rel.endsWith("-brief.md")) {
+    let old = "";
+    try { old = fs.readFileSync(abs, "utf8"); } catch { old = ""; }
+    const next = applyEdit(old, input.tool_input || {}, tool);
+    if (next !== null && headerApproved(next) && !headerApproved(old)) deny(TASKS_APPROVE_REASON);
   }
 
   // 5. Approve token (checked for every role so subagents cannot self-approve)

@@ -26,6 +26,15 @@ what instead. `?` / `không biết` keeps it open, `deep <ID>` digs deeper, `don
 change has its first task you may rename its id or key and change its scope in any answer or Notes. Each round
 (and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
+**Tasks brief** (0.21): `/hitl:tasks` writes tasks.md (draft), then reviews it with you in `tasks-brief.md` (a quick
+file: `.hitl/tasks/quick-<slug>-brief.md`, continue with `/hitl:tasks <QKEY>`). `## Current set` above the round is
+generated from tasks.md (task table with a **wave** column = dependency depth, test-plan table). Each round asks four
+questions with Claude's own check and a `_Rec:_` (slices, blocking edges, owners, test plan), one per finding code,
+one `_Override:_` per AC, Notes, and last `Approve the task set? (needs its own Y)`. You may also edit tasks.md
+directly: the next run reads your edits as answers and lists them under `_Changed since Round n:_`. The approval
+counts only when the set is still what the round showed; only `hitl-index tasks approve` sets `> status: approved`.
+Until then `/hitl:skeleton`, `/hitl:implement` and `/hitl:test` refuse its tasks (`TASKS_NOT_APPROVED`); an update
+holds only the tasks it adds or edits.
 **Requirement changes mid-change** (0.9, amend brief 0.17): say it in chat and Claude asks `_Note_ for <change>, refs …?
 (Y/n)`. The note blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or
 `/hitl:design … amend N-k`). Wording only → one chat gate (delta preview, Impact, `Apply?`); only task-level things →
@@ -69,20 +78,20 @@ turn — a note or `amend` when it changes an active change, `/hitl:tasks <id> u
 trivial locked task with nothing to reproduce, else `/hitl:plan`. The routes are tried in that order; doubt moves the
 work to the next, heavier one. Pick it yourself with `--plan`, `--quick` or `--tdd`.
 **Tests** (0.16): the full flow writes a task's acceptance tests first, from the contract, then the code (acceptance
-tests first, not Kent Beck's one-test loop; `/hitl:tdd` is that loop). At the tasks gate you decide per acceptance
+tests first, not Kent Beck's one-test loop; `/hitl:tdd` is that loop). In the tasks brief you decide per acceptance
 criterion: `new: <the defect it catches>`, `shared: <ACk>`, `covered: <existing test>`, `none: <reason>` (not on
 security, concurrency or data tasks) or `manual: <check>`; on such a task only your own `none!: <reason>` /
-`manual!: <check> — <reason>` (0.20, its own Y) skips the automated test. Extra tests need a named defect; a task's tests stay within
+`manual!: <check> — <reason>` (0.20; 0.21: the `_Override:_` question's own Y in the tasks brief, its record) skips the automated test. Extra tests need a named defect; a task's tests stay within
 `new` rows + 2 (a warning). Review may suggest merging or deleting tests (`hitl-index tests audit`); you approve every
 deletion with `/hitl:approve <T> tests`.
 
 ```
 /hitl:setup → /hitl:overview → /hitl:go <description> ─┬─ active change: note · /hitl:plan <id> amend · /hitl:tasks <id> update
                                                           ├─ reproducer, no record: /hitl:tdd [gate: seams, test list] → red→green→refactor
-                                                          ├─ trivial, nothing to reproduce: /hitl:tasks quick [gate] → /hitl:implement T (fast)
+                                                          ├─ trivial, nothing to reproduce: /hitl:tasks quick [brief] → /hitl:implement T (fast)
                                ┌──────────────────────────┘ anything else
                                ▼
-                               /hitl:plan (WHAT, brief file) → /hitl:design (HOW, brief file, skippable) → /hitl:tasks [gate + test plan]
+                               /hitl:plan (WHAT, brief file) → /hitl:design (HOW, brief file, skippable) → /hitl:tasks [brief + test plan]
                                                                                    │
           high risk ───────────────────────────────────────────────────────────────┤──── low risk (fast lane)
               ▼                                                                    │            ▼
@@ -108,7 +117,7 @@ deletion with `/hitl:approve <T> tests`.
 | `/hitl:plan` | WHAT/WHY: proposal + spec deltas (requirements, scenarios), business-readable; rounds in `plan-brief.md`; `<id> amend [N-k]`: a wording-only chat gate, else an amend brief `amend-<KEY>-A<n>-brief.md` that ends in an amend task set | brief file, each round (amend: chat gate when wording only) |
 | `/hitl:plan <description> --before <id>[,<id>]` | a prerequisite change: `<id>` waits until it is archived (notes in `<id>`) | brief file, each round |
 | `/hitl:design` | HOW: design.md (<KEY>-D<n>), data-model, contracts — module level; rounds in `design-brief.md` (accept-all `Y` per round); `<id> amend [N-k]` as plan | brief file, each round (amend: chat gate when wording only) |
-| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan (a test decision per AC: new · shared · covered · none · manual · rewrite); an existing tasks.md is always updated (per task state: edit, reopen, a new task for done work, `tasks drop` for an unneeded todo task) | quiz (Q5: test plan) |
+| `/hitl:tasks` | vertical-slice tasks, risk, ACs → scenarios, test plan (a test decision per AC: new · shared · covered · none · manual · rewrite); an existing tasks.md is always updated (per task state: edit, reopen, a new task for done work, `tasks drop` for an unneeded todo task); `quick <description>` / `<QKEY>` for a quick file | brief file `tasks-brief.md`, each round (approve: its own Y) |
 | `/hitl:skeleton T` | stubs + intent tags + TODO flow + a test stub per `new` row | review in editor |
 | `/hitl:approve T [stage]` | lock skeleton / tests / done; `--ack N-k` releases a note for T | user-only |
 | `/hitl:approve <id> reopen [N-k]` | unlock what an amendment changed (tests per AC, skeleton symbols) and move taken-over tests to their new task; `dismiss N-k <reason>` · `defer N-k <change>` close a note | user-only |

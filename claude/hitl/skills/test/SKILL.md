@@ -25,7 +25,7 @@ with `--by human-override`. Never add it yourself.
 - **You (main thread) never edit test files.** Locked tests are hook-protected; unlocked ones still go through the test-author.
 - **A test that passes against a stub is vacuous.** It proves nothing. Send it back. Exception: `@kind regression`
   (guards existing behaviour) may pass; it is listed apart.
-- **Tests come from the approved test plan.** The human decided at the tasks gate which ACs get a `new` test; extras
+- **Tests come from the approved test plan.** The human decided in the tasks brief which ACs get a `new` test; extras
   need a named defect (`@catches`) and count against the budget (`new` rows + 2).
 - Results are data: `hitl-index test` exits 0 even when tests fail. Read the JSON, never the exit code alone.
 
@@ -33,6 +33,8 @@ with `--by human-override`. Never add it yourself.
 
 `hitl-index status <T> --json` and `hitl-index tasks --json`:
 - not initialized → _Stop:_ `Run /hitl:setup first.`
+- `tasks[T].tasksHold` set (0.21, TASKS_NOT_APPROVED: the task set is not approved) → _Stop:_ `<T> is in a task set the
+  human has not approved yet.` `_Next:_ <tasksHold.apply>` (the CLI refuses its contract pack and its tests lock too).
 - task status `todo` → _Stop:_ `Run /hitl:skeleton <T> first`; `skeleton` (not approved) → _Stop:_ `Run /hitl:approve <T> first` (low risk, either status: `/hitl:implement <T>` runs the fast lane).
 - `fill` when tests are already locked → ask: GATE `Tests for <T> are locked. 1. add tests for new ACs only 2. run them (run) 3. cancel`.
 - status `reopened` (`reopen.stage: tests`) → **reopen fill**, no question: the contract pack's `## Reopened (N-k)`

@@ -420,8 +420,9 @@ test("0.16.0: test policy in the docs (decisions, Q5, names without ids, @catche
   assert.match(tpl, /\| AC1 \| new: \S/);
   const sr = read("skills/tasks/references/slicing-and-risk.md");
   for (const d of ["`new: <defect>`", "`shared: <ACk>`", "`covered: <test>`", "`none: <reason>`", "`manual: <check>`"]) assert.ok(sr.includes(d), `slicing §7 names ${d}`);
-  assert.match(sr, /5\. Test plan ok\?/);
-  assert.match(read("skills/tasks/SKILL.md"), /5\. Test plan ok\?/);
+  // 0.21: the test plan is the fourth review question of the tasks brief (was quiz question 5 in chat)
+  assert.match(sr, /4\. \*\*Test plan\*\*/);
+  assert.match(read("skills/tasks/SKILL.md"), /Q4 test plan/);
   assert.match(read("skills/tasks/SKILL.md"), /TEST_PLAN_BAD\|NO_DEFECT\|EMPTY\|SHARED\|COVERED\|NONE_RISK/);
   assert.match(read("skills/skeleton/SKILL.md"), /One stub per `new` row/);
   for (const f of ["shared/test-patterns.md", "skills/test/references/test-kinds.md", "skills/test/references/tdd-rules.md", "agents/test-author.md", "shared/tag-grammar.md"])
@@ -445,4 +446,32 @@ test("0.16.0: test policy in the docs (decisions, Q5, names without ids, @catche
   const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.15.0"), readme.indexOf("### Nâng cấp từ 0.14.1"));
   for (const w of ["không phải TDD của Kent Beck", "/hitl:tdd", "lỗi nó bắt", "tests audit", "mutationRequired", "@kind regression"]) assert.ok(note.includes(w), `README 0.16 note: ${w}`);
   assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(1[6-9]|[2-9]\d)\.\d+$/, "version ≥ 0.16.0");
+});
+
+// 0.21.0 — the tasks gate is a brief file (tasks-brief.md), approval only through `hitl-index tasks approve`
+test("0.21.0: tasks brief in the docs (no chat gate, template, CLI approval, TASKS_NOT_APPROVED stops, upgrade note)", async () => {
+  const tk = read("skills/tasks/SKILL.md");
+  assert.doesNotMatch(tk, /— reply changes, or Y/, "no chat gate");
+  assert.doesNotMatch(tk, /set the header `> status: approved`/);
+  for (const w of ["tasks-brief.md", "`hitl-index tasks approve <id|KEY> --json`", "`hitl-index tasks gate <id|KEY> --write`", "`hitl-index tasks diff <id|KEY> --json`", "`hitl-index tasks baseline <id|KEY>`", "A Y typed in chat is not an answer", "QUICK_SLUG_RESERVED"])
+    assert.ok(tk.includes(w), `tasks/SKILL.md names ${w}`);
+  const { parseBrief } = await import("../../scripts/lib/brief.mjs");
+  let n = 0;
+  const tpl = read("shared/templates/tasks-brief.md").replace(/Q\{n\}/g, () => `Q${5 + n++}`);
+  const b = parseBrief(tpl, ".hitl/changes/feat-x/tasks-brief.md");
+  assert.equal(b.kind, "tasks");
+  assert.deepEqual(b.questions.filter((q) => q.tag === "Q").map((q) => q.n), [1, 2, 3, 4]);
+  assert.equal(b.questions.at(-1).ownY, "approve");
+  assert.ok(b.rounds[0].acceptAllLine && b.rounds[0].notes);
+  for (const f of ["skills/skeleton/SKILL.md", "skills/implement/SKILL.md", "skills/test/SKILL.md"]) assert.match(read(f), /TASKS_NOT_APPROVED/, f);
+  assert.match(read("shared/interview.md"), /`ownY: approve`/);
+  assert.match(read("shared/amend-spec.md"), /`hitl-index tasks baseline <id>`/);
+  assert.match(read("skills/flow/references/help.md"), /^\| `\/hitl:tasks` \|.*\| brief file `tasks-brief\.md`, each round \(approve: its own Y\) \|$/m);
+  const readme = read("README.md");
+  assert.match(readme, /^### Nâng cấp từ 0\.20\.0/m);
+  const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.20.0"), readme.indexOf("### Nâng cấp từ 0.19.0"));
+  for (const w of ["TASKS_NOT_APPROVED", "hitl-index tasks approve", "TEST_OVERRIDE_UNRECORDED", "QUICK_SLUG_RESERVED", "Có cần migrate không"]) assert.ok(note.includes(w), `README 0.21 note: ${w}`);
+  assert.match(readme, /^\| `\/hitl:tasks \[change-id \[update …\]\\\|QKEY\\\|quick …\]` \|.*brief file, mỗi vòng/m);
+  assert.match(read("HUONG-DAN.md"), /^### Duyệt task trong file brief \(0\.21\)$/m);
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(2[1-9]|[3-9]\d)\.\d+$/, "version ≥ 0.21.0");
 });

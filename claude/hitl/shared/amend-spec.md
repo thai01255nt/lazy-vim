@@ -26,7 +26,7 @@ implementation detail that changes no requirement, scenario or decision (plain a
 | route | when | then |
 | --- | --- | --- |
 | `chat` · `gate` | every spec or decision id has class `wording` | the one-gate chat flow (§2) |
-| `chat` · `tasks-update` | only task-level ids (task, AC, symbol, test), no class above wording | `/hitl:tasks <id> update <what>` (quiz gate, per-state rules of task-changes.md) |
+| `chat` · `tasks-update` | only task-level ids (task, AC, symbol, test), no class above wording | `/hitl:tasks <id> update <what>` (a round of the tasks brief, per-state rules of task-changes.md) |
 | `chat` · `mini-change` | the change is archived | §6 |
 | `brief` | anything else: a behaviour, contract, scenario or requirement change; a task-level id with a behaviour class (a spec gap); no ids yet; an amend brief of the change is already open | the amend brief (§4) |
 
@@ -174,7 +174,10 @@ In one run, in this order:
 2. tasks.md per task-changes.md: edits in place (todo and in-progress tasks get `amend: <KEY>-A<n>` and, if they belong
    to the ordered set, a `kind:`), new tasks (`hitl-index next-id <id>`, `amend:` + `kind:` meta, `blocked-by` in the
    kind order), `superseded:` lines on done tasks' ACs, then `hitl-index tasks drop <T> --reason "…" --amend <KEY>-A<n>`
-   for each dropped task. The tasks header keeps `status: approved` (this Y approves the set).
+   for each dropped task. The tasks header keeps `status: approved` (this Y approves the set; amend task sets never get
+   a tasks-brief round, so a change never has two open briefs that write tasks.md). After step 3:
+   `hitl-index tasks baseline <id>` records the re-approved set (the update hold of a later tasks brief round starts
+   from it).
 3. Validate: `hitl-index spec validate <id> --json`, `hitl-index tasks --check --json`, `hitl-index trace <id> --json`,
    `hitl-index amend check <id> --amend <KEY>-A<n> --json`. Fix every error and `block` item in the same run (max 3
    loops; an uncovered item → a task edit, or a `## Unchanged` line only when the human's answers said so). Its

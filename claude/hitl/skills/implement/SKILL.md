@@ -57,6 +57,10 @@ If not initialized (exit 3): _Stop:_ `Run /hitl:setup first.` and stop.
 _Stop:_ `<change> waits for <wait.for[].change> (<notes>)` or `_Take in:_ <wait.amend> first`, then `_Next:_` the status
 JSON `.next`. Stop: no implement, no approval (the hook denies the implementer's edits anyway; the order is the user's
 call — `/hitl:approve <change> dismiss N-k <reason>` ends a wait).
+`tasks[T].tasksHold` set (0.21, TASKS_NOT_APPROVED: T's task set is draft, or T is new or edited in an open tasks
+brief update) → _Stop:_ `<T> is in a task set the human has not approved yet` and `_Next:_ <tasksHold.apply>`. No
+implement, no fast lane, no `--lane fast`, no `--feature` past it: the CLI refuses the skeleton and tests approvals and
+the context packs of such a task.
 `tasks[T].amendHold` set (0.17: an amend brief of T's change is open and touches T) → _Stop:_ `<T> waits for the amend
 brief <amendHold.amend> (<amendHold.file>, via <amendHold.via>)` and `_Next:_ <amendHold.apply>` (answer the brief,
 then approve it). No implement, no y/N override: building on a contract under discussion is the churn the brief
