@@ -1,10 +1,15 @@
 // 0.21 tasks brief: the review gate of /hitl:tasks lives in a brief file (one per task set), not in chat.
 // A change: `.hitl/changes/<id>/tasks-brief.md` + the round snapshot `.tasks-round.json`. A quick file
 // `.hitl/tasks/quick-<slug>.md`: `quick-<slug>-brief.md` + `.quick-<slug>-round.json` next to it.
+// 0.21.1: the brief is a short list, rewritten each round: the header, `_Changed since Round n:_` / `_Warn:_` lines,
+// `## Tasks (N) — in build order` (generated here from tasks.md), `## Needs your eye` (only when there is something;
+// `- Override: <AC> …` bullets need their own Y), `## Notes`, `## Approve? (needs its own Y)`.
 // The snapshot holds the set as it was when the round was written (per task: a hash and a view); it serves
 // `_Changed since Round n:_` (tasks diff), the human's direct edits of tasks.md (read as answers), and the approval:
 // `tasks approve` sets `> status: approved` only when the brief's approve question has its own Y and the set equals
-// the snapshot. Its `approved` part (per-task hashes of the last approved set) drives the update hold.
+// the snapshot. Its `approved` part (per-task hashes of the last approved set) drives the update hold. On an approved
+// set, prio, risk and blocked-by (and the task order) are cheap late edits: left out of the hold and of the approval
+// comparison (the `loose` hash); the pre-tool hook refuses Claude's own edit that lowers a risk.
 import { join } from "node:path";
 import { paths } from "./project.mjs";
 import { h } from "./hash.mjs";
@@ -12,15 +17,14 @@ import { readJson, readText, writeJsonAtomic, writeTextAtomic } from "./fsutil.m
 import { HITL_PREFIX } from "./paths.mjs";
 import { parseBrief } from "./brief.mjs";
 import { DROPPED, hasLockedTaskWork, isTasksDocName, parseTasksMd } from "./tasksmd.mjs";
-import { padTable } from "./mdstyle.mjs";
-import { BUDGET_EXTRA } from "./testplan.mjs";
 
 export const SNAP_SCHEMA = "hitl.tasks-round/1";
 /** The code of every refusal of work on a task whose set is not approved (draft header, or held by an open update). */
 export const NOT_APPROVED = "TASKS_NOT_APPROVED";
-/** Info code: a `none!`/`manual!` row without an answered `_Override:_` question in the tasks brief. */
+/** Info code: a `none!`/`manual!` row without an override answered Y in a tasks brief. */
 export const OVERRIDE_UNRECORDED = "TEST_OVERRIDE_UNRECORDED";
-const OVERRIDE_Q = /_Override:_\s*`?([A-Z]{2,5}-T\d+\.AC\d+)`?/;
+// `- Override: <AC> …` (0.21.1 bullet) or `### Q<n> _Override:_ <AC> …` (0.21.0 question)
+const OVERRIDE_Q = /(?:_Override:_|Override:)\s*`?([A-Z]{2,5}-T\d+\.AC\d+)`?/;
 const today = () => new Date().toISOString().slice(0, 10);
 
 // ---------------------------------------------------------------- targets
@@ -110,7 +114,7 @@ export function taskSections(text) {
  * Canonical lines of one task: what the human reviews. Tooling-owned parts are left out (the meta `status:` value,
  * `[ ]`/`[x]` boxes, the `**Dropped**:` line `tasks drop` writes) and so is formatting (blank lines, spaces, table
  * padding and separator rows), so a formatter on save or a drop after the Y never counts as a change.
- * `mask`: AC ids whose test-plan rows are left out (an `_Override:_` answered Y in the round being approved).
+ * `mask`: AC ids whose test-plan rows are left out (an override answered Y in the round being approved).
  */
 export function canonTask(lines, taskId, mask = new Set()) {
   const out = [];
@@ -135,6 +139,9 @@ export function canonTask(lines, taskId, mask = new Set()) {
   return out;
 }
 
+/** Canonical lines without the cheap late edits of an approved set (prio, risk, blocked-by of the meta line). */
+export const looseLines = (lines) => lines.map((l) => (/^- prio: /.test(l) ? l.replace(/^- prio: [^|]*\|/, "- prio: * |").replace(/\| risk: [^|]*\|/, "| risk: * |").replace(/\| blocked-by: [^|]*\|/, "| blocked-by: * |") : l));
+
 const testCell = (r) => (r.legacy ? "new" : `${r.test}${r.override ? "!" : ""}:${r.detail ? ` ${r.detail}` : ""}${r.override && r.test === "manual" && r.reason ? ` — ${r.reason}` : ""}`);
 
 /** View of a parsed task for `_Changed since …_` lines. */
@@ -148,14 +155,15 @@ export function taskView(t) {
   };
 }
 
-/** The set of a tasks file: {set (hash), tasks: {T: {hash, view, lines (canonical)}}}. */
+/** The set of a tasks file: {set (hash), tasks: {T: {hash, loose (hash without prio/risk/blocked-by), view, lines (canonical)}}}. */
 export function setOf(text, doc = null, mask = new Set()) {
   const d = doc || parseTasksMd(text, "tasks.md");
   const sec = taskSections(text);
   const tasks = {};
   for (const t of d.tasks) {
     const lines = canonTask(sec.get(t.id) || [], t.id);
-    tasks[t.id] = { hash: h((mask.size ? canonTask(lines, t.id, mask) : lines).join("\n")), view: taskView(t), lines };
+    const m = mask.size ? canonTask(lines, t.id, mask) : lines;
+    tasks[t.id] = { hash: h(m.join("\n")), loose: h(looseLines(m).join("\n")), view: taskView(t), lines };
   }
   return { set: setHash(tasks), tasks };
 }
@@ -202,7 +210,7 @@ export async function writeSnapshot(root, target, round, { text = null } = {}) {
   return snap;
 }
 
-// ---------------------------------------------------------------- the generated view (## Current set)
+// ---------------------------------------------------------------- the generated list (## Tasks (N) — in build order)
 /** Dependency depth per task over `blocked-by` inside the set (1 = no open blocker in the set); done tasks: null. */
 export function waves(tasks, isDone = () => false) {
   const by = new Map(tasks.map((t) => [t.id, t]));
@@ -220,34 +228,59 @@ export function waves(tasks, isDone = () => false) {
   return Object.fromEntries(tasks.map((t) => [t.id, isDone(t.id) ? null : wave(t.id)]));
 }
 
-const esc = (s) => String(s ?? "").replace(/\|/g, "\\|");
+const keyOf = (id) => /^([A-Z]{2,5})-T\d+$/.exec(id)?.[1] ?? null;
+const prioN = (t) => Number(/^P(\d)$/.exec(t.prio ?? "")?.[1] ?? 9);
+/** Who writes the task: agent · you · you write `a`, `b` (mixed; more than 2 symbols: a count). */
+export function ownerText(t) {
+  const syms = t.symbols || [];
+  if (!syms.length) return t.impl === "manual" ? "you" : t.impl === "mixed" ? "mixed" : "agent";
+  const man = syms.filter((s) => s.impl === "manual").map((s) => s.ref);
+  if (!man.length) return "agent";
+  if (man.length === syms.length) return "you";
+  return man.length > 2 ? `you write ${man.length} symbols` : `you write ${man.map((r) => `\`${r}\``).join(", ")}`;
+}
+const TEST_ORDER = ["new", "covered", "rewrite", "manual", "manual!", "none", "none!"];
+/** The test plan in a few words: `2 new tests` (shared rows ride on them) · `manual` / `none` (every row) · `1 new, 2 covered`. */
+export function testsText(t) {
+  const kinds = (t.testPlan || []).map((r) => (r.legacy ? "new" : `${r.test}${r.override ? "!" : ""}`));
+  if (!kinds.length) return "no test plan";
+  const c = {};
+  for (const k of kinds) c[k] = (c[k] || 0) + 1;
+  if (c.new && kinds.every((k) => k === "new" || k === "shared")) return `${c.new} new test${c.new > 1 ? "s" : ""}`;
+  if (kinds.every((k) => k === kinds[0])) return kinds[0];
+  return [...TEST_ORDER, ...Object.keys(c).filter((k) => !TEST_ORDER.includes(k))].filter((k) => c[k] && k !== "shared").map((k) => `${c[k]} ${k}`).join(", ");
+}
+
 /**
- * `## Current set` of a tasks brief (`hitl-index tasks gate <id|KEY> --md`): the summary line, the task table (with the
- * wave column) and the test-plan table, generated from tasks.md; replaced every round.
+ * `## Tasks (N) — in build order` of a tasks brief (`hitl-index tasks gate <id|KEY> --md`), generated from tasks.md and
+ * replaced every round: two lines per task, ordered by wave (dependency depth), then prio, then file order; done
+ * tasks first, dropped last, each with its marker. Line 1: id, title, `— after T1, T2` (blocked-by; another change's
+ * task by its full id). Line 2: prio · risk (bold when high, with reasons) → lane · owner · ACs and tests.
  */
-export function renderGate(target, doc, { isDone = () => false, spec = null, design = null } = {}) {
-  const tasks = doc.tasks.filter((t) => t.status !== DROPPED);
-  const w = waves(tasks, isDone);
-  const high = tasks.filter((t) => t.risk === "high").length;
-  const rows = tasks.flatMap((t) => t.testPlan.map((r) => ({ t, r })));
-  const n = (k) => rows.filter(({ r }) => (r.legacy ? "new" : r.test) === k).length;
-  const budget = tasks.reduce((s, t) => s + t.testPlan.filter((r) => r.legacy || r.test === "new").length + BUDGET_EXTRA, 0);
-  const up = [spec ? `spec: ${spec}` : null, design ? `design: ${design}` : null].filter(Boolean).join(" · ");
-  const L = [`<!-- generated by \`hitl-index tasks gate ${target.id} --write\` each round; edit ${target.tasksFile} or write in Notes -->`, "",
-    `_Summary:_ ${target.tasksFile} — ${tasks.length} task(s) (${high} high, ${tasks.length - high} low)${up ? ` · ${up}` : ""} · tests: ${n("new")} new (budget ${budget}) · ${n("shared")} shared · ${n("covered")} covered · ${n("none")} none · ${n("manual")} manual${n("rewrite") ? ` · ${n("rewrite")} rewrite` : ""}`, ""];
-  L.push(...padTable(["| id | title | prio | risk (reasons) | impl | blocked-by | wave |", "| --- | --- | --- | --- | --- | --- | --- |",
-    ...tasks.map((t) => `| ${t.id} | ${esc(t.title)} | ${t.prio ?? "?"} | ${t.risk ?? "?"}${t.riskReasons.length ? ` (${t.riskReasons.join(", ")})` : ""} | ${t.impl ?? "?"} | ${t.blockedBy.join(", ") || "—"} | ${w[t.id] ?? "done"} |`)]));
-  if (rows.length) {
-    L.push("");
-    L.push(...padTable(["| task | AC | test | seam |", "| --- | --- | --- | --- |",
-      ...rows.map(({ t, r }) => `| ${t.id} | ${esc(r.ac.replace(/^[A-Z]{2,5}-T\d+\./, ""))} | ${esc(testCell(r))} | ${esc(r.seam && !/^[—-]$/.test(r.seam) ? r.seam : "—")} |`)]));
-  }
+export function renderList(target, doc, { isDone = () => false } = {}) {
+  const done = (t) => t.status === "done" || isDone(t.id);
+  const live = doc.tasks.filter((t) => t.status !== DROPPED);
+  const w = waves(live, (id) => done(live.find((t) => t.id === id) || { id }));
+  const rank = (t) => (t.status === DROPPED ? 1e9 : done(t) ? 0 : w[t.id] ?? 1);
+  const order = doc.tasks.map((t, i) => ({ t, i })).sort((a, b) => rank(a.t) - rank(b.t) || prioN(a.t) - prioN(b.t) || a.i - b.i).map((x) => x.t);
+  const dropped = doc.tasks.length - live.length;
+  const L = [`## Tasks (${live.length}${dropped ? ` + ${dropped} dropped` : ""}) — in build order`, ""];
+  order.forEach((t, i) => {
+    const k = keyOf(t.id);
+    const after = (t.blockedBy || []).map((b) => (k && b.startsWith(`${k}-T`) ? b.slice(k.length + 1) : b));
+    const mark = t.status === DROPPED ? " · dropped" : done(t) ? " · ✅ done" : "";
+    const reasons = t.riskReasons?.length ? ` (${t.riskReasons.join(", ")})` : "";
+    const risk = t.risk === "high" ? `risk **high${reasons}**` : t.risk === "low" ? "risk low" : "risk ?";
+    const lane = mark ? "" : t.risk === "high" ? " → skeleton review" : t.risk === "low" ? " → fast lane" : "";
+    L.push(`${i + 1}. **${t.id}** ${t.title}${after.length ? ` — after ${after.join(", ")}` : ""}${mark}`);
+    L.push(`   ${t.prio ?? "P?"} · ${risk}${lane} · ${ownerText(t)} · ${t.acs.length} AC, ${testsText(t)}`);
+  });
   return L.join("\n");
 }
 
-/** The brief text with its `## Current set` section replaced (inserted before the first `## ` after the header) and
- *  the `set:` meta updated. */
-export function putCurrentSet(briefText, view, set) {
+/** The brief text with its `## Tasks …` section (a 0.21.0 brief: `## Current set`) replaced, or inserted before the
+ *  first `## ` after the header, and the `set:` meta updated. */
+export function putTasksList(briefText, view, set) {
   const lines = String(briefText).replace(/\r\n?/g, "\n").split("\n");
   // the meta line: `> change: …` / `> quick: …` — set: after kind:
   const mi = lines.findIndex((l) => /^>\s*(?:change|quick)\s*:/.test(l));
@@ -255,53 +288,55 @@ export function putCurrentSet(briefText, view, set) {
     if (/\|\s*set:\s*[^|]*/.test(lines[mi])) lines[mi] = lines[mi].replace(/\|\s*set:\s*[^|]*?(\s*\||\s*$)/, `| set: ${set}$1`);
     else if (/\|\s*kind:\s*tasks\b/.test(lines[mi])) lines[mi] = lines[mi].replace(/(\|\s*kind:\s*tasks)\b/, `$1 | set: ${set}`);
   }
-  const start = lines.findIndex((l) => /^## Current set\b/.test(l));
-  const block = ["## Current set", "", ...view.split("\n"), ""];
+  const start = lines.findIndex((l) => /^## (?:Tasks\b|Current set\b)/.test(l));
+  const block = [...view.split("\n"), ""];
   if (start >= 0) {
     let end = start + 1; while (end < lines.length && !/^## /.test(lines[end])) end++;
     lines.splice(start, end - start, ...block);
   } else {
     const first = lines.findIndex((l, i) => i > 0 && /^## /.test(l));
-    lines.splice(first >= 0 ? first : lines.length, 0, ...block);
+    if (first < 0) lines.push("", ...block); else lines.splice(first, 0, ...block);
   }
   return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
 // ---------------------------------------------------------------- approval
-/** The approve question of the brief's last round ({q, round} or null): `### Q<n> Approve the task set? … (needs its own Y)`. */
+/** The approve question of the brief's last round, or null: `## Approve? (needs its own Y)` (0.21.0: `### Q<n> Approve the task set? …`). */
 export function approveQuestion(brief) {
   const last = Math.max(0, ...(brief?.rounds || []).map((r) => r.n));
   const qs = (brief?.questions || []).filter((q) => q.ownY === "approve" && q.round === last);
   return qs.at(-1) || null;
 }
 
-/** AC ids of the `_Override:_` questions of a round answered Y (their `!` rows may change after the snapshot). */
+/** AC ids of the override questions of a round answered Y (their `!` rows may change after the snapshot). */
 export function overridesAnswered(brief, round) {
   return new Set((brief?.questions || []).filter((q) => q.ownY === "override" && q.round === round && q.kind === "accept")
     .map((q) => OVERRIDE_Q.exec(q.title)?.[1]).filter(Boolean));
 }
 
 /**
- * Can the set be approved now? {ok, code, message, diff[]}. Needs: the brief's last round ends with the approve
- * question, answered Y under itself and not marked; the snapshot of that round; the set equal to it (the `!` rows of
- * the round's override questions answered Y excepted).
+ * Can the set be approved now? {ok, code, message, diff[]}. Needs: the brief's approve question (of its last round),
+ * answered Y under itself and not marked; the snapshot of that round; the set equal to it (the `!` rows of the round's
+ * overrides answered Y excepted; an approved set, i.e. an update round: prio, risk and blocked-by excepted too).
  */
 export async function approvalCheck(root, target) {
   const brief = await readTasksBrief(root, target);
   if (!brief) return { ok: false, code: "TASKS_BRIEF_MISSING", message: `no ${target.briefFile}: /hitl:tasks ${target.id} writes it` };
   const q = approveQuestion(brief);
-  if (!q) return { ok: false, code: "TASKS_APPROVE_NO_Y", message: `the last round of ${target.briefFile} has no "Approve the task set?" question` };
+  if (!q) return { ok: false, code: "TASKS_APPROVE_NO_Y", message: `${target.briefFile} has no "Approve?" question` };
   if (q.settled) return { ok: false, code: "TASKS_APPROVE_NO_Y", message: `${q.id} (round ${q.round}) is already marked (${q.recorded.join(", ") || "settled"})` };
-  if (q.kind !== "accept") return { ok: false, code: "TASKS_APPROVE_NO_Y", message: `${q.id} (round ${q.round}) has no Y under it (${q.kind === "empty" ? "empty" : `answer: ${q.answer.split("\n")[0].slice(0, 60)}`}); the round's accept-all Y never approves the set` };
+  if (q.kind !== "accept") return { ok: false, code: "TASKS_APPROVE_NO_Y", message: `${q.id} (round ${q.round}) has no Y under it (${q.kind === "empty" ? "empty" : `answer: ${q.answer.split("\n")[0].slice(0, 60)}`}); only a Y under "Approve?" itself approves the set` };
   const snap = await readSnapshot(root, target);
   if (!snap || snap.round !== q.round) return { ok: false, code: "TASKS_SNAPSHOT_MISSING", message: `no snapshot of round ${q.round} (${target.snapFile}${snap ? ` is of round ${snap.round}` : " missing"}): run hitl-index tasks gate ${target.id} --write and write a new round` };
   const cur = await readTarget(root, target);
   if (!cur) return { ok: false, code: "TASKS_FILE_MISSING", message: `${target.tasksFile} not found` };
   const mask = overridesAnswered(brief, q.round);
-  const now = setOf(cur.text, cur.doc, mask);
-  // the snapshot keeps each task's canonical lines: re-hash them with the same mask
-  const before = Object.fromEntries(Object.entries(snap.tasks || {}).map(([id, x]) => [id, { ...x, hash: x.lines ? h(canonTask(x.lines, id, mask).join("\n")) : x.hash }]));
-  const diff = diffSets(before, now.tasks);
+  const loose = cur.doc.status === "approved";
+  const key = (lines, id) => { const c = canonTask(lines, id, mask); return h((loose ? looseLines(c) : c).join("\n")); };
+  const now = Object.fromEntries(Object.entries(setOf(cur.text, cur.doc).tasks).map(([id, x]) => [id, { ...x, hash: key(x.lines, id) }]));
+  // the snapshot keeps each task's canonical lines: re-hash them the same way
+  const before = Object.fromEntries(Object.entries(snap.tasks || {}).map(([id, x]) => [id, { ...x, hash: x.lines ? key(x.lines, id) : x.hash }]));
+  const diff = diffSets(before, now);
   if (diff.length) return { ok: false, code: "TASKS_SET_CHANGED", message: `${target.tasksFile} differs from what round ${q.round} showed: mark ${q.id} → superseded and write a new round with the changes`, diff, brief, q };
   return { ok: true, brief, q, snap, cur, set: setOf(cur.text, cur.doc).set };
 }
@@ -354,9 +389,12 @@ export async function approveSet(root, target, { checkErrors = [] } = {}) {
   const after = await readText(join(root, target.tasksFile), "");
   const s = setOf(after, parseTasksMd(after, target.tasksFile));
   const snap = await readSnapshot(root, target);
-  await writeJsonAtomic(join(root, target.snapFile), { ...snap, approved: { at: date, round: c.q.round, set: s.set, tasks: Object.fromEntries(Object.entries(s.tasks).map(([k, v]) => [k, v.hash])) } });
+  await writeJsonAtomic(join(root, target.snapFile), { ...snap, approved: approvedPart(date, c.q.round, s) });
   return { ok: true, target: target.id, file: target.tasksFile, brief: target.briefFile, round: c.q.round, question: c.q.id, set: s.set, was: was || "draft" };
 }
+
+/** The snapshot's `approved` part: per-task `loose` hashes (prio, risk and blocked-by edits are not held). */
+const approvedPart = (at, round, s) => ({ at, round, set: s.set, mode: "loose", tasks: Object.fromEntries(Object.entries(s.tasks).map(([k, v]) => [k, v.loose])) });
 
 /** `hitl-index tasks baseline <id|KEY>`: the approved set's per-task hashes from the current file (an update starts
  *  from it; an amend Close Y re-approves the set). Refused while the header is draft or a tasks brief round is open. */
@@ -369,7 +407,7 @@ export async function baselineSet(root, target) {
   const s = setOf(cur.text, cur.doc);
   const snap = (await readSnapshot(root, target)) || { schema: SNAP_SCHEMA, target: target.id, round: brief?.round ?? 0, at: today(), set: s.set, tasks: s.tasks };
   const date = today();
-  await writeJsonAtomic(join(root, target.snapFile), { ...snap, approved: { at: date, round: snap.round ?? null, set: s.set, tasks: Object.fromEntries(Object.entries(s.tasks).map(([k, v]) => [k, v.hash])) } });
+  await writeJsonAtomic(join(root, target.snapFile), { ...snap, approved: approvedPart(date, snap.round ?? null, s) });
   return { ok: true, target: target.id, file: target.tasksFile, set: s.set };
 }
 
@@ -382,7 +420,8 @@ const nextFor = (target, brief) => {
 /**
  * Tasks that may not be built yet: {T: {code: TASKS_NOT_APPROVED, reason: "draft"|"update", target, file, brief, apply}}.
  * draft: the file header is not approved (every task of the set). update: the header is approved but a tasks brief
- * round is open and the task is new or edited since the approved set (no baseline: every task without locked work).
+ * round is open and the task is new or edited since the approved set (no baseline: every task without locked work);
+ * an edit of only prio, risk or blocked-by is no edit here (0.21.1, the `loose` hash).
  * Archived and v0.5 planning-linked files, dropped and done tasks are never held.
  */
 export async function tasksHolds(root, tasks, lock = null) {
@@ -408,7 +447,8 @@ export async function tasksHolds(root, tasks, lock = null) {
     const cur = setOf(text, parseTasksMd(text, file)).tasks;
     for (const t of ts) {
       if (lock?.tasks?.[t.id]?.doneAt) continue;
-      const held = snap?.approved ? snap.approved.tasks?.[t.id] !== cur[t.id]?.hash : !hasLockedTaskWork(lock, t.id);
+      const mine = snap?.approved?.mode === "loose" ? cur[t.id]?.loose : cur[t.id]?.hash; // a 0.21.0 snapshot: full hashes
+      const held = snap?.approved ? snap.approved.tasks?.[t.id] !== mine : !hasLockedTaskWork(lock, t.id);
       if (held) out[t.id] = { ...base, reason: "update" };
     }
   }
@@ -416,10 +456,10 @@ export async function tasksHolds(root, tasks, lock = null) {
 }
 
 /** One-line refusal text of a hold. */
-export const holdMessage = (T, x) => `${NOT_APPROVED}: ${T} ${x.reason === "draft" ? `is in a draft task set (${x.file})` : `is new or edited in the open tasks brief update (${x.brief})`}: nothing is built before the human's Y under "Approve the task set?" → ${x.apply}`;
+export const holdMessage = (T, x) => `${NOT_APPROVED}: ${T} ${x.reason === "draft" ? `is in a draft task set (${x.file})` : `is new or edited in the open tasks brief update (${x.brief})`}: nothing is built before the human's Y under "Approve?" in the tasks brief → ${x.apply}`;
 
 // ---------------------------------------------------------------- override records (TEST_OVERRIDE_UNRECORDED)
-/** AC id → {file, q, round} for every `_Override:_` question answered Y (or recorded) in a tasks brief. */
+/** AC id → {file, q, round} for every override (`- Override: <AC> …`, 0.21.0 `_Override:_`) answered Y (or recorded) in a tasks brief. */
 export async function overrideRecords(root) {
   const out = new Map();
   for (const target of await tasksTargets(root).catch(() => [])) {
@@ -433,5 +473,5 @@ export async function overrideRecords(root) {
   }
   return out;
 }
-/** `tasks-brief.md Q6` / `quick-x-brief.md Q2`, or null. */
+/** `tasks-brief.md Override PWR-T2.AC1` (0.21.0 briefs: `tasks-brief.md Q6`), or null. */
 export const recordText = (r) => (r ? `${r.file.split("/").pop()} ${r.q}` : null);

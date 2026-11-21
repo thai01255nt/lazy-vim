@@ -49,7 +49,31 @@ const CUSTOM = HITL_PREFIX; // ".hitl/"
 // 0.21: a tasks file (a change's tasks.md or a quick file); its header `> status: approved` is set only by the CLI
 const TASKS_DOC_RE = new RegExp(`^${HITL_RE}(?:changes/[^/]+/tasks\\.md|tasks/[^/]+\\.md)$`);
 const headerApproved = (text) => /^> status: approved\b/m.test(String(text ?? "").split(/^## /m)[0]);
-const TASKS_APPROVE_REASON = "TASKS_NOT_APPROVED: only `hitl-index tasks approve <change-id|QKEY>` sets `> status: approved`, after the human's own Y under \"Approve the task set?\" in the tasks brief; keep the header draft and run /hitl:tasks <change-id|QKEY>";
+/** 0.21.1: task id → {level, reasons} of each `## <id> …` meta line (`- prio: … | risk: high (security, data) | …`). */
+function risksOf(text) {
+  const out = new Map(); let cur = null;
+  for (const l of String(text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/)) {
+    const hm = /^## ([A-Z]{2,5}-T\d+|T-\d+) /.exec(l);
+    if (hm) { cur = hm[1]; continue; }
+    if (/^## /.test(l)) { cur = null; continue; }
+    const m = cur && !out.has(cur) ? /^- prio: [^|]*\|\s*risk:\s*(high|low)\b\s*(?:\(([^)]*)\))?/.exec(l) : null;
+    if (m) out.set(cur, { level: m[1], reasons: (m[2] || "").split(",").map((x) => x.trim()).filter(Boolean) });
+  }
+  return out;
+}
+/** First risk the edit lowers (high → low, or a reason removed), as text, or null. Raising is fine. */
+function riskLowered(old, next) {
+  const a = risksOf(old), b = risksOf(next);
+  for (const [T, x] of a) {
+    const y = b.get(T);
+    if (!y || x.level !== "high") continue;
+    const gone = x.reasons.filter((r) => !y.reasons.includes(r));
+    if (y.level === "low" || gone.length) return `${T} risk high${x.reasons.length ? ` (${x.reasons.join(", ")})` : ""} → ${y.level}${y.reasons.length ? ` (${y.reasons.join(", ")})` : ""}`;
+  }
+  return null;
+}
+const TASKS_RISK_REASON = "only the human lowers a task's risk or removes a risk reason (in the editor); Claude may raise it. Keep the risk, or ask the human in the tasks brief (Needs your eye)";
+const TASKS_APPROVE_REASON = "TASKS_NOT_APPROVED: only `hitl-index tasks approve <change-id|QKEY>` sets `> status: approved`, after the human's own Y under \"Approve?\" in the tasks brief; keep the header draft and run /hitl:tasks <change-id|QKEY>";
 const REVIEW_MD_RE = new RegExp(`^${HITL_RE}reviews/[^/]+\\.review\\.md$`);
 const FEATURE_SUMMARY_RE = new RegExp(`^${HITL_RE}reviews/feature-[^/]+\\.(?:md|security\\.json)$`);
 const MAPPER_DOC_RE = new RegExp(`^${HITL_RE}docs/[^/]+\\.md$`);
@@ -391,12 +415,18 @@ async function main(input) {
   }
 
   // 1b. 0.21: only `hitl-index tasks approve` sets a tasks file header to `> status: approved` (after the human's own Y
-  // under the tasks brief's approve question); an Edit/Write by Claude (any role) that makes it approved is refused
+  // under the tasks brief's approve question); an Edit/Write by Claude (any role) that makes it approved, or (0.21.1)
+  // that lowers a task's risk, is refused
   if ((tool === "Edit" || tool === "Write" || tool === "MultiEdit") && rel && TASKS_DOC_RE.test(rel) && !rel.endsWith("-brief.md")) {
     let old = "";
     try { old = fs.readFileSync(abs, "utf8"); } catch { old = ""; }
     const next = applyEdit(old, input.tool_input || {}, tool);
     if (next !== null && headerApproved(next) && !headerApproved(old)) deny(TASKS_APPROVE_REASON);
+    // 0.21.1: Claude never lowers a risk once the human has seen the set (its tasks brief exists); while it drafts the
+    // first round (no brief yet) it may still correct its own draft
+    const briefAbs = /\/tasks\.md$/.test(abs) ? abs.replace(/tasks\.md$/, "tasks-brief.md") : abs.replace(/\.md$/, "-brief.md");
+    const low = next !== null && fs.existsSync(briefAbs) ? riskLowered(old, next) : null;
+    if (low) deny(`TASKS_RISK_LOWERED: ${low}: ${TASKS_RISK_REASON}`);
   }
 
   // 5. Approve token (checked for every role so subagents cannot self-approve)

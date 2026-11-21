@@ -1,11 +1,12 @@
 // `hitl-index tasks [--check] [--json]` (§E.4). 0.21: `--check` also lists info TEST_OVERRIDE_UNRECORDED (a `!` row
-// without an `_Override:_` question answered Y in a tasks brief).
+// without an override answered Y in a tasks brief).
 // 0.21 tasks brief (lib/tasksbrief.mjs); <target> = a change id, a quick key or a quick file name:
-//   tasks gate <target> [--md] [--write] [--json]  the generated `## Current set` view (summary, task table with the
-//       wave column, test-plan table); --write replaces it in the brief, sets `set:` and writes the round snapshot
+//   tasks gate <target> [--md] [--write] [--json]  the generated `## Tasks (N) — in build order` list (0.21.1, two
+//       lines per task); --write replaces it in the brief, sets `set:` and writes the round snapshot
 //   tasks diff <target> [--json]       `_Changed since Round n:_` lines: tasks.md against the round snapshot
-//   tasks approve <target> [--json]    sets `> status: approved` (only this command does): the approve question of the
-//       brief's last round has its own Y and the set equals the snapshot of that round; tasks --check has no error
+//   tasks approve <target> [--json]    sets `> status: approved` (only this command does): the brief's `Approve?`
+//       has its own Y and the set equals the snapshot of the round (an approved set: prio, risk and blocked-by
+//       excepted); tasks --check has no error
 //   tasks baseline <target> [--json]   records the approved set (an update starts from it; an amend Close re-approves)
 // `hitl-index tasks drop <task-id> --reason "<why>" [--amend <KEY>-A<n>] [--json]` (0.17, shared/task-changes.md): a
 // todo task (no locked work) that an update or an amendment no longer needs gets `status: dropped` and a
@@ -83,7 +84,7 @@ async function drop(argv, ctx) {
   return 0;
 }
 
-/** 0.21 info: `none!`/`manual!` rows in effect without an answered `_Override:_` question in a tasks brief. */
+/** 0.21 info: `none!`/`manual!` rows in effect without an override answered Y in a tasks brief. */
 async function unrecordedOverrides(root, tasks) {
   const { testOverrides } = await import("../lib/testplan.mjs");
   const { overrideRecords, OVERRIDE_UNRECORDED } = await import("../lib/tasksbrief.mjs");
@@ -93,7 +94,7 @@ async function unrecordedOverrides(root, tasks) {
   const out = [];
   for (const t of live) for (const r of testOverrides(t)) {
     const ac = /^AC\d+$/.test(r.ac) ? `${t.id}.${r.ac}` : r.ac;
-    if (!rec.has(ac)) out.push({ task: t.id, file: t.file ?? null, code: OVERRIDE_UNRECORDED, message: `${OVERRIDE_UNRECORDED}: ${ac} "${r.test}!:" has no "_Override:_ ${ac} …" question answered Y in a tasks brief (no brief record)` });
+    if (!rec.has(ac)) out.push({ task: t.id, file: t.file ?? null, code: OVERRIDE_UNRECORDED, message: `${OVERRIDE_UNRECORDED}: ${ac} "${r.test}!:" has no "Override: ${ac} …" answered Y in a tasks brief (no brief record)` });
   }
   return out;
 }
@@ -114,27 +115,20 @@ async function brief(sub, argv, ctx) {
   const cur = await TB.readTarget(ctx.root, target);
   if (!cur) return fail("TASKS_FILE_MISSING", `${target.tasksFile} not found`);
   if (sub === "gate") {
-    let spec = null, design = null;
-    if (target.change) {
-      const ch = await import("../lib/changes.mjs");
-      const e = await ch.findChange(ctx.root, target.change);
-      const c = e ? await ch.readChange(ctx.root, e) : null;
-      if (c) { spec = c.proposal ? c.proposal.status || "draft" : "missing"; design = ch.designState(c); }
-    }
     const lock = await readJson(paths(ctx.root).lock, null);
-    const view = TB.renderGate(target, cur.doc, { isDone: (T) => !!lock?.tasks?.[T]?.doneAt, spec, design });
+    const view = TB.renderList(target, cur.doc, { isDone: (T) => !!lock?.tasks?.[T]?.doneAt });
     const set = TB.setOf(cur.text, cur.doc).set;
     let snap = null;
     if (a.write) {
       const b = await TB.readTasksBrief(ctx.root, target);
       if (!b) return fail("TASKS_BRIEF_MISSING", `no ${target.briefFile}: write it from shared/templates/tasks-brief.md first`);
       const text = await readText(join(ctx.root, target.briefFile), "");
-      await writeTextAtomic(join(ctx.root, target.briefFile), TB.putCurrentSet(text, view, set));
+      await writeTextAtomic(join(ctx.root, target.briefFile), TB.putTasksList(text, view, set));
       snap = await TB.writeSnapshot(ctx.root, target, b.round, { text: cur.text });
     }
     if (json) console.log(JSON.stringify({ ok: true, target: target.id, file: target.tasksFile, brief: target.briefFile, set, markdown: view, ...(snap ? { snapshot: target.snapFile, round: snap.round } : {}) }, null, 2));
     else if (a.md || !a.write) console.log(view);
-    else console.log(`✅ ${target.briefFile}: Current set (set ${set}) and snapshot of round ${snap.round} written`);
+    else console.log(`✅ ${target.briefFile}: task list (set ${set}) and snapshot of round ${snap.round} written`);
     return 0;
   }
   if (sub === "diff") {

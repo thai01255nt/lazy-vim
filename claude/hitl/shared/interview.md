@@ -10,8 +10,8 @@ design for Explore before writing round 1). Own text, except § Shared language:
 
 Used by `/hitl:plan` (tags `[R]`, `[S]`, `[A]`, `[T]`), `/hitl:design` (tags `[D]`, `[A]`), the amend brief of
 either (0.17; tags `[R]`, `[D]`, `[X]`, `[K]`; format and runs in `shared/amend-spec.md` §3–§4) and the tasks brief of
-`/hitl:tasks` (0.21; tags `[Q]`, `[C]`; a review of a set already written to tasks.md: format and runs in
-`skills/tasks/SKILL.md` §6, `skills/tasks/references/slicing-and-risk.md` §9).
+`/hitl:tasks` (0.21.1: a list of a set already written to tasks.md, no tagged questions — "Needs your eye" bullets,
+Notes, `Approve?`: format and runs in `skills/tasks/SKILL.md` §6, `skills/tasks/references/slicing-and-risk.md` §9).
 
 ## Contents
 1. Loading
@@ -41,8 +41,6 @@ There is **no design tree of components and no levels**. The frontier is a set o
 | `[T]` | plan (design: `_Needs term:_`) | a term: the canonical word, what it IS, its boundary with a neighbour term; max 2 per round | `### Term:` block in glossary.md with `_Avoid_` (§10) |
 | `[X]` | amend brief | an out-of-scope candidate: accept into this change's scope · own change (`--before` or after) · drop | part of the amendment, a `--before` hint, or an `## Out of scope` line |
 | `[K]` | amend brief | a half-done task: keep and adapt · revert to the base and redo | an edit in place, or a `revert` task (`shared/task-changes.md`) |
-| `[Q]` | tasks brief | one review area of the set: slices, blocking edges, owners, test plan (with Claude's own check as evidence) | an edit of tasks.md, or kept |
-| `[C]` | tasks brief | one finding code (trace warn/info, a semantic check), its ids grouped: fix or accept | an edit of tasks.md, or `→ recorded: accepted` |
 - Plan never asks `[D]`. Design never asks `[R]`: a design answer that needs new behaviour becomes `_Needs spec:_ …`
   (a question of the next round with the `_Delta:_` preview, §8).
 - `[S]` questions need the spec-scout result (`.scout.json`); the scout runs before the plan brief is written, so they
@@ -139,9 +137,9 @@ _Rec:_ split into several files of ≤ 10 000 rows.
   - `### Q<n> _Needs spec:_ …` — applies a spec delta and its Impact classes (§8).
   - design: the test-strategy question when the risks name security, concurrency or data (its answer decides whether
     `/hitl:tasks` must keep an automated test per AC, `TEST_PLAN_NONE_RISK`);
-  - tasks brief (0.21): `### Q<n> _Override:_ <AC> none!: …` (writes a `!` test-plan row; parser `ownY: override`)
-    and `### Q<n> Approve the task set? (Y/n)` (`ownY: approve`), the last question of every round, after the Notes
-    block: the approval lives inside the round (no `## Close`), and only `hitl-index tasks approve` acts on its Y.
+  - tasks brief (0.21.1): the bullet `` - Override: <AC> `none!: …`? `` under `## Needs your eye` (writes a `!`
+    test-plan row; parser `ownY: override`) and `## Approve? (needs its own Y)` (`ownY: approve`), the last section,
+    after `## Notes`: only `hitl-index tasks approve` acts on its Y.
   The parser recognises them from the heading (`ownY` in `hitl-index brief --json`) and never counts the accept-all
   `Y` as their answer: an empty answer under one is carried to the next round (same number) even when the round's
   accept-all line says `Y`.

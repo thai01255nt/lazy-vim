@@ -241,7 +241,7 @@ export function buildTrace(inputs, scope = { kind: "all" }) {
       else if (ts.every((x) => x.test?.mode !== "active")) add(testsLocked ? "warn" : "info", "AC_ONLY_STUB", ac.id, t.id, g, `${ac.id} has only todo/skip tests`);
       if (ovr.length) add("info", "AC_TEST_OVERRIDE", ac.id, t.id, g, `${ac.id} ${exempt}! over risk ${noneBlockedBy(t).join(", ")}: human override (${ovr.join("; ")})`);
       const orec = ovr.length && inputs.overrides instanceof Map ? inputs.overrides.get(ac.id) || null : undefined;
-      if (orec === null) add("info", "TEST_OVERRIDE_UNRECORDED", ac.id, t.id, g, `${ac.id} ${exempt}! has no "_Override:_ ${ac.id} …" question answered Y in a tasks brief (no brief record)`);
+      if (orec === null) add("info", "TEST_OVERRIDE_UNRECORDED", ac.id, t.id, g, `${ac.id} ${exempt}! has no "Override: ${ac.id} …" answered Y in a tasks brief (no brief record)`);
       const proven = !exempt && ts.some((x) => testProves(c, x));
       if (late && !proven && !exempt) add("warn", "AC_NOT_PROVEN", ac.id, t.id, g, `${ac.id} has no fresh passing test (task is ${statuses.tasks[t.id].status})`);
       const symIds = [...new Set(ts.flatMap((x) => x.test?.coversResolved || []))].sort();

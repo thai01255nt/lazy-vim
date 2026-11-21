@@ -68,6 +68,15 @@ const tasksTarget = (P, c) => {
   return { arg: key, slug: base.replace(/^quick-/, ""), tasksFile: q[0], briefFile: `.hitl/tasks/${base}-brief.md`, snapFile: `.hitl/tasks/.${base}-round.json` };
 };
 const tasksBrief = (P, tg) => (tg && fs.existsSync(path.join(P, tg.briefFile)) ? json(cli(P, "brief", tg.arg, "--kind", "tasks", "--json").out) : null);
+/** 0.21.1 tasks brief: one `## <name>…` section of the brief text (comments blanked), or null. */
+const briefSection = (text, name) => { const s = String(text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/^## /m).find((x) => x.startsWith(name)); return s === undefined ? null : s; };
+/** Task ids of a tasks file and the ids of the brief's generated list (`1. **<id>** …`). */
+const listIds = (P, tg) => {
+  const ids = ((read(path.join(P, tg.tasksFile)) ?? "").match(new RegExp(`^## ${K}-T\\d+ `, "gm")) ?? []).map((x) => x.slice(3).trim());
+  const list = briefSection(read(path.join(P, tg.briefFile)), "Tasks") ?? "";
+  const shown = [...list.matchAll(new RegExp(`^\\d+\\. \\*\\*(${K}-T\\d+)\\*\\*`, "gm"))].map((m) => m[1]);
+  return { ids, shown, list, same: ids.length > 0 && shown.length === ids.length && ids.every((id) => shown.includes(id)) };
+};
 
 /** Parsed brief file of a change (`hitl-index brief <id> --kind <kind> --json`), or null. */
 const briefOf = (proj, ch, kind) => (ch ? json(cli(proj, "brief", ch, "--kind", kind, "--json").out) : null);
@@ -325,28 +334,27 @@ const CHECKS = {
   tasks_all_scenarios: (S, P) => { const r = json(cli(P, "trace", "feat-password-reset", "--json").out); const n = (r?.items ?? []).filter((i) => i.code === "SCN_NO_AC").length; return ok(r && n === 0, `SCN_NO_AC: ${n}`); },
   tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(new RegExp(`\\*\\*Why\\*\\*.*\\(${K}-D\\d+`).test(t), "Why does not cite a decision <KEY>-D<n>"); },
   tasks_quiz_gate: (S) => ok(new RegExp(`\\| *${K}-T\\d+`).test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
-  // 0.16: the test plan has a test decision per row (new rows name a defect); 0.21: the tasks brief asks it ([Q] Test plan)
+  // 0.16: the test plan has a test decision per row (new rows name a defect); 0.21.1: the brief's list shows each task's
+  // ACs and tests (`N AC, …` on its second line)
   tasks_test_decisions: (S, P, c) => {
     const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : "";
     const rows = t.split("\n").filter((l) => /^\|\s*AC\d+\s*\|/.test(l));
-    const decided = rows.filter((l) => /\|\s*(new:\s*\S|shared:\s*\S|covered:\s*\S|none:\s*\S|manual:\s*\S)/.test(l));
-    const q = (tasksBrief(P, tg)?.questions ?? []).some((x) => x.tag === "Q" && /test plan/i.test(x.title));
-    return ok(rows.length > 0 && decided.length === rows.length && q, `rows ${rows.length}, with a decision ${decided.length}, brief [Q] test plan ${q}`);
+    const decided = rows.filter((l) => /\|\s*(new:\s*\S|shared:\s*\S|covered:\s*\S|none!?:\s*\S|manual!?:\s*\S)/.test(l));
+    const L = tg ? listIds(P, tg) : null;
+    const tests = L ? (L.list.match(/^ {3}P[0-3?] · .* · \d+ AC, .+$/gm) ?? []).length : 0;
+    return ok(rows.length > 0 && decided.length === rows.length && L?.same && tests === L.ids.length, `rows ${rows.length}, with a decision ${decided.length}; list entries ${L?.shown.length} for ${L?.ids.length} tasks, with AC+tests ${tests}`);
   },
   tasks_not_approved: (S, P, c) => { const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : ""; return ok(tg && !/^> status: approved/m.test(t), tg ? "self-approved tasks" : "no tasks file"); },
   // ---- 0.21 tasks brief: the gate is a round in tasks-brief.md (quick: quick-<slug>-brief.md), never a chat gate
   tasks_brief_written: (S, P, c) => {
     const tg = tasksTarget(P, c); const b = tasksBrief(P, tg); if (!b) return ok(false, "no tasks brief");
-    const r = Math.max(...b.rounds.map((x) => x.n)); const qs = b.questions.filter((q) => q.round === r);
-    const four = ["Slices", "Blocking edges", "Owners", "Test plan"].every((w, i) => qs.some((q) => q.n === i + 1 && q.tag === "Q" && q.title.startsWith(w)));
-    const last = qs.at(-1); const view = read(path.join(P, tg.briefFile)) ?? "";
-    const sec = view.split(/^## /m).find((x) => x.startsWith("Current set")) ?? "";
-    const ids = ((read(path.join(P, tg.tasksFile)) ?? "").match(new RegExp(`^## ${K}-T\\d+ `, "gm")) ?? []).map((x) => x.slice(3).trim());
-    const shown = ids.every((id) => new RegExp(`^\\| ${id} +\\|`, "m").test(sec)) && /\| wave \|/.test(sec);
+    const text = read(path.join(P, tg.briefFile)) ?? ""; const L = listIds(P, tg);
+    const eye = briefSection(text, "Needs your eye"); const eyeOk = eye === null || /^[-*] /m.test(eye);
+    const noQ = !b.questions.some((q) => q.tag) && !b.rounds.some((r) => r.acceptAllLine) && !/^### Q\d+/m.test(text);
+    const last = b.questions.at(-1); const notes = b.rounds.at(-1)?.notes;
     const set = json(cli(P, "tasks", "gate", tg.arg, "--json").out)?.set;
-    const round = b.rounds.find((x) => x.n === r);
-    return ok(b.kind === "tasks" && round?.acceptAllLine && four && last?.ownY === "approve" && round?.notes && shown && b.set === set,
-      `kind ${b.kind}; four [Q] ${four}; last ${last?.id} ownY ${last?.ownY}; Current set shows ${ids.length} ids + wave: ${shown}; set ${b.set} vs ${set}`);
+    return ok(b.kind === "tasks" && L.same && eyeOk && noQ && last?.ownY === "approve" && notes && b.set === set,
+      `kind ${b.kind}; list ${L.shown.join(",")} for ${L.ids.join(",")}; Needs your eye ${eye === null ? "omitted" : eyeOk ? "with bullets" : "empty"}; no Q/accept-all ${noQ}; last ${last?.id} ${last?.ownY}; Notes ${!!notes}; set ${b.set} vs ${set}`);
   },
   tasks_snapshot_written: (S, P, c) => {
     const tg = tasksTarget(P, c); const snap = tg ? json(read(path.join(P, tg.snapFile)) ?? "") : null; const b = tasksBrief(P, tg);
@@ -354,7 +362,7 @@ const CHECKS = {
     return ok(snap && b && snap.round === b.round && d && !d.changed, tg ? `snapshot ${tg.snapFile}: round ${snap?.round} vs brief ${b?.round}; changed since ${d?.changed}` : "no tasks file");
   },
   tasks_brief_chat: (S, P, c) => { const tg = tasksTarget(P, c); return tg ? briefChat(S, path.basename(tg.briefFile)) : ok(false, "no tasks file"); },
-  tasks_no_chat_gate: (S) => ok(!/reply changes, or Y|Granularity ok\?|Test plan ok\?/i.test(S.text) && !new RegExp(`^\\s*\\| *${K}-T\\d+ *\\|`, "m").test(S.text), "a chat gate (task table, quiz questions or 'reply … Y') in the reply"),
+  tasks_no_chat_gate: (S) => ok(!/reply changes, or Y|Granularity ok\?|Test plan ok\?|\(Y\/n\)/i.test(S.text) && !new RegExp(`^\\s*(?:\\| *${K}-T\\d+ *\\||\\d+\\. \\*\\*${K}-T\\d+\\*\\*)`, "m").test(S.text), "a chat gate (task table or list, quiz questions, (Y/n) or 'reply … Y') in the reply"),
   tasks_quick_file: (S, P) => {
     const q = quickDocs(P);
     const t = q.length === 1 ? read(path.join(P, q[0])) ?? "" : "";
@@ -362,10 +370,10 @@ const CHECKS = {
   },
   tasks_quick_brief: (S, P, c) => {
     const tg = tasksTarget(P, c); const b = tasksBrief(P, tg); if (!b) return ok(false, `no ${tg?.briefFile ?? "quick brief"}`);
-    const q2 = b.questions.find((q) => q.n === 2);
-    const nums = b.questions.filter((q) => q.tag === "Q").map((q) => q.n).join(",");
-    return ok(b.kind === "tasks" && b.change === null && b.quick?.slug === tg.slug && b.quick?.key === tg.arg && nums.startsWith("1,2,3,4") && q2?.settled && /n\/a/.test(q2.recorded.join(" ")) && b.questions.at(-1)?.ownY === "approve",
-      `quick ${JSON.stringify(b.quick)} change ${b.change}; [Q] ${nums}; Q2 ${q2?.recorded?.join(" ")}; last ${b.questions.at(-1)?.ownY}`);
+    const text = read(path.join(P, tg.briefFile)) ?? ""; const L = listIds(P, tg);
+    const plain = !/— after |n\/a|^### Q\d+/m.test(text) && !b.rounds.some((r) => r.acceptAllLine);
+    return ok(b.kind === "tasks" && b.change === null && b.quick?.slug === tg.slug && b.quick?.key === tg.arg && L.same && L.shown.length === 1 && plain && b.questions.at(-1)?.ownY === "approve",
+      `quick ${JSON.stringify(b.quick)} change ${b.change}; list ${L.shown.join(",")}; no after/n-a/Q/accept-all ${plain}; last ${b.questions.at(-1)?.ownY}`);
   },
   tasks_quick_key_once: (S, P) => {
     const docs = (json(cli(P, "tasks", "--json").out)?.tasks ?? []).filter((t) => t.quick);

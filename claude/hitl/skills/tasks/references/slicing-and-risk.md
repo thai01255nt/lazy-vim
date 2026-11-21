@@ -15,7 +15,7 @@ Seam rules (§5 tracer AC, §7 seam column) from `skills/engineering/{to-spec,td
 6. Symbols and owners
 7. Test plan
 8. Consistency check (before the round)
-9. Review questions (the tasks brief)
+9. The tasks brief
 
 ## 1. Vertical slices
 - Each task cuts a narrow but COMPLETE path through the layers it needs (types, service, API, tests): vertical, not one layer.
@@ -50,7 +50,8 @@ blocked by expand) → **contract** (delete the old form, blocked by every migra
 | `public-api` | change to an exported symbol used by other modules, HTTP/CLI contract, or package API |
 | `domain` | introduces a new domain concept (new entity/aggregate/state machine) |
 | `data` | data migration or persisted schema change |
-Low-risk tasks may use the fast lane (auto skeleton/tests approval). Never lower a risk to get the fast lane.
+Low-risk tasks may use the fast lane (auto skeleton/tests approval). Never lower a risk to get the fast lane; once
+the human has seen the set, only the human lowers a risk (the hook refuses your edit, `TASKS_RISK_LOWERED`).
 `quick` tasks follow the same rules; if a quick task comes out high, say so and recommend `/hitl:plan`.
 
 ## 5. Acceptance criteria
@@ -89,11 +90,11 @@ The `test` cell (checked by `hitl-index tasks --check`):
 | `none!: <reason>` · `manual!: <check> — <reason>` | 0.20, **human only**: the human's override of `TEST_PLAN_NONE_RISK` on a `security`, `concurrency` or `data` task | the reason (`TEST_PLAN_OVERRIDE_NO_REASON` without it); a warning `TEST_PLAN_NONE_RISK_OVERRIDE`, not an error; `status` shows `⚠️ test override`, the review report lists the AC, done lists a `manual!` check |
 Never write `!` on your own initiative, and never lower a risk reason to get past `TEST_PLAN_NONE_RISK`. When an
 automated test on such an AC looks unreasonable (or the human asks for none), keep an automated-test row in the file
-and propose the override in the tasks brief as one question per AC, `### Q<n> _Override:_ <AC> none!: <reason>? (needs
-its own Y)` (or `manual!: <check> — <reason>`), the reason in one line, the body naming the task's risk reasons; the
-round's accept-all Y does not cover it, only a Y under that question does (then write the `!` row). The answered
-question is the record of the override: a `!` row without one is info `TEST_OVERRIDE_UNRECORDED` (status and the review
-report show `(no brief record)`).
+and propose the override in the tasks brief's "Needs your eye" as one bullet per AC, `` - Override: <AC> `none!:
+<reason>`? (needs its own Y) `` (or `manual!: <check> — <reason>`), the task's risk reasons on the next line, then its
+own `>` line; only a Y under that bullet counts (then write the `!` row). The answered bullet is the record of the
+override: a `!` row without one is info `TEST_OVERRIDE_UNRECORDED` (status and the review report show `(no brief
+record)`).
 Non-`new` rows may leave kind, oracle, seam and author as `—`. A table without the `test` column (before 0.16) reads
 every row as `new`. Choose:
 - `new` only when you can name its defect; prefer `shared` (or one table test) when two ACs are the same call with
@@ -114,26 +115,20 @@ every row as `new`. Choose:
 
 ## 8. Consistency check (before the round)
 Structural checks (unknown/removed scenario, requirement, rule or <KEY>-D<n>; scenario without AC; AC without ref; unused D;
-requirement without a serving D) come from `hitl-index trace <change-id> --json`; block items are fixed before the
-round, warn/info items become `[C]` questions: **one question per code**, its ids grouped, `_Rec:_ fix: <edit>
-(changes the set)` or `accept: <reason>`. Add these semantic checks yourself, one `[C]` question per kind, only when
-non-empty:
+requirement without a serving D) come from `hitl-index trace <change-id> --json`. Add these semantic checks yourself:
 - design.md `## Risks` items with no high-risk task covering them
 - tasks touching items listed in the proposal `## Out of scope` or `## Deferred`
 - proposal `## Unchanged behaviour` items with no regression AC (fix/refactor/perf changes)
 - symbols listed in two tasks (choose one owner task; the other is blocked-by it)
+Fix every finding in the write/validate loop. Only one that needs a human choice (two valid fixes that change scope or
+cost, an accepted gap) becomes one plain bullet under "Needs your eye", with a `>` line when it needs an answer.
 
-## 9. Review questions (the tasks brief)
-The gate is a round of the tasks brief (`skills/tasks/SKILL.md` §6), above it the generated `## Current set` (task
-table with the wave column, test-plan table `task · AC · test · seam`). Four `[Q]` questions, each with your own check
-as evidence and a `_Rec:_`, so the accept-all Y means "keep what you checked":
-1. **Slices** (granularity, merge, split): sizes over ≤ 6 symbols / ≤ 3 files, AC counts outside 2–6, layer-only tasks.
-   One task (quick): merge does not apply (`— (1 task)`); split is the "too big for quick" check (→ `/hitl:plan`).
-2. **Blocking edges**: does each task wait only for tasks that genuinely gate it? Evidence: the waves (a task one wave
-   too late shows a wrong edge), cross-change edges, symbols listed in two tasks. One task: settled `n/a (1 task)`.
-3. **Owners** (agent/manual): high-risk core logic owned by agent, the user's own "I will write it".
-4. **Test plan**: which ACs get a new test and the defect each catches, the shared/covered/none/manual rows with their
-   reason, seams, the budget.
-Then the `[C]` findings (§8), the `_Override:_` questions (§7), Notes, and `Approve the task set? (Y/n) (needs its own
-Y)`. This is where the human decides whether and how many tests; it is the one human gate a low-risk (fast-lane) task
-passes. Rounds repeat until the approve Y meets an unchanged set; only `hitl-index tasks approve` approves it.
+## 9. The tasks brief
+The gate is the tasks brief (`skills/tasks/SKILL.md` §6): the generated list of tasks in build order (two lines per
+task: id, title, `after` its blockers; prio · risk → lane · owner · ACs and tests), "Needs your eye" only when there
+is something, Notes, and `Approve? (needs its own Y)`. Before writing it, check the set yourself — slices (≤ 6
+symbols / ≤ 3 files, 2–6 ACs, no layer-only task), blocking edges (no edge for order's sake), owners, the test plan
+(a defect per `new` row, the budget) — and fix what you are sure of; your real doubts go under "Needs your eye". The
+human reads the list, re-judges risk, sometimes edits the list, prio or order, and approves; this is the one human
+gate a low-risk (fast-lane) task passes. Rounds repeat until the approve Y meets an unchanged set; only
+`hitl-index tasks approve` approves it.

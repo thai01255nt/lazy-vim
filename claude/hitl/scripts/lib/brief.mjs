@@ -72,8 +72,9 @@ function metaOf(line) {
 export function ownYKind(n, title) {
   if (Number(n) === 0) return "rename";
   // 0.21 tasks brief: a test-plan override of one AC (`none!:`/`manual!:` row) and the approval of the task set
-  if (/_Override:_/.test(title)) return "override";
-  if (/^\s*Approve the task set\b/i.test(title)) return "approve";
+  // (0.21.1: the override is a bullet `- Override: <AC> …` under `## Needs your eye`, the approval `## Approve?`)
+  if (/_Override:_|^\s*Override:/.test(title)) return "override";
+  if (/^\s*Approve(?:\?|\s+the task set\b)/i.test(title)) return "approve";
   if (/📥\s*For\b|_To [^_]+:_/i.test(title)) return "note";
   if (/💡\s*Needs spec\b|_Needs spec:_/i.test(title)) return "spec";
   if (/\(needs its own Y\)/i.test(title)) return "other";
@@ -106,6 +107,8 @@ const newNotes = (round, line) => ({ ...newQuestion(0, "Notes", round, line), id
  *   ownY: "rename" (Q0) | "note" (`_To <P>:_`) | "spec" (`_Needs spec:_`) | "other" (`(needs its own Y)` in the heading) |
  *   null — such a question is never answered by the round's accept-all line (acceptedByRound stays false).
  *   dropped: the mark `→ dropped (scope changed)` (the scope changed and the question no longer applies).
+ *   0.21.1 tasks brief: `## Approve?` → id "Approve" (ownY approve); a `## Needs your eye` bullet with a `>` line →
+ *   id "E<k>", or "Override <AC>" (ownY override) for `- Override: <AC> …`; their round is the header's `round:`.
  * Notes (every round's `round.notes`, and `close.notes`): {id:"notes", round, text, answered (non-empty), recorded[],
  *   carried, parked, discussed, marked (a → line follows), pending (non-empty and not marked: the next run processes it)}.
  */
@@ -123,6 +126,18 @@ export function parseBrief(text, file = null) {
   let acceptTarget = null; // round whose accept-all answer continues on `>` lines
   let closeQ = null;
   const endQuestion = () => { q = null; mode = null; };
+  // 0.21.1 tasks brief layout: no `## Round n` headings; `## Needs your eye` (bullets, a `>` line under the ones that
+  // ask), `## Notes`, `## Approve? (needs its own Y)` belong to the round of the header's `round:` (one virtual round)
+  const tasksLayout = () => out.kind === "tasks" || fromFile?.[1] === "tasks" || !!quickFile;
+  let vround = null;
+  const virtualRound = (ln) => {
+    if (!vround) {
+      vround = { n: out.round || 1, done: false, notes: null, acceptAllLine: false, acceptAll: false, acceptAllAnswer: null, coverage: null, hot: [], line: ln, list: true };
+      out.rounds.push(vround);
+    }
+    return vround;
+  };
+  let eyeN = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]; const ln = i + 1;
     if (/^#\s/.test(line) && out.title === null) {
@@ -170,6 +185,15 @@ export function parseBrief(text, file = null) {
       } else if (/^Close\b/i.test(head)) { section = "close"; round = null; out.close = { line: ln, question: null, answer: "", kind: "empty", items: [], gaps: [], resolved: null, notes: null }; }
       else if (/^Open questions\b/i.test(head)) { section = "open"; round = null; }
       else if (/^Unchanged\b/i.test(head)) { section = "unchanged"; round = null; out.unchanged = out.unchanged || []; }
+      else if (tasksLayout() && /^(?:Needs your eye|Notes|Approve)\b/i.test(head)) {
+        round = virtualRound(ln);
+        if (/^Needs your eye\b/i.test(head)) section = "eye";
+        else if (/^Notes\b/i.test(head)) {
+          section = "round"; q = newNotes(round.n, ln); mode = "body";
+          if (round.notes) out.items.push({ level: "warn", code: "BRIEF_NOTES_DUP", line: ln, message: "two Notes sections" });
+          round.notes = q;
+        } else { section = "round"; q = { ...newQuestion(1, head, round.n, ln), id: "Approve", n: null }; mode = "body"; out.questions.push(q); }
+      }
       else { section = "other"; round = null; }
       continue;
     }
@@ -191,6 +215,19 @@ export function parseBrief(text, file = null) {
       if (r && closeQ) { closeQ.resolved = r[1].trim(); continue; }
       if (closeQ && closeQ.answerLines.length && line.trim() && !MARKER.test(line)) { closeQ.answerLines.push(line.trim()); continue; }
       if (!closeQ && /^\s*-\s+/.test(line)) c.gaps.push(line.replace(/^\s*-\s+/, "").trim());
+      continue;
+    }
+    if (section === "eye") {
+      // `- <text>` starts an item; it is a question when a `>` line follows it or it needs its own Y (an override)
+      const b = /^[-*]\s+(.*)$/.exec(line);
+      if (b) {
+        q = { ...newQuestion(1, b[1], round.n, ln), n: null, eye: true }; mode = "body";
+        const ac = q.ownY === "override" ? /Override:\s*`?([A-Z]{2,5}-T\d+\.AC\d+)/.exec(q.title)?.[1] : null;
+        q.id = ac ? `Override ${ac}` : `E${++eyeN}`;
+        out.questions.push(q);
+        continue;
+      }
+      if (q) questionLine(line);
       continue;
     }
     if (section !== "round") continue;
@@ -229,6 +266,7 @@ export function parseBrief(text, file = null) {
   function questionLine(line) {
     const a = ANSWER.exec(line);
     if (a) {
+      q.asks = true;
       // 0.14.1: a mark or `_Disc:_` line written right under an answer is a lazy continuation for markdown; a formatter
       // (prettier) pulls it into the blockquote (`> → recorded: …`, `> _Disc:_ …`, and every discussion line after it).
       // Claude's, not the answer.
@@ -273,6 +311,9 @@ export function parseBrief(text, file = null) {
   if (out.kind === "amend") { out.amend = out.amend || null; out.from = out.from || []; out.refs = out.refs || []; out.transition = out.transition ?? null; out.skill = out.skill || "plan"; out.unchanged = out.unchanged || []; }
   if (!out.round && out.rounds.length) out.round = Math.max(...out.rounds.map((r) => r.n));
   if (!out.status) out.status = out.close ? "closing" : "open";
+  if (vround) vround.done = out.status === "done";
+  // a `## Needs your eye` bullet without a `>` line is information, not a question
+  out.questions = out.questions.filter((x) => !x.eye || x.ownY || x.asks);
   if (!out.title) out.items.push({ level: "warn", code: "BRIEF_NO_HEADER", line: 1, message: "no `# Plan brief — <id>` / `# Design brief — <id>` / `# Tasks brief — <id>` / `# Amend brief — <id> · <KEY>-A<n>` title" });
   for (const r of out.rounds) r.acceptAll = answerKind(r.acceptAllAnswer) === "accept";
   const roundOf = new Map(out.rounds.map((r) => [r.n, r]));

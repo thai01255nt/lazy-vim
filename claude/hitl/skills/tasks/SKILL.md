@@ -37,8 +37,12 @@ Arguments: `$ARGUMENTS`
     steps 2–4); no redraft.
   - header `approved` → **update** (no question; there is no overwrite). First `hitl-index tasks baseline <id|KEY>`
     (records the approved set before you edit; refused while a round is open: then continue that round), then edit,
-    then append `## Round <n> — update: <what>` to the same brief (rounds keep their numbers; header `status: open`).
+    then rewrite the brief as round n+1 with a `_Update:_ <what>` line (header `status: open`).
     The header stays `approved`; only the new and edited tasks are held (`TASKS_NOT_APPROVED`) until the approve Y.
+  - **Cheap late edits** (no update, no round, nothing held): on an approved set, a todo task's `prio`, `blocked-by` or
+    its place in the file may change at any time, by the human or by you (say it in one chat line). Its `risk`: the
+    human may change it; you may raise it, never lower it or drop a reason (the hook refuses, `TASKS_RISK_LOWERED`:
+    ask the human to edit tasks.md). Adding or dropping tasks, ACs, symbols or the test plan → an update.
   `<change-id> update [<what>]` (from `/hitl:go`, a note's apply command or an amend route) is the same; `<what>` is the
   work to add. While a round of the tasks brief is open, `<what>` goes into the Notes of that round instead (then §6 Run).
   Update rules (`shared/task-changes.md`):
@@ -78,7 +82,8 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
   allowed but gives `AC_REQ_LEVEL` info; prefer the scenario. Several refs: `(PWR-R3.S1, SGN-BR1)` (spec ids carry the key of the change that created them).
 - `**Why**` cites the design decisions it implements: `… (PWR-D1, PWR-D2)`. No design (skipped) → cite the requirement ids.
 - Symbols (`### Symbols`) are the first place code names appear: they belong here, not in the spec or design.
-- Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high → Q1 of the brief recommends `/hitl:plan`.
+- Quick mode: one task, no spec refs, no `<KEY>-D<n>`; risk per the rules; high or too big → a "Needs your eye" bullet
+  recommends `/hitl:plan <description>` (a Y there prints that command; you never start it).
   A trivial change (wording, constant, log line) usually gets `none: <reason>` or `covered: <test>` instead of a new test.
 
 ## 5. Write and validate (loop until clean)
@@ -96,77 +101,72 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
    Update: write only the new and edited tasks; a task you plan to drop stays as it is until the approve Y (its check errors are expected).
 2. `hitl-index tasks --check --json`. Fix every error (duplicate ids, unknown blocked-by, missing meta, `modify` target missing,
    `new` symbol already exists, AC without test-plan row, test-plan codes `TEST_PLAN_BAD|NO_DEFECT|EMPTY|SHARED|COVERED|NONE_RISK|OVERRIDE_NO_REASON`
-   (`NONE_RISK`: an automated test, or the human's `_Override:_` question in the brief, never `!` on your own, `slicing-and-risk.md` §7;
+   (`NONE_RISK`: an automated test, or the human's override in the brief, never `!` on your own, `slicing-and-risk.md` §7;
    `OVERRIDE_NO_REASON`: ask the human for the reason, never invent it),
    bad ref form, unknown/removed scenario or requirement, unknown `<KEY>-D<n>`,
    `TASK_KEY_MISMATCH`, `QUICK_KEY_TAKEN` → a fresh `next-id --quick <slug>` key in the header and the ids; 0.17:
    `TASK_KIND_BAD`, `AMEND_KEY_MISMATCH`, `TASK_DROPPED_*`, `SUPERSEDED_UNKNOWN`, `REMOVE_STILL_PRESENT`, `AMEND_ORDER`,
    `AMEND_UNCOVERED` (0.18: also each caller of a changed symbol), `AMEND_TEMP_NO_REMOVAL`, `AMEND_CONTRACT_SAME_DEPLOY`,
    task-changes.md §5) and re-run. `warnings` (`TEST_PLAN_NONE_RISK_OVERRIDE`) and `info` (`TEST_OVERRIDE_UNRECORDED`: a
-   `!` row without its answered `_Override:_` question) are not errors.
+   `!` row without its answered override) are not errors.
 3. Not quick: `hitl-index trace <change-id> --json`. Fix every `block` item (`REQ_UNKNOWN`, `SCN_UNKNOWN`,
-   `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop. `warn`/`info` items
-   (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) become `[C]` questions (§6);
-   the test-progress codes (`AC_NO_TEST`, `AC_ONLY_STUB`, `AC_NOT_PROVEN`, `AC_NO_TEST_BY_DECISION`, `AC_MANUAL_CHECK`,
-   `AC_TEST_OVERRIDE`, `TEST_OVERRIDE_UNRECORDED`) describe later stages and never become questions.
-   Max 3 loops for steps 2–3; then the remaining errors go into the round as `_Warn:_` lines. Fix what you are sure
-   of before the round: a recommendation that changes the set costs the human one more round.
-4. Write the round into the tasks brief (§6) — a new brief from `${CLAUDE_PLUGIN_ROOT}/shared/templates/tasks-brief.md`
-   (change: `.hitl/changes/<id>/tasks-brief.md`; quick: `.hitl/tasks/quick-<slug>-brief.md`, meta `quick:` instead of
-   `change:`) — then, last, `hitl-index tasks gate <id|KEY> --write`: it writes `## Current set` (summary, the task
-   table with the wave column, the test-plan table, all generated from tasks.md), the `set:` meta and the round
-   snapshot. Never copy those tables by hand, never change tasks.md after this call in the same run.
+   `RULE_UNKNOWN`, `REQ_INACTIVE`, `DEC_UNKNOWN`, `CHANGE_MISSING`, …) in the same loop, and the `warn`/`info` items
+   (`SCN_NO_AC`, `REQ_NO_AC`, `DEC_UNUSED`, `AC_NO_REQ`, `AC_REQ_LEVEL`, `REQ_NO_DEC`) and the semantic checks of
+   `slicing-and-risk.md` §8 too. Only a finding that needs the human's choice goes to the brief (§6). The
+   test-progress codes (`AC_NO_TEST`, `AC_ONLY_STUB`, `AC_NOT_PROVEN`, `AC_NO_TEST_BY_DECISION`, `AC_MANUAL_CHECK`,
+   `AC_TEST_OVERRIDE`, `TEST_OVERRIDE_UNRECORDED`) describe later stages: never in the brief.
+   Max 3 loops for steps 2–3; then the remaining errors go into the brief as `_Warn:_` lines.
+4. Write the brief (§6) from `${CLAUDE_PLUGIN_ROOT}/shared/templates/tasks-brief.md` (change:
+   `.hitl/changes/<id>/tasks-brief.md`; quick: `.hitl/tasks/quick-<slug>-brief.md`, meta `quick:` instead of
+   `change:`) — then, last, `hitl-index tasks gate <id|KEY> --write`: it writes `## Tasks (N) — in build order` (two
+   lines per task, generated from tasks.md), the `set:` meta and the round snapshot. Never write that list by hand,
+   never change tasks.md after this call in the same run.
 
 ## 6. The tasks brief (the gate)
-The review of the set happens in the brief file, never in chat (`${CLAUDE_PLUGIN_ROOT}/shared/interview.md` §4–§6:
-answer grammar, accept-all, `(needs its own Y)`, marks, `_Disc:_`, Notes). A Y typed in chat is not an answer: reply
-`Answer Y under "Approve the task set?" in <brief>, then /hitl:tasks <id|KEY>.` (one line).
-A round (questions and evidence: `references/slicing-and-risk.md` §8–§9), in this order:
-- round ≥ 2 and update rounds: `_Changed since Round <n>:_` — the lines of `hitl-index tasks diff <id|KEY> --json`
-  (run before `tasks gate --write`), joined by ` · `, your edit's reason after a line if useful; never from memory.
-- `_Warn:_` lines (spec or design still draft, no design yet, loop leftovers), then the accept-all line.
-- `[Q]` Q1 slices · Q2 blocking edges · Q3 owners · Q4 test plan (first round and every round they reopen): each with
-  your own check as evidence and a `_Rec:_` (`keep as drafted`, or the concrete edit plus `(changes the set)`).
-  One task (quick): Q1 says `merge: — (1 task)` and keeps the split check (too big or high risk → `_Rec:_ move to
-  /hitl:plan <description>`; a Y prints that command, you never start it); Q2 is written settled (`— (1 task)`,
-  `→ recorded: n/a (1 task)`) unless the task waits for a task of a change. Same numbers in both kinds.
-- `[C]` one question per finding code, its ids grouped (trace warn/info, the §8 semantic checks): `_Rec:_ fix: …
-  (changes the set)` or `accept: <reason>`.
-- `### Q<n> _Override:_ <AC> none!: <reason>? (needs its own Y)` per AC (slicing-and-risk.md §7).
-- the Notes block, then last `### Q<n> Approve the task set? (Y/n) (needs its own Y)`. Neither the accept-all Y nor a
-  chat Y answers it or an `_Override:_` question.
-≤ 7 `[Q]`/`[C]` questions per round (overflow → the next round, blocking first). Header: `round`, `status: open`,
-`updated`. Chat: at most 3 lines (`Round <n>: <k> questions in <brief path>`, the command). END THE TURN.
+The brief is a short list the human reads, not an interview; it is rewritten each round (the header's `round:` counts
+up). A Y typed in chat is not an answer: reply `Answer Y under "Approve?" in <brief>, then /hitl:tasks <id|KEY>.`
+(one line). Answer grammar, marks and `_Disc:_`: `${CLAUDE_PLUGIN_ROOT}/shared/interview.md` §4–§6. In this order:
+- the header (`round`, `status: open`, `updated`, the `next:` line);
+- only when any: `_Changed since Round <n>:_` — the lines of `hitl-index tasks diff <id|KEY> --json` (run before
+  `tasks gate --write`) joined by ` · `, `(your edit)` after the human's own; `_Update:_ <what>`; `_Warn:_` lines
+  (spec or design still draft, no design yet, loop leftovers);
+- `## Tasks (N) — in build order`: from `tasks gate --write` only;
+- `## Needs your eye` — only when there is something, else leave it out. One plain bullet each, at most two short
+  sentences (the ask first): a finding that needs the human's choice, your real doubt (a task too large, an unclear
+  owner, quick too big → `/hitl:plan`), with a `>` line under the bullet when it needs an answer. Never a review question for its own sake, never a test-progress code.
+  A test override: one bullet per AC, `` - Override: <AC> `none!: <reason>`? (needs its own Y) `` (or `manual!: <check> —
+  <reason>`, `slicing-and-risk.md` §7) and its own `>` line. An override answered Y in an earlier round stays, marked.
+- `## Notes — change risk, order, prio, add/drop/merge tasks` and `>`;
+- `## Approve? (needs its own Y)` and `>`.
+Chat: at most 3 lines (`Round <n>: <N> tasks in <brief path>`, the command). END THE TURN.
 
 ### Run on an answered brief (`/hitl:tasks <id|KEY>`, "tiếp", "xong")
 1. `hitl-index brief <id|KEY> --kind tasks --json` and `hitl-index tasks diff <id|KEY> --json`.
 2. Nothing answered (`counts.answered` 0), no pending Notes and `diff.changed` false → `Round <n> in <file> has no
    answers yet.` END THE TURN.
 3. `diff.lines` are the human's own edits of tasks.md since the round: they are answers. Keep them (never revert),
-   validate them with §5, list them in the next `_Changed since …_` line with `(your edit)`; one that breaks a check →
-   a question with `_Disc:_` in the next round. They change the set, so they supersede an approve Y (step 7).
-4. `_Override:_` answered Y → write its `!` row with the reason from the question, mark `→ recorded: <AC> none!`; a
-   bare `n` → `→ recorded: declined`; empty → carried (the row keeps an automated test).
-5. `[Q]`/`[C]` answers, accept-all and Notes: interview.md §6 (marks, `_Disc:_`, carried). An answer or an accepted
-   `_Rec:_` that changes the set → edit tasks.md now (drops stay `drop after Y`).
+   validate them with §5; one that breaks a check → a "Needs your eye" bullet with `_Disc:_` in the next round.
+4. Override answered Y → write its `!` row with the reason from the bullet, mark `→ recorded: <AC> none!`; a bare `n`
+   → `→ recorded: declined`; empty → it stays (the row keeps an automated test).
+5. Notes and the other bullets: interview.md §6 (a question or doubt → `_Disc:_` under a bullet of the next round).
+   An answer that changes the set → edit tasks.md now (drops stay `drop after Y`).
 6. Re-run §5 steps 2–3.
-7. The approve question has `Y` under itself, every other question of the round is marked, and this run changed
-   nothing in the set except this round's `_Override:_` `!` rows → `hitl-index tasks drop <T> --reason "<reason>"` for
-   each listed drop, then `hitl-index tasks approve <id|KEY> --json` (it sets the header `> status: approved`, marks the
-   approve question `→ approved <date>`, the round ✅ and the brief `status: done`). Then print:
+7. `Approve?` has `Y` under itself and this run changed nothing in the set except the overrides' `!` rows (on an
+   approved set, prio, risk and blocked-by edits do not count) → `hitl-index tasks drop <T> --reason "<reason>"` for each
+   listed drop, then `hitl-index tasks approve <id|KEY> --json` (sets the header `> status: approved`, marks
+   `→ approved <date>`, the brief `status: done`). Then print:
    - `✅ Tasks approved.`
    - `_Next:_` first frontier task — high risk → `/hitl:skeleton <T>`; low risk → `/hitl:implement <T>` (_Fast_ lane).
    - Ticket tracker (optional, fail-open): `hitl-index tickets status --json`. If `enabled && configured && autoPush.onTasksApproved`
      → invoke the Skill `hitl:tickets` with `push <change-id> --auto`. Its output is informational; never change this
      skill's result because of it (error or missing command → skip silently).
-   Refused `TASKS_SET_CHANGED` (the set differs from the round's snapshot) → step 8 with `→ superseded`; another
-   refusal → its message as a `_Warn:_` line of the next round.
-8. Otherwise mark the approve question (`→ superseded` when it had a Y the set no longer matches; empty →
-   `→ carried to Round <n+1>`; `n` + text → an answer, step 5), ✅ on the round, then write round n+1 as in §6 (the
-   `_Changed since Round <n>:_` line first) and `hitl-index tasks gate <id|KEY> --write`. END THE TURN.
+   Refused `TASKS_SET_CHANGED` (the set differs from the round's snapshot) → step 8; another refusal → its message as
+   a `_Warn:_` line of the next round.
+8. Otherwise rewrite the brief as round n+1 (§6, the `_Changed since Round <n>:_` line first; a Y the set no longer
+   matches is gone with the old round) and `hitl-index tasks gate <id|KEY> --write`. END THE TURN.
 
 ## Rules
 - Write only the tasks file and its tasks brief. Signatures belong to `/hitl:skeleton`, not here. The header
-  `> status: approved`, `## Current set`, `set:` and the snapshot are the CLI's.
+  `> status: approved`, `## Tasks (N)`, `set:` and the snapshot are the CLI's.
 - Never edit task `status:` values or `[ ]/[x]` boxes of existing tasks (tooling owns them).
 - No effort estimates, story points or scores.

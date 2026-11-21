@@ -86,24 +86,27 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
 - Kết quả nằm trong `.hitl/changes/feat-password-reset/` (proposal, spec, design, tasks).
 
 ### Duyệt task trong file brief (0.21)
-- `/hitl:tasks feat-password-reset` viết `tasks.md` (còn `draft`) rồi mở `tasks-brief.md` cùng thư mục. Không có bảng
-  hay câu hỏi trong chat nữa; chat chỉ trỏ tới file.
-- Đầu file là `## Current set`: CLI sinh từ `tasks.md` mỗi vòng (bảng task có cột **wave** = task phải chờ mấy lớp task
-  khác, bảng test plan). Đừng sửa mục này; muốn đổi thì sửa `tasks.md` hoặc viết vào Notes.
-- Vòng hỏi: Q1 chia task (gộp/tách), Q2 task nào phải chờ task nào, Q3 ai viết hàm nào (agent hay bạn), Q4 test plan.
-  Mỗi câu có phần Claude tự kiểm và `_Rec:_`. Thêm một câu `[C]` cho mỗi loại cảnh báo (sửa hay chấp nhận), một câu
-  `_Override:_` cho mỗi AC muốn bỏ test tự động, khối Notes, và câu cuối **`Approve the task set?`**.
-- Nhanh nhất: `Y` ở dòng accept-all **và** `Y` dưới câu `Approve the task set?`, lưu, chạy lại `/hitl:tasks
-  feat-password-reset`. Nếu không có gì đổi, Claude duyệt luôn (`✅ Tasks approved.` + lệnh tiếp theo). Nếu một gợi ý
-  hay chỗ bạn sửa làm đổi bộ task, câu duyệt thành `→ superseded` và có vòng mới mở đầu bằng `_Changed since Round n:_`.
-- `Y` ở dòng accept-all không duyệt bộ task, cũng không trả lời câu `_Override:_`; gõ `Y` trong chat cũng không tính.
-- Sửa thẳng `tasks.md` cũng được (đổi tiêu đề, owner…): lần chạy sau coi đó là câu trả lời của bạn.
+- `/hitl:tasks feat-password-reset` viết `tasks.md` (còn `draft`) rồi mở `tasks-brief.md` cùng thư mục. Chat chỉ trỏ
+  tới file.
+- File là một **danh sách ngắn** (0.21.1), không phải bộ câu hỏi:
+  - `## Tasks (N) — in build order`: CLI sinh từ `tasks.md`, theo thứ tự làm. Mỗi task hai dòng: id, tiêu đề, `— after
+    T1` (phải chờ task nào); rồi prio · risk (in đậm khi high, kèm lý do) → lane (`fast lane` hay `skeleton review`) ·
+    ai viết (`agent`, `you`, hay ``you write `hàm` ``) · số AC và test. Đừng sửa danh sách này; sửa `tasks.md`.
+  - `## Needs your eye`: chỉ có khi Claude thật sự cần bạn nhìn (task quá to, owner chưa rõ, một phát hiện cần bạn
+    chọn) hoặc một override test: `` - Override: PWR-T2.AC1 `none!: …`? (needs its own Y) `` với dòng `>` riêng.
+  - `## Notes`: đổi risk, thứ tự, prio, thêm/bỏ/gộp task.
+  - `## Approve? (needs its own Y)`.
+- Thường chỉ cần: đọc, `Y` dưới `Approve?`, lưu, chạy lại `/hitl:tasks feat-password-reset`. Không có gì đổi → Claude
+  duyệt (`✅ Tasks approved.` + lệnh tiếp theo). Có đổi (Notes, chỗ bạn sửa `tasks.md`) → file được viết lại thành vòng
+  mới, mở đầu bằng `_Changed since Round n:_`. Gõ `Y` trong chat không tính.
 - Chưa duyệt thì `/hitl:skeleton`, `/hitl:implement`, `/hitl:test` từ chối task đó (`TASKS_NOT_APPROVED`). Chỉ lệnh
   `hitl-index tasks approve` (Claude gọi sau `Y` của bạn) đổi `tasks.md` sang `approved`.
-- Task nhanh: `/hitl:tasks quick <mô tả>` → `.hitl/tasks/quick-<slug>.md` + `quick-<slug>-brief.md` cạnh nó, cùng mẫu
-  câu hỏi (câu không áp dụng cho một task được ghi sẵn `— (1 task)`). Chạy tiếp bằng `/hitl:tasks <KEY>` (vd. `QDEM`).
-- Thêm việc vào change đã duyệt (`/hitl:tasks <id> update …`): vòng mới trong cùng `tasks-brief.md`; chỉ task mới/sửa
-  phải chờ `Y`, task khác vẫn làm tiếp.
+- **Sửa muộn rẻ** (sau khi duyệt): prio, thứ tự, `blocked-by` của task chưa làm đổi lúc nào cũng được, bạn hay Claude
+  đều được, không cần vòng mới, không bị giữ. Risk: bạn sửa thẳng được; Claude chỉ được nâng, không được hạ hay bỏ lý
+  do (hook chặn, `TASKS_RISK_LOWERED`). Thêm/bỏ task, đổi AC, hàm hay test plan vẫn đi qua `/hitl:tasks <id> update …`
+  (vòng mới; chỉ task mới/sửa phải chờ `Y`, task khác vẫn làm tiếp).
+- Task nhanh: `/hitl:tasks quick <mô tả>` → `.hitl/tasks/quick-<slug>.md` + `quick-<slug>-brief.md` cạnh nó, cùng mẫu,
+  danh sách một task. Chạy tiếp bằng `/hitl:tasks <KEY>` (vd. `QDEM`).
 
 ### Plan hỏi rộng và hỏi sâu
 - **Độ phủ**: từ vòng 2, tiêu đề vòng có dòng `Coverage: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
@@ -148,13 +151,13 @@ Chỉ **bạn** gõ được `/hitl:approve`.
 ### Test: bao nhiêu và vì sao (0.16)
 - Luồng change là **test chấp nhận viết trước** (cả loạt test của task viết từ mô tả hàm, khoá, rồi mới code), không
   phải TDD của Kent Beck; TDD thật (một test → đỏ → code → xanh → dọn code) là `/hitl:tdd`.
-- Trong tasks brief (câu Q4) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
+- Trong tasks brief (dòng thứ hai của mỗi task: số AC và test) bạn duyệt test plan: mỗi AC là `new: <lỗi nó bắt>`, `shared: AC1`, `covered: <test có
   sẵn>`, `none: <lý do>` hoặc `manual: <cách kiểm tay>` (hai loại này không dùng cho task risk security/concurrency/data: task đó phải có test tự động cho mỗi AC).
 - Ngoại lệ do **bạn** quyết (0.20): `none!: <lý do>` hoặc `manual!: <cách kiểm tay> — <lý do>` cho phép bỏ test tự
   động trên task security/concurrency/data. Lý do là bắt buộc; `tasks --check` chỉ cảnh báo
   (`TEST_PLAN_NONE_RISK_OVERRIDE`), `status` ghi `⚠️ test override`, báo cáo review liệt kê AC đó. Claude không tự
-  ghi `!`: nó chỉ hỏi trong tasks brief bằng một câu `_Override:_` riêng `(needs its own Y)`; `Y` ở dòng accept-all
-  không tính. Câu trả lời đó là bằng chứng: dòng `!` không có câu trả lời `Y` thì `status` và báo cáo review ghi
+  ghi `!`: nó chỉ hỏi trong tasks brief bằng một dòng `Override:` riêng `(needs its own Y)`; chỉ `Y` ngay dưới dòng đó
+  mới tính. Câu trả lời đó là bằng chứng: dòng `!` không có câu trả lời `Y` thì `status` và báo cáo review ghi
   `(no brief record)` (info `TEST_OVERRIDE_UNRECORDED`).
 - Mỗi test phải nêu lỗi nó bắt (`@catches`); test thêm ngoài plan cũng vậy. Mỗi task ≤ số dòng `new` + 2 test (vượt
   chỉ cảnh báo). Tên test là hành vi, không chứa id (id nằm trong `@ac`).

@@ -127,6 +127,13 @@ test("tasks --check: override is a warning (exit 0); status shows ⚠️ test ov
   const tr2 = cli(root, "trace", "feat-password-reset", "--json").json();
   assert.ok(!tr2.items.some((i) => i.code === "TEST_OVERRIDE_UNRECORDED"));
   assert.ok(JSON.stringify(tr2).includes('"overrideSource":"tasks-brief.md Q5"'), "the AC row carries its source");
+  // 0.21.1: the override bullet under Needs your eye is the record; its source names the bullet
+  fs.writeFileSync(path.join(root, ".hitl/changes/feat-password-reset/tasks-brief.md"), "# Tasks brief — feat-password-reset\n\n> change: feat-password-reset | key: PWR | kind: tasks | status: open | round: 2 | updated: 2026-11-21\n\n## Needs your eye\n\n- Override: PWR-T2.AC1 `none!: identity provider sets the password — no sandbox`? (needs its own Y)\n  >\n\n## Notes — change risk, order, prio, add/drop/merge tasks\n\n>\n\n## Approve? (needs its own Y)\n\n>\n");
+  assert.deepEqual(cli(root, "status", "--json").json().tasks["PWR-T2"].testOverrideSource, { "PWR-T2.AC1": null }, "no Y yet");
+  const bf = path.join(root, ".hitl/changes/feat-password-reset/tasks-brief.md");
+  fs.writeFileSync(bf, fs.readFileSync(bf, "utf8").replace("(needs its own Y)\n  >", "(needs its own Y)\n  > Y"));
+  assert.deepEqual(cli(root, "status", "--json").json().tasks["PWR-T2"].testOverrideSource, { "PWR-T2.AC1": "tasks-brief.md Override PWR-T2.AC1" });
+  assert.deepEqual(cli(root, "tasks", "--check", "--json").json().info, []);
 });
 
 test("review report: a test override shows its source, or (no brief record)", () => {

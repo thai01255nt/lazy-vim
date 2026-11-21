@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parseBrief, ownYKind, briefSummary, pickBrief, briefNext } from "../../scripts/lib/brief.mjs";
 import { isTasksDocName, parseTasksMd, readTaskDocs } from "../../scripts/lib/tasksmd.mjs";
-import { canonTask, diffSets, setOf, waves, headerApproved, setHeaderApproved } from "../../scripts/lib/tasksbrief.mjs";
+import { canonTask, diffSets, setOf, waves, headerApproved, setHeaderApproved, renderList, putTasksList, testsText, ownerText } from "../../scripts/lib/tasksbrief.mjs";
 import { briefLines } from "../../scripts/cmd/status.mjs";
 import { gradeRun } from "../../evals/grade.mjs";
 
@@ -48,15 +48,39 @@ const QUICK = (status = "draft") => `# Fix label typo Tasks
 | AC2 | shared: AC1                      | —       | —      | —            | —           |
 `;
 
-/** A tasks brief round (the template's shape): 4 [Q], optional [C] / _Override:_, Notes, approve last. */
-const BRIEF = ({ head = "> change: feat-password-reset | key: PWR | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21", title = "feat-password-reset", acceptAll = "", approve = "", override = null, q2 = null } = {}) => `# Tasks brief — ${title}
+/** A tasks brief (0.21.1, the template's shape): the generated list, Needs your eye (only with an override or `eye`),
+ *  Notes, Approve? last. */
+const BRIEF = ({ head = "> change: feat-password-reset | key: PWR | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21", title = "feat-password-reset", approve = "", override = null, eye = null } = {}) => `# Tasks brief — ${title}
 
 ${head}
-> next: answer the \`>\` lines, then run /hitl:tasks ${title}
+> next: read the list, change anything in Notes (or edit tasks.md directly), then Y at the end and run /hitl:tasks ${title}
+
+## Tasks (1) — in build order
+
+1. **PWR-T9** not a question — after T8
+   P0 · risk low → fast lane · agent · 1 AC, 1 new test
+${override || eye ? `
+## Needs your eye
+
+${eye ?? ""}${override ? `- Override: ${override} \`none!: the identity provider sets it — no sandbox\`? (needs its own Y)
+  PWR-T2 has risk security.
+  >${override.answer ? ` ${override.answer}` : ""}
+` : ""}` : ""}
+## Notes — change risk, order, prio, add/drop/merge tasks
+
+>
+
+## Approve? (needs its own Y)
+
+>${approve ? ` ${approve}` : ""}
+`;
+
+/** A 0.21.0 brief (`## Current set`, `### Q<n>` questions, accept-all line): still read and approved. */
+const BRIEF_0210 = ({ approve = "", override = null } = {}) => `# Tasks brief — feat-password-reset
+
+> change: feat-password-reset | key: PWR | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21
 
 ## Current set
-
-<!-- generated -->
 
 | id | title |
 | --- | --- |
@@ -64,84 +88,79 @@ ${head}
 
 ## Round 1
 
-Accept all recommendations of this round: >${acceptAll ? ` ${acceptAll}` : ""}
+Accept all recommendations of this round: > Y
 
 ### Q1 [Q] Slices: is each task one vertical slice that fits one session (merge or split any)?
-
-All within the rules.
-_Rec:_ keep as drafted.
-
->
-
-${q2 ?? `### Q2 [Q] Blocking edges: does each task wait only for tasks that really gate it?
-
-Waves: 1 = PWR-T1 · 2 = PWR-T2.
-_Rec:_ keep as drafted.
-
->`}
-
-### Q3 [Q] Owners: who writes each symbol (agent or you)?
-
-_Rec:_ keep as drafted.
-
->
-
-### Q4 [Q] Test plan: which ACs get a new test (and the defect it catches), which do not?
 
 _Rec:_ keep as drafted.
 
 >
 ${override ? `
-### Q5 _Override:_ ${override} none!: the identity provider sets it — no sandbox? (needs its own Y)
+### Q2 _Override:_ ${override} none!: the identity provider sets it — no sandbox? (needs its own Y)
 
-PWR-T2 has risk security.
-
->${override.answer ? ` ${override.answer}` : ""}
+> Y
 ` : ""}
 ### Notes — anything the questions missed, or a change to an earlier answer
 
 >
 
-### Q${override ? 6 : 5} Approve the task set? (Y/n) (needs its own Y)
+### Q${override ? 3 : 2} Approve the task set? (Y/n) (needs its own Y)
 
 Approves the set as shown in Current set.
 
 >${approve ? ` ${approve}` : ""}
 `;
 
-test("ownYKind: _Override:_ and the approve question need their own Y", () => {
+test("ownYKind: overrides and the approve question need their own Y (0.21.1 and 0.21.0 forms)", () => {
+  assert.equal(ownYKind(1, "Override: PWR-T2.AC1 `none!: x`? (needs its own Y)"), "override");
   assert.equal(ownYKind(5, "_Override:_ PWR-T2.AC1 none!: x? (needs its own Y)"), "override");
+  assert.equal(ownYKind(1, "Approve? (needs its own Y)"), "approve");
   assert.equal(ownYKind(7, "Approve the task set? (Y/n) (needs its own Y)"), "approve");
   assert.equal(ownYKind(1, "[Q] Slices"), null);
 });
 
-test("parseBrief: a tasks brief (kind, set, Current set ignored, accept-all never answers override or approve)", () => {
-  const b = parseBrief(BRIEF({ acceptAll: "Y", override: "PWR-T2.AC1" }).replace("set: —", "set: 3f9a1c2e0b11"), `${PWR}/tasks-brief.md`);
+test("parseBrief: a 0.21.1 tasks brief (the list is no question; Needs your eye bullets; Notes; Approve? last)", () => {
+  const eye = "- PWR-T2 is large: Claude suggests one task.\n- Who writes `resetSubject`, you or the agent?\n  >\n";
+  const b = parseBrief(BRIEF({ override: "PWR-T2.AC1", eye }).replace("set: —", "set: 3f9a1c2e0b11"), `${PWR}/tasks-brief.md`);
   assert.equal(b.kind, "tasks"); assert.equal(b.change, "feat-password-reset"); assert.equal(b.set, "3f9a1c2e0b11"); assert.equal(b.quick, null);
-  assert.deepEqual(b.questions.map((q) => q.id), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"], "the Current set table is not a question");
-  assert.deepEqual(b.questions.map((q) => q.tag), ["Q", "Q", "Q", "Q", null, null]);
-  const ov = b.questions[4], ap = b.questions[5];
-  assert.equal(ov.ownY, "override"); assert.equal(ap.ownY, "approve");
-  assert.ok(b.questions.slice(0, 4).every((q) => q.acceptedByRound), "accept-all takes the four [Q] recommendations");
-  assert.equal(ov.answered, false); assert.equal(ap.answered, false, "accept-all answers neither");
-  assert.equal(b.counts.unanswered, 2);
-  assert.ok(b.rounds[0].notes, "Notes before the approve question");
+  assert.deepEqual(b.questions.map((q) => q.id), ["E2", "Override PWR-T2.AC1", "Approve"], "an info bullet (no > line) and the list are no questions");
+  const [ask, ov, ap] = b.questions;
+  assert.equal(ask.ownY, null); assert.equal(ov.ownY, "override"); assert.equal(ap.ownY, "approve");
+  assert.equal(ov.title, "Override: PWR-T2.AC1 `none!: the identity provider sets it — no sandbox`?");
+  assert.ok(b.questions.every((q) => q.round === 1 && !q.tag));
+  assert.equal(b.counts.unanswered, 3);
+  assert.ok(b.rounds[0].notes, "Notes section"); assert.equal(b.rounds.length, 1); assert.equal(b.rounds[0].acceptAllLine, false);
   const s = briefSummary(b);
-  assert.deepEqual(s.approve, { id: "Q6", round: 1, answer: "empty", settled: false });
+  assert.deepEqual(s.approve, { id: "Approve", round: 1, answer: "empty", settled: false });
   assert.equal(s.set, "3f9a1c2e0b11");
-  const y = parseBrief(BRIEF({ approve: "Y" }), `${PWR}/tasks-brief.md`);
-  assert.equal(y.questions.at(-1).kind, "accept");
+  const y = parseBrief(BRIEF({ approve: "Y", override: Object.assign("PWR-T2.AC1", { answer: "Y" }) }), `${PWR}/tasks-brief.md`);
+  assert.equal(y.questions.at(-1).kind, "accept"); assert.equal(y.questions[0].kind, "accept");
+  assert.equal(y.counts.unanswered, 0);
+  // a mark under the override bullet (an earlier round's Y kept)
+  const m = parseBrief(BRIEF({ override: Object.assign("PWR-T2.AC1", { answer: "Y\n  → recorded: PWR-T2.AC1 none!" }) }), `${PWR}/tasks-brief.md`);
+  assert.deepEqual(m.questions[0].recorded, ["PWR-T2.AC1 none!"]);
+  // Needs your eye omitted when empty: no questions besides Approve; an empty heading adds none either
+  assert.deepEqual(parseBrief(BRIEF(), `${PWR}/tasks-brief.md`).questions.map((q) => q.id), ["Approve"]);
+  assert.deepEqual(parseBrief(BRIEF().replace("## Notes", "## Needs your eye\n\n## Notes"), `${PWR}/tasks-brief.md`).questions.map((q) => q.id), ["Approve"]);
+  // a done brief: its round is done, nothing pending
+  const d = parseBrief(BRIEF({ approve: "Y\n\n→ approved 2026-11-21" }).replace("status: open", "status: done"), `${PWR}/tasks-brief.md`);
+  assert.equal(d.rounds[0].done, true); assert.equal(d.counts.pending, 0); assert.deepEqual(d.questions.at(-1).recorded, ["approved 2026-11-21"]);
 });
 
-test("parseBrief: a quick brief names its slug and key, never a change; a prefilled n/a question is settled", () => {
-  const q2 = "### Q2 [Q] Blocking edges: does each task wait only for tasks that really gate it?\n\n— (1 task)\n\n→ recorded: n/a (1 task)";
-  const b = parseBrief(BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21", q2 }), ".hitl/tasks/quick-fix-label-typo-brief.md");
+test("parseBrief: an open 0.21.0 brief is still read (questions, accept-all, override, approve)", () => {
+  const b = parseBrief(BRIEF_0210({ override: "PWR-T2.AC1" }), `${PWR}/tasks-brief.md`);
+  assert.deepEqual(b.questions.map((q) => q.id), ["Q1", "Q2", "Q3"]);
+  assert.deepEqual(b.questions.map((q) => q.ownY), [null, "override", "approve"]);
+  assert.ok(b.questions[0].acceptedByRound); assert.equal(b.questions[2].answered, false, "accept-all never answers the approval");
+});
+
+test("parseBrief: a quick brief names its slug and key, never a change", () => {
+  const b = parseBrief(BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21" }), ".hitl/tasks/quick-fix-label-typo-brief.md");
   assert.equal(b.kind, "tasks"); assert.equal(b.change, null); assert.deepEqual(b.quick, { slug: "fix-label-typo", key: "QFLT" });
-  const q = b.questions.find((x) => x.id === "Q2");
-  assert.ok(q.settled && !q.pending, "Q2 n/a is recorded"); assert.deepEqual(q.recorded, ["n/a (1 task)"]);
+  assert.deepEqual(b.questions.map((q) => q.id), ["Approve"]);
   // from the file name alone
-  const f = parseBrief("# Tasks brief — quick-fix-label-typo\n\n## Round 1\n", ".hitl/tasks/quick-fix-label-typo-brief.md");
-  assert.equal(f.kind, "tasks"); assert.equal(f.change, null); assert.equal(f.quick.slug, "fix-label-typo");
+  const f = parseBrief("# Tasks brief — quick-fix-label-typo\n\n## Approve? (needs its own Y)\n\n>\n", ".hitl/tasks/quick-fix-label-typo-brief.md");
+  assert.equal(f.kind, "tasks"); assert.equal(f.change, null); assert.equal(f.quick.slug, "fix-label-typo"); assert.equal(f.questions[0].ownY, "approve");
 });
 
 test("pickBrief / briefNext / briefLines: an open tasks brief in phase tasks and as an update in any phase; quick lines", () => {
@@ -231,31 +250,172 @@ test("the set hash ignores tooling-owned parts and formatting; diffSets names wh
   assert.equal(headerApproved(setHeaderApproved(a)), true);
   assert.equal(headerApproved(a), false);
   assert.match(setHeaderApproved("# T\n← Change: none | key: QX\n\n## QX-T1 a\n"), /← Change: none \| key: QX\n\n> status: approved\n/);
+  // 0.21.1 loose hash: prio, risk and blocked-by (and the task order) are cheap late edits; an AC edit is not
+  const late = a.replace("prio: P2 | risk: low | impl: agent | blocked-by: none", "prio: P0 | risk: high (security) | impl: agent | blocked-by: PWR-T1");
+  const l = setOf(late, doc(late)).tasks["QFLT-T1"];
+  assert.notEqual(l.hash, base.tasks["QFLT-T1"].hash); assert.equal(l.loose, base.tasks["QFLT-T1"].loose);
+  assert.notEqual(setOf(edited, doc(edited)).tasks["QFLT-T1"].loose, base.tasks["QFLT-T1"].loose);
+  assert.deepEqual(diffSets(base.tasks, setOf(late, doc(late)).tasks), ["~ QFLT-T1 prio P2 → P0; risk low → high (security); blocked-by none → PWR-T1"], "still shown in _Changed since_");
 });
 
-test("tasks gate --md: summary, task table with the wave column, test-plan table; --write puts it in the brief with set: and a snapshot", () => {
+/** A tasks file with five tasks for the list: build order, after, owners, test summaries, high risk, done, dropped. */
+const LIST_MD = `# Raw API Tasks
+
+← Change: feat-brain-raw-api
+
+> status: draft
+
+## FBRA-T5 55 operations
+
+- prio: P2 | risk: low | impl: agent | blocked-by: FBRA-T2 | status: todo
+
+### Acceptance criteria
+
+- [ ] FBRA-T5.AC1 a
+- [ ] FBRA-T5.AC2 b
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | manual: call one | — | — | — | — |
+| AC2 | manual: call two | — | — | — | — |
+
+## FBRA-T2 Send a request with the session token
+
+- prio: P0 | risk: high (security) | impl: mixed | blocked-by: FBRA-T1, FEE-T2 | status: todo
+
+### Acceptance criteria
+
+- [ ] FBRA-T2.AC1 a
+- [ ] FBRA-T2.AC2 b
+- [ ] FBRA-T2.AC3 c
+
+### Symbols
+
+1. [ ] \`send\` | new | \`src/a.ts\` | impl: agent | x
+2. [ ] \`diffParts\` | new | \`src/a.ts\` | impl: manual | y
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | new: no token sent | example | spec | send | test-author |
+| AC2 | covered: sends json | — | — | — | — |
+| AC3 | covered: sends json | — | — | — | — |
+
+## FBRA-T1 Envelope and shared errors
+
+- prio: P0 | risk: low | impl: manual | blocked-by: none | status: todo
+
+### Acceptance criteria
+
+- [ ] FBRA-T1.AC1 a
+- [ ] FBRA-T1.AC2 b
+
+### Symbols
+
+1. [ ] \`a\` | new | \`src/b.ts\` | impl: manual | x
+2. [ ] \`b\` | new | \`src/b.ts\` | impl: manual | x
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | new: wrong envelope | example | spec | a | test-author |
+| AC2 | shared: AC1 | — | — | — | — |
+
+## FBRA-T3 Slack notifier
+
+- prio: P1 | risk: high (concurrency) | impl: mixed | blocked-by: FBRA-T1 | status: todo
+
+### Acceptance criteria
+
+- [ ] FBRA-T3.AC1 a
+
+### Symbols
+
+1. [ ] \`n1\` | new | \`src/c.ts\` | impl: manual | x
+2. [ ] \`n2\` | new | \`src/c.ts\` | impl: manual | x
+3. [ ] \`n3\` | new | \`src/c.ts\` | impl: manual | x
+4. [ ] \`n4\` | new | \`src/c.ts\` | impl: agent | x
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | none: wiring | — | — | — | — |
+
+## FBRA-T4 Old export
+
+- prio: P3 | risk: low | impl: agent | blocked-by: none | status: dropped
+
+**Dropped**: merged into FBRA-T2
+
+## FBRA-T6 Done earlier
+
+- prio: P1 | risk: low | impl: agent | blocked-by: none | status: done
+
+### Acceptance criteria
+
+- [x] FBRA-T6.AC1 a
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | new: x | example | spec | a | test-author |
+`;
+
+test("renderList: build order (done first, wave, prio, file order; dropped last), after, owner, test summary, bold high risk, markers", () => {
+  const doc = parseTasksMd(LIST_MD, ".hitl/changes/feat-brain-raw-api/tasks.md");
+  const md = renderList({ id: "feat-brain-raw-api" }, doc);
+  assert.equal(md, `## Tasks (5 + 1 dropped) — in build order
+
+1. **FBRA-T6** Done earlier · ✅ done
+   P1 · risk low · agent · 1 AC, 1 new test
+2. **FBRA-T1** Envelope and shared errors
+   P0 · risk low → fast lane · you · 2 AC, 1 new test
+3. **FBRA-T2** Send a request with the session token — after T1, FEE-T2
+   P0 · risk **high (security)** → skeleton review · you write \`diffParts\` · 3 AC, 1 new, 2 covered
+4. **FBRA-T3** Slack notifier — after T1
+   P1 · risk **high (concurrency)** → skeleton review · you write 3 symbols · 1 AC, none
+5. **FBRA-T5** 55 operations — after T2
+   P2 · risk low → fast lane · agent · 2 AC, manual
+6. **FBRA-T4** Old export · dropped
+   P3 · risk low · agent · 0 AC, no test plan`);
+  // done from the lock (isDone) counts like status done: it no longer delays its dependants
+  const d2 = renderList({ id: "x" }, doc, { isDone: (T) => T === "FBRA-T1" });
+  assert.match(d2, /^1\. \*\*FBRA-T1\*\* Envelope and shared errors · ✅ done$/m, "done first, then prio");
+  assert.match(d2, /^3\. \*\*FBRA-T2\*\*/m);
+  assert.equal(testsText({ testPlan: [{ test: "manual", override: true }] }), "manual!");
+  assert.equal(testsText({ testPlan: [{ test: "new" }, { test: "new" }, { test: "shared" }] }), "2 new tests");
+  assert.equal(ownerText({ impl: "mixed", symbols: [{ ref: "a", impl: "manual" }, { ref: "b", impl: "manual" }, { ref: "c", impl: "agent" }] }), "you write `a`, `b`");
+});
+
+test("tasks gate --md: the list; --write puts it in the brief (before Needs your eye / Notes) with set: and a snapshot", () => {
   const root = project();
   W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("> status: approved", "> status: draft"));
   const md = cli(root, "tasks", "gate", "feat-password-reset", "--md").out;
-  assert.match(md, /^_Summary:_ \.hitl\/changes\/feat-password-reset\/tasks\.md — 2 task\(s\) \(2 high, 0 low\) · spec: approved · design: approved · tests: 3 new/m);
-  assert.match(md, /^\| id +\| title +\| prio \| risk \(reasons\) +\| impl +\| blocked-by \| wave \|$/m);
-  assert.match(md, /^\| PWR-T1 \| Send a reset link +\| P1 +\| high \(security\) +\| mixed \| — +\| done \|$/m, "a done task has no wave");
-  assert.match(md, /^\| PWR-T2 \| Set a new password +\| P1 +\| high \(security\) +\| agent \| PWR-T1 +\| 1 +\|$/m);
-  assert.match(md, /^\| task +\| AC +\| test +\| seam +\|$/m);
-  assert.match(md, /^\| PWR-T2 \| AC1 \| new +\| reset endpoint \|$/m);
+  assert.match(md, /^## Tasks \(2\) — in build order$/m);
+  assert.match(md, /^1\. \*\*PWR-T1\*\* Send a reset link · ✅ done$/m);
+  assert.match(md, /^2\. \*\*PWR-T2\*\* Set a new password — after T1\n {3}P1 · risk \*\*high \(security\)\*\* → skeleton review · agent · 1 AC, 1 new test$/m);
   assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write", "--json").json().code, "TASKS_BRIEF_MISSING");
-  W(root, `${PWR}/tasks-brief.md`, BRIEF());
+  W(root, `${PWR}/tasks-brief.md`, BRIEF().replace(/## Tasks \(1\)[\s\S]*?\n\n(?=## Notes)/, ""));
   const j = cli(root, "tasks", "gate", "feat-password-reset", "--write", "--json").json();
   assert.equal(j.ok, true); assert.equal(j.round, 1); assert.match(j.set, /^[0-9a-f]{12}$/);
   const b = R(root, `${PWR}/tasks-brief.md`);
   assert.match(b, new RegExp(`^> change: feat-password-reset \\| key: PWR \\| kind: tasks \\| set: ${j.set} \\| status: open`, "m"));
-  assert.match(b, /## Current set\n\n<!-- generated by `hitl-index tasks gate feat-password-reset --write` each round;[^\n]*-->\n\n_Summary:_/);
-  assert.doesNotMatch(b, /not a question/, "the old Current set is replaced");
-  assert.equal((b.match(/^## Current set$/gm) || []).length, 1);
+  assert.match(b, /run \/hitl:tasks feat-password-reset\n\n## Tasks \(2\) — in build order\n\n1\. \*\*PWR-T1\*\*[^\n]*\n[^\n]*\n2\. [^\n]*\n[^\n]*\n\n## Notes/, "inserted before Notes");
+  // a second --write replaces it (and a 0.21.0 brief's Current set too)
+  assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write").code, 0);
+  assert.equal((R(root, `${PWR}/tasks-brief.md`).match(/^## Tasks /gm) || []).length, 1);
   const snap = JSON.parse(R(root, `${PWR}/.tasks-round.json`));
   assert.equal(snap.schema, "hitl.tasks-round/1"); assert.equal(snap.round, 1); assert.equal(snap.set, j.set); assert.equal(snap.approved, null);
   assert.deepEqual(Object.keys(snap.tasks), ["PWR-T1", "PWR-T2"]);
-  assert.equal(parseBrief(b, `${PWR}/tasks-brief.md`).questions.length, 5, "a written view adds no question");
+  assert.deepEqual(parseBrief(R(root, `${PWR}/tasks-brief.md`), `${PWR}/tasks-brief.md`).questions.map((q) => q.id), ["Approve"], "the list adds no question");
+  const old = putTasksList(BRIEF_0210(), "## Tasks (2) — in build order\n\n1. x", "abc");
+  assert.doesNotMatch(old, /## Current set|not a question/); assert.match(old, /set: abc/); assert.match(old, /^## Round 1$/m);
   // diff: none, then the human's own edit
   assert.deepEqual(cli(root, "tasks", "diff", "feat-password-reset", "--json").json().lines, []);
   W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("impl: agent | blocked-by: PWR-T1", "impl: manual | blocked-by: PWR-T1"));
@@ -273,25 +433,33 @@ function draftRound(brief = BRIEF()) {
   return root;
 }
 const answer = (root, fn) => W(root, `${PWR}/tasks-brief.md`, fn(R(root, `${PWR}/tasks-brief.md`)));
-const approveY = (t) => t.replace(/(### Q\d+ Approve the task set\?[^\n]*\n\nApproves[^\n]*\n\n)>/, "$1> Y");
+const approveY = (t) => t.replace(/(## Approve\? \(needs its own Y\)\n\n)>/, "$1> Y");
 
-test("tasks approve: no Y → TASKS_APPROVE_NO_Y (accept-all never approves); Y + unchanged set → approved by the CLI", () => {
+test("tasks approve: no Y → TASKS_APPROVE_NO_Y; Y + unchanged set → approved by the CLI", () => {
   const root = draftRound();
-  answer(root, (t) => t.replace("Accept all recommendations of this round: >", "Accept all recommendations of this round: > Y"));
+  answer(root, (t) => t.replace("## Notes — change risk, order, prio, add/drop/merge tasks\n\n>", "## Notes — change risk, order, prio, add/drop/merge tasks\n\n> Y"));
   let r = cli(root, "tasks", "approve", "feat-password-reset", "--json");
-  assert.equal(r.code, 1); assert.equal(r.json().code, "TASKS_APPROVE_NO_Y"); assert.match(r.json().message, /accept-all Y never approves/);
+  assert.equal(r.code, 1); assert.equal(r.json().code, "TASKS_APPROVE_NO_Y"); assert.match(r.json().message, /only a Y under "Approve\?" itself approves/);
   assert.match(R(root, `${PWR}/tasks.md`), /^> status: draft$/m);
   answer(root, approveY);
   r = cli(root, "tasks", "approve", "feat-password-reset", "--json");
-  assert.equal(r.code, 0, r.out); assert.equal(r.json().ok, true); assert.equal(r.json().question, "Q5"); assert.equal(r.json().was, "draft");
+  assert.equal(r.code, 0, r.out); assert.equal(r.json().ok, true); assert.equal(r.json().question, "Approve"); assert.equal(r.json().was, "draft");
   assert.match(R(root, `${PWR}/tasks.md`), /^> status: approved$/m);
   const b = parseBrief(R(root, `${PWR}/tasks-brief.md`), `${PWR}/tasks-brief.md`);
   assert.equal(b.status, "done"); assert.equal(b.rounds[0].done, true);
   assert.match(b.questions.at(-1).recorded[0], /^approved \d{4}-\d{2}-\d{2}$/);
+  assert.match(R(root, `${PWR}/tasks-brief.md`), /## Approve\? \(needs its own Y\)\n\n> Y\n\n→ approved \d{4}-\d{2}-\d{2}\n/);
   const snap = JSON.parse(R(root, `${PWR}/.tasks-round.json`));
-  assert.deepEqual(Object.keys(snap.approved.tasks), ["PWR-T1", "PWR-T2"]);
+  assert.deepEqual(Object.keys(snap.approved.tasks), ["PWR-T1", "PWR-T2"]); assert.equal(snap.approved.mode, "loose");
   // a second approve: the question is marked now
   assert.equal(cli(root, "tasks", "approve", "feat-password-reset", "--json").json().code, "TASKS_APPROVE_NO_Y");
+});
+
+test("tasks approve: an open 0.21.0 brief still approves (its Y under Approve the task set?, its _Override:_ record)", () => {
+  const root = draftRound(BRIEF_0210({ approve: "Y", override: "PWR-T2.AC1" }));
+  const r = cli(root, "tasks", "approve", "feat-password-reset", "--json");
+  assert.equal(r.code, 0, r.out); assert.equal(r.json().question, "Q3");
+  assert.equal(parseBrief(R(root, `${PWR}/tasks-brief.md`), `${PWR}/tasks-brief.md`).rounds[0].done, true);
 });
 
 test("tasks approve: the set changed since the round → TASKS_SET_CHANGED with the diff; a drop after Y and the round's override row are allowed", () => {
@@ -315,7 +483,7 @@ test("tasks approve: the set changed since the round → TASKS_SET_CHANGED with 
   assert.equal(cli(root3, "tasks", "approve", "feat-password-reset", "--json").json().code, "TASKS_SET_CHANGED");
   // the snapshot is of an older round → TASKS_SNAPSHOT_MISSING
   const root4 = draftRound();
-  answer(root4, (t) => approveY(t).replace("round: 1", "round: 2") + "\n## Round 2\n\n### Q6 Approve the task set? (Y/n) (needs its own Y)\n\n> Y\n");
+  answer(root4, (t) => approveY(t).replace("round: 1", "round: 2"));
   assert.equal(cli(root4, "tasks", "approve", "feat-password-reset", "--json").json().code, "TASKS_SNAPSHOT_MISSING");
 });
 
@@ -332,9 +500,9 @@ test("TASKS_NOT_APPROVED: a draft set refuses skeleton/tests approval and the co
   assert.equal(s.tasks["PWR-T2"].tasksHold.reason, "draft");
   assert.equal(s.next.command, `answer ${PWR}/tasks-brief.md, then /hitl:tasks feat-password-reset`);
   assert.match(cli(root, "status").out, /\| PWR-T2 \|[^\n]*_Held:_ draft task set \| answer \.hitl\/changes\/feat-password-reset\/tasks-brief\.md, then \/hitl:tasks feat-password-reset \|/);
-  assert.match(cli(root, "status", "--brief").out, /_Brief:_ feat-password-reset — tasks brief round 1: 5 unanswered → answer/);
+  assert.match(cli(root, "status", "--brief").out, /_Brief:_ feat-password-reset — tasks brief round 1: 1 unanswered → answer/);
   // approved through the brief → the hold is gone
-  answer(root, (t) => approveY(t).replace("Accept all recommendations of this round: >", "Accept all recommendations of this round: > Y"));
+  answer(root, approveY);
   assert.equal(cli(root, "tasks", "approve", "feat-password-reset").code, 0);
   assert.equal(cli(root, "status", "--json").json().tasks["PWR-T2"].tasksHold, undefined);
   assert.notEqual(cli(root, "--json", "context", "PWR-T2").code, 1);
@@ -361,24 +529,57 @@ test("update hold: tasks.md stays approved; only the new or edited task is held 
   assert.equal(cli(root, "tasks", "baseline", "feat-password-reset", "--json").json().code, "TASKS_NOT_APPROVED");
 });
 
+test("cheap late edits: on an approved set, prio, blocked-by and risk edits are not held and do not refuse the approval; an AC edit does", () => {
+  const root = project();
+  W(root, `${PWR}/tasks-brief.md`, BRIEF().replace("status: open", "status: done"));
+  assert.equal(cli(root, "tasks", "baseline", "feat-password-reset", "--json").json().ok, true);
+  // an update round is open (a new task PWR-T3); meanwhile PWR-T2 gets a new prio, blocker and a higher-reason risk
+  W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`) + "\n## PWR-T3 Expire old links\n- prio: P2 | risk: low | impl: agent | blocked-by: none | status: todo\n\n### Acceptance criteria\n- [ ] PWR-T3.AC1 (PWR-R2.S1) Given an old link When used Then refused\n\n### Test plan\n| ac | test | kind | oracle | seam | author |\n|----|------|------|--------|------|--------|\n| AC1 | new: an old link still works | example | spec | reset endpoint | test-author |\n");
+  answer(root, (t) => t.replace("status: done", "status: open"));
+  assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write").code, 0);
+  const late = (t) => t.replace("- prio: P1 | risk: high (security) | impl: agent | blocked-by: PWR-T1 |", "- prio: P0 | risk: high (security, data) | impl: agent | blocked-by: PWR-T3 |");
+  W(root, `${PWR}/tasks.md`, late(R(root, `${PWR}/tasks.md`)));
+  let s = cli(root, "status", "--json").json();
+  assert.equal(s.tasks["PWR-T2"].tasksHold, undefined, "prio, blocked-by, risk: not held");
+  assert.equal(s.tasks["PWR-T3"].tasksHold.reason, "update");
+  assert.deepEqual(cli(root, "tasks", "diff", "feat-password-reset", "--json").json().lines, ["~ PWR-T2 prio P1 → P0; risk high (security) → high (security, data); blocked-by PWR-T1 → PWR-T3"], "still listed in _Changed since_");
+  answer(root, approveY);
+  const r = cli(root, "tasks", "approve", "feat-password-reset", "--json");
+  assert.equal(r.code, 0, `an approved set: late edits after the round do not supersede the Y — ${r.out}`);
+  assert.equal(cli(root, "status", "--json").json().tasks["PWR-T3"].tasksHold, undefined);
+  // the next update round: an AC edit of PWR-T2 is held, and after the round it refuses the Y
+  answer(root, (t) => t.replace("status: done", "status: open").replace("round: 1", "round: 2").replace(/\n\n→ approved [\d-]+/, "").replace("> Y", ">"));
+  assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write").code, 0);
+  W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("Then sign-in works with it", "Then sign-in works with it once"));
+  s = cli(root, "status", "--json").json();
+  assert.equal(s.tasks["PWR-T2"].tasksHold.reason, "update", "an AC edit is held");
+  answer(root, approveY);
+  assert.equal(cli(root, "tasks", "approve", "feat-password-reset", "--json").json().code, "TASKS_SET_CHANGED");
+  // a draft set: a prio edit after the round still supersedes the Y
+  const d = draftRound();
+  answer(d, approveY);
+  W(d, `${PWR}/tasks.md`, R(d, `${PWR}/tasks.md`).replace("- prio: P1 | risk: high (security) | impl: agent", "- prio: P0 | risk: high (security) | impl: agent"));
+  assert.equal(cli(d, "tasks", "approve", "feat-password-reset", "--json").json().code, "TASKS_SET_CHANGED");
+});
+
 test("quick: a draft quick file waits for its brief (status quick[], next), then QKEY approves it", async () => {
   const root = project();
   W(root, ".hitl/tasks/quick-fix-label-typo.md", QUICK());
   let s = cli(root, "status", "--json").json();
   assert.deepEqual(s.quick.map((q) => [q.key, q.tasks, q.brief]), [["QFLT", "draft", null]]);
   assert.equal(s.tasks["QFLT-T1"].tasksHold.apply, "/hitl:tasks QFLT");
-  const q2 = "### Q2 [Q] Blocking edges: does each task wait only for tasks that really gate it?\n\n— (1 task)\n\n→ recorded: n/a (1 task)";
-  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21", q2 }));
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21" }));
   assert.equal(cli(root, "tasks", "gate", "QFLT", "--write").code, 0);
   assert.ok(fs.existsSync(path.join(root, ".hitl/tasks/.quick-fix-label-typo-round.json")));
+  assert.match(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md"), /## Tasks \(1\) — in build order\n\n1\. \*\*QFLT-T1\*\* Fix the reset email subject typo\n {3}P2 · risk low → fast lane · agent · 2 AC, 1 new test\n\n## Notes/);
   s = cli(root, "status", "--json").json();
-  assert.equal(s.quick[0].brief.unanswered, 4);
+  assert.equal(s.quick[0].brief.unanswered, 1);
   // with no other task to do, the open quick brief is the next step (like a change brief)
   const { computeNext } = await import("../../scripts/lib/nextstep.mjs");
   assert.equal(computeNext({ tasks: [], statuses: { tasks: {} }, quick: s.quick }).command, "answer .hitl/tasks/quick-fix-label-typo-brief.md, then /hitl:tasks QFLT");
   assert.equal(computeNext({ tasks: [{ id: "QFLT-T1", quick: true, docStatus: "draft", blockedBy: [] }], statuses: { tasks: { "QFLT-T1": { status: "todo", next: "/hitl:implement QFLT-T1" } } }, quick: [{ id: "QFLT", key: "QFLT", tasks: "draft", brief: null }] }).command, "/hitl:tasks QFLT", "a draft quick task is not on the frontier");
-  assert.match(cli(root, "status", "--brief").out, /^_Brief:_ quick QFLT — tasks brief round 1 \(draft\): 4 unanswered → answer \.hitl\/tasks\/quick-fix-label-typo-brief\.md, then \/hitl:tasks QFLT$/m);
-  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", approveY(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md")).replace("Accept all recommendations of this round: >", "Accept all recommendations of this round: > Y"));
+  assert.match(cli(root, "status", "--brief").out, /^_Brief:_ quick QFLT — tasks brief round 1 \(draft\): 1 unanswered → answer \.hitl\/tasks\/quick-fix-label-typo-brief\.md, then \/hitl:tasks QFLT$/m);
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", approveY(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md")));
   const r = cli(root, "tasks", "approve", "QFLT", "--json");
   assert.equal(r.code, 0, r.out);
   assert.match(R(root, ".hitl/tasks/quick-fix-label-typo.md"), /^> status: approved$/m);
@@ -412,6 +613,30 @@ test("hook: Claude's own edit that sets a tasks header to approved is refused (E
   assert.equal(hookDeny(root, "Bash", { command: "hitl-index tasks approve QFLT --json" }), null);
 });
 
+test("hook: once the set has a tasks brief, Claude's edit that lowers a risk or drops a reason is refused; raising is fine", () => {
+  const root = project();
+  const t = path.join(root, PWR, "tasks.md");
+  const meta = "- prio: P1 | risk: high (security) | impl: agent | blocked-by: PWR-T1 | status: todo";
+  const edit = (to) => hookDeny(root, "Edit", { file_path: t, old_string: meta, new_string: meta.replace("risk: high (security)", to) });
+  // no brief yet: Claude is still drafting its own set
+  assert.equal(edit("risk: low"), null, "no brief yet");
+  W(root, `${PWR}/tasks-brief.md`, BRIEF());
+  const d = edit("risk: low");
+  assert.ok(d && /TASKS_RISK_LOWERED: PWR-T2 risk high \(security\) → low/.test(d), d);
+  assert.ok(edit("risk: high (data)"), "a reason removed");
+  assert.ok(hookDeny(root, "Write", { file_path: t, content: R(root, `${PWR}/tasks.md`).replace(meta, meta.replace("high (security)", "low")) }), "Write too");
+  assert.equal(edit("risk: high (security, data)"), null, "a reason added");
+  assert.equal(hookDeny(root, "Edit", { file_path: t, old_string: meta, new_string: meta.replace("P1", "P0").replace("blocked-by: PWR-T1", "blocked-by: none") }), null, "prio and blocked-by");
+  // a low task raised to high is fine; a quick file's brief is quick-<slug>-brief.md
+  W(root, ".hitl/tasks/quick-fix-label-typo.md", QUICK());
+  const q = path.join(root, ".hitl/tasks/quick-fix-label-typo.md");
+  assert.equal(hookDeny(root, "Edit", { file_path: q, old_string: "risk: low", new_string: "risk: high (security)" }), null);
+  W(root, ".hitl/tasks/quick-fix-label-typo.md", QUICK().replace("risk: low", "risk: high (security)"));
+  assert.equal(hookDeny(root, "Edit", { file_path: q, old_string: "risk: high (security)", new_string: "risk: low" }), null, "quick, no brief yet");
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo" }));
+  assert.ok(hookDeny(root, "Edit", { file_path: q, old_string: "risk: high (security)", new_string: "risk: low" }), "quick with its brief");
+});
+
 // ---- evals (dry): the tasks-* cases of evals/grade.mjs on synthetic transcripts and files (no claude calls)
 const scenarios = JSON.parse(fs.readFileSync(path.join(PLUGIN, "evals/scenarios.json"), "utf8")).cases;
 const asst = (content) => ({ type: "assistant", message: { content } });
@@ -426,36 +651,50 @@ function grade(c, proj, events) {
   return gradeRun({ suite: "behaviour", c, dir, proj, pluginDir: PLUGIN, exit: 0 }).checks;
 }
 
-test("evals (dry): tasks-brief passes on a brief round with its snapshot and fails on a chat gate or a self-approval", () => {
+test("evals (dry): tasks-brief passes on a brief with its list and snapshot; fails on a chat gate, an empty Needs your eye, Q questions or a self-approval", () => {
   const c = scenarios.find((x) => x.id === "tasks-brief");
   assert.ok(c, "tasks-brief case");
   const root = draftRound();
-  const chat = `✅ 2 tasks in ${PWR}/tasks.md\nRound 1: 5 questions in ${PWR}/tasks-brief.md — answer there, then /hitl:tasks feat-password-reset`;
+  W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("| ac | kind | oracle | seam | author |\n|----|------|--------|------|--------|\n| AC1 | example | spec | reset endpoint | test-author |\n| AC2 |", "| ac | test | kind | oracle | seam | author |\n|----|------|------|--------|------|--------|\n| AC1 | new: a | example | spec | reset endpoint | test-author |\n| AC2 | shared: AC1 |").replace(/(## PWR-T2[\s\S]*?)\| ac \| kind \| oracle \| seam \| author \|\n\|----\|------\|--------\|------\|--------\|\n\| AC1 \|/, "$1| ac | test | kind | oracle | seam | author |\n|----|------|------|--------|------|--------|\n| AC1 | new: b |"));
+  assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write").code, 0);
+  const chat = `✅ 2 tasks in ${PWR}/tasks.md\nRound 1: 2 tasks in ${PWR}/tasks-brief.md — read the list, Y under Approve?, then /hitl:tasks feat-password-reset`;
   const good = grade(c, root, [tool("Bash", { command: "hitl-index tasks gate feat-password-reset --write" }), text(chat)]);
-  for (const k of ["tasks_brief_written", "tasks_brief_chat", "tasks_snapshot_written", "tasks_not_approved", "tasks_no_chat_gate"]) assert.ok(good[k].ok, `${k}: ${good[k].why}`);
+  for (const k of ["tasks_brief_written", "tasks_test_decisions", "tasks_brief_chat", "tasks_snapshot_written", "tasks_not_approved", "tasks_no_chat_gate"]) assert.ok(good[k].ok, `${k}: ${good[k].why}`);
   const gate = grade(c, root, [text("| PWR-T1 | Send a reset link |\n1. Granularity ok?  2. Blocking edges right?\n— reply changes, or Y")]);
   assert.equal(gate.tasks_no_chat_gate.ok, false); assert.equal(gate.tasks_brief_chat.ok, false);
+  assert.equal(grade(c, root, [text(`1. **PWR-T1** Send a reset link\nApprove? (Y/n) — ${PWR}/tasks-brief.md`)]).tasks_no_chat_gate.ok, false, "the list in chat");
+  const brief = R(root, `${PWR}/tasks-brief.md`);
+  W(root, `${PWR}/tasks-brief.md`, brief.replace("## Notes", "## Needs your eye\n\n## Notes"));
+  assert.equal(grade(c, root, [text(chat)]).tasks_brief_written.ok, false, "an empty Needs your eye");
+  W(root, `${PWR}/tasks-brief.md`, brief.replace("## Notes", "## Needs your eye\n\n- PWR-T2 may be too small to stand alone.\n\n## Notes"));
+  assert.equal(grade(c, root, [text(chat)]).tasks_brief_written.ok, true, "Needs your eye with a bullet");
+  W(root, `${PWR}/tasks-brief.md`, brief.replace("## Notes", "## Round 1\n\n### Q1 [Q] Slices: ok?\n\n_Rec:_ keep.\n\n>\n\n## Notes"));
+  assert.equal(grade(c, root, [text(chat)]).tasks_brief_written.ok, false, "a [Q] question");
+  W(root, `${PWR}/tasks-brief.md`, brief);
   W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("> status: draft", "> status: approved"));
   assert.equal(grade(c, root, [text(chat)]).tasks_not_approved.ok, false);
   fs.rmSync(path.join(root, PWR, ".tasks-round.json"));
   assert.equal(grade(c, root, [text(chat)]).tasks_snapshot_written.ok, false);
 });
 
-test("evals (dry): tasks-quick and tasks-quick-accept", () => {
+test("evals (dry): tasks-quick and tasks-quick-accept (the eval fixture brief)", () => {
   const c = scenarios.find((x) => x.id === "tasks-quick");
   const root = project();
   W(root, ".hitl/tasks/quick-fix-label-typo.md", QUICK());
-  const q2 = "### Q2 [Q] Blocking edges: does each task wait only for tasks that really gate it?\n\n— (1 task)\n\n→ recorded: n/a (1 task)";
-  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21", q2 }));
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21" }).replace(/## Tasks \(1\)[\s\S]*?\n\n(?=## Notes)/, ""));
   cli(root, "tasks", "gate", "QFLT", "--write");
-  const chat = "Round 1: 4 questions in .hitl/tasks/quick-fix-label-typo-brief.md — answer there, then /hitl:tasks QFLT";
+  const chat = "Round 1: 1 task in .hitl/tasks/quick-fix-label-typo-brief.md — read it, Y under Approve?, then /hitl:tasks QFLT";
   const g = grade(c, root, [text(chat)]);
   for (const k of c.checks) assert.ok(g[k].ok, `${k}: ${g[k].why}`);
-  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", R(root, ".hitl/tasks/quick-fix-label-typo-brief.md").replace("→ recorded: n/a (1 task)", "_Rec:_ keep as drafted.\n\n>"));
-  assert.equal(grade(c, root, [text(chat)]).tasks_quick_brief.ok, false, "Q2 not prefilled");
-  // tasks-quick-accept: the answered brief → the next run calls tasks approve
+  const brief = R(root, ".hitl/tasks/quick-fix-label-typo-brief.md");
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", brief.replace("## Notes", "## Needs your eye\n\n- Blocking edges: n/a (1 task)\n\n## Notes"));
+  assert.equal(grade(c, root, [text(chat)]).tasks_quick_brief.ok, false, "an n/a mark");
+  // tasks-quick-accept: the eval fixture's answered brief → the next run calls tasks approve
   const a = scenarios.find((x) => x.id === "tasks-quick-accept");
-  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", approveY(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md")).replace("Accept all recommendations of this round: >", "Accept all recommendations of this round: > Y"));
+  const fx = fs.readFileSync(path.join(PLUGIN, "evals/fixtures/briefs/quick/quick-duplicate-email-message-brief.md"), "utf8");
+  W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", fx.replace(/duplicate-email-message/g, "fix-label-typo").replace(/\{KEY\}/g, "QFLT"));
+  assert.equal(cli(root, "tasks", "gate", "QFLT", "--write").code, 0);
+  assert.deepEqual(parseBrief(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md"), ".hitl/tasks/quick-fix-label-typo-brief.md").questions.map((q) => [q.id, q.kind]), [["Approve", "accept"]]);
   assert.equal(cli(root, "tasks", "approve", "QFLT").code, 0);
   const ok = grade(a, root, [tool("Bash", { command: "hitl-index tasks approve QFLT --json" }), text("✅ Tasks approved.\n_Next:_ /hitl:implement QFLT-T1 (_Fast_ lane)")]);
   for (const k of a.checks) assert.ok(ok[k].ok, `${k}: ${ok[k].why}`);

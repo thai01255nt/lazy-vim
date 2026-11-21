@@ -26,15 +26,16 @@ what instead. `?` / `không biết` keeps it open, `deep <ID>` digs deeper, `don
 change has its first task you may rename its id or key and change its scope in any answer or Notes. Each round
 (and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
-**Tasks brief** (0.21): `/hitl:tasks` writes tasks.md (draft), then reviews it with you in `tasks-brief.md` (a quick
-file: `.hitl/tasks/quick-<slug>-brief.md`, continue with `/hitl:tasks <QKEY>`). `## Current set` above the round is
-generated from tasks.md (task table with a **wave** column = dependency depth, test-plan table). Each round asks four
-questions with Claude's own check and a `_Rec:_` (slices, blocking edges, owners, test plan), one per finding code,
-one `_Override:_` per AC, Notes, and last `Approve the task set? (needs its own Y)`. You may also edit tasks.md
-directly: the next run reads your edits as answers and lists them under `_Changed since Round n:_`. The approval
-counts only when the set is still what the round showed; only `hitl-index tasks approve` sets `> status: approved`.
-Until then `/hitl:skeleton`, `/hitl:implement` and `/hitl:test` refuse its tasks (`TASKS_NOT_APPROVED`); an update
-holds only the tasks it adds or edits.
+**Tasks brief** (0.21, a short list since 0.21.1): `/hitl:tasks` writes tasks.md (draft), then `tasks-brief.md` (a
+quick file: `.hitl/tasks/quick-<slug>-brief.md`, continue with `/hitl:tasks <QKEY>`): the tasks in build order, two
+lines each (id, title, `after` its blockers; prio · risk → lane · owner · ACs and tests), generated from tasks.md;
+"Needs your eye" only when Claude has a real doubt or an override (`Override: <AC> …? (needs its own Y)`); Notes; and
+`Approve? (needs its own Y)`. Read the list, change anything in Notes or edit tasks.md directly (the next run lists
+your edits under `_Changed since Round n:_`), then Y under Approve?. The approval counts only when the set is still
+what the round showed; only `hitl-index tasks approve` sets `> status: approved`. Until then `/hitl:skeleton`,
+`/hitl:implement` and `/hitl:test` refuse its tasks (`TASKS_NOT_APPROVED`); an update holds only the tasks it adds or
+edits. After approval, prio, order and blocked-by of a todo task (and its risk, by you; Claude only raises it) may
+change any time without a new round.
 **Requirement changes mid-change** (0.9, amend brief 0.17): say it in chat and Claude asks `_Note_ for <change>, refs …?
 (Y/n)`. The note blocks the approvals of the tasks it touches. Apply it with `/hitl:plan <id> amend N-k` (or
 `/hitl:design … amend N-k`). Wording only → one chat gate (delta preview, Impact, `Apply?`); only task-level things →
@@ -81,7 +82,7 @@ work to the next, heavier one. Pick it yourself with `--plan`, `--quick` or `--t
 tests first, not Kent Beck's one-test loop; `/hitl:tdd` is that loop). In the tasks brief you decide per acceptance
 criterion: `new: <the defect it catches>`, `shared: <ACk>`, `covered: <existing test>`, `none: <reason>` (not on
 security, concurrency or data tasks) or `manual: <check>`; on such a task only your own `none!: <reason>` /
-`manual!: <check> — <reason>` (0.20; 0.21: the `_Override:_` question's own Y in the tasks brief, its record) skips the automated test. Extra tests need a named defect; a task's tests stay within
+`manual!: <check> — <reason>` (0.20; 0.21: the override bullet's own Y in the tasks brief, its record) skips the automated test. Extra tests need a named defect; a task's tests stay within
 `new` rows + 2 (a warning). Review may suggest merging or deleting tests (`hitl-index tests audit`); you approve every
 deletion with `/hitl:approve <T> tests`.
 
