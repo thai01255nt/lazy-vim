@@ -1,7 +1,7 @@
-# Tasks brief (0.21, a list since 0.21.1) — sourced by tests/e2e.sh (interface I4).
+# Tasks brief (0.21, a list since 0.21.1, a table since 0.21.2) — sourced by tests/e2e.sh (interface I4).
 # The /hitl:tasks gate lives in tasks-brief.md (a quick file: quick-<slug>-brief.md next to it): a draft set is held
 # (TASKS_NOT_APPROVED on skeleton/tests approval and the context pack, status hold, next = the brief), `tasks gate
-# --write` writes the generated task list (build order) and the round snapshot, the human's own edit of tasks.md
+# --write` writes the generated task table (build order) and the round snapshot, the human's own edit of tasks.md
 # shows in `tasks diff` and supersedes the approve Y, only `tasks approve` sets the header (the hook refuses Claude's
 # own edit of it, and its edit that lowers a risk), an update holds only the new task (a prio/blocked-by edit is never
 # held), and a quick file resolves by its key.
@@ -24,8 +24,9 @@ sTB1() {
   tb_brief feat-password-reset "> change: feat-password-reset | key: PWR | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21" > $TBC/tasks-brief.md
   CLI tasks gate feat-password-reset --write --json > "$W/tb1.json"
   afile "$W/tb1.json" 'd.ok && d.round === 1 && /^[0-9a-f]{12}$/.test(d.set) && /^## Tasks \(2\) — in build order$/m.test(d.markdown)'
-  contains $TBC/tasks-brief.md "2. **PWR-T2** Set a new password — after T1"
-  contains $TBC/tasks-brief.md "   P1 · risk **high (security)** → skeleton review · agent · 1 AC, 1 new test"
+  contains $TBC/tasks-brief.md "| #    | Task   | Title              | After | Prio | Risk → lane                           | Owner | Tests       | Why "
+  contains $TBC/tasks-brief.md "| 1 ✅ | PWR-T1 | Send a reset link  | —     | P1   | **high** (security)                   | mixed | 2 AC, 2 new | single-use hashed token (PWR-D1) |"
+  contains $TBC/tasks-brief.md "| 2    | PWR-T2 | Set a new password | T1    | P1   | **high** (security) → skeleton review | agent | 1 AC, 1 new |"
   [ -f $TBC/.tasks-round.json ] || { echo "no snapshot"; return 1; }
   CLI brief feat-password-reset --kind tasks --json | aj 'd.kind === "tasks" && d.questions.length === 1 && d.questions[0].ownY === "approve" && d.set && d.counts.unanswered === 1'
   # a draft set is not built: approval, context pack, status hold, next = the brief
@@ -37,7 +38,7 @@ sTB1() {
   CLI status --brief > "$W/tb1.txt"
   contains "$W/tb1.txt" "_Brief:_ feat-password-reset — tasks brief round 1: 1 unanswered → answer .hitl/changes/feat-password-reset/tasks-brief.md, then /hitl:tasks feat-password-reset"
 }
-step TB1 "tasks brief round 1: gate --write (the task list in build order, set:, snapshot); a draft set refuses approve skeleton and context (TASKS_NOT_APPROVED), status holds it, next = the brief" sTB1
+step TB1 "tasks brief round 1: gate --write (the task table in build order, set:, snapshot); a draft set refuses approve skeleton and context (TASKS_NOT_APPROVED), status holds it, next = the brief" sTB1
 
 sTB2() {
   cd "$TB"

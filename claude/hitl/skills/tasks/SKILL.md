@@ -118,8 +118,9 @@ prio P0–P3, risk with reasons, 2–6 ACs `<KEY>-T<n>.AC<k>`, symbols with owne
    Max 3 loops for steps 2–3; then the remaining errors go into the brief as `_Warn:_` lines.
 4. Write the brief (§6) from `${CLAUDE_PLUGIN_ROOT}/shared/templates/tasks-brief.md` (change:
    `.hitl/changes/<id>/tasks-brief.md`; quick: `.hitl/tasks/quick-<slug>-brief.md`, meta `quick:` instead of
-   `change:`) — then, last, `hitl-index tasks gate <id|KEY> --write`: it writes `## Tasks (N) — in build order` (two
-   lines per task, generated from tasks.md), the `set:` meta and the round snapshot. Never write that list by hand,
+   `change:`) — then, last, `hitl-index tasks gate <id|KEY> --write`: it writes `## Tasks (N) — in build order` (a
+   table, one row per task, generated from tasks.md; its `Why` column is the task's `**Why**:` line), the `set:` meta
+   and the round snapshot. Never write that list by hand,
    never change tasks.md after this call in the same run.
 
 ## 6. The tasks brief (the gate)

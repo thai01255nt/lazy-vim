@@ -1,5 +1,5 @@
 // 0.21 tasks brief: the /hitl:tasks gate in a brief file (parse, quick resolution, the `*-brief.md` filter, the
-// generated Current set with waves, the round snapshot, `tasks approve`, the hook refusal, TASKS_NOT_APPROVED and the
+// generated task table (0.21.2) with waves, the round snapshot, `tasks approve`, the hook refusal, TASKS_NOT_APPROVED and the
 // update hold), plus a dry grade of the tasks-* eval cases.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -285,6 +285,8 @@ const LIST_MD = `# Raw API Tasks
 
 - prio: P0 | risk: high (security) | impl: mixed | blocked-by: FBRA-T1, FEE-T2 | status: todo
 
+**Why**: the token never leaves the session
+
 ### Acceptance criteria
 
 - [ ] FBRA-T2.AC1 a
@@ -307,6 +309,8 @@ const LIST_MD = `# Raw API Tasks
 ## FBRA-T1 Envelope and shared errors
 
 - prio: P0 | risk: low | impl: manual | blocked-by: none | status: todo
+
+**Why**: one envelope for every operation (FBRA-D1)
 
 ### Acceptance criteria
 
@@ -367,46 +371,118 @@ const LIST_MD = `# Raw API Tasks
 | AC1 | new: x | example | spec | a | test-author |
 `;
 
-test("renderList: build order (done first, wave, prio, file order; dropped last), after, owner, test summary, bold high risk, markers", () => {
+test("renderList: one table row per task in build order (done first, wave, prio, file order; dropped last), after, owner, tests, bold high risk, markers, Why", () => {
   const doc = parseTasksMd(LIST_MD, ".hitl/changes/feat-brain-raw-api/tasks.md");
   const md = renderList({ id: "feat-brain-raw-api" }, doc);
   assert.equal(md, `## Tasks (5 + 1 dropped) — in build order
 
-1. **FBRA-T6** Done earlier · ✅ done
-   P1 · risk low · agent · 1 AC, 1 new test
-2. **FBRA-T1** Envelope and shared errors
-   P0 · risk low → fast lane · you · 2 AC, 1 new test
-3. **FBRA-T2** Send a request with the session token — after T1, FEE-T2
-   P0 · risk **high (security)** → skeleton review · you write \`diffParts\` · 3 AC, 1 new, 2 covered
-4. **FBRA-T3** Slack notifier — after T1
-   P1 · risk **high (concurrency)** → skeleton review · you write 3 symbols · 1 AC, none
-5. **FBRA-T5** 55 operations — after T2
-   P2 · risk low → fast lane · agent · 2 AC, manual
-6. **FBRA-T4** Old export · dropped
-   P3 · risk low · agent · 0 AC, no test plan`);
+| #         | Task    | Title                                 | After      | Prio | Risk → lane                              | Owner                 | Tests                  | Why                                        |
+| --------- | ------- | ------------------------------------- | ---------- | ---- | ---------------------------------------- | --------------------- | ---------------------- | ------------------------------------------ |
+| 1 ✅      | FBRA-T6 | Done earlier                          | —          | P1   | low                                      | agent                 | 1 AC, 1 new            |                                            |
+| 2         | FBRA-T1 | Envelope and shared errors            | —          | P0   | low → fast lane                          | you                   | 2 AC, 1 new            | one envelope for every operation (FBRA-D1) |
+| 3         | FBRA-T2 | Send a request with the session token | T1, FEE-T2 | P0   | **high** (security) → skeleton review    | you write \`diffParts\` | 3 AC, 1 new, 2 covered | the token never leaves the session         |
+| 4         | FBRA-T3 | Slack notifier                        | T1         | P1   | **high** (concurrency) → skeleton review | you write 3 symbols   | 1 AC, none             |                                            |
+| 5         | FBRA-T5 | 55 operations                         | T2         | P2   | low → fast lane                          | agent                 | 2 AC, manual           |                                            |
+| 6 dropped | FBRA-T4 | Old export                            | —          | P3   | low                                      | agent                 | 0 AC, no test plan     |                                            |`);
   // done from the lock (isDone) counts like status done: it no longer delays its dependants
   const d2 = renderList({ id: "x" }, doc, { isDone: (T) => T === "FBRA-T1" });
-  assert.match(d2, /^1\. \*\*FBRA-T1\*\* Envelope and shared errors · ✅ done$/m, "done first, then prio");
-  assert.match(d2, /^3\. \*\*FBRA-T2\*\*/m);
+  assert.match(d2, /^\| 1 ✅ +\| FBRA-T1 +\| Envelope and shared errors +\| — +\| P0 +\| low +\|/m, "done first, then prio; no lane");
+  assert.match(d2, /^\| 3 +\| FBRA-T2 +\|/m);
   assert.equal(testsText({ testPlan: [{ test: "manual", override: true }] }), "manual!");
-  assert.equal(testsText({ testPlan: [{ test: "new" }, { test: "new" }, { test: "shared" }] }), "2 new tests");
+  assert.equal(testsText({ testPlan: [{ test: "new" }, { test: "new" }, { test: "shared" }] }), "2 new");
   assert.equal(ownerText({ impl: "mixed", symbols: [{ ref: "a", impl: "manual" }, { ref: "b", impl: "manual" }, { ref: "c", impl: "agent" }] }), "you write `a`, `b`");
 });
 
-test("tasks gate --md: the list; --write puts it in the brief (before Needs your eye / Notes) with set: and a snapshot", () => {
+/** One task of a quick file for the table cases. */
+const ONE = ({ title = "Fix the subject", meta = "- prio: P2 | risk: low | impl: agent | blocked-by: none | status: todo", why = null, id = "QFLT-T1" } = {}) => `## ${id} ${title}
+
+${meta}
+${why === null ? "" : `\n${why}\n`}
+### Acceptance criteria
+
+- [ ] ${id}.AC1 a
+
+### Test plan
+
+| ac | test | kind | oracle | seam | author |
+| --- | --- | --- | --- | --- | --- |
+| AC1 | new: x | example | spec | a | test-author |
+`;
+const quickDoc = (...tasks) => parseTasksMd(`# Q Tasks\n\n← Change: none | key: QFLT\n\n> status: draft\n\n${tasks.join("\n")}`, ".hitl/tasks/quick-x.md");
+/** The table rows of a rendered list as cell arrays (header and separator left out; `\|` stays in its cell). */
+const tableRows = (md) => md.split("\n").filter((l) => l.startsWith("|")).slice(2).map((l) => l.slice(1, -1).split(/(?<!\\)\|/).map((c) => c.trim()));
+
+test("renderList table: a multi-line Why on one line (never cut, decision ids kept); no Why → empty cell", () => {
+  const long = "a reset link is the only way back in when the password is lost, so it must work for every user of every tenant, also the ones that were created before the migration (QFLT-D1, QFLT-D2)";
+  const why = `**Why**: a reset link is the only way back in when the password is lost,\nso it must work for every user of every tenant,\n  also the ones that were created before the migration (QFLT-D1, QFLT-D2)`;
+  const doc = quickDoc(ONE({ why }), ONE({ id: "QFLT-T2", title: "No why" }));
+  assert.equal(doc.tasks[0].why, long, "the parser joins the paragraph");
+  assert.deepEqual(doc.tasks[0].decisions, ["QFLT-D1", "QFLT-D2"]);
+  const rows = tableRows(renderList({ id: "QFLT" }, doc));
+  assert.equal(rows[0][8], long);
+  assert.equal(rows[1][8], "", "no Why: empty cell");
+  // the Why ends at a blank line or the next block (a heading, a `**Temp**:` line) right under it
+  const d2 = quickDoc(ONE({ why: "**Why**: short\n**Temp**: `oldMail` (shim) — old sender" }), ONE({ id: "QFLT-T2", why: "**Why**: shorter" }).replace("shorter\n\n###", "shorter\n###"));
+  assert.deepEqual(d2.tasks.map((t) => t.why), ["short", "shorter"]);
+  assert.equal(d2.tasks[0].temps[0]?.name, "oldMail");
+  assert.equal(d2.tasks[1].acs.length, 1);
+});
+
+test("renderList table: a | in a title or Why is escaped (one cell each)", () => {
+  const doc = quickDoc(ONE({ title: "Split a | b", why: "**Why**: either `x | y` or z" }));
+  const md = renderList({ id: "QFLT" }, doc);
+  assert.match(md, /\| Split a \\\| b \|/);
+  const rows = tableRows(md);
+  assert.equal(rows[0].length, 9);
+  assert.equal(rows[0][2], "Split a \\| b");
+  assert.equal(rows[0][8], "either `x \\| y` or z");
+});
+
+test("renderList table: done and dropped markers in #, cross-change after by full id, unknown risk", () => {
+  const doc = quickDoc(
+    ONE({ id: "QFLT-T1", meta: "- prio: P1 | risk: low | impl: agent | blocked-by: none | status: done" }),
+    ONE({ id: "QFLT-T2", meta: "- prio: P0 | risk: high (security, public-api) | impl: agent | blocked-by: QFLT-T1, FEE-T2 | status: todo" }),
+    ONE({ id: "QFLT-T3", meta: "- prio: P0 | risk: low | impl: agent | blocked-by: none | status: dropped" }));
+  const rows = tableRows(renderList({ id: "QFLT" }, doc));
+  assert.deepEqual(rows.map((r) => r.slice(0, 6)), [
+    ["1 ✅", "QFLT-T1", "Fix the subject", "—", "P1", "low"],
+    ["2", "QFLT-T2", "Fix the subject", "T1, FEE-T2", "P0", "**high** (security, public-api) → skeleton review"],
+    ["3 dropped", "QFLT-T3", "Fix the subject", "—", "P0", "low"],
+  ]);
+  const unknown = { tasks: [{ id: "QFLT-T9", title: "x", prio: null, risk: null, blockedBy: [], acs: [], testPlan: [], symbols: [] }] };
+  assert.deepEqual(tableRows(renderList({ id: "QFLT" }, unknown))[0].slice(4, 6), ["P?", "?"]);
+});
+
+const PRETTIER = (() => {
+  const onPath = spawnSync("sh", ["-c", "command -v prettier"], { encoding: "utf8" }).stdout.trim();
+  const mason = path.join(os.homedir(), ".local/share/nvim/mason/bin/prettier");
+  return onPath || (fs.existsSync(mason) ? mason : null);
+})();
+test("renderList table: prettier-stable (a brief with the table is unchanged by prettier)", { skip: PRETTIER ? false : "prettier not found" }, () => {
+  const doc = parseTasksMd(LIST_MD, ".hitl/changes/feat-brain-raw-api/tasks.md");
+  const extra = quickDoc(ONE({ title: "Split a | b", why: "**Why**: a long why\nover two lines with `x | y` (QFLT-D1)" }));
+  for (const md of [renderList({ id: "x" }, doc), renderList({ id: "QFLT" }, extra)]) {
+    const brief = putTasksList(BRIEF(), md, "abc");
+    const r = spawnSync(PRETTIER, ["--no-config", "--stdin-filepath", "tasks-brief.md"], { input: brief, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, brief.endsWith("\n") ? brief : `${brief}\n`);
+  }
+});
+
+test("tasks gate --md: the table; --write puts it in the brief (before Needs your eye / Notes) with set: and a snapshot", () => {
   const root = project();
   W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("> status: approved", "> status: draft"));
   const md = cli(root, "tasks", "gate", "feat-password-reset", "--md").out;
   assert.match(md, /^## Tasks \(2\) — in build order$/m);
-  assert.match(md, /^1\. \*\*PWR-T1\*\* Send a reset link · ✅ done$/m);
-  assert.match(md, /^2\. \*\*PWR-T2\*\* Set a new password — after T1\n {3}P1 · risk \*\*high \(security\)\*\* → skeleton review · agent · 1 AC, 1 new test$/m);
+  assert.match(md, /^\| 1 ✅ \| PWR-T1 \| Send a reset link  \| —     \| P1   \| \*\*high\*\* \(security\) {19}\| mixed \| 2 AC, 2 new \| single-use hashed token \(PWR-D1\) \|$/m);
+  assert.match(md, /^\| 2    \| PWR-T2 \| Set a new password \| T1    \| P1   \| \*\*high\*\* \(security\) → skeleton review \| agent \| 1 AC, 1 new \| {34}\|$/m);
   assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write", "--json").json().code, "TASKS_BRIEF_MISSING");
   W(root, `${PWR}/tasks-brief.md`, BRIEF().replace(/## Tasks \(1\)[\s\S]*?\n\n(?=## Notes)/, ""));
   const j = cli(root, "tasks", "gate", "feat-password-reset", "--write", "--json").json();
   assert.equal(j.ok, true); assert.equal(j.round, 1); assert.match(j.set, /^[0-9a-f]{12}$/);
   const b = R(root, `${PWR}/tasks-brief.md`);
   assert.match(b, new RegExp(`^> change: feat-password-reset \\| key: PWR \\| kind: tasks \\| set: ${j.set} \\| status: open`, "m"));
-  assert.match(b, /run \/hitl:tasks feat-password-reset\n\n## Tasks \(2\) — in build order\n\n1\. \*\*PWR-T1\*\*[^\n]*\n[^\n]*\n2\. [^\n]*\n[^\n]*\n\n## Notes/, "inserted before Notes");
+  assert.match(b, /run \/hitl:tasks feat-password-reset\n\n## Tasks \(2\) — in build order\n\n\| # +\| Task +\|[^\n]*\n\| -+ \|[^\n]*\n\| 1 ✅ \| PWR-T1 [^\n]*\n\| 2 +\| PWR-T2 [^\n]*\n\n## Notes/, "inserted before Notes");
   // a second --write replaces it (and a 0.21.0 brief's Current set too)
   assert.equal(cli(root, "tasks", "gate", "feat-password-reset", "--write").code, 0);
   assert.equal((R(root, `${PWR}/tasks-brief.md`).match(/^## Tasks /gm) || []).length, 1);
@@ -416,6 +492,10 @@ test("tasks gate --md: the list; --write puts it in the brief (before Needs your
   assert.deepEqual(parseBrief(R(root, `${PWR}/tasks-brief.md`), `${PWR}/tasks-brief.md`).questions.map((q) => q.id), ["Approve"], "the list adds no question");
   const old = putTasksList(BRIEF_0210(), "## Tasks (2) — in build order\n\n1. x", "abc");
   assert.doesNotMatch(old, /## Current set|not a question/); assert.match(old, /set: abc/); assert.match(old, /^## Round 1$/m);
+  // a 0.21.1 brief: its two-line list is replaced by the table
+  const l211 = putTasksList(BRIEF(), md, "abc");
+  assert.doesNotMatch(l211, /not a question|^ {3}P0 · /m); assert.match(l211, /^\| # +\| Task +\| Title /m);
+  assert.equal((l211.match(/^## Tasks /gm) || []).length, 1);
   // diff: none, then the human's own edit
   assert.deepEqual(cli(root, "tasks", "diff", "feat-password-reset", "--json").json().lines, []);
   W(root, `${PWR}/tasks.md`, R(root, `${PWR}/tasks.md`).replace("impl: agent | blocked-by: PWR-T1", "impl: manual | blocked-by: PWR-T1"));
@@ -571,7 +651,7 @@ test("quick: a draft quick file waits for its brief (status quick[], next), then
   W(root, ".hitl/tasks/quick-fix-label-typo-brief.md", BRIEF({ title: "quick-fix-label-typo", head: "> quick: fix-label-typo | key: QFLT | kind: tasks | set: — | status: open | round: 1 | updated: 2026-11-21" }));
   assert.equal(cli(root, "tasks", "gate", "QFLT", "--write").code, 0);
   assert.ok(fs.existsSync(path.join(root, ".hitl/tasks/.quick-fix-label-typo-round.json")));
-  assert.match(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md"), /## Tasks \(1\) — in build order\n\n1\. \*\*QFLT-T1\*\* Fix the reset email subject typo\n {3}P2 · risk low → fast lane · agent · 2 AC, 1 new test\n\n## Notes/);
+  assert.match(R(root, ".hitl/tasks/quick-fix-label-typo-brief.md"), /## Tasks \(1\) — in build order\n\n\| #   \| Task [^\n]*\n\| --- [^\n]*\n\| 1   \| QFLT-T1 \| Fix the reset email subject typo \| —     \| P2   \| low → fast lane \| agent \| 2 AC, 1 new \| users see "Pasword" in the subject \|\n\n## Notes/);
   s = cli(root, "status", "--json").json();
   assert.equal(s.quick[0].brief.unanswered, 1);
   // with no other task to do, the open quick brief is the next step (like a change brief)
@@ -651,7 +731,7 @@ function grade(c, proj, events) {
   return gradeRun({ suite: "behaviour", c, dir, proj, pluginDir: PLUGIN, exit: 0 }).checks;
 }
 
-test("evals (dry): tasks-brief passes on a brief with its list and snapshot; fails on a chat gate, an empty Needs your eye, Q questions or a self-approval", () => {
+test("evals (dry): tasks-brief passes on a brief with its table and snapshot; fails on a chat gate, the old list, a missing row, an empty Needs your eye, Q questions or a self-approval", () => {
   const c = scenarios.find((x) => x.id === "tasks-brief");
   assert.ok(c, "tasks-brief case");
   const root = draftRound();
@@ -663,7 +743,17 @@ test("evals (dry): tasks-brief passes on a brief with its list and snapshot; fai
   const gate = grade(c, root, [text("| PWR-T1 | Send a reset link |\n1. Granularity ok?  2. Blocking edges right?\n— reply changes, or Y")]);
   assert.equal(gate.tasks_no_chat_gate.ok, false); assert.equal(gate.tasks_brief_chat.ok, false);
   assert.equal(grade(c, root, [text(`1. **PWR-T1** Send a reset link\nApprove? (Y/n) — ${PWR}/tasks-brief.md`)]).tasks_no_chat_gate.ok, false, "the list in chat");
+  assert.equal(grade(c, root, [text(`| 1   | PWR-T1 | Send a reset link |\nRound 1 in ${PWR}/tasks-brief.md`)]).tasks_no_chat_gate.ok, false, "a table row in chat");
   const brief = R(root, `${PWR}/tasks-brief.md`);
+  // the 0.21.1 two-line list is no longer the generated table: one table row per task
+  const old = brief.replace(/(## Tasks \(2\) — in build order\n\n)[\s\S]*?\n\n(?=## )/, "$1" + "1. **PWR-T1** Send a reset link · ✅ done\n   P1 · risk **high (security)** · mixed · 2 AC, 2 new tests\n2. **PWR-T2** Set a new password — after T1\n   P1 · risk **high (security)** → skeleton review · agent · 1 AC, 1 new test\n\n");
+  assert.notEqual(old, brief);
+  W(root, `${PWR}/tasks-brief.md`, old);
+  let g = grade(c, root, [text(chat)]);
+  assert.equal(g.tasks_brief_written.ok, false, "the old list"); assert.equal(g.tasks_test_decisions.ok, false, "the old list");
+  W(root, `${PWR}/tasks-brief.md`, brief.replace(/^\| 2 .*\n/m, ""));
+  g = grade(c, root, [text(chat)]);
+  assert.equal(g.tasks_brief_written.ok, false, "a task without its row"); assert.equal(g.tasks_test_decisions.ok, false);
   W(root, `${PWR}/tasks-brief.md`, brief.replace("## Notes", "## Needs your eye\n\n## Notes"));
   assert.equal(grade(c, root, [text(chat)]).tasks_brief_written.ok, false, "an empty Needs your eye");
   W(root, `${PWR}/tasks-brief.md`, brief.replace("## Notes", "## Needs your eye\n\n- PWR-T2 may be too small to stand alone.\n\n## Notes"));

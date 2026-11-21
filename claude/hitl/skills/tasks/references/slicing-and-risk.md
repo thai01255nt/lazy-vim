@@ -124,11 +124,11 @@ Fix every finding in the write/validate loop. Only one that needs a human choice
 cost, an accepted gap) becomes one plain bullet under "Needs your eye", with a `>` line when it needs an answer.
 
 ## 9. The tasks brief
-The gate is the tasks brief (`skills/tasks/SKILL.md` §6): the generated list of tasks in build order (two lines per
-task: id, title, `after` its blockers; prio · risk → lane · owner · ACs and tests), "Needs your eye" only when there
-is something, Notes, and `Approve? (needs its own Y)`. Before writing it, check the set yourself — slices (≤ 6
+The gate is the tasks brief (`skills/tasks/SKILL.md` §6): the generated table of tasks in build order (one row per
+task: `#`, id, title, `After` its blockers, prio, `Risk → lane`, owner, ACs and tests, `Why`), "Needs your eye" only
+when there is something, Notes, and `Approve? (needs its own Y)`. Before writing it, check the set yourself — slices (≤ 6
 symbols / ≤ 3 files, 2–6 ACs, no layer-only task), blocking edges (no edge for order's sake), owners, the test plan
 (a defect per `new` row, the budget) — and fix what you are sure of; your real doubts go under "Needs your eye". The
-human reads the list, re-judges risk, sometimes edits the list, prio or order, and approves; this is the one human
+human reads the table, re-judges risk, sometimes edits the list, prio or order, and approves; this is the one human
 gate a low-risk (fast-lane) task passes. Rounds repeat until the approve Y meets an unchanged set; only
 `hitl-index tasks approve` approves it.

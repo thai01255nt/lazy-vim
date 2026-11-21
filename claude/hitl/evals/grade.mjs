@@ -70,12 +70,20 @@ const tasksTarget = (P, c) => {
 const tasksBrief = (P, tg) => (tg && fs.existsSync(path.join(P, tg.briefFile)) ? json(cli(P, "brief", tg.arg, "--kind", "tasks", "--json").out) : null);
 /** 0.21.1 tasks brief: one `## <name>…` section of the brief text (comments blanked), or null. */
 const briefSection = (text, name) => { const s = String(text ?? "").replace(/<!--[\s\S]*?-->/g, "").split(/^## /m).find((x) => x.startsWith(name)); return s === undefined ? null : s; };
-/** Task ids of a tasks file and the ids of the brief's generated list (`1. **<id>** …`). */
+/** Rows of the brief's `## Tasks` table (0.21.2) as {column header: cell}; `\|` stays in its cell. */
+const tableOf = (section) => {
+  const rows = String(section ?? "").split("\n").filter((l) => /^\|/.test(l.trim()))
+    .map((l) => l.trim().replace(/^\|/, "").replace(/(?<!\\)\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim()));
+  if (rows.length < 2 || !rows[1].every((c) => /^:?-+:?$/.test(c))) return [];
+  return rows.slice(2).map((r) => Object.fromEntries(rows[0].map((h, i) => [h, r[i] ?? ""])));
+};
+/** Task ids of a tasks file and the ids of the brief's generated table (one row per task, the `Task` column). */
 const listIds = (P, tg) => {
   const ids = ((read(path.join(P, tg.tasksFile)) ?? "").match(new RegExp(`^## ${K}-T\\d+ `, "gm")) ?? []).map((x) => x.slice(3).trim());
   const list = briefSection(read(path.join(P, tg.briefFile)), "Tasks") ?? "";
-  const shown = [...list.matchAll(new RegExp(`^\\d+\\. \\*\\*(${K}-T\\d+)\\*\\*`, "gm"))].map((m) => m[1]);
-  return { ids, shown, list, same: ids.length > 0 && shown.length === ids.length && ids.every((id) => shown.includes(id)) };
+  const rows = tableOf(list);
+  const shown = rows.map((r) => r.Task).filter((x) => new RegExp(`^${K}-T\\d+$`).test(x ?? ""));
+  return { ids, shown, rows, list, same: ids.length > 0 && rows.length === ids.length && shown.length === ids.length && ids.every((id) => shown.includes(id)) };
 };
 
 /** Parsed brief file of a change (`hitl-index brief <id> --kind <kind> --json`), or null. */
@@ -334,15 +342,15 @@ const CHECKS = {
   tasks_all_scenarios: (S, P) => { const r = json(cli(P, "trace", "feat-password-reset", "--json").out); const n = (r?.items ?? []).filter((i) => i.code === "SCN_NO_AC").length; return ok(r && n === 0, `SCN_NO_AC: ${n}`); },
   tasks_why_decisions: (S, P) => { const t = read(path.join(P, ".hitl/changes/feat-password-reset/tasks.md")) ?? ""; return ok(new RegExp(`\\*\\*Why\\*\\*.*\\(${K}-D\\d+`).test(t), "Why does not cite a decision <KEY>-D<n>"); },
   tasks_quiz_gate: (S) => ok(new RegExp(`\\| *${K}-T\\d+`).test(S.text) && /Granularity|Y\b/.test(S.text), "no quiz gate table"),
-  // 0.16: the test plan has a test decision per row (new rows name a defect); 0.21.1: the brief's list shows each task's
-  // ACs and tests (`N AC, …` on its second line)
+  // 0.16: the test plan has a test decision per row (new rows name a defect); 0.21.2: the brief's table shows each task's
+  // risk and its ACs and tests (`N AC, …` in the Tests column)
   tasks_test_decisions: (S, P, c) => {
     const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : "";
     const rows = t.split("\n").filter((l) => /^\|\s*AC\d+\s*\|/.test(l));
     const decided = rows.filter((l) => /\|\s*(new:\s*\S|shared:\s*\S|covered:\s*\S|none!?:\s*\S|manual!?:\s*\S)/.test(l));
     const L = tg ? listIds(P, tg) : null;
-    const tests = L ? (L.list.match(/^ {3}P[0-3?] · .* · \d+ AC, .+$/gm) ?? []).length : 0;
-    return ok(rows.length > 0 && decided.length === rows.length && L?.same && tests === L.ids.length, `rows ${rows.length}, with a decision ${decided.length}; list entries ${L?.shown.length} for ${L?.ids.length} tasks, with AC+tests ${tests}`);
+    const tests = L ? L.rows.filter((r) => /^\d+ AC, \S/.test(r.Tests ?? "") && /^(?:\*\*high\*\*|low|\?)(?:\s|$)/.test(r["Risk → lane"] ?? "")).length : 0;
+    return ok(rows.length > 0 && decided.length === rows.length && L?.same && tests === L.ids.length, `rows ${rows.length}, with a decision ${decided.length}; table rows ${L?.shown.length} for ${L?.ids.length} tasks, with risk+AC+tests ${tests}`);
   },
   tasks_not_approved: (S, P, c) => { const tg = tasksTarget(P, c); const t = tg ? read(path.join(P, tg.tasksFile)) ?? "" : ""; return ok(tg && !/^> status: approved/m.test(t), tg ? "self-approved tasks" : "no tasks file"); },
   // ---- 0.21 tasks brief: the gate is a round in tasks-brief.md (quick: quick-<slug>-brief.md), never a chat gate
@@ -362,7 +370,7 @@ const CHECKS = {
     return ok(snap && b && snap.round === b.round && d && !d.changed, tg ? `snapshot ${tg.snapFile}: round ${snap?.round} vs brief ${b?.round}; changed since ${d?.changed}` : "no tasks file");
   },
   tasks_brief_chat: (S, P, c) => { const tg = tasksTarget(P, c); return tg ? briefChat(S, path.basename(tg.briefFile)) : ok(false, "no tasks file"); },
-  tasks_no_chat_gate: (S) => ok(!/reply changes, or Y|Granularity ok\?|Test plan ok\?|\(Y\/n\)/i.test(S.text) && !new RegExp(`^\\s*(?:\\| *${K}-T\\d+ *\\||\\d+\\. \\*\\*${K}-T\\d+\\*\\*)`, "m").test(S.text), "a chat gate (task table or list, quiz questions, (Y/n) or 'reply … Y') in the reply"),
+  tasks_no_chat_gate: (S) => ok(!/reply changes, or Y|Granularity ok\?|Test plan ok\?|\(Y\/n\)/i.test(S.text) && !new RegExp(`^\\s*(?:\\|(?:[^|\\n]*\\|)? *${K}-T\\d+ *\\||\\d+\\. \\*\\*${K}-T\\d+\\*\\*)`, "m").test(S.text), "a chat gate (task table or list, quiz questions, (Y/n) or 'reply … Y') in the reply"),
   tasks_quick_file: (S, P) => {
     const q = quickDocs(P);
     const t = q.length === 1 ? read(path.join(P, q[0])) ?? "" : "";

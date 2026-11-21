@@ -1,8 +1,8 @@
 // `hitl-index tasks [--check] [--json]` (§E.4). 0.21: `--check` also lists info TEST_OVERRIDE_UNRECORDED (a `!` row
 // without an override answered Y in a tasks brief).
 // 0.21 tasks brief (lib/tasksbrief.mjs); <target> = a change id, a quick key or a quick file name:
-//   tasks gate <target> [--md] [--write] [--json]  the generated `## Tasks (N) — in build order` list (0.21.1, two
-//       lines per task); --write replaces it in the brief, sets `set:` and writes the round snapshot
+//   tasks gate <target> [--md] [--write] [--json]  the generated `## Tasks (N) — in build order` table (0.21.2, one
+//       row per task); --write replaces it (or a 0.21.1 list) in the brief, sets `set:` and writes the round snapshot
 //   tasks diff <target> [--json]       `_Changed since Round n:_` lines: tasks.md against the round snapshot
 //   tasks approve <target> [--json]    sets `> status: approved` (only this command does): the brief's `Approve?`
 //       has its own Y and the set equals the snapshot of the round (an approved set: prio, risk and blocked-by

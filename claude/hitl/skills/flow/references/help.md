@@ -27,8 +27,9 @@ change has its first task you may rename its id or key and change its scope in a
 (and `## Close`) ends with a **Notes** block: write there what the questions missed, or a change to an earlier answer (`Q5: …`); after the first run new information goes
 there, not into Description. Approval is the last question of the file's `## Close`.
 **Tasks brief** (0.21, a short list since 0.21.1): `/hitl:tasks` writes tasks.md (draft), then `tasks-brief.md` (a
-quick file: `.hitl/tasks/quick-<slug>-brief.md`, continue with `/hitl:tasks <QKEY>`): the tasks in build order, two
-lines each (id, title, `after` its blockers; prio · risk → lane · owner · ACs and tests), generated from tasks.md;
+quick file: `.hitl/tasks/quick-<slug>-brief.md`, continue with `/hitl:tasks <QKEY>`): the tasks in build order, a
+table generated from tasks.md (0.21.2), one row each: `#` (✅ done, `dropped`), id, title, `After` (its blockers),
+prio, `Risk → lane`, owner, ACs and tests, `Why` (the task's `**Why**:` on one line);
 "Needs your eye" only when Claude has a real doubt or an override (`Override: <AC> …? (needs its own Y)`); Notes; and
 `Approve? (needs its own Y)`. Read the list, change anything in Notes or edit tasks.md directly (the next run lists
 your edits under `_Changed since Round n:_`), then Y under Approve?. The approval counts only when the set is still

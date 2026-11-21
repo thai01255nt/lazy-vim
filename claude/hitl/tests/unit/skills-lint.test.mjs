@@ -490,3 +490,18 @@ test("0.21.1: tasks brief list (no Q1–Q4, [C], accept-all, n/a, table view), c
   assert.match(read("skills/flow/references/help.md"), /a short list since 0\.21\.1/);
   assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(21\.[1-9]|2[2-9]\.\d+|[3-9]\d\.\d+)$/, "version ≥ 0.21.1");
 });
+
+// 0.21.2 — the generated task list is a table (one row per task)
+test("0.21.2: tasks brief table in the docs, upgrade note, version", () => {
+  const cols = "# · Task · Title · After · Prio · Risk → lane · Owner · Tests · Why";
+  assert.ok(read("shared/templates/tasks-brief.md").replace(/\s+/g, " ").includes(cols), "template comment names the columns");
+  for (const f of ["skills/tasks/SKILL.md", "skills/tasks/references/slicing-and-risk.md", "skills/flow/references/help.md", "scripts/cmd/tasks.mjs"]) {
+    const t = read(f);
+    assert.match(t, /\btable\b/, `${f}: the table`); assert.doesNotMatch(t, /two\s+lines (?:per task|each)/, `${f}: no two-line list`);
+  }
+  assert.match(read("HUONG-DAN.md"), /^ {4}\| #  +\| Task +\| Title /m, "HUONG-DAN sample table");
+  const readme = read("README.md");
+  const note = readme.slice(readme.indexOf("### Nâng cấp từ 0.21.1"), readme.indexOf("### Nâng cấp từ 0.21.0"));
+  assert.ok(note.length > 30 && /Risk → lane/.test(note) && /migrate/.test(note), "README 0.21.2 note");
+  assert.match(JSON.parse(read(".claude-plugin/plugin.json")).version, /^0\.(21\.[2-9]|2[2-9]\.\d+|[3-9]\d\.\d+)$/, "version ≥ 0.21.2");
+});

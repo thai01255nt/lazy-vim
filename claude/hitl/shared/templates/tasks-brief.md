@@ -14,7 +14,8 @@
 <!-- A quick file: the meta line is `> quick: {slug} | key: {QKEY} | kind: tasks | set: — | status: open | round: 1 |
      updated: {YYYY-MM-DD}` (no change:), the file .hitl/tasks/quick-{slug}-brief.md, the command /hitl:tasks {QKEY}.
      Here, only when any: `_Changed since Round {n}:_ …` (round ≥ 2, update rounds), `_Update:_ {what}`, `_Warn:_ …`
-     lines. Then `## Tasks ({N}) — in build order`: written by `hitl-index tasks gate … --write`, never by hand. -->
+     lines. Then `## Tasks ({N}) — in build order`: a table, one row per task (# · Task · Title · After · Prio ·
+     Risk → lane · Owner · Tests · Why), written by `hitl-index tasks gate … --write`, never by hand. -->
 
 <!-- Only when there is something (else no such section): `## Needs your eye`, then one bullet each, plain words:
 - {KEY}-T5 is large (55 operations): Claude suggests one task, as they are identical wiring.

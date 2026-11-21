@@ -2,7 +2,7 @@
 // A change: `.hitl/changes/<id>/tasks-brief.md` + the round snapshot `.tasks-round.json`. A quick file
 // `.hitl/tasks/quick-<slug>.md`: `quick-<slug>-brief.md` + `.quick-<slug>-round.json` next to it.
 // 0.21.1: the brief is a short list, rewritten each round: the header, `_Changed since Round n:_` / `_Warn:_` lines,
-// `## Tasks (N) — in build order` (generated here from tasks.md), `## Needs your eye` (only when there is something;
+// `## Tasks (N) — in build order` (generated here from tasks.md; 0.21.2: one table row per task), `## Needs your eye` (only when there is something;
 // `- Override: <AC> …` bullets need their own Y), `## Notes`, `## Approve? (needs its own Y)`.
 // The snapshot holds the set as it was when the round was written (per task: a hash and a view); it serves
 // `_Changed since Round n:_` (tasks diff), the human's direct edits of tasks.md (read as answers), and the approval:
@@ -16,6 +16,7 @@ import { h } from "./hash.mjs";
 import { readJson, readText, writeJsonAtomic, writeTextAtomic } from "./fsutil.mjs";
 import { HITL_PREFIX } from "./paths.mjs";
 import { parseBrief } from "./brief.mjs";
+import { padTable } from "./mdstyle.mjs";
 import { DROPPED, hasLockedTaskWork, isTasksDocName, parseTasksMd } from "./tasksmd.mjs";
 
 export const SNAP_SCHEMA = "hitl.tasks-round/1";
@@ -240,22 +241,28 @@ export function ownerText(t) {
   return man.length > 2 ? `you write ${man.length} symbols` : `you write ${man.map((r) => `\`${r}\``).join(", ")}`;
 }
 const TEST_ORDER = ["new", "covered", "rewrite", "manual", "manual!", "none", "none!"];
-/** The test plan in a few words: `2 new tests` (shared rows ride on them) · `manual` / `none` (every row) · `1 new, 2 covered`. */
+/** The test plan in a few words: `2 new` (shared rows ride on them) · `manual` / `none` (every row) · `1 new, 2 covered`. */
 export function testsText(t) {
   const kinds = (t.testPlan || []).map((r) => (r.legacy ? "new" : `${r.test}${r.override ? "!" : ""}`));
   if (!kinds.length) return "no test plan";
   const c = {};
   for (const k of kinds) c[k] = (c[k] || 0) + 1;
-  if (c.new && kinds.every((k) => k === "new" || k === "shared")) return `${c.new} new test${c.new > 1 ? "s" : ""}`;
+  if (c.new && kinds.every((k) => k === "new" || k === "shared")) return `${c.new} new`;
   if (kinds.every((k) => k === kinds[0])) return kinds[0];
   return [...TEST_ORDER, ...Object.keys(c).filter((k) => !TEST_ORDER.includes(k))].filter((k) => c[k] && k !== "shared").map((k) => `${c[k]} ${k}`).join(", ");
 }
 
+/** One table cell: on one line, every `|` escaped (`\|`). */
+const cell = (s) => String(s ?? "").replace(/\s+/g, " ").trim().replace(/\\?\|/g, "\\|");
+export const LIST_COLUMNS = ["#", "Task", "Title", "After", "Prio", "Risk → lane", "Owner", "Tests", "Why"];
+
 /**
  * `## Tasks (N) — in build order` of a tasks brief (`hitl-index tasks gate <id|KEY> --md`), generated from tasks.md and
- * replaced every round: two lines per task, ordered by wave (dependency depth), then prio, then file order; done
- * tasks first, dropped last, each with its marker. Line 1: id, title, `— after T1, T2` (blocked-by; another change's
- * task by its full id). Line 2: prio · risk (bold when high, with reasons) → lane · owner · ACs and tests.
+ * replaced every round (0.21.2: a table, padded the way prettier pads it). One row per task, ordered by wave
+ * (dependency depth), then prio, then file order; done tasks first (`1 ✅`), dropped last (`6 dropped`). Columns:
+ * `#` · Task (id) · Title · After (blocked-by, `T1, T2` in the same key, another change's task by its full id, `—`) ·
+ * Prio · Risk → lane (risk bold when high, with its reasons; no lane on a done or dropped task) · Owner ·
+ * Tests (`N AC, …`) · Why (the task's `**Why**:`, on one line, never cut).
  */
 export function renderList(target, doc, { isDone = () => false } = {}) {
   const done = (t) => t.status === "done" || isDone(t.id);
@@ -264,18 +271,17 @@ export function renderList(target, doc, { isDone = () => false } = {}) {
   const rank = (t) => (t.status === DROPPED ? 1e9 : done(t) ? 0 : w[t.id] ?? 1);
   const order = doc.tasks.map((t, i) => ({ t, i })).sort((a, b) => rank(a.t) - rank(b.t) || prioN(a.t) - prioN(b.t) || a.i - b.i).map((x) => x.t);
   const dropped = doc.tasks.length - live.length;
-  const L = [`## Tasks (${live.length}${dropped ? ` + ${dropped} dropped` : ""}) — in build order`, ""];
-  order.forEach((t, i) => {
+  const rows = order.map((t, i) => {
     const k = keyOf(t.id);
     const after = (t.blockedBy || []).map((b) => (k && b.startsWith(`${k}-T`) ? b.slice(k.length + 1) : b));
-    const mark = t.status === DROPPED ? " · dropped" : done(t) ? " · ✅ done" : "";
+    const mark = t.status === DROPPED ? " dropped" : done(t) ? " ✅" : "";
     const reasons = t.riskReasons?.length ? ` (${t.riskReasons.join(", ")})` : "";
-    const risk = t.risk === "high" ? `risk **high${reasons}**` : t.risk === "low" ? "risk low" : "risk ?";
+    const risk = t.risk === "high" ? `**high**${reasons}` : t.risk === "low" ? "low" : "?";
     const lane = mark ? "" : t.risk === "high" ? " → skeleton review" : t.risk === "low" ? " → fast lane" : "";
-    L.push(`${i + 1}. **${t.id}** ${t.title}${after.length ? ` — after ${after.join(", ")}` : ""}${mark}`);
-    L.push(`   ${t.prio ?? "P?"} · ${risk}${lane} · ${ownerText(t)} · ${t.acs.length} AC, ${testsText(t)}`);
+    return [`${i + 1}${mark}`, t.id, t.title, after.join(", ") || "—", t.prio ?? "P?", `${risk}${lane}`, ownerText(t), `${t.acs.length} AC, ${testsText(t)}`, t.why ?? ""];
   });
-  return L.join("\n");
+  const table = [LIST_COLUMNS, LIST_COLUMNS.map(() => "---"), ...rows].map((r) => `| ${r.map(cell).join(" | ")} |`);
+  return [`## Tasks (${live.length}${dropped ? ` + ${dropped} dropped` : ""}) — in build order`, "", ...padTable(table)].join("\n");
 }
 
 /** The brief text with its `## Tasks …` section (a 0.21.0 brief: `## Current set`) replaced, or inserted before the

@@ -45,6 +45,9 @@ const RXN = {
   status: /^> status: (draft|approved)/,
 };
 const SYMREF = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)?$/;
+/** A line that ends a **Why** paragraph (a block start: heading, list item, table, quote, comment, fence, `**X**:`). */
+const WHY_END = /^(?:#|[-*+](?:\s|$)|\d{1,9}[.)](?:\s|$)|\||>|<!--|```|~~~|\*\*[A-Z][\w ]*\*\*:)/;
+const decisionsOf = (why) => [...new Set(why.match(/\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g) || [])];
 // `migrate --specs` reads v0.5 task files whose ids are still pre-0.13 `T-n` (migrate --ids renumbers them later)
 const LT = `(?:${TASK_ID_SRC}|T-\\d+)`;
 const RX_LEGACY = { ...RXN,
@@ -123,10 +126,17 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
       else if ((m = line.match(RX.status)) && !doc.status) doc.status = m[1];
       continue;
     }
+    // 0.21.2: a **Why** paragraph that wraps over several lines is one Why (its lines joined by a space)
+    if (task._whyOpen) {
+      const s = line.trim();
+      if (!section && s && !WHY_END.test(s)) { task.why = `${task.why} ${s}`.trim(); task.decisions = decisionsOf(task.why); continue; }
+      task._whyOpen = false;
+    }
     if ((m = line.match(/^### (.+)$/))) { section = m[1].trim().toLowerCase(); continue; }
     if (!section && task.why === null && (m = line.trimStart().match(RX.why))) { // 0.14.1: a formatter indents it under the meta list
       task.why = m[1].trim();
-      task.decisions = [...new Set(task.why.match(/\b(?:[A-Z]{2,5}-D\d+|D-\d+)\b/g) || [])];
+      task.decisions = decisionsOf(task.why);
+      task._whyOpen = true;
       continue;
     }
     if (!section && task.dropped === null && (m = line.trimStart().match(RX.dropped))) { task.dropped = m[1].trim() || ""; continue; }
@@ -176,6 +186,7 @@ export function parseTasksMd(text, file, { legacy = false } = {}) {
     for (const x of t.superseded) { const ac = t.acs.find((a) => a.id === x.ac); if (ac) ac.superseded = { by: x.by, amend: x.amend }; }
     delete t._meta;
     delete t._cols;
+    delete t._whyOpen;
   }
   return doc;
 }

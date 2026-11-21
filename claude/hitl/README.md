@@ -90,6 +90,17 @@ Khi plugin bật, `bin/hitl-index` nằm trên PATH của Bash tool. Ngoài Clau
 
 Bắt đầu trong một project: `/hitl:setup` (tạo `.hitl/`, dò lệnh test/lint/typecheck, index lần đầu).
 
+### Nâng cấp từ 0.21.1
+
+0.21.2 đổi `## Tasks (N) — in build order` của tasks brief từ danh sách hai dòng thành **một bảng**, mỗi task một hàng,
+cùng thứ tự như trước. Cột: `#` (✅ khi xong, `dropped` khi bỏ), `Task`, `Title`, `After` (task phải chờ, `—` khi
+không có), `Prio`, `Risk → lane` (`**high** (security) → skeleton review`, `low → fast lane`), `Owner`, `Tests`
+(`3 AC, 1 new, 2 covered`) và `Why` (dòng `**Why**:` của task, gộp thành một dòng, giữ id quyết định như `(PWR-D1)`).
+Bảng có thể rộng hơn 120 cột: đọc với `nowrap` và cuộn ngang. Bảng đã căn lề như prettier, lưu file không đổi gì.
+
+**Có cần migrate không:** không. Brief đang mở vẫn dùng được; vòng sau `tasks gate --write` viết lại danh sách thành
+bảng.
+
 ### Nâng cấp từ 0.21.0
 
 0.21.1 làm **tasks brief gọn lại thành một danh sách**. Bỏ các câu Q1–Q4 `[Q]`, câu `[C]` theo mã cảnh báo, dòng
@@ -620,14 +631,14 @@ mới, không đổi dữ liệu lưu, không đổi interface public, ≤ 2 tas
 
 **Tasks = chia việc, duyệt trong file brief (0.21).** `/hitl:tasks <change-id>` viết `tasks.md` (draft) rồi
 `tasks-brief.md`, một danh sách ngắn (0.21.1): `## Tasks (N) — in build order` do `hitl-index tasks gate <id> --write`
-sinh từ `tasks.md` (mỗi task hai dòng: id, tiêu đề, `— after T1`; prio · risk → lane · ai viết · số AC và test; không
-sửa tay), `## Needs your eye` chỉ khi Claude có điều thật sự cần bạn nhìn hoặc một override test (`Override: <AC> …?
+sinh từ `tasks.md` (0.21.2: một bảng, mỗi task một hàng: `#`, id, tiêu đề, `After`, prio, risk → lane, ai viết, số AC
+và test, `Why`; không sửa tay), `## Needs your eye` chỉ khi Claude có điều thật sự cần bạn nhìn hoặc một override test (`Override: <AC> …?
 (needs its own Y)`), `## Notes`, và `## Approve? (needs its own Y)`. Đọc, đổi gì thì ghi Notes (hoặc sửa thẳng
 `tasks.md`), `Y` dưới `Approve?`, chạy lại `/hitl:tasks <id>`. Không đổi gì thêm → Claude gọi `hitl-index tasks approve
 <id>` và in `_Next:_`; có đổi → file thành vòng mới mở đầu bằng `_Changed since Round n:_`. Task của bộ chưa duyệt không
 được skeleton, test hay implement (`TASKS_NOT_APPROVED`). Sau khi duyệt, prio, thứ tự, `blocked-by` (và risk do bạn sửa;
-Claude chỉ được nâng) đổi lúc nào cũng được, không cần vòng mới. Quick (`/hitl:tasks quick <mô tả>`) dùng cùng mẫu, danh
-sách một task.
+Claude chỉ được nâng) đổi lúc nào cũng được, không cần vòng mới. Quick (`/hitl:tasks quick <mô tả>`) dùng cùng mẫu, bảng
+một hàng.
 
 **Ngôn ngữ chung (0.8).** Một glossary duy nhất: `.hitl/specs/GLOSSARY.md` (living, chỉ CLI ghi) + `glossary.md` của
 change (delta). Tên thuật ngữ giữ tiếng Anh (khớp tên code và test), định nghĩa có thể viết tiếng Việt; câu trả lời tiếng

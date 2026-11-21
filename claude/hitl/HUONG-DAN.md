@@ -89,9 +89,19 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
 - `/hitl:tasks feat-password-reset` viết `tasks.md` (còn `draft`) rồi mở `tasks-brief.md` cùng thư mục. Chat chỉ trỏ
   tới file.
 - File là một **danh sách ngắn** (0.21.1), không phải bộ câu hỏi:
-  - `## Tasks (N) — in build order`: CLI sinh từ `tasks.md`, theo thứ tự làm. Mỗi task hai dòng: id, tiêu đề, `— after
-    T1` (phải chờ task nào); rồi prio · risk (in đậm khi high, kèm lý do) → lane (`fast lane` hay `skeleton review`) ·
-    ai viết (`agent`, `you`, hay ``you write `hàm` ``) · số AC và test. Đừng sửa danh sách này; sửa `tasks.md`.
+  - `## Tasks (N) — in build order`: CLI sinh từ `tasks.md`, theo thứ tự làm (task xong trước, task bỏ cuối). Từ
+    0.21.2 là một bảng, mỗi task một hàng: `#` (`1 ✅` khi xong, `5 dropped` khi bỏ), `Task`, `Title`, `After` (phải
+    chờ task nào; `—` khi không có), `Prio`, `Risk → lane` (risk in đậm khi high, kèm lý do; lane `fast lane` hay
+    `skeleton review`), `Owner` (`agent`, `you`, hay ``you write `hàm` ``), `Tests` (số AC và test) và `Why` (dòng
+    `**Why**:` của task trên một dòng; `<leader>hd` vẫn nhảy tới id quyết định trong đó). Bảng có thể rộng hơn màn
+    hình: đọc với `nowrap`, cuộn ngang. Đừng sửa bảng này; sửa `tasks.md`.
+
+    | #    | Task   | Title              | After | Prio | Risk → lane                           | Owner                    | Tests                  | Why                                           |
+    | ---- | ------ | ------------------ | ----- | ---- | ------------------------------------- | ------------------------ | ---------------------- | --------------------------------------------- |
+    | 1 ✅ | PWR-T1 | Send a reset link  | —     | P0   | **high** (security)                   | agent                    | 3 AC, 3 new            | single-use hashed token (PWR-D1)              |
+    | 2    | PWR-T2 | Set a new password | T1    | P1   | **high** (security) → skeleton review | you write `hashPassword` | 2 AC, 1 new, 1 covered |                                               |
+    | 3    | PWR-T3 | Expire old links   | T1    | P2   | low → fast lane                       | agent                    | 1 AC, 1 new            | links older than an hour are refused (PWR-D2) |
+
   - `## Needs your eye`: chỉ có khi Claude thật sự cần bạn nhìn (task quá to, owner chưa rõ, một phát hiện cần bạn
     chọn) hoặc một override test: `` - Override: PWR-T2.AC1 `none!: …`? (needs its own Y) `` với dòng `>` riêng.
   - `## Notes`: đổi risk, thứ tự, prio, thêm/bỏ/gộp task.
@@ -106,7 +116,7 @@ Project đã dùng hitl ≤ 0.12 (mã kiểu `T-12`, `D-1`, `ACC-R3`) → chạy
   do (hook chặn, `TASKS_RISK_LOWERED`). Thêm/bỏ task, đổi AC, hàm hay test plan vẫn đi qua `/hitl:tasks <id> update …`
   (vòng mới; chỉ task mới/sửa phải chờ `Y`, task khác vẫn làm tiếp).
 - Task nhanh: `/hitl:tasks quick <mô tả>` → `.hitl/tasks/quick-<slug>.md` + `quick-<slug>-brief.md` cạnh nó, cùng mẫu,
-  danh sách một task. Chạy tiếp bằng `/hitl:tasks <KEY>` (vd. `QDEM`).
+  bảng một hàng. Chạy tiếp bằng `/hitl:tasks <KEY>` (vd. `QDEM`).
 
 ### Plan hỏi rộng và hỏi sâu
 - **Độ phủ**: từ vòng 2, tiêu đề vòng có dòng `Coverage: Scope ✅ · Data ⚠️ · Edge ❌ · NFR — …`; Claude hỏi tiếp chỗ ❌/⚠️.
